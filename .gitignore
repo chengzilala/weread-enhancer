@@ -3,11 +3,16 @@ weread-debug-*.json
 日志/
 __debug_*
 
+# 构建产物
+*.zip
+debug.log
+
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+attachments/
 
 # 系统
 .DS_Store

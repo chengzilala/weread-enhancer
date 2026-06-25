@@ -164,3 +164,21 @@
   - 更新：`content.js`
   - 更新：`content.css`
   - 更新：`RPD_需求文档.md`（3.3.4 章节）
+
+---
+
+## 2026-06-25 会话条目：Edge 插件商店上架准备 (已完成)
+- **目标**：将当前稳定版插件发布到 Microsoft Edge 加载项商店
+- **已完成**：
+  - 方案文档：`plan_edge_store.md`（完整步骤、审核备注模板、常见拒绝原因）
+  - `manifest.json`：版本号 `1.0.0` → `0.2.0`，description 改为实际功能描述，添加 `icons` 字段
+  - 图标：`icons/icon-16.png`（441B）、`icons/icon-48.png`（1010B）、`icons/icon-128.png`（2493B）— 蓝色圆形 + 白色 W 字
+  - `privacy.md`：隐私政策声明（不收集数据、storage 权限用途、仅限 weread.qq.com）
+  - `README.md`：更新为已实现功能描述 + 安装方式
+  - `.gitignore`：新增 `*.zip`、`debug.log` 排除
+  - 上架 zip 包：`weread-enhancer-v0.2.0.zip`（16651 bytes，8 个文件）
+- **待用户执行**：
+  - 截图：从 `参考效果截图/` 选取 2-3 张，裁剪为标准尺寸（1280x800 或 640x400）
+  - 注册 Edge Partner Center：https://partner.microsoft.com/dashboard
+  - 上传 zip → 填写商店列表 → 粘贴中英文描述 → 上传截图 → 提交审核
+  - 隐私政策 URL：`https://github.com/chengzilala/weread-enhancer/blob/main/privacy.md`

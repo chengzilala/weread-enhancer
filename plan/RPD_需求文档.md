@@ -273,6 +273,17 @@
 - [ ] 性能优化
 - [ ] Bug 修复
 
+### 阶段七：上线发布 — Microsoft Edge 加载项商店（P0）
+- [x] 方案文档（plan_edge_store.md）
+- [x] manifest.json 版本号对齐（0.2.0）+ 图标引用
+- [x] 生成 3 个图标 PNG（16/48/128）
+- [x] 撰写隐私政策（privacy.md）
+- [x] 更新 README.md 实际功能说明
+- [x] 构建上架 zip 包（weread-enhancer-v0.2.0.zip）
+- [ ] 准备商店截图（1280x800 或 640x400）
+- [ ] 注册 Edge Partner Center
+- [ ] 提交审核
+
 ---
 
 ## 7. 成功标准
