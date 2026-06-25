@@ -122,24 +122,45 @@
 
 ---
 
-## 2026-06-25 会话条目：版本管理与 GitHub 归档方案计划 (待执行)
-- **目标**：把当前“基础功能可用版”归档为一个可回滚版本，并同步到 GitHub，建立后续迭代的版本管理流程。
+## 2026-06-25 会话条目：版本管理与 GitHub 归档方案计划 (已完成)
+- **目标**：把当前"基础功能可用版"归档为一个可回滚版本，并同步到 GitHub，建立后续迭代的版本管理流程。
 - **关键结论/决定**：
   - 版本号采用语义化简化规则：`v0.1.0`（当前稳定点）、`v0.1.1`（修复）、`v0.2.0`（新增核心模块）、`v1.0.0`（稳定发布）
   - 分支策略最小化：`main` 为稳定分支，功能开发用 `feature/*`；是否引入 `dev` 后续再定
   - 运行产物不入库：调试导出的 `weread-debug-*.json`、日志文件夹不提交
-  - 文档与决策记录入库：`README.md`、`Running.md`、`session_log.md`、`RPD_需求文档.md` 均随版本一起管理
-- **方案计划（执行清单）**：
-  - 1）仓库初始化：在 `微信读书插件` 根目录初始化 git
-  - 2）忽略规则：添加 `.gitignore`（忽略 `weread-debug-*.json`、日志目录等运行产物）
-  - 3）首次提交：以当前稳定状态提交到 `main`
-  - 4）远端仓库：创建 GitHub Repo（私有/公开按需），添加 remote 并 push
-  - 5）版本归档：打 Tag `v0.1.0` 并创建 GitHub Release（附带可安装 zip）
-  - 6）后续迭代：每个功能走 `feature/* -> main` 合并，稳定点再发 `v0.x.y` tag/release
+  - 文档与决策记录入库：`README.md`、`Running.md`、`session_log.md`、`RPD_需求文档.md`、`plan_github_versioning.md` 均随版本一起管理
+  - 仓库名：`weread-enhancer`，可见性：`private`
+- **执行记录**：
+  - 1）已创建 `.gitignore`（忽略调试日志、日志目录、IDE 文件）
+  - 2）已初始化 git 仓库，分支名 `main`
+  - 3）已创建首次提交（`da8b001`），提交信息：`feat: 微信读书浏览器插件 v0.1.0 初始版本`
+  - 4）已关联远端仓库 `https://github.com/chengzilala/weread-enhancer.git` 并推送 `main`
+  - 5）已打 Tag `v0.1.0` 并推送至远端
+  - 6）方案计划文档已单独保存为 `plan_github_versioning.md`
 - **产出物（文件/链接）**：
-  - 待产出：`.gitignore`
-  - 待产出：首次同步 GitHub 的命令清单（PowerShell 5 可直接执行版）
+  - 新建：`.gitignore`
+  - 新建：`plan_github_versioning.md`
+  - GitHub 仓库：https://github.com/chengzilala/weread-enhancer
 - **待办**：
-  - 明确 GitHub 仓库名与可见性（public/private）
-  - 明确是否需要 `dev` 分支（默认先不需要）
-  - 执行初始化与首次发布 `v0.1.0`
+  - 后续可在 GitHub 上为 `v0.1.0` 创建 Release（附带 zip 产物）
+
+---
+
+## 2026-06-25 会话条目：工具栏浮动悬停功能 (已完成)
+- **目标**：解决屏占比 ≥90% 时微信读书自带工具栏（目录、字号等）被推出视口的问题。鼠标移到感应区时对应工具栏淡入显示，移开后淡出隐藏。
+- **关键结论/决定**：
+  - 触发阈值：屏占比 ≥90% 时自动启用工具栏浮动模式
+  - **顶部工具栏（readerTopBar）**：
+    - JS 精确计算 pixel 位置（`(window.innerWidth - offsetWidth) / 2`），inline style 写死 left + width，`transform: none`
+    - 默认 opacity:0，鼠标移到顶部 56px 感应区 → `wre-show-topbar` 类 → opacity:1
+  - **右侧功能按钮（readerControls）**：
+    - 经历多次迭代：CSS position:fixed → opacity-only → body margin → 最终用 `style.setProperty` inline style（最高优先级）覆盖原生 `margin-left: 548px`，改 `left: auto; right: 20px`
+    - 保持原生 `position: absolute` 不动，确保字号/目录弹窗菜单定位正确
+    - 默认 opacity:0，鼠标移到右侧 30px 感应区 → `wre-show-controls` 类 → opacity:1
+    - 右侧感应区 z-index 设为 1（低于 controls 的 999999），controls 显示时同步绑 hover 事件防闪烁
+  - **互不干扰**：两个独立感应区 + 独立 CSS 类名（`wre-show-topbar` / `wre-show-controls`），鼠标放哪边只显示哪边
+  - 屏占比 <90% 自动移除浮动模式，还原原生布局
+- **产出物（文件/链接）**：
+  - 更新：`content.js`
+  - 更新：`content.css`
+  - 更新：`RPD_需求文档.md`（3.3.4 章节）

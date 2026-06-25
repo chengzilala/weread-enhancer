@@ -333,3 +333,33 @@
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* ========== 顶部工具栏浮动悬停 ========== */
+body.wre-toolbar-floating .readerTopBar,
+body.wre-toolbar-floating [class*="readerTopBar"] {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.3s ease !important;
+}
+
+body.wre-toolbar-floating .readerControls,
+body.wre-toolbar-floating [class*="readerControls"] {
+  left: auto !important;
+  right: 20px !important;
+  margin-left: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.3s ease !important;
+}
+
+body.wre-toolbar-floating.wre-show-topbar .readerTopBar,
+body.wre-toolbar-floating.wre-show-topbar [class*="readerTopBar"] {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+body.wre-toolbar-floating.wre-show-controls .readerControls,
+body.wre-toolbar-floating.wre-show-controls [class*="readerControls"] {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}

@@ -71,6 +71,10 @@ function serializeElement(el) {
       columnCount: computed.columnCount,
       columnGap: computed.columnGap,
       transform: computed.transform,
+      opacity: computed.opacity,
+      pointerEvents: computed.pointerEvents,
+      visibility: computed.visibility,
+      zIndex: computed.zIndex,
     },
   };
 }
@@ -217,6 +221,8 @@ function collectLayoutSnapshot() {
     '.readerContent',
     '.readerChapterContent_container',
     '.readerChapterContent',
+    '.readerTopBar',
+    '.readerControls',
   ];
 
   const snapshot = {
@@ -273,6 +279,9 @@ function collectLayoutSnapshot() {
   if (chapterCount > 1) {
     issues.push(`当前存在多个 .readerChapterContent（${chapterCount} 个），需要确认是否双页/横向模式`);
   }
+  if (!snapshot.selectors['.readerTopBar'] && !snapshot.selectors['.readerControls']) {
+    issues.push('未找到常见工具栏选择器（.readerTopBar / .readerControls）');
+  }
   log('info', '诊断摘要', {
     screenRatio: snapshot.state.screenRatio,
     screenBasePx: snapshot.state.screenBasePx,
@@ -280,6 +289,10 @@ function collectLayoutSnapshot() {
     viewport: snapshot.viewport,
     chapterCount,
     readerChapterContentWidthPx: snapshot.selectors['.readerChapterContent']?.rect?.width ?? null,
+    toolbarFloatEnabled: document.body.classList.contains('wre-toolbar-floating'),
+    toolbarOpacity: snapshot.selectors['.readerTopBar']?.style?.opacity ?? null,
+    toolbarTopBar: snapshot.selectors['.readerTopBar']?.rect ?? null,
+    toolbarControls: snapshot.selectors['.readerControls']?.rect ?? null,
     issues,
   });
   return snapshot;
@@ -436,11 +449,42 @@ function ensureStyleTag() {
   document.head.appendChild(wreStyleTag);
 }
 
+const toolbarFloatCSS = `
+body.wre-toolbar-floating .readerTopBar,
+body.wre-toolbar-floating [class*="readerTopBar"] {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.3s ease !important;
+}
+body.wre-toolbar-floating .readerControls,
+body.wre-toolbar-floating [class*="readerControls"] {
+  left: auto !important;
+  right: 20px !important;
+  margin-left: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.3s ease !important;
+}
+body.wre-toolbar-floating.wre-show-topbar .readerTopBar,
+body.wre-toolbar-floating.wre-show-topbar [class*="readerTopBar"] {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+body.wre-toolbar-floating.wre-show-controls .readerControls,
+body.wre-toolbar-floating.wre-show-controls [class*="readerControls"] {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+`;
+
 function updateStyleTag(ratio) {
   ensureStyleTag();
   const numericRatio = clampNumber(Number(ratio), 50, 100);
   const basePx = Number.isFinite(WRE_STATE.screenBasePx) && WRE_STATE.screenBasePx > 0 ? WRE_STATE.screenBasePx : null;
   const targetPx = basePx ? Math.round((basePx * numericRatio) / 100) : null;
+
+  const TOOLBAR_THRESHOLD = 90;
+  const enableToolbarFloat = numericRatio >= TOOLBAR_THRESHOLD;
 
   if (targetPx) {
     wreStyleTag.textContent = `
@@ -451,6 +495,7 @@ function updateStyleTag(ratio) {
         margin-right: auto !important;
         box-sizing: border-box !important;
       }
+      ${toolbarFloatCSS}
     `;
   } else {
     wreStyleTag.textContent = `
@@ -460,12 +505,32 @@ function updateStyleTag(ratio) {
         margin-right: auto !important;
         box-sizing: border-box !important;
       }
+      ${toolbarFloatCSS}
     `;
   }
+
+  if (enableToolbarFloat) {
+    document.body.classList.add('wre-toolbar-floating');
+    applyToolbarFloating();
+  } else {
+    document.body.classList.remove('wre-toolbar-floating');
+    document.body.classList.remove('wre-show-topbar');
+    document.body.classList.remove('wre-show-controls');
+    removeToolbarFloating();
+  }
+
+  const toolbarEl = document.querySelector('.readerTopBar');
+  const cssCheck = toolbarEl ? {
+    opacity: window.getComputedStyle(toolbarEl).opacity,
+    pointerEvents: window.getComputedStyle(toolbarEl).pointerEvents,
+  } : null;
+
   return {
     ratio: numericRatio,
     screenBasePx: basePx,
     targetMaxWidthPx: targetPx,
+    toolbarFloatEnabled: enableToolbarFloat,
+    cssCheck,
   };
 }
 
@@ -479,6 +544,146 @@ function inspectAppliedLayout() {
     count: document.querySelectorAll('.readerChapterContent').length,
     elements: elements.map((el) => serializeElement(el)),
   });
+}
+
+let wreToolbarTrigger = null;
+let wreToolbarHideTimer = null;
+let wreToolbarRightTimer = null;
+
+function pinTopBar() {
+  const topBar = document.querySelector('.readerTopBar');
+  if (!topBar) return false;
+  const tw = topBar.offsetWidth;
+  const left = Math.max(0, Math.round((window.innerWidth - tw) / 2));
+  topBar.style.cssText = `
+    position: fixed !important;
+    top: 0 !important;
+    left: ${left}px !important;
+    right: auto !important;
+    width: ${tw}px !important;
+    max-width: none !important;
+    margin: 0 !important;
+    transform: none !important;
+    z-index: 999999 !important;
+  `;
+  return true;
+}
+
+function pinControls() {
+  const controls = document.querySelector('.readerControls');
+  if (!controls) return false;
+  // inline style 最高优先级，确保覆盖微信读书原生样式
+  controls.style.setProperty('left', 'auto', 'important');
+  controls.style.setProperty('right', '20px', 'important');
+  controls.style.setProperty('margin-left', '0', 'important');
+  controls.style.setProperty('z-index', '999999', 'important');
+  log('info', '已钉住 readerControls', {
+    left: controls.style.left,
+    right: controls.style.right,
+    marginLeft: controls.style.marginLeft,
+  });
+  return true;
+}
+
+function applyToolbarFloating() {
+  const topOk = pinTopBar();
+  const ctrlOk = pinControls();
+  log('info', '已钉住工具栏', { topBar: topOk, readerControls: ctrlOk });
+  ensureToolbarTrigger();
+}
+
+function removeToolbarFloating() {
+  if (wreToolbarHideTimer) { clearTimeout(wreToolbarHideTimer); wreToolbarHideTimer = null; }
+  if (wreToolbarRightTimer) { clearTimeout(wreToolbarRightTimer); wreToolbarRightTimer = null; }
+
+  const topBar = document.querySelector('.readerTopBar');
+  const controls = document.querySelector('.readerControls');
+
+  if (topBar) {
+    topBar.style.cssText = '';
+  }
+  if (controls) {
+    controls.style.cssText = '';
+  }
+
+  if (wreToolbarTrigger && document.contains(wreToolbarTrigger)) {
+    wreToolbarTrigger.remove();
+  }
+  wreToolbarTrigger = null;
+
+  const rightTrigger = document.getElementById('wre-toolbar-trigger-right');
+  if (rightTrigger) { rightTrigger.remove(); }
+
+  document.body.classList.remove('wre-show-topbar');
+  document.body.classList.remove('wre-show-controls');
+  log('info', '已移除工具栏浮动');
+}
+
+function ensureToolbarTrigger() {
+  if (wreToolbarTrigger && document.contains(wreToolbarTrigger)
+      && document.getElementById('wre-toolbar-trigger-right')) {
+    return;
+  }
+
+  const existing = document.getElementById('wre-toolbar-trigger');
+  if (existing) { existing.remove(); }
+  const existingRight = document.getElementById('wre-toolbar-trigger-right');
+  if (existingRight) { existingRight.remove(); }
+
+  const showTop = () => {
+    if (wreToolbarHideTimer) { clearTimeout(wreToolbarHideTimer); wreToolbarHideTimer = null; }
+    pinTopBar();
+    document.body.classList.add('wre-show-topbar');
+  };
+  const hideTop = () => {
+    if (wreToolbarHideTimer) { clearTimeout(wreToolbarHideTimer); }
+    wreToolbarHideTimer = setTimeout(() => {
+      document.body.classList.remove('wre-show-topbar');
+    }, 400);
+  };
+
+  const showRight = () => {
+    if (wreToolbarRightTimer) { clearTimeout(wreToolbarRightTimer); wreToolbarRightTimer = null; }
+    pinControls();
+    document.body.classList.add('wre-show-controls');
+    // 同步绑定到 controls 本身，防止鼠标移到按钮上时感应区误判离开
+    const ctrl = document.querySelector('.readerControls');
+    if (ctrl) {
+      ctrl.addEventListener('mouseenter', showRight, { once: false });
+      ctrl.addEventListener('mouseleave', hideRight, { once: false });
+    }
+  };
+  const hideRight = () => {
+    if (wreToolbarRightTimer) { clearTimeout(wreToolbarRightTimer); }
+    wreToolbarRightTimer = setTimeout(() => {
+      document.body.classList.remove('wre-show-controls');
+    }, 400);
+  };
+
+  // 顶部感应区
+  const trigger = document.createElement('div');
+  trigger.id = 'wre-toolbar-trigger';
+  trigger.style.cssText = 'position:fixed;top:0;left:0;right:0;height:56px;z-index:999997;cursor:default;';
+  trigger.addEventListener('mouseenter', showTop);
+  trigger.addEventListener('mouseleave', hideTop);
+  document.body.appendChild(trigger);
+
+  // 右侧感应区
+  const rightTrigger = document.createElement('div');
+  rightTrigger.id = 'wre-toolbar-trigger-right';
+  rightTrigger.style.cssText = 'position:fixed;top:0;right:0;bottom:0;width:30px;z-index:1;cursor:default;';
+  rightTrigger.addEventListener('mouseenter', showRight);
+  rightTrigger.addEventListener('mouseleave', hideRight);
+  document.body.appendChild(rightTrigger);
+
+  wreToolbarTrigger = trigger;
+
+  log('info', '已创建工具栏悬停触发器（顶部56px + 右侧30px感应区）');
+}
+
+function removeToolbarTrigger() {
+  // kept for backward compat, now delegates to removeToolbarFloating
+  removeToolbarFloating();
 }
 
 function openModal(selector) {
