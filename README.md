@@ -26,20 +26,46 @@
 ## 项目结构
 
 ```
-├── manifest.json          # 插件配置
-├── content.js             # 核心逻辑
-├── content.css            # 样式
-├── icons/                 # 插件图标
-├── privacy.md             # 隐私政策
-├── RPD_需求文档.md         # 需求文档
-├── session_log.md         # 开发会话记录
-├── GitHub操作手册.md       # Git 操作手册
-└── README.md
+微信读书插件/
+│
+├── manifest.json          # 🔧 扩展入口（不动）
+├── content.js             # 🔧 核心逻辑（不动）
+├── content.css            # 🔧 样式（不动）
+├── icons/                 # 🔧 插件图标（不动）
+│   ├── icon-16.png
+│   ├── icon-48.png
+│   └── icon-128.png
+│
+├── README.md              # 📖 项目首页
+├── .gitignore
+│
+├── plan/                  # 📋 规划
+│   ├── RPD_需求文档.md
+│   ├── plan_edge_store.md
+│   └── plan_github_versioning.md
+│
+├── dev/                   # 🔧 开发
+│   ├── session_log.md
+│   └── project-rules-v1.0.md
+│
+├── test/                  # 🧪 测试（预留）
+│
+├── release/               # 🚀 上线
+│   ├── privacy.md
+│   └── weread-enhancer-v0.2.0.zip
+│
+├── screenshots/           # 📸 截图
+│
+├── usage/                 # 📖 使用指南
+│   ├── Running.md
+│   └── GitHub操作手册.md
+│
+└── inbox/                 # 📥 待归类
 ```
 
 ## 隐私声明
 
-本插件**不收集、不上传任何用户数据**。所有设置保存在浏览器本地存储中。详见 [privacy.md](privacy.md)。
+本插件**不收集、不上传任何用户数据**。所有设置保存在浏览器本地存储中。详见 [privacy.md](release/privacy.md)。
 
 ## 开源许可
 
