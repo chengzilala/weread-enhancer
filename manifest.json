@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "微信读书辅助增强版",
+  "version": "1.0.0",
+  "description": "专为微信读书网页版（weread.qq.com）打造的纯净阅读辅助插件：自定义屏高比、主题色覆盖、以及全面完善的快捷键滚轮翻页支持。",
+  "permissions": [
+    "storage"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://weread.qq.com/*"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_end"
+    }
+  ]
+}

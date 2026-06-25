@@ -1,0 +1,14 @@
+# 运行产物
+weread-debug-*.json
+日志/
+__debug_*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 系统
+.DS_Store
+Thumbs.db

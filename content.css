@@ -1,0 +1,335 @@
+/* 全局变量：明亮模式与暗黑模式 */
+:root {
+  --wre-bg: #ffffff;
+  --wre-border: #e0e0e0;
+  --wre-text: #333333;
+  --wre-text-hover: #000000;
+  --wre-hover-bg: #f5f5f5;
+  --wre-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  --wre-icon-bg: #ffffff;
+  --wre-border-radius: 8px;
+  --wre-z-index: 999999;
+}
+
+[data-wre-theme="dark"] {
+  --wre-bg: #2c2c2c;
+  --wre-border: #444444;
+  --wre-text: #e0e0e0;
+  --wre-text-hover: #ffffff;
+  --wre-hover-bg: #3a3a3a;
+  --wre-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  --wre-icon-bg: #333333;
+}
+
+/* 根容器，隔离样式防干扰 */
+#we-read-enhancer-root {
+  position: fixed;
+  left: 20px;
+  top: 40px;
+  z-index: var(--wre-z-index);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  user-select: none;
+}
+
+/* 浮动图标 */
+.wre-fab {
+  width: 44px;
+  height: 44px;
+  background-color: var(--wre-icon-bg);
+  border-radius: 50%;
+  box-shadow: var(--wre-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid var(--wre-border);
+  font-size: 20px;
+}
+
+.wre-fab:hover {
+  transform: scale(1.05);
+}
+
+/* 开启勿扰模式的类 */
+#we-read-enhancer-root.wre-dnd .wre-fab {
+  opacity: 0;
+}
+#we-read-enhancer-root.wre-dnd:hover .wre-fab {
+  opacity: 1;
+}
+
+/* 主面板下拉菜单 */
+.wre-panel-container {
+  position: absolute;
+  top: 52px; /* Icon height + margin */
+  left: 0;
+  width: 180px;
+  background: var(--wre-bg);
+  border: 1px solid var(--wre-border);
+  border-radius: var(--wre-border-radius);
+  box-shadow: var(--wre-shadow);
+  display: none;
+  flex-direction: column;
+  padding: 8px 0;
+}
+
+.wre-panel-container.wre-visible {
+  display: flex;
+}
+
+/* 菜单项 */
+.wre-menu-item {
+  padding: 10px 16px;
+  font-size: 14px;
+  color: var(--wre-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.1s;
+}
+
+.wre-menu-item:hover {
+  background: var(--wre-hover-bg);
+  color: var(--wre-text-hover);
+}
+
+/* 菜单分组标题 */
+.wre-menu-group {
+  padding: 4px 16px 4px;
+  font-size: 12px;
+  color: #999;
+  border-top: 1px solid var(--wre-border);
+  margin-top: 6px;
+  padding-top: 10px;
+}
+.wre-menu-group:first-child {
+  border-top: none;
+  margin-top: 0;
+  padding-top: 4px;
+}
+
+/* 图标宽幅一致占位 */
+.wre-menu-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 14px;
+}
+
+/* ========== 新增变量 ========== */
+:root {
+  --wre-primary: #07c160;
+}
+
+/* ========== 弹窗样式 ========== */
+.wre-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: calc(var(--wre-z-index) + 1);
+}
+
+.wre-modal-overlay.wre-visible {
+  display: flex;
+}
+
+.wre-modal {
+  background: var(--wre-bg);
+  border-radius: 12px;
+  box-shadow: var(--wre-shadow);
+  width: 360px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.wre-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--wre-border);
+}
+
+.wre-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--wre-text);
+}
+
+.wre-modal-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--wre-text);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.wre-modal-close:hover {
+  background: var(--wre-hover-bg);
+}
+
+.wre-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* ========== 设置项样式 ========== */
+.wre-setting-item {
+  margin-bottom: 20px;
+}
+
+.wre-setting-item:last-child {
+  margin-bottom: 0;
+}
+
+.wre-setting-label {
+  display: block;
+  font-size: 14px;
+  color: var(--wre-text);
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.wre-setting-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ========== 滑块样式 ========== */
+.wre-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--wre-border);
+  outline: none;
+  cursor: pointer;
+}
+
+.wre-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--wre-primary);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(7, 193, 96, 0.4);
+  transition: transform 0.15s ease;
+}
+
+.wre-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+.wre-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--wre-primary);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 6px rgba(7, 193, 96, 0.4);
+}
+
+.wre-slider-value {
+  min-width: 50px;
+  text-align: right;
+  font-size: 14px;
+  color: var(--wre-text);
+  font-weight: 500;
+}
+
+.wre-setting-tip {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #888;
+  line-height: 1.5;
+}
+
+.wre-debug-modal {
+  width: 720px;
+  max-width: 92vw;
+}
+
+.wre-debug-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.wre-btn {
+  border: 1px solid var(--wre-border);
+  background: var(--wre-bg);
+  color: var(--wre-text);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.wre-btn:hover {
+  background: var(--wre-hover-bg);
+}
+
+.wre-btn-small {
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+.wre-btn-danger {
+  color: #c0392b;
+}
+
+.wre-debug-summary {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.wre-debug-output {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--wre-border);
+  border-radius: 8px;
+  background: #111;
+  color: #d7f7d0;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 420px;
+  overflow: auto;
+}
+
+.wre-quick-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
