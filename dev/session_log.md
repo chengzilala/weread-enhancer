@@ -182,3 +182,20 @@
   - 注册 Edge Partner Center：https://partner.microsoft.com/dashboard
   - 上传 zip → 填写商店列表 → 粘贴中英文描述 → 上传截图 → 提交审核
   - 隐私政策 URL：`https://github.com/chengzilala/weread-enhancer/blob/main/release/privacy.md`
+
+---
+
+## 2026-06-26 会话条目：工具栏浮动优化 + Edge 商店上架归档 (v0.3.0)
+- **目标**：完善工具栏浮动体验 + 提交 Edge 商店审核 + 目录结构整理
+- **已完成**：
+  - **动态检测触发**：从固定 90% 阈值改为 >85% + 动态元素溢出兜底，跨设备一致
+  - **顶栏空间回收**：top 0 位置浮动，阅读内容不受影响，顶栏 opacity 0/1 原位透明/浮现
+  - **Edge 商店上架**：提交审核（等待中），single purpose 适配、图标、截图、推广图、隐私政策全部就绪
+  - **目录重构**：按 plan/dev/test/release/usage/screenshots/inbox 六大维度 + 根目录保留必选文件
+  - **上架包**：`release/weread-enhancer-v0.2.0.zip`（6 文件，Python 生成，正斜杠路径，通过 Edge 校验）
+- **产出物（文件/链接）**：
+  - 更新：`content.js`、`content.css`、`README.md`、`manifest.json`
+  - 新增：`icons/`、`release/privacy.md`、`DIR_STRUCTURE.md`（后合并入 README）
+  - 仓库：[chengzilala/weread-enhancer](https://github.com/chengzilala/weread-enhancer)
+- **里程碑**：
+  - `v0.2.0` → `v0.3.0`（阅读设置 + 工具栏浮动稳定版，Edge 商店待审核）

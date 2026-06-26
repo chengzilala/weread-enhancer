@@ -596,14 +596,6 @@ function pinControls() {
 function applyToolbarFloating() {
   const topOk = pinTopBar();
   const ctrlOk = pinControls();
-  // 动态测量顶栏高度，让内容上移回收顶部空间（跨设备自适应）
-  const topBar = document.querySelector('.readerTopBar');
-  const content = document.querySelector('.readerChapterContent');
-  if (topBar && content) {
-    const h = topBar.offsetHeight;
-    content.style.setProperty('margin-top', '-' + h + 'px', 'important');
-    log('info', '回收顶部空间', { topBarHeight: h });
-  }
   log('info', '已钉住工具栏', { topBar: topOk, readerControls: ctrlOk });
   ensureToolbarTrigger();
 }
@@ -614,16 +606,12 @@ function removeToolbarFloating() {
 
   const topBar = document.querySelector('.readerTopBar');
   const controls = document.querySelector('.readerControls');
-  const content = document.querySelector('.readerChapterContent');
 
   if (topBar) {
     topBar.style.cssText = '';
   }
   if (controls) {
     controls.style.cssText = '';
-  }
-  if (content) {
-    content.style.removeProperty('margin-top');
   }
 
   if (wreToolbarTrigger && document.contains(wreToolbarTrigger)) {
@@ -654,21 +642,11 @@ function ensureToolbarTrigger() {
     if (wreToolbarHideTimer) { clearTimeout(wreToolbarHideTimer); wreToolbarHideTimer = null; }
     pinTopBar();
     document.body.classList.add('wre-show-topbar');
-    // 顶栏显示时，内容下移恢复正常位置
-    const content = document.querySelector('.readerChapterContent');
-    if (content) { content.style.removeProperty('margin-top'); }
   };
   const hideTop = () => {
     if (wreToolbarHideTimer) { clearTimeout(wreToolbarHideTimer); }
     wreToolbarHideTimer = setTimeout(() => {
       document.body.classList.remove('wre-show-topbar');
-      // 顶栏隐藏时，内容重新上移回收空间
-      const topBar = document.querySelector('.readerTopBar');
-      const content = document.querySelector('.readerChapterContent');
-      if (topBar && content) {
-        const h = topBar.offsetHeight;
-        content.style.setProperty('margin-top', '-' + h + 'px', 'important');
-      }
     }, 400);
   };
 
