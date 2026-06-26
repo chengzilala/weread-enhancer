@@ -348,15 +348,6 @@ body.wre-toolbar-floating.wre-show-topbar [class*="readerTopBar"] {
   pointer-events: auto !important;
 }
 
-/* 顶栏隐藏时，内容上移72px回收顶部空间 */
-body.wre-toolbar-floating:not(.wre-show-topbar) .readerChapterContent {
-  margin-top: -72px !important;
-}
-
-body.wre-toolbar-floating.wre-show-topbar .readerChapterContent {
-  margin-top: 0 !important;
-}
-
 body.wre-toolbar-floating .readerControls,
 body.wre-toolbar-floating [class*="readerControls"] {
   left: auto !important;
