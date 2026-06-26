@@ -452,9 +452,23 @@ function ensureStyleTag() {
 const toolbarFloatCSS = `
 body.wre-toolbar-floating .readerTopBar,
 body.wre-toolbar-floating [class*="readerTopBar"] {
+  position: fixed !important;
+  top: -100px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 !important;
   opacity: 0 !important;
   pointer-events: none !important;
-  transition: opacity 0.3s ease !important;
+  transition: top 0.3s ease, opacity 0.3s ease !important;
+  z-index: 999999 !important;
+}
+body.wre-toolbar-floating.wre-show-topbar .readerTopBar,
+body.wre-toolbar-floating.wre-show-topbar [class*="readerTopBar"] {
+  top: 0 !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 body.wre-toolbar-floating .readerControls,
 body.wre-toolbar-floating [class*="readerControls"] {
@@ -464,11 +478,6 @@ body.wre-toolbar-floating [class*="readerControls"] {
   opacity: 0 !important;
   pointer-events: none !important;
   transition: opacity 0.3s ease !important;
-}
-body.wre-toolbar-floating.wre-show-topbar .readerTopBar,
-body.wre-toolbar-floating.wre-show-topbar [class*="readerTopBar"] {
-  opacity: 1 !important;
-  pointer-events: auto !important;
 }
 body.wre-toolbar-floating.wre-show-controls .readerControls,
 body.wre-toolbar-floating.wre-show-controls [class*="readerControls"] {
@@ -574,21 +583,7 @@ let wreToolbarHideTimer = null;
 let wreToolbarRightTimer = null;
 
 function pinTopBar() {
-  const topBar = document.querySelector('.readerTopBar');
-  if (!topBar) return false;
-  const tw = topBar.offsetWidth;
-  const left = Math.max(0, Math.round((window.innerWidth - tw) / 2));
-  topBar.style.cssText = `
-    position: fixed !important;
-    top: 0 !important;
-    left: ${left}px !important;
-    right: auto !important;
-    width: ${tw}px !important;
-    max-width: none !important;
-    margin: 0 !important;
-    transform: none !important;
-    z-index: 999999 !important;
-  `;
+  // CSS 已通过 toolbarFloatCSS 处理定位与动画，无需额外 inline style
   return true;
 }
 
