@@ -511,11 +511,23 @@ function updateStyleTag(ratio) {
   document.body.offsetHeight;
   let enableToolbarFloat = false;
   const controls = document.querySelector('.readerControls');
-  if (controls) {
-    const rect = controls.getBoundingClientRect();
-    // 如果工具栏右边缘超出视口，或者左边缘在视口很右边的位置（被推出），启用浮动
-    enableToolbarFloat = rect.right > window.innerWidth || rect.left > window.innerWidth * 0.85;
-    log('info', '工具栏位置检测', { left: Math.round(rect.left), right: Math.round(rect.right), viewportW: window.innerWidth, enableFloat: enableToolbarFloat });
+  const topBar = document.querySelector('.readerTopBar');
+  if (controls && topBar) {
+    const cr = controls.getBoundingClientRect();
+    const tr = topBar.getBoundingClientRect();
+    const outOfView = tr.left < 0 || tr.right > window.innerWidth || cr.right > window.innerWidth + 1;
+    enableToolbarFloat = outOfView;
+    log('info', '工具栏位置检测', {
+      controls: { left: Math.round(cr.left), right: Math.round(cr.right) },
+      topBar: { left: Math.round(tr.left), right: Math.round(tr.right) },
+      viewportW: window.innerWidth, enableFloat: enableToolbarFloat
+    });
+  } else if (controls) {
+    const cr = controls.getBoundingClientRect();
+    enableToolbarFloat = cr.right > window.innerWidth + 1;
+  } else if (topBar) {
+    const tr = topBar.getBoundingClientRect();
+    enableToolbarFloat = tr.left < 0 || tr.right > window.innerWidth;
   }
 
   if (enableToolbarFloat) {
