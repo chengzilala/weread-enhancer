@@ -77,7 +77,7 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 | **分类** | 生产力 / 辅助功能 |
 | **隐私政策 URL** | `https://github.com/chengzilala/weread-enhancer/blob/main/release/privacy.md` |
 | **网站 URL** | `https://github.com/chengzilala/weread-enhancer` |
-| **支持邮箱** | 用户的邮箱 |
+| **支持邮箱** | 2195542745@qq.com |
 
 **详细描述文案（中文）**：
 
