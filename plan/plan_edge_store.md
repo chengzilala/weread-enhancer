@@ -70,8 +70,8 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 
 | 字段 | 内容 |
 |------|------|
-| **名称** | 微信读书辅助增强版 |
-| **简短描述（≤80字）** | 专为微信读书网页版打造的纯净阅读辅助插件：自定义屏占比、工具栏浮动、主题色覆盖。 |
+| **名称** | 微信读书屏占比调节器 |
+| **简短描述（≤80字）** | 自定义微信读书网页版阅读区域宽度，50%-100%自由调节 |
 | **详细描述** | 见下方"详细描述文案" |
 | **支持语言** | 中文（简体） |
 | **分类** | 生产力 / 辅助功能 |
@@ -81,25 +81,31 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 
 **详细描述文案（中文）**：
 
-> 微信读书辅助增强版是一个专为微信读书网页版（weread.qq.com）打造的浏览器扩展。
+> 微信读书屏占比调节器是一个专为微信读书网页版（weread.qq.com）设计的小工具，只有一个功能：自由调整阅读区域的宽度。
 >
-> **核心功能**：
-> - **自定义屏占比**：50%-100% 自由调节阅读区域宽度，自动保存设置
-> - **工具栏浮动悬停**：屏占比 ≥90% 时自动隐藏原生工具栏，鼠标移到感应区淡入显示，点击正常
-> - **纯净无追踪**：零依赖，不收集任何用户数据
+> **使用方式**：
+> 1. 打开微信读书阅读页面
+> 2. 页面右上角会出现屏占比调节面板
+> 3. 拖动滑块或点击预设按钮（50%/70%/80%/90%/100%）即可调整
 >
-> 本插件持续开发中，更多功能（主题设置、自动阅读、快捷键）即将上线。
+> **配套体验**：
+> - 当屏占比 ≥90% 时，微信读书原生工具栏会自动透明隐藏，鼠标移到顶部或右侧感应区再显示，不影响正常点击
+> - 设置自动保存，刷新页面无需重新调节
+> - 零依赖、不收集任何用户数据
 
 **英文描述（Store Listing English）**：
 
-> WeRead Enhancer is a browser extension for WeRead (weread.qq.com).
+> WeRead Screen Ratio Adjuster is a focused tool for WeRead (weread.qq.com) with one purpose: customizing the reading area width.
 >
-> **Features**:
-> - **Custom Screen Ratio**: Adjust reading area width from 50% to 100% with auto-save
-> - **Floating Toolbar**: Auto-hide native toolbar when ratio >= 90%, show on hover
-> - **Privacy-first**: Zero dependencies, no data collection
+> **How to use**:
+> 1. Open a WeRead book page
+> 2. A control panel appears at the top-right corner
+> 3. Drag the slider or tap preset buttons (50%/70%/80%/90%/100%)
 >
-> More features (themes, auto-scroll, keyboard shortcuts) coming soon.
+> **Nice to know**:
+> - When ratio ≥90%, native toolbar auto-hides and reappears on hover
+> - Preferences are saved automatically across page refreshes
+> - Privacy-first: zero dependencies, no data collection
 
 ### 步骤 4：制作截图（1-10 张）
 

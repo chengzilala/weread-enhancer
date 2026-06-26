@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "微信读书辅助增强版",
+  "name": "微信读书屏占比调节器",
   "version": "0.2.0",
-  "description": "专为微信读书网页版（weread.qq.com）打造的纯净阅读辅助插件：自定义屏占比、工具栏浮动悬停。零依赖、不收集任何用户数据。",
+  "description": "自定义微信读书网页版阅读区域宽度，50%-100%自由调节，设置自动保存。",
   "icons": {
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",
