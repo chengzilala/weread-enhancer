@@ -483,9 +483,6 @@ function updateStyleTag(ratio) {
   const basePx = Number.isFinite(WRE_STATE.screenBasePx) && WRE_STATE.screenBasePx > 0 ? WRE_STATE.screenBasePx : null;
   const targetPx = basePx ? Math.round((basePx * numericRatio) / 100) : null;
 
-  const TOOLBAR_THRESHOLD = 90;
-  const enableToolbarFloat = numericRatio >= TOOLBAR_THRESHOLD;
-
   if (targetPx) {
     wreStyleTag.textContent = `
       .readerChapterContent {
@@ -507,6 +504,18 @@ function updateStyleTag(ratio) {
       }
       ${toolbarFloatCSS}
     `;
+  }
+
+  // 强制重排后动态检测工具栏位置
+  // eslint-disable-next-line no-unused-expressions
+  document.body.offsetHeight;
+  let enableToolbarFloat = false;
+  const controls = document.querySelector('.readerControls');
+  if (controls) {
+    const rect = controls.getBoundingClientRect();
+    // 如果工具栏右边缘超出视口，或者左边缘在视口很右边的位置（被推出），启用浮动
+    enableToolbarFloat = rect.right > window.innerWidth || rect.left > window.innerWidth * 0.85;
+    log('info', '工具栏位置检测', { left: Math.round(rect.left), right: Math.round(rect.right), viewportW: window.innerWidth, enableFloat: enableToolbarFloat });
   }
 
   if (enableToolbarFloat) {
