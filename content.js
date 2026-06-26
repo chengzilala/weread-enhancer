@@ -452,21 +452,12 @@ function ensureStyleTag() {
 const toolbarFloatCSS = `
 body.wre-toolbar-floating .readerTopBar,
 body.wre-toolbar-floating [class*="readerTopBar"] {
-  position: fixed !important;
-  top: -100px !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  width: auto !important;
-  max-width: none !important;
-  margin: 0 !important;
   opacity: 0 !important;
   pointer-events: none !important;
-  transition: top 0.3s ease, opacity 0.3s ease !important;
-  z-index: 999999 !important;
+  transition: opacity 0.3s ease !important;
 }
 body.wre-toolbar-floating.wre-show-topbar .readerTopBar,
 body.wre-toolbar-floating.wre-show-topbar [class*="readerTopBar"] {
-  top: 0 !important;
   opacity: 1 !important;
   pointer-events: auto !important;
 }
@@ -483,8 +474,7 @@ body.wre-toolbar-floating.wre-show-controls .readerControls,
 body.wre-toolbar-floating.wre-show-controls [class*="readerControls"] {
   opacity: 1 !important;
   pointer-events: auto !important;
-}
-`;
+}`;
 
 function updateStyleTag(ratio) {
   ensureStyleTag();
