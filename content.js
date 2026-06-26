@@ -515,9 +515,9 @@ function updateStyleTag(ratio) {
   if (controls && topBar) {
     const cr = controls.getBoundingClientRect();
     const tr = topBar.getBoundingClientRect();
-    // 触发条件（二合一）：① 比例 ≥85%（你确认的最佳临界点，跨设备按比例一致）；
+    // 触发条件（二合一）：① 比例 >85%（86% 及以上触发浮动，85% 刚好能放下工具栏保持原生）；
     // ② 实际元素溢出（兜底，处理小屏、缩放等边缘情况）
-    const outOfView = numericRatio >= 85 || tr.left < -1 || tr.right > window.innerWidth + 1 || cr.right > window.innerWidth;
+    const outOfView = numericRatio > 85 || tr.left < -1 || tr.right > window.innerWidth + 1 || cr.right > window.innerWidth;
     enableToolbarFloat = outOfView;
     log('info', '工具栏位置检测', {
       controls: { left: Math.round(cr.left), right: Math.round(cr.right) },
