@@ -176,9 +176,9 @@
   - `privacy.md`：隐私政策声明（不收集数据、storage 权限用途、仅限 weread.qq.com）
   - `README.md`：更新为已实现功能描述 + 安装方式
   - `.gitignore`：新增 `*.zip`、`debug.log` 排除
-  - 上架 zip 包：`weread-enhancer-v0.2.0.zip`（16651 bytes，8 个文件）
+  - 上架 zip 包：`release/weread-enhancer-v0.2.0.zip`（14795 bytes，6 个文件：manifest.json + content.js + content.css + 3 图标）
 - **待用户执行**：
-  - 截图：从 `参考效果截图/` 选取 2-3 张，裁剪为标准尺寸（1280x800 或 640x400）
+  - 截图：从 `screenshots/` 选取 2-3 张，裁剪为标准尺寸（1280x800 或 640x400），重命名为 screenshot-01.png 等
   - 注册 Edge Partner Center：https://partner.microsoft.com/dashboard
   - 上传 zip → 填写商店列表 → 粘贴中英文描述 → 上传截图 → 提交审核
-  - 隐私政策 URL：`https://github.com/chengzilala/weread-enhancer/blob/main/privacy.md`
+  - 隐私政策 URL：`https://github.com/chengzilala/weread-enhancer/blob/main/release/privacy.md`

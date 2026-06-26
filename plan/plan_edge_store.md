@@ -64,7 +64,7 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 - 不包含分析、跟踪、广告代码
 - 仅在 `weread.qq.com` 域名下运行
 
-**存放方式**：在 GitHub 仓库中创建 `privacy.md` 或使用仓库 Wiki 页面，提交时粘贴链接即可。
+**存放方式**：已创建 `release/privacy.md`，对应 GitHub URL：
 
 ### 步骤 3：准备商店 Listing（中英文）
 
@@ -75,7 +75,7 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 | **详细描述** | 见下方"详细描述文案" |
 | **支持语言** | 中文（简体） |
 | **分类** | 生产力 / 辅助功能 |
-| **隐私政策 URL** | `https://github.com/chengzilala/weread-enhancer/blob/main/privacy.md` |
+| **隐私政策 URL** | `https://github.com/chengzilala/weread-enhancer/blob/main/release/privacy.md` |
 | **网站 URL** | `https://github.com/chengzilala/weread-enhancer` |
 | **支持邮箱** | 用户的邮箱 |
 
@@ -103,11 +103,11 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 
 ### 步骤 4：制作截图（1-10 张）
 
-现有截图文件夹：`参考效果截图/`，已有 5 张。需要：
+现有截图文件夹：`screenshots/`，已有 5 张。需要：
 
 1. 选取最佳的 2-3 张
 2. 尺寸调整为 **1280x800** 或 **640x400**
-3. 命名：`screenshot-01.png`、`screenshot-02.png` ...
+3. 重命名为英文：`screenshot-01.png`、`screenshot-02.png` ...
 
 **截图内容建议**：
 - 截图1：微信读书页面 + 插件设置面板展开（展示屏占比功能）
@@ -134,7 +134,7 @@ weread-enhancer.zip
 └── README.md         （可选）
 ```
 
-> 注意：ZIP 中不要包含 `.gitignore`、`session_log.md`、`debug.log`、`参考效果截图/`、`plan_*.md` 等非运行文件。
+> 注意：ZIP 中不要包含 `.gitignore`、`dev/`、`plan/`、`usage/`、`screenshots/`、`inbox/`、`release/` 等非运行文件。
 
 ### 步骤 6：提交审核
 
@@ -192,17 +192,17 @@ The extension is open source: https://github.com/chengzilala/weread-enhancer
 
 ## 七、执行任务分配
 
-| 序号 | 任务 | 执行方式 | 预计 |
+| 序号 | 任务 | 执行方式 | 状态 |
 |------|------|---------|------|
-| 1 | 更新 manifest.json（版本号 + 图标引用） | 我来改代码 | 立即 |
-| 2 | 生成 3 个图标 PNG | 我用 SVG/CSS 生成 | 立即 |
-| 3 | 创建 icons/ 目录 | 我来操作 | 立即 |
-| 4 | 撰写 privacy.md | 我来写 | 立即 |
-| 5 | 更新 README.md（补充实际功能说明） | 我来改 | 可选 |
-| 6 | 准备中英文商店文案 | 文档中已有 | 已完成 |
-| 7 | 截图整理与尺寸调整 | 需要用户提供/确认截图 | 用户操作 |
-| 8 | 创建 zip 包 | 我来打包 | 最后一步 |
-| 9 | 注册 Partner Center + 上传提交 | 用户操作（需登录微软账户） | 用户执行 |
+| 1 | 更新 manifest.json（版本号 + 图标引用） | 已完成 | ✅ |
+| 2 | 生成 3 个图标 PNG | 已完成（`icons/`） | ✅ |
+| 3 | 创建 icons/ 目录 | 已完成 | ✅ |
+| 4 | 撰写 privacy.md | 已完成（`release/privacy.md`） | ✅ |
+| 5 | 更新 README.md（补充实际功能说明） | 已完成 | ✅ |
+| 6 | 准备中英文商店文案 | 文档中已有 | ✅ |
+| 7 | 截图整理与尺寸调整 | **用户操作**（从 `screenshots/` 选取 2-3 张，裁剪为 1280x800 或 640x400） | ⏳ 待执行 |
+| 8 | 重新打包上架 zip | 我来打包 | 🔄 即将执行 |
+| 9 | 注册 Partner Center + 上传提交 | 用户操作（需登录微软账户） | ⏳ 待执行 |
 
 ---
 
