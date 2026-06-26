@@ -560,6 +560,31 @@ function applyScreenRatio(ratio) {
   return updateStyleTag(ratio);
 }
 
+/* ========== 主题设置 ========== */
+function applyTheme(theme) {
+  // 移除旧主题类
+  document.body.classList.remove('wre-theme-light', 'wre-theme-dark', 'wre-theme-eye-protection');
+  // 添加新主题类
+  document.body.classList.add('wre-theme-' + theme);
+
+  // 同步更新插件UI的 data 属性
+  const root = document.getElementById('we-read-enhancer-root');
+  if (root) {
+    root.setAttribute('data-wre-theme', theme);
+  }
+
+  log('info', '主题已应用', { theme });
+}
+
+function highlightActiveTheme() {
+  const options = document.getElementById('wre-theme-options');
+  if (!options) return;
+  options.querySelectorAll('[data-theme]').forEach((btn) => {
+    const theme = btn.getAttribute('data-theme');
+    btn.classList.toggle('wre-theme-active', theme === WRE_STATE.theme);
+  });
+}
+
 function inspectAppliedLayout() {
   const elements = Array.from(document.querySelectorAll('.readerChapterContent')).slice(0, 10);
   log('info', '布局应用后检查', {
@@ -727,6 +752,7 @@ function createUI() {
     <div class="wre-panel-container" id="wre-main-menu">
       <div class="wre-menu-group">设置</div>
       <div class="wre-menu-item" data-action="read-settings"><span class="wre-menu-icon">📖</span>阅读设置</div>
+      <div class="wre-menu-item" data-action="theme-settings"><span class="wre-menu-icon">🎨</span>主题设置</div>
       <div class="wre-menu-item" data-action="debug-logs"><span class="wre-menu-icon">🧪</span>调试日志</div>
       <div class="wre-menu-item" data-action="restore-default"><span class="wre-menu-icon">🔄</span>恢复默认设置</div>
 
@@ -753,6 +779,25 @@ function createUI() {
               <button class="wre-btn wre-btn-small" data-ratio="90">90%</button>
               <button class="wre-btn wre-btn-small" data-ratio="80">80%</button>
               <button class="wre-btn wre-btn-small" data-ratio="70">70%</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wre-modal-overlay" id="wre-theme-settings-modal">
+      <div class="wre-modal">
+        <div class="wre-modal-header">
+          <span class="wre-modal-title">🎨 主题设置</span>
+          <button class="wre-modal-close" data-close="#wre-theme-settings-modal">&times;</button>
+        </div>
+        <div class="wre-modal-body">
+          <div class="wre-setting-item">
+            <label class="wre-setting-label">预设主题</label>
+            <div class="wre-theme-options" id="wre-theme-options">
+              <button class="wre-btn wre-theme-btn" data-theme="light">☀️ 明亮</button>
+              <button class="wre-btn wre-theme-btn" data-theme="dark">🌙 暗黑</button>
+              <button class="wre-btn wre-theme-btn" data-theme="eye-protection">👁️ 护眼</button>
             </div>
           </div>
         </div>
@@ -802,6 +847,21 @@ function bindEvents(root) {
   const debugCopy = root.querySelector('#wre-debug-copy');
   const debugDownload = root.querySelector('#wre-debug-download');
   const debugClear = root.querySelector('#wre-debug-clear');
+
+  // 主题按钮事件
+  const themeOptions = root.querySelector('#wre-theme-options');
+  if (themeOptions) {
+    themeOptions.addEventListener('click', async (event) => {
+      const btn = event.target.closest('[data-theme]');
+      if (!btn) return;
+      const theme = btn.getAttribute('data-theme');
+      if (theme === WRE_STATE.theme) return;
+      WRE_STATE.theme = theme;
+      applyTheme(theme);
+      await saveState();
+      log('info', '主题已切换', { theme });
+    });
+  }
 
   fab.addEventListener('click', (event) => {
     event.stopPropagation();
@@ -910,12 +970,17 @@ function handleMenuClick(action) {
     case 'read-settings':
       openModal('#wre-read-settings-modal');
       break;
+    case 'theme-settings':
+      openModal('#wre-theme-settings-modal');
+      highlightActiveTheme();
+      break;
     case 'debug-logs':
       openModal('#wre-debug-modal');
       collectLayoutSnapshot();
       break;
     case 'restore-default':
       WRE_STATE = { ...WRE_DEFAULT_STATE };
+      applyTheme(WRE_STATE.theme);
       const applied = applyScreenRatio(WRE_STATE.screenRatio);
       scheduleWereadLayoutReflow('restore-default');
       saveState();
@@ -972,6 +1037,8 @@ async function init() {
   wreStyleTag.textContent = '';
   await primeScreenBasePx(true);
   await applySavedScreenRatioOnInit();
+  // 应用保存的主题
+  applyTheme(WRE_STATE.theme);
 }
 
 if (document.body) {

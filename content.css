@@ -363,3 +363,88 @@ body.wre-toolbar-floating.wre-show-controls [class*="readerControls"] {
   opacity: 1 !important;
   pointer-events: auto !important;
 }
+
+/* ========== 主题按钮样式 ========== */
+.wre-theme-options {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.wre-theme-btn {
+  flex: 1;
+  min-width: 80px;
+  padding: 10px 12px;
+  text-align: center;
+  border: 2px solid var(--wre-border);
+  border-radius: 8px;
+  background: var(--wre-bg);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.wre-theme-btn.wre-theme-active {
+  border-color: var(--wre-primary);
+  background: #e8f5e9;
+}
+
+.wre-theme-btn:hover {
+  border-color: var(--wre-primary);
+}
+
+/* ========== 暗黑主题 ========== */
+body.wre-theme-dark {
+  /* 全局 */
+  background: #1a1a2e !important;
+  color: #e0e0e0 !important;
+  filter: none !important;
+}
+
+body.wre-theme-dark .app_content,
+body.wre-theme-dark .readerChapterContent {
+  background: #1a1a2e !important;
+  color: #e0e0e0 !important;
+}
+
+body.wre-theme-dark .readerTopBar {
+  background: #16213e !important;
+  color: #e0e0e0 !important;
+}
+
+body.wre-theme-dark .readerTopBar a,
+body.wre-theme-dark .readerTopBar span,
+body.wre-theme-dark .readerTopBar div {
+  color: #e0e0e0 !important;
+}
+
+body.wre-theme-dark .readerControls {
+  background: transparent !important;
+}
+
+/* 阅读区域文字 */
+body.wre-theme-dark .readerChapterContent,
+body.wre-theme-dark .readerChapterContent * {
+  color: #d0d0d0 !important;
+}
+
+/* ========== 护眼主题（米黄色） ========== */
+body.wre-theme-eye-protection {
+  background: #f5e6c8 !important;
+  color: #5c4a2e !important;
+}
+
+body.wre-theme-eye-protection .app_content,
+body.wre-theme-eye-protection .readerChapterContent {
+  background: #f5e6c8 !important;
+  color: #5c4a2e !important;
+}
+
+body.wre-theme-eye-protection .readerTopBar {
+  background: #ede0c8 !important;
+  color: #5c4a2e !important;
+}
+
+body.wre-theme-eye-protection .readerChapterContent,
+body.wre-theme-eye-protection .readerChapterContent * {
+  color: #5c4a2e !important;
+}
