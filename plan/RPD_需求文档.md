@@ -277,12 +277,12 @@
 - [x] 方案文档（plan_edge_store.md）
 - [x] manifest.json 版本号对齐（0.2.0）+ 图标引用
 - [x] 生成 3 个图标 PNG（16/48/128）
-- [x] 撰写隐私政策（privacy.md）
+- [x] 撰写隐私政策（release/privacy.md）
 - [x] 更新 README.md 实际功能说明
-- [x] 构建上架 zip 包（weread-enhancer-v0.2.0.zip）
-- [ ] 准备商店截图（1280x800 或 640x400）
-- [ ] 注册 Edge Partner Center
-- [ ] 提交审核
+- [x] 构建上架 zip 包（release/weread-enhancer-v0.2.0.zip）
+- [x] 准备商店截图（1280x800 或 640x400）
+- [x] 制作推广图（440x280 + 1400x560）
+- [x] 提交 Edge Partner Center 审核（已提交，等待审核）
 
 ---
 

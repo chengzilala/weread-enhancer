@@ -68,16 +68,16 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 
 ### 步骤 3：准备商店 Listing（中英文）
 
-| 字段 | 内容 |
-|------|------|
-| **名称** | 微信读书屏占比调节器 |
-| **简短描述（≤80字）** | 自定义微信读书网页版阅读区域宽度，50%-100%自由调节 |
-| **详细描述** | 见下方"详细描述文案" |
-| **支持语言** | 中文（简体） |
-| **分类** | 生产力 / 辅助功能 |
-| **隐私政策 URL** | `https://github.com/chengzilala/weread-enhancer/blob/main/release/privacy.md` |
-| **网站 URL** | `https://github.com/chengzilala/weread-enhancer` |
-| **支持邮箱** | 2195542745@qq.com |
+| 字段             | 内容                                                                            |
+| -------------- | ----------------------------------------------------------------------------- |
+| **名称**         | 微信读书屏占比调节器                                                                    |
+| **简短描述（≤80字）** | 自定义微信读书网页版阅读区域宽度，50%-100%自由调节                                                 |
+| **详细描述**       | 见下方"详细描述文案"                                                                   |
+| **支持语言**       | 中文（简体）                                                                        |
+| **分类**         | 生产力 / 辅助功能                                                                    |
+| **隐私政策 URL**   | `https://github.com/chengzilala/weread-enhancer/blob/main/release/privacy.md` |
+| **网站 URL**     | `https://github.com/chengzilala/weread-enhancer`                              |
+| **支持邮箱**       | 2195542745@qq.com                                                             |
 
 **详细描述文案（中文）**：
 
@@ -208,7 +208,7 @@ The extension is open source: https://github.com/chengzilala/weread-enhancer
 | 6 | 准备中英文商店文案 | 文档中已有 | ✅ |
 | 7 | 截图整理与尺寸调整 | **用户操作**（从 `screenshots/` 选取 2-3 张，裁剪为 1280x800 或 640x400） | ⏳ 待执行 |
 | 8 | 重新打包上架 zip | 我来打包 | 🔄 即将执行 |
-| 9 | 注册 Partner Center + 上传提交 | 用户操作（需登录微软账户） | ⏳ 待执行 |
+| 9 | 注册 Partner Center + 上传提交 | 用户操作（已提交审核） | ✅ |
 
 ---
 
