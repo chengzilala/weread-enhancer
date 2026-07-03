@@ -31,6 +31,10 @@ let autoReadTimer = null;
 let autoReadPaused = false;
 let autoReadIsInterval = false; // true=setInterval, false=rAF
 
+// 全屏状态追踪
+let wreFullscreenPreviousRatio = null; // 进入全屏前的屏占比，退出时恢复
+let wreFullscreenPreviousDnd = null;   // 进入全屏前的勿扰状态，退出时恢复
+
 function safeStringify(value) {
   try {
     return JSON.stringify(value, null, 2);
@@ -2387,7 +2391,7 @@ function createUI() {
               <button class="wre-btn wre-btn-small" data-speed="60">🚀 60</button>
               <button class="wre-btn wre-btn-small" data-speed="80">⚡ 80</button>
             </div>
-            <div class="wre-setting-tip">快捷键：空格键 开始/暂停</div>
+            <div class="wre-setting-tip">快捷键：空格 开始/暂停 | 按 ? 查看全部快捷键</div>
           </div>
         </div>
       </div>
@@ -2410,6 +2414,50 @@ function createUI() {
             <p class="wre-theme-hint">插件主题与官方主题独立运行。如需恢复官方原生外观，点击下方按钮清除所有插件样式</p>
             <button class="wre-btn" id="wre-clear-plugin-theme-btn" style="margin-top:8px;width:100%;background:#f0f0f0;color:#333;border:1px solid #ddd;">↩️ 使用官方主题（清除插件样式）</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wre-modal-overlay" id="wre-shortcuts-modal">
+      <div class="wre-modal">
+        <div class="wre-modal-header">
+          <span class="wre-modal-title">⌨️ 快捷键说明</span>
+          <button class="wre-modal-close" data-close="#wre-shortcuts-modal">&times;</button>
+        </div>
+        <div class="wre-modal-body">
+          <table class="wre-shortcuts-table">
+            <thead>
+              <tr><th>快捷键</th><th>功能</th><th>状态</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="wre-shortcut-key">←</span><span class="wre-shortcut-sep">/</span><span class="wre-shortcut-key">→</span></td>
+                <td>上一页 / 下一页</td>
+                <td>启用</td>
+              </tr>
+              <tr>
+                <td><span class="wre-shortcut-key">Space</span></td>
+                <td>播放 / 暂停自动阅读</td>
+                <td id="wre-shortcut-autoread-status">启用</td>
+              </tr>
+              <tr>
+                <td><span class="wre-shortcut-key">D</span></td>
+                <td>开启 / 关闭勿扰模式</td>
+                <td id="wre-shortcut-dnd-status">启用</td>
+              </tr>
+              <tr>
+                <td><span class="wre-shortcut-key">F</span></td>
+                <td>进入 / 退出全屏（全屏时屏比自动设为 100%）</td>
+                <td>启用</td>
+              </tr>
+              <tr>
+                <td><span class="wre-shortcut-key">?</span></td>
+                <td>显示 / 隐藏此帮助面板</td>
+                <td>启用</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="wre-shortcuts-footer">提示：快捷键仅在微信读书网页内生效，输入框中不触发</div>
         </div>
       </div>
     </div>
@@ -2674,7 +2722,87 @@ function updateAutoReadUI() {
   }
 }
 
-function handleAutoReadKeyboard(event) {
+/* ========== 快捷键系统（阶段四） ========== */
+
+function toggleDndMode() {
+  WRE_STATE.dndMode = !WRE_STATE.dndMode;
+  if (wreRoot) {
+    wreRoot.classList.toggle('wre-dnd', WRE_STATE.dndMode);
+  }
+  saveState();
+  log('info', '勿扰模式已切换', { dndMode: WRE_STATE.dndMode });
+}
+
+function toggleShortcutsHelp() {
+  const modal = wreRoot?.querySelector('#wre-shortcuts-modal');
+  if (!modal) return;
+  const isVisible = modal.classList.contains('wre-visible');
+  if (isVisible) {
+    modal.classList.remove('wre-visible');
+  } else {
+    modal.classList.add('wre-visible');
+  }
+}
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    // 进入全屏：保存当前状态，屏比设为 100%，开启勿扰隐藏图标
+    wreFullscreenPreviousRatio = WRE_STATE.screenRatio;
+    wreFullscreenPreviousDnd = WRE_STATE.dndMode;
+    WRE_STATE.screenRatio = 100;
+    applyScreenRatio(100);
+    scheduleWereadLayoutReflow('fullscreen-enter');
+    updateScreenRatioUI();
+    if (!WRE_STATE.dndMode) {
+      WRE_STATE.dndMode = true;
+      if (wreRoot) wreRoot.classList.add('wre-dnd');
+    }
+    document.documentElement.requestFullscreen().catch((err) => {
+      log('warn', '进入全屏失败', { error: String(err) });
+    });
+    saveState();
+    log('info', '进入全屏模式', { previousRatio: wreFullscreenPreviousRatio });
+  } else {
+    // 退出全屏
+    document.exitFullscreen().then(() => {
+      // 恢复在 fullscreenchange 事件中处理
+    }).catch((err) => {
+      log('warn', '退出全屏失败', { error: String(err) });
+    });
+  }
+}
+
+function handleFullscreenChange() {
+  if (!document.fullscreenElement && wreFullscreenPreviousRatio !== null) {
+    // 恢复屏占比
+    const restoreRatio = wreFullscreenPreviousRatio;
+    wreFullscreenPreviousRatio = null;
+    WRE_STATE.screenRatio = restoreRatio;
+    applyScreenRatio(restoreRatio);
+    scheduleWereadLayoutReflow('fullscreen-exit');
+    updateScreenRatioUI();
+
+    // 恢复勿扰状态：仅当初 DND 关闭时才退出勿扰
+    if (wreFullscreenPreviousDnd === false) {
+      WRE_STATE.dndMode = false;
+      if (wreRoot) wreRoot.classList.remove('wre-dnd');
+    }
+    wreFullscreenPreviousDnd = null;
+
+    saveState();
+    log('info', '退出全屏模式，已恢复屏占比和勿扰状态', { restoredRatio: restoreRatio });
+  }
+}
+
+function updateScreenRatioUI() {
+  if (!wreRoot) return;
+  const slider = wreRoot.querySelector('#wre-screen-ratio');
+  const value = wreRoot.querySelector('#wre-screen-ratio-value');
+  if (slider) slider.value = String(WRE_STATE.screenRatio);
+  if (value) value.textContent = `${WRE_STATE.screenRatio}%`;
+}
+
+function handleAllKeyboard(event) {
   // 只响应真实键盘事件，忽略程序派发的事件
   if (!event.isTrusted) return;
 
@@ -2684,10 +2812,25 @@ function handleAutoReadKeyboard(event) {
     return;
   }
 
-  if (event.key === ' ') {
-    event.preventDefault();
-    toggleAutoRead();
-    return;
+  switch (event.key) {
+    case ' ':
+      event.preventDefault();
+      toggleAutoRead();
+      break;
+    case 'd':
+    case 'D':
+      event.preventDefault();
+      toggleDndMode();
+      break;
+    case 'f':
+    case 'F':
+      event.preventDefault();
+      toggleFullscreen();
+      break;
+    case '?':
+      event.preventDefault();
+      toggleShortcutsHelp();
+      break;
   }
 }
 
@@ -2733,6 +2876,13 @@ function bindEvents(root) {
 
   fab.addEventListener('click', (event) => {
     event.stopPropagation();
+    // 勿扰模式下点击图标 → 先退出勿扰再打开菜单
+    if (WRE_STATE.dndMode) {
+      WRE_STATE.dndMode = false;
+      wreRoot.classList.remove('wre-dnd');
+      saveState();
+      log('info', '点击图标退出勿扰模式');
+    }
     menu.classList.toggle('wre-visible');
   });
 
@@ -2929,6 +3079,9 @@ function handleMenuClick(action) {
       }
       log('warn', '已恢复默认设置', applied);
       break;
+    case 'shortcuts':
+      openModal('#wre-shortcuts-modal');
+      break;
     case 'clear-plugin-theme':
       const mainMenu = document.querySelector('#wre-main-menu');
       if (mainMenu) mainMenu.classList.remove('wre-visible');
@@ -3013,8 +3166,11 @@ async function init() {
   });
   headObserver.observe(document.head, { childList: true });
 
-  // 注册自动阅读键盘快捷键
-  document.addEventListener('keydown', handleAutoReadKeyboard);
+  // 注册键盘快捷键
+  document.addEventListener('keydown', handleAllKeyboard);
+
+  // 监听全屏变化（Esc 键或浏览器按钮退出全屏时恢复屏占比）
+  document.addEventListener('fullscreenchange', handleFullscreenChange);
 }
 
 if (document.body) {

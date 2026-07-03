@@ -455,4 +455,69 @@ body.wre-toolbar-floating.wre-show-controls [class*="readerControls"] {
   background: #e8f5e9;
 }
 
+/* ========== 快捷键帮助面板 ========== */
+.wre-shortcuts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.wre-shortcuts-table th,
+.wre-shortcuts-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--wre-border);
+}
+
+.wre-shortcuts-table th {
+  font-weight: 600;
+  color: #888;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.wre-shortcuts-table td:first-child {
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  font-weight: 600;
+  color: var(--wre-text);
+  white-space: nowrap;
+  width: 80px;
+}
+
+.wre-shortcuts-table td:nth-child(2) {
+  color: var(--wre-text);
+}
+
+.wre-shortcuts-table td:nth-child(3) {
+  color: #888;
+  font-size: 12px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.wre-shortcuts-table .wre-shortcut-key {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--wre-hover-bg);
+  border: 1px solid var(--wre-border);
+  border-radius: 4px;
+  font-size: 12px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.wre-shortcuts-table .wre-shortcut-sep {
+  margin: 0 2px;
+  color: #999;
+}
+
+.wre-shortcuts-footer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--wre-border);
+  font-size: 12px;
+  color: #888;
+  text-align: center;
+}
+
 

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "微信读书屏占比调节器",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "自定义微信读书网页版阅读区域宽度，50%-100%自由调节，设置自动保存。",
   "icons": {
     "16": "icons/icon-16.png",
