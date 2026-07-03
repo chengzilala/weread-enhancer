@@ -75,6 +75,8 @@ function serializeElement(el) {
       pointerEvents: computed.pointerEvents,
       visibility: computed.visibility,
       zIndex: computed.zIndex,
+      color: computed.color,
+      backgroundColor: computed.backgroundColor,
     },
   };
 }
@@ -339,6 +341,13 @@ function registerRuntimeErrorHooks() {
 async function loadState() {
   try {
     const result = await chrome.storage.local.get([WRE_STORAGE_KEYS.state, WRE_STORAGE_KEYS.logs]);
+    // #region debug-point init-theme-state-load
+    log('info', '初始化读取存储状态', {
+      hasState: Boolean(result[WRE_STORAGE_KEYS.state]),
+      storedTheme: result[WRE_STORAGE_KEYS.state]?.theme || null,
+      storedScreenRatio: result[WRE_STORAGE_KEYS.state]?.screenRatio || null,
+    });
+    // #endregion
     if (result[WRE_STORAGE_KEYS.state]) {
       WRE_STATE = { ...WRE_DEFAULT_STATE, ...result[WRE_STORAGE_KEYS.state] };
     }
@@ -439,8 +448,8 @@ function ensureStyleTag() {
 
   const existing = Array.from(document.querySelectorAll('#we-read-enhancer-style'));
   if (existing.length > 0) {
-    wreStyleTag = existing[0];
-    existing.slice(1).forEach((el) => el.remove());
+    wreStyleTag = existing[existing.length - 1];
+    existing.slice(0, -1).forEach((el) => el.remove());
     return;
   }
 
@@ -492,6 +501,7 @@ function updateStyleTag(ratio) {
         box-sizing: border-box !important;
       }
       ${toolbarFloatCSS}
+      ${wreThemeCSS[WRE_STATE.theme] || wreThemeCSS.light}
     `;
   } else {
     wreStyleTag.textContent = `
@@ -502,6 +512,7 @@ function updateStyleTag(ratio) {
         box-sizing: border-box !important;
       }
       ${toolbarFloatCSS}
+      ${wreThemeCSS[WRE_STATE.theme] || wreThemeCSS.light}
     `;
   }
 
@@ -561,6 +572,34 @@ function applyScreenRatio(ratio) {
 }
 
 /* ========== 主题设置 ========== */
+
+// 颜色配置（背景走 CSS，文字走 element.style.setProperty）
+const wreThemeColors = {
+  light:         { bg: '#ffffff', color: '#000000', topbarBg: '#ffffff', filter: 'none' },
+  dark:          { bg: '#121212', color: '#ffffff', topbarBg: '#1a1a1a', filter: 'invert(1) hue-rotate(180deg)' },
+  'eye-protection': { bg: '#f5e6c8', color: '#1a0a00', topbarBg: '#ede0c8', filter: 'sepia(0.4)' },
+};
+
+const wreThemeBackgroundSelector = [
+  'div.app',
+  'div.app_content',
+  'div.app_content_in_reader',
+  'div.wr_horizontalReader',
+  'div.wr_horizontalReader_app_content',
+  'div.readerChapterContent_container',
+  'div.readerChapterContent',
+  'div.horizontal_reader_back_cover_wrapper',
+  'div.reader_flyleaf_container',
+  'div.horizontalReaderCoverPage',
+  'div[class*="needPay_container"]',
+].join(',');
+
+const wreThemeCSS = {
+  light: `.renderTargetContainer,.renderTargetContainer>div{background:transparent!important}html > body.wre-theme-light,html > body.wre-theme-light ${wreThemeBackgroundSelector}{background:#ffffff!important}html > body.wre-theme-light div.readerTopBar{background:#ffffff!important}html > body.wre-theme-light .renderTargetContainer,html > body.wre-theme-light .wr_canvasContainer,html > body.wre-theme-light canvas{filter:none!important}`,
+  dark: `.renderTargetContainer,.renderTargetContainer>div{background:transparent!important}html > body.wre-theme-dark,html > body.wre-theme-dark ${wreThemeBackgroundSelector}{background:#121212!important}html > body.wre-theme-dark div.readerTopBar{background:#1a1a1a!important}html > body.wre-theme-dark .renderTargetContainer,html > body.wre-theme-dark .wr_canvasContainer,html > body.wre-theme-dark canvas{filter:invert(1) hue-rotate(180deg)!important}`,
+  'eye-protection': `.renderTargetContainer,.renderTargetContainer>div{background:transparent!important}html > body.wre-theme-eye-protection,html > body.wre-theme-eye-protection ${wreThemeBackgroundSelector}{background:#f5e6c8!important}html > body.wre-theme-eye-protection div.readerTopBar{background:#ede0c8!important}html > body.wre-theme-eye-protection .renderTargetContainer,html > body.wre-theme-eye-protection .wr_canvasContainer,html > body.wre-theme-eye-protection canvas{filter:sepia(0.4)!important}`,
+};
+
 function applyTheme(theme) {
   // 移除旧主题类
   document.body.classList.remove('wre-theme-light', 'wre-theme-dark', 'wre-theme-eye-protection');
@@ -573,7 +612,1470 @@ function applyTheme(theme) {
     root.setAttribute('data-wre-theme', theme);
   }
 
-  log('info', '主题已应用', { theme });
+  // 更新状态并通过 updateStyleTag 重建完整样式（含主题 CSS + 屏占比 CSS）
+  WRE_STATE.theme = theme;
+  ensureStyleTag();
+  updateStyleTag(WRE_STATE.screenRatio);
+
+  // 用 element.style.setProperty('color', ..., 'important') 直接设文字颜色
+  // 此方式优先级高于任何样式表 !important，React 无法覆盖
+  applyThemeColors(theme);
+
+  log('info', '主题已应用', {
+    theme,
+    officialThemeHint: '插件不再强制同步微信读书官方主题，仅保证插件主题自身的背景与文字可读性',
+    bodyClass: document.body.className,
+  });
+}
+
+/**
+ * 清除插件主题样式，让官方主题完全接管
+ * 点击官方主题按钮时调用
+ */
+function clearPluginTheme() {
+  // 0. 设标记位，阻止所有延迟兜底重新覆盖
+  wrePluginThemeDisabled = true;
+
+  // 1. 移除 body 上的插件主题 class
+  document.body.classList.remove('wre-theme-light', 'wre-theme-dark', 'wre-theme-eye-protection');
+
+  // 2. 重建 wreStyleTag：保留屏占比 CSS，清除主题 CSS
+  const styleTag = document.getElementById('wreThemeStyleTag') || document.getElementById('we-read-enhancer-style');
+  if (styleTag) {
+    const ratio = WRE_STATE.screenRatio;
+    const basePx = Number.isFinite(WRE_STATE.screenBasePx) && WRE_STATE.screenBasePx > 0 ? WRE_STATE.screenBasePx : null;
+    const targetPx = basePx ? Math.round((basePx * ratio) / 100) : null;
+    if (targetPx) {
+      styleTag.textContent = `
+        .readerChapterContent {
+          width: ${targetPx}px !important;
+          max-width: ${targetPx}px !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+          box-sizing: border-box !important;
+        }
+        ${toolbarFloatCSS}
+      `;
+    } else {
+      styleTag.textContent = `
+        .readerChapterContent {
+          max-width: ${ratio}% !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+          box-sizing: border-box !important;
+        }
+        ${toolbarFloatCSS}
+      `;
+    }
+  }
+
+  // 3. 暴力清理所有 inline 样式（filter、background、color 全部清掉）
+  for (const c of document.querySelectorAll('canvas')) {
+    const parent = c.parentElement;
+    if (parent) {
+      parent.style.removeProperty('filter');
+      parent.style.removeProperty('background-color');
+    }
+    c.style.removeProperty('filter');
+  }
+  const all = document.querySelectorAll('[style]');
+  for (const el of all) {
+    const s = el.style;
+    if (s.filter && (s.filter.includes('invert') || s.filter.includes('sepia') || s.filter.includes('hue-rotate'))) {
+      s.removeProperty('filter');
+    }
+    if (s.backgroundColor === 'rgb(18, 18, 18)' || s.backgroundColor === 'rgb(245, 230, 200)' ||
+        s.backgroundColor === 'rgb(26, 26, 26)' || s.backgroundColor === 'rgb(237, 224, 200)' ||
+        s.backgroundColor === 'rgb(255, 255, 255)') {
+      s.removeProperty('background-color');
+    }
+    if (s.color === 'rgb(0, 0, 0)' || s.color === 'rgb(255, 255, 255)' || s.color === 'rgb(26, 10, 0)') {
+      s.removeProperty('color');
+      s.removeProperty('-webkit-text-fill-color');
+    }
+  }
+
+  // 4. 清理顶栏
+  const topBar = document.querySelector('.readerTopBar');
+  if (topBar) {
+    topBar.style.removeProperty('color');
+    topBar.style.removeProperty('-webkit-text-fill-color');
+    topBar.style.removeProperty('background-color');
+  }
+
+  // 5. 清理所有 recorded elements
+  clearLastPaintedThemeStyles();
+
+  // 6. 重置状态
+  WRE_STATE.theme = 'light';
+
+  // 7. 更新 UI
+  const root = document.getElementById('we-read-enhancer-root');
+  if (root) {
+    root.setAttribute('data-wre-theme', 'light');
+  }
+  // 显式设置主题按钮高亮：移除所有，仅高亮「明亮」
+  const themeOptions = document.getElementById('wre-theme-options');
+  if (themeOptions) {
+    themeOptions.querySelectorAll('[data-theme]').forEach((btn) => {
+      btn.classList.toggle('wre-theme-active', btn.getAttribute('data-theme') === 'light');
+    });
+  }
+
+  log('info', '插件主题已清除，官方主题接管（所有插件样式已移除）');
+}
+
+/**
+ * 直接设置 .readerChapterContent 内所有元素的 color，
+ * 使用 style.setProperty('color', ..., 'important')，
+ * 优先级高于一切样式表，保证文字始终清晰可见。
+ */
+let wreColorObserver = null;
+let wreColorLastSet = 0;
+let wreLastPaintedElements = new Set();
+let wrePluginThemeDisabled = false; // 标记是否已清除插件主题，防止延迟兜底重新覆盖
+let wreCanvasFirstVisibleHits = new Map();
+let wreThemeTokenStartTimes = new Map();
+let wreCanvasDebugIds = new WeakMap();
+let wreCanvasNextDebugId = 1;
+let wreCanvasDrawStats = new Map();
+let wreCanvasLifecycle = new Map();
+let wreCanvasHooksInstalled = false;
+
+function getCanvasDebugId(canvas) {
+  if (!wreCanvasDebugIds.has(canvas)) {
+    wreCanvasDebugIds.set(canvas, wreCanvasNextDebugId++);
+  }
+  return wreCanvasDebugIds.get(canvas);
+}
+
+function recordCanvasDrawCall(ctx, method, args) {
+  const canvas = ctx && ctx.canvas;
+  if (!(canvas instanceof HTMLCanvasElement)) {
+    return;
+  }
+  const canvasId = getCanvasDebugId(canvas);
+  const now = Date.now();
+  const stats = wreCanvasDrawStats.get(canvasId) || {
+    totalCalls: 0,
+    callsByMethod: {},
+    firstCallAt: null,
+    lastCallAt: null,
+    recentCalls: [],
+  };
+  stats.totalCalls += 1;
+  stats.callsByMethod[method] = (stats.callsByMethod[method] || 0) + 1;
+  if (!stats.firstCallAt) {
+    stats.firstCallAt = now;
+  }
+  stats.lastCallAt = now;
+  let argHint = null;
+  if (method === 'drawImage' && args[0]) {
+    const source = args[0];
+    argHint = source && source.tagName
+      ? source.tagName
+      : Object.prototype.toString.call(source).replace(/^\[object |\]$/g, '');
+  } else if (/Rect$/.test(method) && args.length >= 4) {
+    argHint = `${Math.round(args[2] || 0)}x${Math.round(args[3] || 0)}`;
+  } else if ((method === 'fillText' || method === 'strokeText') && args[0]) {
+    argHint = String(args[0]).replace(/\s+/g, ' ').slice(0, 24);
+  }
+  stats.recentCalls.push({
+    method,
+    at: now,
+    argHint,
+  });
+  if (stats.recentCalls.length > 6) {
+    stats.recentCalls.shift();
+  }
+  wreCanvasDrawStats.set(canvasId, stats);
+}
+
+function installCanvasDebugHooks() {
+  if (wreCanvasHooksInstalled || typeof CanvasRenderingContext2D === 'undefined') {
+    return;
+  }
+  const proto = CanvasRenderingContext2D.prototype;
+  const methods = ['drawImage', 'fillText', 'strokeText', 'putImageData', 'fillRect', 'strokeRect', 'fill', 'stroke', 'clearRect'];
+  for (const method of methods) {
+    const original = proto[method];
+    if (typeof original !== 'function') {
+      continue;
+    }
+    proto[method] = function wreCanvasDebugWrapper(...args) {
+      recordCanvasDrawCall(this, method, args);
+      return original.apply(this, args);
+    };
+  }
+  wreCanvasHooksInstalled = true;
+}
+
+// #region debug-point fast-switch-dark-text
+function collectFastSwitchSnapshot(theme, stage, token) {
+  const areas = Array.from(document.querySelectorAll('.readerChapterContent'));
+  const samples = areas.slice(0, 1).map((area, index) => {
+    const areaStyle = window.getComputedStyle(area);
+    const hasPluginClassToken = (className) => (
+      className.split(/\s+/).some((token) => /^wre-/.test(token))
+    );
+    const isNoiseClassName = (className) => (
+      /preRenderContainer|reader_float_|readerControls|wr_tooltip_container|readerTopBar|renderTarget_pager|renderTargetPageInfo_header|readerCatalog|readerNotePanel|readerAIChatPanel|reader-font-control-panel-wrapper|wr_dialog|wr_mask/.test(className) ||
+      hasPluginClassToken(className)
+    );
+    const isNoiseElement = (el) => {
+      if (!el) {
+        return true;
+      }
+      const className = typeof el.className === 'string' ? el.className : '';
+      if (isNoiseClassName(className)) {
+        return true;
+      }
+      if (
+        (typeof el.id === 'string' && /^wre-/.test(el.id)) ||
+        el.closest('#we-read-enhancer-root, [id^="wre-"], .wre-modal-overlay, .wre-modal, .wre-setting-item, .wre-setting-control, .wre-debug-output, .wre-theme-options, .wre-btn, .wre-slider, .readerControls, .wr_tooltip_container, .readerTopBar, [class*="reader_float_"], .readerCatalog, .readerNotePanel, .readerAIChatPanel, .wr_dialog')
+      ) {
+        return true;
+      }
+      return false;
+    };
+    const summarizeNode = (node, depth) => {
+      const text = (node.textContent || '').replace(/\s+/g, ' ').trim();
+      const rect = typeof node.getBoundingClientRect === 'function'
+        ? node.getBoundingClientRect()
+        : { width: 0, height: 0 };
+      const children = depth > 0
+        ? Array.from(node.children || []).slice(0, 4).map((child) => summarizeNode(child, depth - 1))
+        : [];
+      return {
+        tag: node.tagName || '(unknown)',
+        className: typeof node.className === 'string' ? node.className : '',
+        childCount: node.children ? node.children.length : 0,
+        textLength: text.length,
+        sampleText: text.slice(0, 40),
+        rect: {
+          width: Number((rect.width || 0).toFixed(2)),
+          height: Number((rect.height || 0).toFixed(2)),
+        },
+        children,
+      };
+    };
+    const collectSizedDescendants = (root) => {
+      const results = [];
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+      while (walker.nextNode() && results.length < 8) {
+        const el = walker.currentNode;
+        if (!(el instanceof Element) || el === root || isNoiseElement(el)) {
+          continue;
+        }
+        const rect = typeof el.getBoundingClientRect === 'function'
+          ? el.getBoundingClientRect()
+          : { width: 0, height: 0, left: 0, top: 0 };
+        if (rect.width <= 0 || rect.height <= 0) {
+          continue;
+        }
+        const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+        results.push({
+          tag: el.tagName,
+          className: typeof el.className === 'string' ? el.className : '',
+          text: text.slice(0, 40),
+          rect: {
+            width: Number((rect.width || 0).toFixed(2)),
+            height: Number((rect.height || 0).toFixed(2)),
+            left: Number((rect.left || 0).toFixed(2)),
+            top: Number((rect.top || 0).toFixed(2)),
+          },
+        });
+      }
+      return results;
+    };
+    const collectDirectChildLayers = (root) => (
+      Array.from(root.children || [])
+        .slice(0, 12)
+        .map((child) => {
+          const rect = typeof child.getBoundingClientRect === 'function'
+            ? child.getBoundingClientRect()
+            : { width: 0, height: 0, left: 0, top: 0 };
+          const style = window.getComputedStyle(child);
+          const className = typeof child.className === 'string' ? child.className : '';
+          const text = (child.textContent || '').replace(/\s+/g, ' ').trim();
+          return {
+            tag: child.tagName,
+            className,
+            childCount: child.children ? child.children.length : 0,
+            text: text.slice(0, 40),
+            rect: {
+              width: Number((rect.width || 0).toFixed(2)),
+              height: Number((rect.height || 0).toFixed(2)),
+              left: Number((rect.left || 0).toFixed(2)),
+              top: Number((rect.top || 0).toFixed(2)),
+            },
+            display: style.display,
+            position: style.position,
+            opacity: style.opacity,
+            visibility: style.visibility,
+            overflow: style.overflow,
+            transform: style.transform,
+            zIndex: style.zIndex,
+            currentPageHint: /(current|active|show|visible|focus|selected|pageCurrent)/i.test(className),
+          };
+        })
+    );
+    const classifyRenderBranch = (root, directChildLayers, textCandidates, visibleNodes, canvasDiagnostics) => {
+      const childClassNames = directChildLayers.map((child) => child.className).filter(Boolean);
+      const textClassNames = textCandidates.map((candidate) => candidate.className).filter(Boolean);
+      const combinedClasses = [...childClassNames, ...textClassNames].join(' ');
+      const hasCanvas = canvasDiagnostics.length > 0;
+      const hasCanvasPixels = canvasDiagnostics.some((canvas) => canvas.hasNonTransparentPixels);
+      const hasBackCover = /horizontal_reader_back_cover_wrapper/.test(combinedClasses);
+      const hasFlyleaf = /reader_flyleaf_container|horizontalReaderCoverPage/.test(combinedClasses);
+      const hasNeedPay = /needPay_container/.test(combinedClasses);
+      const hasEnding = /readerFooter_ending_|back_lang_/.test(combinedClasses);
+      const hasLoading = root.querySelector('.readerChapterContentLoading') !== null;
+      const likelyBranch = visibleNodes.length > 0
+        ? 'readable-text-visible'
+        : hasCanvasPixels
+          ? 'canvas-visible'
+          : hasNeedPay
+            ? 'need-pay-or-preview-branch'
+            : hasBackCover || hasFlyleaf || hasEnding
+              ? 'cover-or-ending-branch'
+              : hasCanvas
+                ? 'canvas-present-but-transparent'
+                : hasLoading
+                  ? 'loading-branch'
+                  : 'unknown';
+      return {
+        likelyBranch,
+        hasCanvas,
+        hasCanvasPixels,
+        hasLoading,
+        hasBackCover,
+        hasFlyleaf,
+        hasNeedPay,
+        hasEnding,
+        childClassNames: childClassNames.slice(0, 6),
+        textClassNames: textClassNames.slice(0, 6),
+      };
+    };
+    const collectCanvasDiagnostics = (root) => (
+      Array.from(root.querySelectorAll('canvas'))
+        .slice(0, 4)
+        .map((canvas, index) => {
+          const buildAncestorSnapshot = (el) => {
+            if (!(el instanceof Element)) {
+              return null;
+            }
+            const ancestorRect = typeof el.getBoundingClientRect === 'function'
+              ? el.getBoundingClientRect()
+              : { width: 0, height: 0, left: 0, top: 0 };
+            const ancestorStyle = window.getComputedStyle(el);
+            return {
+              tag: el.tagName,
+              className: typeof el.className === 'string' ? el.className : '',
+              rect: {
+                width: Number((ancestorRect.width || 0).toFixed(2)),
+                height: Number((ancestorRect.height || 0).toFixed(2)),
+                left: Number((ancestorRect.left || 0).toFixed(2)),
+                top: Number((ancestorRect.top || 0).toFixed(2)),
+              },
+              display: ancestorStyle.display,
+              position: ancestorStyle.position,
+              opacity: ancestorStyle.opacity,
+              visibility: ancestorStyle.visibility,
+              overflow: ancestorStyle.overflow,
+              transform: ancestorStyle.transform,
+              zIndex: ancestorStyle.zIndex,
+            };
+          };
+          const rect = typeof canvas.getBoundingClientRect === 'function'
+            ? canvas.getBoundingClientRect()
+            : { width: 0, height: 0, left: 0, top: 0 };
+          const style = window.getComputedStyle(canvas);
+          const canvasId = getCanvasDebugId(canvas);
+          const pixelSamples = [];
+          const nonTransparentSamples = [];
+          let contextReadable = false;
+          let pixelReadError = null;
+          try {
+            const ctx = canvas.getContext('2d', { willReadFrequently: true }) || canvas.getContext('2d');
+            contextReadable = Boolean(ctx);
+            if (ctx && canvas.width > 0 && canvas.height > 0) {
+              const samplePoints = [
+                { label: 'center', x: 0.5, y: 0.5 },
+                { label: 'left-center', x: 0.25, y: 0.5 },
+                { label: 'right-center', x: 0.75, y: 0.5 },
+              ];
+              for (const point of samplePoints) {
+                const x = Math.max(0, Math.min(canvas.width - 1, Math.round(canvas.width * point.x)));
+                const y = Math.max(0, Math.min(canvas.height - 1, Math.round(canvas.height * point.y)));
+                const data = ctx.getImageData(x, y, 1, 1).data;
+                pixelSamples.push({
+                  label: point.label,
+                  x,
+                  y,
+                  rgba: Array.from(data),
+                });
+                if (data[3] > 0 || data[0] > 0 || data[1] > 0 || data[2] > 0) {
+                  nonTransparentSamples.push({
+                    label: point.label,
+                    x,
+                    y,
+                    rgba: Array.from(data),
+                  });
+                }
+              }
+            }
+          } catch (error) {
+            pixelReadError = error instanceof Error ? error.message : String(error);
+          }
+          const canvasKey = `${token}:${index}`;
+          const tokenStartedAt = wreThemeTokenStartTimes.get(token) || null;
+          const hasNonTransparentPixels = nonTransparentSamples.length > 0;
+          if (hasNonTransparentPixels && !wreCanvasFirstVisibleHits.has(canvasKey)) {
+            wreCanvasFirstVisibleHits.set(canvasKey, {
+              stage,
+              elapsedMs: tokenStartedAt ? Date.now() - tokenStartedAt : null,
+              sampleLabels: nonTransparentSamples.map((sample) => sample.label),
+            });
+          }
+          const firstNonTransparentHit = wreCanvasFirstVisibleHits.get(canvasKey) || null;
+          const parentChain = [];
+          let ancestor = canvas.parentElement;
+          let depth = 0;
+          while (ancestor && depth < 5) {
+            parentChain.push({
+              depth: depth + 1,
+              ...buildAncestorSnapshot(ancestor),
+            });
+            if (ancestor === root || ancestor.classList?.contains('readerChapterContent')) {
+              break;
+            }
+            ancestor = ancestor.parentElement;
+            depth += 1;
+          }
+          const lifecycleRectSignature = [
+            Math.round(rect.width || 0),
+            Math.round(rect.height || 0),
+            Math.round(rect.left || 0),
+            Math.round(rect.top || 0),
+          ].join(':');
+          const lifecycleParentSignature = parentChain
+            .slice(0, 3)
+            .map((item) => `${item.className}|${item.display}|${item.visibility}|${item.opacity}`)
+            .join('>');
+          const lifecycle = wreCanvasLifecycle.get(canvasId) || {
+            firstSeenStage: stage,
+            firstSeenAt: Date.now(),
+            observationCount: 0,
+            sizeChangeCount: 0,
+            rectChangeCount: 0,
+            parentChangeCount: 0,
+            lastWidth: canvas.width,
+            lastHeight: canvas.height,
+            lastRectSignature: lifecycleRectSignature,
+            lastParentSignature: lifecycleParentSignature,
+          };
+          lifecycle.observationCount += 1;
+          if (lifecycle.lastWidth !== canvas.width || lifecycle.lastHeight !== canvas.height) {
+            lifecycle.sizeChangeCount += 1;
+          }
+          if (lifecycle.lastRectSignature !== lifecycleRectSignature) {
+            lifecycle.rectChangeCount += 1;
+          }
+          if (lifecycle.lastParentSignature !== lifecycleParentSignature) {
+            lifecycle.parentChangeCount += 1;
+          }
+          lifecycle.lastWidth = canvas.width;
+          lifecycle.lastHeight = canvas.height;
+          lifecycle.lastRectSignature = lifecycleRectSignature;
+          lifecycle.lastParentSignature = lifecycleParentSignature;
+          lifecycle.lastSeenStage = stage;
+          lifecycle.lastSeenAt = Date.now();
+          wreCanvasLifecycle.set(canvasId, lifecycle);
+          const drawStats = wreCanvasDrawStats.get(canvasId) || null;
+          const overlayHitStack = rect.width > 0 && rect.height > 0
+            ? document.elementsFromPoint(
+              Math.max(0, Math.min(window.innerWidth - 1, Math.round(rect.left + rect.width / 2))),
+              Math.max(0, Math.min(window.innerHeight - 1, Math.round(rect.top + rect.height / 2))),
+            )
+              .filter((el) => el instanceof Element)
+              .slice(0, 5)
+              .map((el, hitIndex) => ({
+                index: hitIndex,
+                tag: el.tagName,
+                className: typeof el.className === 'string' ? el.className : '',
+                isCanvasSelf: el === canvas,
+                isNoise: isNoiseElement(el),
+              }))
+            : [];
+          return {
+            index,
+            canvasId,
+            className: typeof canvas.className === 'string' ? canvas.className : '',
+            width: canvas.width,
+            height: canvas.height,
+            rect: {
+              width: Number((rect.width || 0).toFixed(2)),
+              height: Number((rect.height || 0).toFixed(2)),
+              left: Number((rect.left || 0).toFixed(2)),
+              top: Number((rect.top || 0).toFixed(2)),
+            },
+            display: style.display,
+            opacity: style.opacity,
+            visibility: style.visibility,
+            position: style.position,
+            zIndex: style.zIndex,
+            contextReadable,
+            pixelReadError,
+            hasNonTransparentPixels,
+            pixelSamples,
+            nonTransparentSamples,
+            firstNonTransparentHit,
+            lifecycle: {
+              firstSeenStage: lifecycle.firstSeenStage,
+              firstSeenElapsedMs: tokenStartedAt ? lifecycle.firstSeenAt - tokenStartedAt : null,
+              lastSeenStage: lifecycle.lastSeenStage,
+              lastSeenElapsedMs: tokenStartedAt ? lifecycle.lastSeenAt - tokenStartedAt : null,
+              observationCount: lifecycle.observationCount,
+              sizeChangeCount: lifecycle.sizeChangeCount,
+              rectChangeCount: lifecycle.rectChangeCount,
+              parentChangeCount: lifecycle.parentChangeCount,
+            },
+            drawStats: drawStats
+              ? {
+                totalCalls: drawStats.totalCalls,
+                callsByMethod: drawStats.callsByMethod,
+                firstCallElapsedMs: tokenStartedAt ? drawStats.firstCallAt - tokenStartedAt : null,
+                lastCallElapsedMs: tokenStartedAt ? drawStats.lastCallAt - tokenStartedAt : null,
+                recentCalls: drawStats.recentCalls.map((call) => ({
+                  method: call.method,
+                  elapsedMs: tokenStartedAt ? call.at - tokenStartedAt : null,
+                  argHint: call.argHint,
+                })),
+              }
+              : null,
+            parentChain,
+            overlayHitStack,
+          };
+        })
+    );
+    const buildElementSnapshot = (el, label, point) => {
+      const style = window.getComputedStyle(el);
+      const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+      const rect = typeof el.getBoundingClientRect === 'function'
+        ? el.getBoundingClientRect()
+        : { width: 0, height: 0, left: 0, top: 0 };
+      return {
+        label,
+        point,
+        tag: el.tagName,
+        className: typeof el.className === 'string' ? el.className : '',
+        text: text.slice(0, 40),
+        color: style.color,
+        backgroundColor: style.backgroundColor,
+        webkitTextFillColor: style.webkitTextFillColor,
+        inlineColor: el.style.getPropertyValue('color') || null,
+        inlineTextFillColor: el.style.getPropertyValue('-webkit-text-fill-color') || null,
+        opacity: style.opacity,
+        visibility: style.visibility,
+        pointerEvents: style.pointerEvents,
+        zIndex: style.zIndex,
+        position: style.position,
+        overflow: style.overflow,
+        transform: style.transform,
+        fontSize: style.fontSize,
+        lineHeight: style.lineHeight,
+        fontWeight: style.fontWeight,
+        textShadow: style.textShadow,
+        webkitTextStrokeColor: style.webkitTextStrokeColor,
+        webkitTextStrokeWidth: style.webkitTextStrokeWidth,
+        filter: style.filter,
+        mixBlendMode: style.mixBlendMode,
+        backgroundImage: style.backgroundImage,
+        backgroundBlendMode: style.backgroundBlendMode,
+        maskImage: style.maskImage,
+        webkitMaskImage: style.webkitMaskImage,
+        rect: {
+          width: Number((rect.width || 0).toFixed(2)),
+          height: Number((rect.height || 0).toFixed(2)),
+          left: Number((rect.left || 0).toFixed(2)),
+          top: Number((rect.top || 0).toFixed(2)),
+        },
+      };
+    };
+    const buildPseudoSnapshot = (el, pseudo) => {
+      if (!(el instanceof Element)) {
+        return null;
+      }
+      const style = window.getComputedStyle(el, pseudo);
+      const content = (style.content || '').replace(/^["']|["']$/g, '');
+      const hasMeaningfulContent = content && content !== 'none' && content !== 'normal';
+      const hasVisualPaint = style.backgroundImage !== 'none'
+        || style.maskImage !== 'none'
+        || style.webkitMaskImage !== 'none'
+        || style.textShadow !== 'none';
+      if (!hasMeaningfulContent && !hasVisualPaint) {
+        return null;
+      }
+      return {
+        pseudo,
+        content: hasMeaningfulContent ? content.slice(0, 80) : null,
+        color: style.color,
+        backgroundColor: style.backgroundColor,
+        webkitTextFillColor: style.webkitTextFillColor,
+        fontSize: style.fontSize,
+        lineHeight: style.lineHeight,
+        display: style.display,
+        position: style.position,
+        opacity: style.opacity,
+        visibility: style.visibility,
+        textShadow: style.textShadow,
+        backgroundImage: style.backgroundImage,
+        maskImage: style.maskImage,
+        webkitMaskImage: style.webkitMaskImage,
+      };
+    };
+    const buildTextLikeElementProbe = (el, label, point, extra = {}) => {
+      if (!(el instanceof Element) || !area.contains(el)) {
+        return null;
+      }
+      if (isNoiseElement(el) && !el.closest('svg')) {
+        return null;
+      }
+      const snapshot = buildElementSnapshot(el, label, point);
+      const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+      const pseudoBefore = buildPseudoSnapshot(el, '::before');
+      const pseudoAfter = buildPseudoSnapshot(el, '::after');
+      const hasSvgContext = Boolean(el.closest('svg'));
+      const hasTextLikePayload = text.length >= 6
+        || pseudoBefore
+        || pseudoAfter
+        || /^(TEXT|TSPAN|FOREIGNOBJECT|SVG|G)$/i.test(el.tagName);
+      if (!hasTextLikePayload) {
+        return null;
+      }
+      return {
+        ...snapshot,
+        textLength: text.length,
+        insideSvg: hasSvgContext,
+        pseudoBefore,
+        pseudoAfter,
+        ...extra,
+      };
+    };
+    const buildTextNodeProbe = (textNode, label, point, extra = {}) => {
+      if (!(textNode instanceof Node) || textNode.nodeType !== Node.TEXT_NODE) {
+        return null;
+      }
+      const el = textNode.parentElement;
+      if (!el || !area.contains(el) || isNoiseElement(el)) {
+        return null;
+      }
+      if (el.closest('button, input, textarea, select, svg')) {
+        return null;
+      }
+      const text = (textNode.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!text || text.length < 6) {
+        return null;
+      }
+      const range = document.createRange();
+      range.selectNodeContents(textNode);
+      const rect = range.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      return {
+        label,
+        point,
+        tag: el.tagName,
+        className: typeof el.className === 'string' ? el.className : '',
+        text: text.slice(0, 80),
+        textLength: text.length,
+        color: style.color,
+        backgroundColor: style.backgroundColor,
+        webkitTextFillColor: style.webkitTextFillColor,
+        inlineColor: el.style.getPropertyValue('color') || null,
+        inlineTextFillColor: el.style.getPropertyValue('-webkit-text-fill-color') || null,
+        opacity: style.opacity,
+        visibility: style.visibility,
+        display: style.display,
+        position: style.position,
+        rect: {
+          width: Number((rect.width || 0).toFixed(2)),
+          height: Number((rect.height || 0).toFixed(2)),
+          left: Number((rect.left || 0).toFixed(2)),
+          top: Number((rect.top || 0).toFixed(2)),
+        },
+        ...extra,
+      };
+    };
+    const getTextNodeProbeAtPoint = (x, y, label) => {
+      let textNode = null;
+      let source = null;
+      if (typeof document.caretRangeFromPoint === 'function') {
+        const range = document.caretRangeFromPoint(x, y);
+        if (range?.startContainer?.nodeType === Node.TEXT_NODE) {
+          textNode = range.startContainer;
+          source = 'caretRangeFromPoint';
+        }
+      }
+      if (!textNode && typeof document.caretPositionFromPoint === 'function') {
+        const caret = document.caretPositionFromPoint(x, y);
+        if (caret?.offsetNode?.nodeType === Node.TEXT_NODE) {
+          textNode = caret.offsetNode;
+          source = 'caretPositionFromPoint';
+        }
+      }
+      return buildTextNodeProbe(textNode, label, { x, y }, {
+        source,
+      });
+    };
+    const collectAncestorElementSnapshots = (el, label, point, maxDepth = 4) => {
+      const ancestors = [];
+      let current = el;
+      let depth = 0;
+      while (current instanceof Element && depth < maxDepth) {
+        const probe = buildTextLikeElementProbe(current, label, point, {
+          depth,
+          pseudoBefore: buildPseudoSnapshot(current, '::before'),
+          pseudoAfter: buildPseudoSnapshot(current, '::after'),
+        }) || {
+          depth,
+          ...buildElementSnapshot(current, label, point),
+          insideSvg: Boolean(current.closest('svg')),
+          pseudoBefore: buildPseudoSnapshot(current, '::before'),
+          pseudoAfter: buildPseudoSnapshot(current, '::after'),
+        };
+        ancestors.push(probe);
+        if (current === area || current === probeRoot) {
+          break;
+        }
+        current = current.parentElement;
+        depth += 1;
+      }
+      return ancestors;
+    };
+    const getStrongLayerProbeAtPoint = (x, y, label) => {
+      const hitList = document.elementsFromPoint(x, y).filter((el) => el instanceof Element);
+      const layerCandidates = [];
+      const seen = new Set();
+      for (const el of hitList.slice(0, 8)) {
+        if (!area.contains(el)) {
+          continue;
+        }
+        let current = el;
+        let depth = 0;
+        while (current instanceof Element && depth < 5) {
+          const key = `${current.tagName}:${typeof current.className === 'string' ? current.className : ''}:${depth}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            const probe = buildTextLikeElementProbe(current, label, { x, y }, {
+              depthFromHit: depth,
+            });
+            if (probe) {
+              layerCandidates.push(probe);
+            }
+          }
+          if (current === area || current === probeRoot) {
+            break;
+          }
+          current = current.parentElement;
+          depth += 1;
+        }
+      }
+      return {
+        layerCandidates: layerCandidates.slice(0, 6),
+        firstCandidate: layerCandidates[0] || null,
+        topAncestorChain: hitList.length ? collectAncestorElementSnapshots(hitList[0], label, { x, y }, 5) : [],
+      };
+    };
+    const collectNearestReadableCandidates = (points) => {
+      const candidates = [];
+      const candidateMap = new Map();
+      const walker = document.createTreeWalker(probeRoot, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode() && candidates.length < 10) {
+        const textNode = walker.currentNode;
+        const probe = buildTextNodeProbe(textNode, 'nearest-readable-candidate', null);
+        if (!probe) {
+          continue;
+        }
+        if (probe.rect.width <= 0 || probe.rect.height <= 0 || probe.textLength < 12) {
+          continue;
+        }
+        let nearestPoint = null;
+        let nearestDistance = Number.POSITIVE_INFINITY;
+        const rectCenterX = probe.rect.left + probe.rect.width / 2;
+        const rectCenterY = probe.rect.top + probe.rect.height / 2;
+        for (const point of points) {
+          const dx = rectCenterX - point.x;
+          const dy = rectCenterY - point.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance < nearestDistance) {
+            nearestDistance = distance;
+            nearestPoint = point;
+          }
+        }
+        if (!nearestPoint || nearestDistance > Math.max(areaRect.width, areaRect.height)) {
+          continue;
+        }
+        const key = `${probe.className}|${probe.text}`;
+        if (candidateMap.has(key)) {
+          continue;
+        }
+        const enrichedProbe = {
+          ...probe,
+          nearestPointLabel: nearestPoint.label,
+          nearestDistance: Number(nearestDistance.toFixed(2)),
+        };
+        candidateMap.set(key, enrichedProbe);
+        candidates.push(enrichedProbe);
+      }
+      return candidates
+        .sort((a, b) => a.nearestDistance - b.nearestDistance)
+        .slice(0, 6);
+    };
+    const collectNearestTextLikeElementCandidates = (points) => {
+      const candidates = [];
+      const seen = new Set();
+      const walker = document.createTreeWalker(probeRoot, NodeFilter.SHOW_ELEMENT);
+      while (walker.nextNode() && candidates.length < 16) {
+        const el = walker.currentNode;
+        if (!(el instanceof Element) || el === probeRoot || el === area) {
+          continue;
+        }
+        const probe = buildTextLikeElementProbe(el, 'nearest-text-like-candidate', null);
+        if (!probe) {
+          continue;
+        }
+        if (probe.rect.width <= 0 || probe.rect.height <= 0) {
+          continue;
+        }
+        let nearestPoint = null;
+        let nearestDistance = Number.POSITIVE_INFINITY;
+        const rectCenterX = probe.rect.left + probe.rect.width / 2;
+        const rectCenterY = probe.rect.top + probe.rect.height / 2;
+        for (const point of points) {
+          const dx = rectCenterX - point.x;
+          const dy = rectCenterY - point.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance < nearestDistance) {
+            nearestDistance = distance;
+            nearestPoint = point;
+          }
+        }
+        if (!nearestPoint || nearestDistance > Math.max(areaRect.width * 1.2, areaRect.height * 1.2)) {
+          continue;
+        }
+        const key = `${probe.tag}|${probe.className}|${probe.text}`;
+        if (seen.has(key)) {
+          continue;
+        }
+        seen.add(key);
+        candidates.push({
+          ...probe,
+          nearestPointLabel: nearestPoint.label,
+          nearestDistance: Number(nearestDistance.toFixed(2)),
+        });
+      }
+      return candidates
+        .sort((a, b) => a.nearestDistance - b.nearestDistance)
+        .slice(0, 8);
+    };
+    const probeRoot = area.querySelector('.renderTargetContainer') || area;
+    const probeRootClassName = typeof probeRoot.className === 'string' ? probeRoot.className : '';
+    const textWalker = document.createTreeWalker(probeRoot, NodeFilter.SHOW_TEXT);
+    const visibleNodes = [];
+    const textCandidates = [];
+    const seenElements = new Set();
+    const mismatchCandidates = [];
+    const isLightTheme = theme === 'light' || theme === 'eye-protection';
+    const isDarkTheme = theme === 'dark';
+
+    while (textWalker.nextNode() && (visibleNodes.length < 4 || textCandidates.length < 8)) {
+      const textNode = textWalker.currentNode;
+      const text = (textNode.textContent || '').trim();
+      if (!text || text.length < 2) {
+        continue;
+      }
+      if (/^(全\s*书\s*完|上一页|下一页|上一页下一页)$/.test(text)) {
+        continue;
+      }
+
+      const el = textNode.parentElement;
+      if (!el || seenElements.has(el)) {
+        continue;
+      }
+
+      if (isNoiseElement(el)) {
+        continue;
+      }
+      if (el.closest('button, input, textarea, select, svg')) {
+        continue;
+      }
+
+      const range = document.createRange();
+      range.selectNodeContents(textNode);
+      const rect = range.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      if (textCandidates.length < 8) {
+        textCandidates.push({
+          tag: el.tagName,
+          className: el.className || '',
+          text: text.slice(0, 40),
+          rect: {
+            width: Number((rect.width || 0).toFixed(2)),
+            height: Number((rect.height || 0).toFixed(2)),
+            left: Number((rect.left || 0).toFixed(2)),
+            top: Number((rect.top || 0).toFixed(2)),
+          },
+          color: style.color,
+          backgroundColor: style.backgroundColor,
+          webkitTextFillColor: style.webkitTextFillColor,
+          opacity: style.opacity,
+          visibility: style.visibility,
+          display: style.display,
+          position: style.position,
+          transform: style.transform,
+        });
+      }
+      if (rect.width <= 0 || rect.height <= 0) {
+        continue;
+      }
+
+      seenElements.add(el);
+      visibleNodes.push({
+        tag: el.tagName,
+        className: el.className || '',
+        text: text.slice(0, 24),
+        color: style.color,
+        backgroundColor: style.backgroundColor,
+        webkitTextFillColor: style.webkitTextFillColor,
+        inlineColor: el.style.getPropertyValue('color') || null,
+        inlineTextFillColor: el.style.getPropertyValue('-webkit-text-fill-color') || null,
+      });
+    }
+
+    const mismatchWalker = document.createTreeWalker(probeRoot, NodeFilter.SHOW_TEXT);
+    while (mismatchWalker.nextNode() && mismatchCandidates.length < 6) {
+      const textNode = mismatchWalker.currentNode;
+      const text = (textNode.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!text || text.length < 2) {
+        continue;
+      }
+      if (/^(全\s*书\s*完|上一页|下一页|上一页下一页)$/.test(text)) {
+        continue;
+      }
+      const el = textNode.parentElement;
+      if (!el || isNoiseElement(el) || el.closest('button, input, textarea, select, svg')) {
+        continue;
+      }
+      const range = document.createRange();
+      range.selectNodeContents(textNode);
+      const rect = range.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) {
+        continue;
+      }
+      if (mismatchCandidates.length >= 6) {
+        break;
+      }
+      const className = typeof el.className === 'string' ? el.className : '';
+      const style = window.getComputedStyle(el);
+      const color = style.color;
+      const fill = style.webkitTextFillColor;
+      const inlineColor = el.style.getPropertyValue('color') || null;
+      const inlineFill = el.style.getPropertyValue('-webkit-text-fill-color') || null;
+      const looksWhite = /rgb\(\s*255,\s*255,\s*255\s*\)/.test(color) || /rgb\(\s*255,\s*255,\s*255\s*\)/.test(fill);
+      const looksDark = /rgb\(\s*(0|13|26),\s*(0|10|20),\s*(0|30)\s*\)/.test(color) || /rgb\(\s*(0|13|26),\s*(0|10|20),\s*(0|30)\s*\)/.test(fill);
+      if ((isLightTheme && !looksWhite) || (isDarkTheme && !looksDark)) {
+        continue;
+      }
+      mismatchCandidates.push({
+        tag: el.tagName,
+        className,
+        text: text.slice(0, 40),
+        color,
+        backgroundColor: style.backgroundColor,
+        webkitTextFillColor: fill,
+        inlineColor,
+        inlineTextFillColor: inlineFill,
+      });
+    }
+
+    const subtreeSummary = visibleNodes.length === 0
+      ? Array.from(probeRoot.children || [])
+        .slice(0, 4)
+        .map((child) => summarizeNode(child, 0))
+      : [];
+    const directChildLayers = visibleNodes.length === 0
+      ? collectDirectChildLayers(probeRoot)
+      : [];
+    const canvasDiagnostics = visibleNodes.length === 0
+      ? collectCanvasDiagnostics(probeRoot)
+      : [];
+    const renderBranchSummary = classifyRenderBranch(
+      probeRoot,
+      directChildLayers,
+      textCandidates,
+      visibleNodes,
+      canvasDiagnostics,
+    );
+    const sizedDescendants = visibleNodes.length === 0
+      ? collectSizedDescendants(probeRoot)
+      : [];
+    const viewportSamples = [];
+    const areaRect = area.getBoundingClientRect();
+    const samplePoints = [
+      { label: 'center', x: areaRect.left + areaRect.width / 2, y: areaRect.top + areaRect.height / 2 },
+      { label: 'left-center', x: areaRect.left + Math.min(areaRect.width * 0.25, 120), y: areaRect.top + areaRect.height / 2 },
+      { label: 'right-center', x: areaRect.right - Math.min(areaRect.width * 0.25, 120), y: areaRect.top + areaRect.height / 2 },
+    ];
+    for (const point of samplePoints) {
+      const x = Math.max(0, Math.min(window.innerWidth - 1, Math.round(point.x)));
+      const y = Math.max(0, Math.min(window.innerHeight - 1, Math.round(point.y)));
+      const hitList = document.elementsFromPoint(x, y);
+      const hitStack = hitList
+        .filter((el) => el instanceof Element)
+        .slice(0, 6)
+        .map((el, index) => ({
+          index,
+          insideArea: area.contains(el),
+          isNoise: isNoiseElement(el),
+          ...buildElementSnapshot(el, point.label, { x, y }),
+        }));
+      const target = hitList.find((el) => {
+        if (!(el instanceof Element)) {
+          return false;
+        }
+        if (!area.contains(el) || isNoiseElement(el)) {
+          return false;
+        }
+        if (el.closest('button, input, textarea, select, svg')) {
+          return false;
+        }
+        const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+        return text.length >= 2;
+      });
+      if (!target) {
+        viewportSamples.push({
+          label: point.label,
+          point: { x, y },
+          hitFound: false,
+          textProbe: getTextNodeProbeAtPoint(x, y, point.label),
+          strongLayerProbe: getStrongLayerProbeAtPoint(x, y, point.label),
+          hitStack,
+        });
+        continue;
+      }
+      viewportSamples.push({
+        hitFound: true,
+        hitStack,
+        textProbe: getTextNodeProbeAtPoint(x, y, point.label),
+        strongLayerProbe: getStrongLayerProbeAtPoint(x, y, point.label),
+        ...buildElementSnapshot(target, point.label, { x, y }),
+      });
+    }
+    const nearestReadableCandidates = collectNearestReadableCandidates(samplePoints);
+    const nearestTextLikeElementCandidates = collectNearestTextLikeElementCandidates(samplePoints);
+
+    return {
+      index,
+      className: area.className || '',
+      areaColor: areaStyle.color,
+      areaBackgroundColor: areaStyle.backgroundColor,
+      areaInlineColor: area.style.getPropertyValue('color') || null,
+      areaInlineTextFillColor: area.style.getPropertyValue('-webkit-text-fill-color') || null,
+      probeRootTag: probeRoot.tagName || '(unknown)',
+      probeRootClassName,
+      subtreeSummary,
+      sampledNodeCount: visibleNodes.length,
+      visibleNodes,
+      textCandidateCount: textCandidates.length,
+      textCandidates,
+      directChildLayerCount: directChildLayers.length,
+      directChildLayers,
+      renderBranchSummary,
+      canvasDiagnosticCount: canvasDiagnostics.length,
+      canvasDiagnostics,
+      sizedDescendantCount: sizedDescendants.length,
+      sizedDescendants,
+      viewportSampleCount: viewportSamples.length,
+      viewportSamples,
+      nearestReadableCandidateCount: nearestReadableCandidates.length,
+      nearestReadableCandidates,
+      nearestTextLikeElementCandidateCount: nearestTextLikeElementCandidates.length,
+      nearestTextLikeElementCandidates,
+      mismatchCandidateCount: mismatchCandidates.length,
+      mismatchCandidates,
+    };
+  });
+
+  log('info', 'fast-switch snapshot', {
+    theme,
+    stage,
+    token,
+    activeToken: wreColorLastSet,
+    bodyClass: document.body.className,
+    areaCount: areas.length,
+    samples,
+  });
+}
+
+function scheduleCanvasTimelineSnapshots(theme, token) {
+  const checkpoints = [16, 80, 200, 500, 1000, 1800];
+  checkpoints.forEach((ms) => {
+    window.setTimeout(() => {
+      if (wreColorLastSet !== token) {
+        log('info', 'canvas timeline snapshot 跳过 token 不匹配', {
+          theme,
+          token,
+          activeToken: wreColorLastSet,
+          ms,
+        });
+        return;
+      }
+      collectFastSwitchSnapshot(theme, `canvas-timeline-${ms}ms`, token);
+    }, ms);
+  });
+}
+// #endregion
+
+function clearLastPaintedThemeStyles() {
+  let clearedCount = 0;
+  for (const el of wreLastPaintedElements) {
+    if (!el || !el.style) {
+      continue;
+    }
+    el.style.removeProperty('color');
+    el.style.removeProperty('-webkit-text-fill-color');
+    el.style.removeProperty('background-color');
+    el.style.removeProperty('filter');
+    clearedCount++;
+  }
+  wreLastPaintedElements = new Set();
+  return clearedCount;
+}
+
+function hasVisibleReadableText(root) {
+  if (!root) {
+    return false;
+  }
+  const nonReadableOverlaySelector = [
+    '.readerChapterContentLoading',
+    '.horizontal_reader_back_cover_wrapper',
+    '.reader_flyleaf_container',
+    '.horizontalReaderCoverPage',
+    '[class*="needPay_container"]',
+    '[class*="reader_float_"]',
+    '.readerCatalog',
+    '.readerNotePanel',
+    '.readerAIChatPanel',
+    '.readerControls',
+    '.wr_tooltip_container',
+    '.renderTarget_pager',
+    '.wr_dialog',
+    '.wr_mask',
+  ].join(', ');
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  while (walker.nextNode()) {
+    const textNode = walker.currentNode;
+    const text = (textNode.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!text || text.length < 2) {
+      continue;
+    }
+    if (/^(全\s*书\s*完|上一页|下一页|上一页下一页)$/.test(text)) {
+      continue;
+    }
+    const el = textNode.parentElement;
+    if (!el) {
+      continue;
+    }
+    if (el.closest(nonReadableOverlaySelector)) {
+      continue;
+    }
+    const range = document.createRange();
+    range.selectNodeContents(textNode);
+    const rect = range.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function releaseStuckLoadingOverlays(area, theme, token, touched) {
+  const loadingOverlays = Array.from(area.querySelectorAll('.readerChapterContentLoading'));
+  let releasedCount = 0;
+  for (const loading of loadingOverlays) {
+    const rect = typeof loading.getBoundingClientRect === 'function'
+      ? loading.getBoundingClientRect()
+      : { width: 0, height: 0 };
+    const text = (loading.textContent || '').replace(/\s+/g, ' ').trim();
+    if (rect.width < 120 || rect.height < 120) {
+      continue;
+    }
+    if (text) {
+      continue;
+    }
+    loading.style.setProperty('opacity', '0', 'important');
+    loading.style.setProperty('visibility', 'hidden', 'important');
+    loading.style.setProperty('pointer-events', 'none', 'important');
+    loading.style.setProperty('transition', 'none', 'important');
+    touched.add(loading);
+    releasedCount += 1;
+  }
+  if (releasedCount > 0) {
+    scheduleWereadLayoutReflow('loading-overlay-timeout-release');
+    log('info', '已超时释放卡住的 loading 覆盖层', {
+      theme,
+      token,
+      releasedCount,
+    });
+  }
+  return releasedCount;
+}
+
+function triggerWereadBranchRecovery(reason) {
+  triggerWereadLayoutReflow(reason);
+  window.setTimeout(() => {
+    triggerWereadLayoutReflow(`${reason}-followup`);
+  }, 80);
+}
+
+function hasSuspiciousReaderBranchMarkers(root) {
+  if (!(root instanceof Element)) {
+    return false;
+  }
+  return Boolean(root.querySelector(
+    '.horizontal_reader_back_cover_wrapper, ' +
+    '.reader_flyleaf_container, ' +
+    '.horizontalReaderCoverPage, ' +
+    '[class*="needPay_container"], ' +
+    '.renderTarget_pager'
+  ));
+}
+
+function hasEndingBranchMarkers(root) {
+  if (!(root instanceof Element)) {
+    return false;
+  }
+  return Boolean(root.querySelector(
+    '.horizontal_reader_back_cover_wrapper, ' +
+    '.reader_flyleaf_container, ' +
+    '.horizontalReaderCoverPage, ' +
+    '[class*="readerFooter_ending_"], ' +
+    '[class*="back_lang_"], ' +
+    '[class*="wr_flyleaf_module_rating"]'
+  ));
+}
+
+function hasEndingBranchTextSignals(root) {
+  if (!(root instanceof Element)) {
+    return false;
+  }
+  const endingTextPattern = /(全\s*书\s*完|已阅读\s*\d+\s*小\s*时|读完的第|微信读书推荐值|\d+\s*万人点评)/;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let checkedCount = 0;
+  while (walker.nextNode() && checkedCount < 40) {
+    const textNode = walker.currentNode;
+    const text = (textNode.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!text) {
+      continue;
+    }
+    checkedCount += 1;
+    if (!endingTextPattern.test(text)) {
+      continue;
+    }
+    const el = textNode.parentElement;
+    if (!el) {
+      continue;
+    }
+    const range = document.createRange();
+    range.selectNodeContents(textNode);
+    const rect = range.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function releaseEndingBranchOverlays(area, probeRoot, theme, token, touched) {
+  if (!(area instanceof Element) || !(probeRoot instanceof Element)) {
+    return 0;
+  }
+  const endingSelectors = [
+    '.horizontal_reader_back_cover_wrapper',
+    '.reader_flyleaf_container',
+    '.horizontalReaderCoverPage',
+    '[class*="readerFooter_ending_"]',
+    '[class*="back_lang_"]',
+    '[class*="wr_flyleaf_module_rating"]',
+  ];
+  const releasedNodes = [];
+  for (const node of area.querySelectorAll(endingSelectors.join(', '))) {
+    if (!(node instanceof Element)) {
+      continue;
+    }
+    const style = window.getComputedStyle(node);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+      continue;
+    }
+    const rect = typeof node.getBoundingClientRect === 'function'
+      ? node.getBoundingClientRect()
+      : { width: 0, height: 0 };
+    const text = (node.textContent || '').replace(/\s+/g, ' ').trim();
+    if (rect.width <= 0 || rect.height <= 0) {
+      continue;
+    }
+    node.style.setProperty('display', 'none', 'important');
+    node.style.setProperty('opacity', '0', 'important');
+    node.style.setProperty('visibility', 'hidden', 'important');
+    node.style.setProperty('pointer-events', 'none', 'important');
+    touched.add(node);
+    releasedNodes.push({
+      className: typeof node.className === 'string' ? node.className : '',
+      width: Number((rect.width || 0).toFixed(2)),
+      height: Number((rect.height || 0).toFixed(2)),
+      text: text.slice(0, 40),
+    });
+  }
+  if (releasedNodes.length > 0) {
+    triggerWereadBranchRecovery('ending-branch-release');
+    log('info', '已临时隐藏阻塞正文的结束页分支节点', {
+      theme,
+      token,
+      releasedCount: releasedNodes.length,
+      releasedNodes,
+    });
+  }
+  return releasedNodes.length;
+}
+
+function releaseBlockingReaderFloatOverlays(area, probeRoot, theme, token, touched) {
+  if (!(area instanceof Element) || !(probeRoot instanceof Element)) {
+    return 0;
+  }
+  const areaRect = typeof area.getBoundingClientRect === 'function'
+    ? area.getBoundingClientRect()
+    : { width: 0, height: 0, left: 0, top: 0, right: 0, bottom: 0 };
+  const floatPanels = Array.from(area.querySelectorAll('[class*="reader_float_"]'));
+  const releasedPanels = [];
+  for (const panel of floatPanels) {
+    if (!(panel instanceof Element)) {
+      continue;
+    }
+    const style = window.getComputedStyle(panel);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+      continue;
+    }
+    const rect = typeof panel.getBoundingClientRect === 'function'
+      ? panel.getBoundingClientRect()
+      : { width: 0, height: 0, left: 0, top: 0, right: 0, bottom: 0 };
+    const overlapsArea = rect.width > 0
+      && rect.height > 0
+      && rect.right > areaRect.left
+      && rect.left < areaRect.right
+      && rect.bottom > areaRect.top
+      && rect.top < areaRect.bottom;
+    const looksBlocking = rect.width >= Math.max(240, areaRect.width * 0.6)
+      && rect.height >= Math.max(180, areaRect.height * 0.6);
+    if (!overlapsArea || !looksBlocking) {
+      continue;
+    }
+    panel.style.setProperty('display', 'none', 'important');
+    panel.style.setProperty('opacity', '0', 'important');
+    panel.style.setProperty('visibility', 'hidden', 'important');
+    panel.style.setProperty('pointer-events', 'none', 'important');
+    touched.add(panel);
+    releasedPanels.push({
+      className: typeof panel.className === 'string' ? panel.className : '',
+      width: Number((rect.width || 0).toFixed(2)),
+      height: Number((rect.height || 0).toFixed(2)),
+      zIndex: style.zIndex,
+    });
+  }
+  if (releasedPanels.length > 0) {
+    triggerWereadBranchRecovery('reader-float-overlay-release');
+    log('info', '已临时隐藏阻塞正文的 reader_float 浮层', {
+      theme,
+      token,
+      releasedCount: releasedPanels.length,
+      releasedPanels,
+    });
+  }
+  return releasedPanels.length;
+}
+
+function revealHiddenRenderTargetContainer(probeRoot, theme, token, touched) {
+  if (!(probeRoot instanceof Element) || !probeRoot.classList?.contains('renderTargetContainer')) {
+    return false;
+  }
+  const style = window.getComputedStyle(probeRoot);
+  if (style.display !== 'none') {
+    return false;
+  }
+  const canvasCount = probeRoot.querySelectorAll('canvas').length;
+  probeRoot.style.setProperty('display', 'block', 'important');
+  probeRoot.style.setProperty('visibility', 'visible', 'important');
+  probeRoot.style.setProperty('opacity', '1', 'important');
+  probeRoot.style.setProperty('pointer-events', 'auto', 'important');
+  touched.add(probeRoot);
+  const parent = probeRoot.parentElement;
+  if (parent) {
+    parent.style.setProperty('display', 'block', 'important');
+    parent.style.setProperty('visibility', 'visible', 'important');
+    parent.style.setProperty('opacity', '1', 'important');
+    touched.add(parent);
+  }
+  scheduleWereadLayoutReflow('render-target-force-visible');
+  log('info', '已强制恢复隐藏的 renderTargetContainer', {
+    theme,
+    token,
+    canvasCount,
+    parentClassName: parent && typeof parent.className === 'string' ? parent.className : '',
+  });
+  return true;
+}
+
+function applyThemeColors(theme) {
+  const cfg = wreThemeColors[theme];
+  if (!cfg) return;
+
+  // 1. 清理上一主题的 inline 样式
+  const cleared = clearLastPaintedThemeStyles();
+
+  // 2. CSS 背景 + filter 已通过 body class 自动生效，这里再补 JS 级兜底
+  const touched = new Set();
+
+  // 3. 顶栏文字色
+  const topBar = document.querySelector('.readerTopBar');
+  if (topBar) {
+    topBar.style.setProperty('color', cfg.color, 'important');
+    topBar.style.setProperty('-webkit-text-fill-color', cfg.color, 'important');
+    touched.add(topBar);
+  }
+
+  wrePluginThemeDisabled = false;
+
+  // 4. 往 canvas 的父容器上挂 filter。用标记位防止 clearPluginTheme 后被延迟兜底覆盖
+  const applyParentFilter = () => {
+    if (wrePluginThemeDisabled) return 0;
+    let applied = 0;
+    for (const c of document.querySelectorAll('canvas')) {
+      const r = c.getBoundingClientRect();
+      if (r.width < 20 || r.height < 20) continue;
+      const parent = c.parentElement;
+      if (!parent) continue;
+      if (parent.style.filter === cfg.filter) continue;
+      parent.style.setProperty('filter', cfg.filter, 'important');
+      touched.add(parent);
+      applied++;
+    }
+    return applied;
+  };
+  applyParentFilter();
+  [100, 400, 1000, 2000].forEach(ms => setTimeout(applyParentFilter, ms));
+
+  wreLastPaintedElements = touched;
+  log('info', '主题滤镜已应用', { theme, filter: cfg.filter, cleared });
 }
 
 function highlightActiveTheme() {
@@ -650,6 +2152,77 @@ function removeToolbarFloating() {
   document.body.classList.remove('wre-show-topbar');
   document.body.classList.remove('wre-show-controls');
   log('info', '已移除工具栏浮动');
+}
+
+/**
+ * 扫描页面上所有可能和主题切换相关的按钮/元素，把详细信息写入日志，
+ * 用于定位官方白天/夜间切换按钮的确切选择器。
+ */
+function scanOfficialThemeButtons() {
+  const searchAreas = [
+    '.readerControls',
+    '.readerTopBar',
+    '.reader_footer',
+  ];
+
+  const results = {};
+
+  for (const areaSel of searchAreas) {
+    const area = document.querySelector(areaSel);
+    if (!area) {
+      results[areaSel] = 'NOT_FOUND';
+      continue;
+    }
+
+    // 获取所有可能可交互的子元素（不限深度）
+    const allChildren = Array.from(area.querySelectorAll('div, span, button, a, i, svg, img, [role="button"], [onclick], [class*="btn"], [class*="icon"], [class*="tooltip"]'));
+
+    const items = allChildren.slice(0, 40).map((el) => ({
+      tag: el.tagName,
+      className: el.className || '',
+      text: (el.textContent || '').trim().slice(0, 50) || '(empty)',
+      id: el.id || '(none)',
+      rect: {
+        w: Math.round(el.getBoundingClientRect().width),
+        h: Math.round(el.getBoundingClientRect().height),
+        x: Math.round(el.getBoundingClientRect().left),
+        y: Math.round(el.getBoundingClientRect().top),
+      },
+      onclick: el.onclick ? 'has onclick' : 'none',
+      role: el.getAttribute('role') || 'none',
+      cursor: window.getComputedStyle(el).cursor,
+    }));
+
+    results[areaSel] = {
+      total: allChildren.length,
+      sample: items,
+    };
+  }
+
+  // 额外扫描：直接搜索是否包含"白天"/"夜间"/"深色"/"浅色"文字的元素（不限区域）
+  const allPageElements = Array.from(document.querySelectorAll('div, span, button'));
+  const themeTextMatches = [];
+  for (const el of allPageElements) {
+    const text = (el.textContent || '').trim();
+    if (text === '白天' || text === '夜间' || text === '深色' || text === '浅色' || text === '日间' || text === '夜晚') {
+      themeTextMatches.push({
+        tag: el.tagName,
+        className: el.className || '',
+        text,
+        rect: {
+          w: Math.round(el.getBoundingClientRect().width),
+          h: Math.round(el.getBoundingClientRect().height),
+          x: Math.round(el.getBoundingClientRect().left),
+          y: Math.round(el.getBoundingClientRect().top),
+        },
+        parentTag: el.parentElement?.tagName || 'none',
+        parentClass: el.parentElement?.className || 'none',
+      });
+    }
+  }
+  results['_themeTextMatches_all'] = themeTextMatches;
+
+  log('info', '官方主题按钮扫描结果', results);
 }
 
 function ensureToolbarTrigger() {
@@ -799,6 +2372,8 @@ function createUI() {
               <button class="wre-btn wre-theme-btn" data-theme="dark">🌙 暗黑</button>
               <button class="wre-btn wre-theme-btn" data-theme="eye-protection">👁️ 护眼</button>
             </div>
+            <p class="wre-theme-hint">插件主题与官方主题独立运行。如需恢复官方原生外观，点击下方按钮清除所有插件样式</p>
+            <button class="wre-btn" id="wre-clear-plugin-theme-btn" style="margin-top:8px;width:100%;background:#f0f0f0;color:#333;border:1px solid #ddd;">↩️ 使用官方主题（清除插件样式）</button>
           </div>
         </div>
       </div>
@@ -858,8 +2433,19 @@ function bindEvents(root) {
       if (theme === WRE_STATE.theme) return;
       WRE_STATE.theme = theme;
       applyTheme(theme);
+      highlightActiveTheme();
       await saveState();
       log('info', '主题已切换', { theme });
+    });
+  }
+
+  // 使用官方主题按钮事件
+  const clearPluginThemeBtn = root.querySelector('#wre-clear-plugin-theme-btn');
+  if (clearPluginThemeBtn) {
+    clearPluginThemeBtn.addEventListener('click', async () => {
+      clearPluginTheme();
+      await saveState();
+      log('info', '已清除插件主题，官方主题接管');
     });
   }
 
@@ -973,6 +2559,7 @@ function handleMenuClick(action) {
     case 'theme-settings':
       openModal('#wre-theme-settings-modal');
       highlightActiveTheme();
+      scanOfficialThemeButtons();
       break;
     case 'debug-logs':
       openModal('#wre-debug-modal');
@@ -997,6 +2584,13 @@ function handleMenuClick(action) {
         }
       }
       log('warn', '已恢复默认设置', applied);
+      break;
+    case 'clear-plugin-theme':
+      const mainMenu = document.querySelector('#wre-main-menu');
+      if (mainMenu) mainMenu.classList.remove('wre-visible');
+      clearPluginTheme();
+      saveState();
+      log('info', '已清除插件主题，官方主题接管');
       break;
     default:
       log('warn', '该菜单功能尚未实现', { action });
@@ -1031,14 +2625,49 @@ async function applySavedScreenRatioOnInit() {
 
 async function init() {
   await loadState();
+  // #region debug-point init-theme-before-apply
+  log('info', '初始化准备应用主题', {
+    theme: WRE_STATE.theme,
+    screenRatio: WRE_STATE.screenRatio,
+    bodyClassBefore: document.body?.className || '',
+  });
+  // #endregion
   registerRuntimeErrorHooks();
   createUI();
+
   ensureStyleTag();
   wreStyleTag.textContent = '';
   await primeScreenBasePx(true);
   await applySavedScreenRatioOnInit();
   // 应用保存的主题
   applyTheme(WRE_STATE.theme);
+  // #region debug-point init-theme-after-apply
+  log('info', '初始化已调用 applyTheme', {
+    theme: WRE_STATE.theme,
+    bodyClassAfter: document.body?.className || '',
+  });
+  // #endregion
+
+  // 监听 <head> 中 <style> 标签注入，确保我们的样式始终在最后（优先级最高）
+  let headMoveTimer = null;
+  const headObserver = new MutationObserver((mutations) => {
+    // 只关心新增的 <style> 标签
+    const hasNewStyle = mutations.some((m) =>
+      Array.from(m.addedNodes).some((n) => n.nodeName === 'STYLE' && n.id !== 'we-read-enhancer-style')
+    );
+    if (!hasNewStyle) return;
+
+    if (headMoveTimer) clearTimeout(headMoveTimer);
+    headMoveTimer = setTimeout(() => {
+      const ourStyle = document.getElementById('we-read-enhancer-style');
+      if (ourStyle && ourStyle !== document.head.lastElementChild) {
+        document.head.appendChild(ourStyle);
+        log('info', '已将插件样式移至 <head> 末尾');
+      }
+      headMoveTimer = null;
+    }, 30);
+  });
+  headObserver.observe(document.head, { childList: true });
 }
 
 if (document.body) {

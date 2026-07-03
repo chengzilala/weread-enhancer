@@ -392,65 +392,11 @@ body.wre-toolbar-floating.wre-show-controls [class*="readerControls"] {
   border-color: var(--wre-primary);
 }
 
-/* ========== 暗黑主题（参考微信读书原生暗黑风格） ========== */
-body.wre-theme-dark {
-  background: #1e1e1e !important;
+.wre-theme-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #888;
+  text-align: center;
 }
 
-/* 顶层容器 */
-body.wre-theme-dark .app,
-body.wre-theme-dark .app_content,
-body.wre-theme-dark .app_content_in_reader,
-body.wre-theme-dark .wr_horizontalReader,
-body.wre-theme-dark .wr_horizontalReader_app_content,
-body.wre-theme-dark .readerChapterContent_container,
-body.wre-theme-dark .readerChapterContent {
-  background: #1e1e1e !important;
-}
 
-/* 阅读文字 */
-body.wre-theme-dark .readerChapterContent {
-  color: #cecece !important;
-}
-
-/* 顶栏 + 右侧工具栏 */
-body.wre-theme-dark .readerTopBar {
-  background: #262626 !important;
-}
-body.wre-theme-dark .readerTopBar * {
-  color: #bdbdbd !important;
-}
-body.wre-theme-dark .readerControls {
-  background: transparent !important;
-}
-
-/* 非阅读区域顶部/底部背景保持统一 */
-body.wre-theme-dark .app > div:not([class*="Chapter"]) {
-  background: #1e1e1e !important;
-}
-
-/* ========== 护眼主题（米黄色） ========== */
-body.wre-theme-eye-protection {
-  background: #f5e6c8 !important;
-}
-
-body.wre-theme-eye-protection .app,
-body.wre-theme-eye-protection .app_content,
-body.wre-theme-eye-protection .app_content_in_reader,
-body.wre-theme-eye-protection .wr_horizontalReader,
-body.wre-theme-eye-protection .wr_horizontalReader_app_content,
-body.wre-theme-eye-protection .readerChapterContent_container,
-body.wre-theme-eye-protection .readerChapterContent {
-  background: #f5e6c8 !important;
-}
-
-body.wre-theme-eye-protection .readerChapterContent {
-  color: #5c4a2e !important;
-}
-
-body.wre-theme-eye-protection .readerTopBar {
-  background: #ede0c8 !important;
-}
-body.wre-theme-eye-protection .readerTopBar * {
-  color: #5c4a2e !important;
-}
