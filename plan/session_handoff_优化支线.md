@@ -70,6 +70,8 @@
    - **包含**：`manifest.json`、`content.js`、`content.css`、`README.md`、`icons/`（3 png）
    - **排除**：`.gitignore`、`dev/`、`plan/`、`test/`、`usage/`、`screenshots/`、`inbox/`、`release/`、`.dbg/`、`debug-*.md`
 4. 打包命令模板见 `plan/plan_edge_store.md` 步骤 5
+5. **提交 GitHub 并归档**：`git commit` → `git tag v0.x.y` → `git push origin main` + `git push origin v0.x.y`
+6. **⚠️ 每次打 tag 后必须更新 `plan/plan_github_versioning.md` 的「归档历史」表**（新增一行 Tag/Commit/日期/说明 + 更新顶部「当前归档版本」）
 
 ---
 
