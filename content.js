@@ -2,6 +2,7 @@ const WRE_PREFIX = '[Wechat-Reader-Enhancer]';
 const WRE_STORAGE_KEYS = {
   state: 'wreState',
   logs: 'wreDebugLogs',
+  onboardingVersion: 'wreOnboardingVersion',
 };
 const WRE_DEFAULT_STATE = {
   theme: 'light',
@@ -18,10 +19,10 @@ const WRE_DEFAULT_STATE = {
 const WRE_MAX_LOGS = 200;
 
 let WRE_STATE = { ...WRE_DEFAULT_STATE };
+let wreLoadedOnboardingVersion = null; // 从 storage 读取的引导版本号，避免二次读取
 let WRE_LOGS = [];
 let wreStyleTag = null;
 let wreRoot = null;
-let persistLogsTimer = null;
 let debugViewTimer = null;
 let lastReflowAt = 0;
 let lastPreviewLogAt = 0;
@@ -152,16 +153,8 @@ function log(level, message, meta) {
 }
 
 function schedulePersistLogs() {
-  if (persistLogsTimer) {
-    clearTimeout(persistLogsTimer);
-  }
-  persistLogsTimer = window.setTimeout(async () => {
-    try {
-      await chrome.storage.local.set({ [WRE_STORAGE_KEYS.logs]: WRE_LOGS });
-    } catch (error) {
-      console.warn(`${WRE_PREFIX} 保存日志失败`, error);
-    }
-  }, 300);
+  // 日志仅存内存，不再写入 storage 以优化性能
+  // 需要导出时点击调试面板的「下载日志」按钮
 }
 
 function scheduleDebugViewRefresh() {
@@ -224,7 +217,6 @@ function downloadLogs() {
 
 async function clearLogs() {
   WRE_LOGS = [];
-  await chrome.storage.local.set({ [WRE_STORAGE_KEYS.logs]: WRE_LOGS });
   renderDebugOutput();
   log('info', '已清空历史调试日志');
 }
@@ -279,36 +271,23 @@ function collectLayoutSnapshot() {
     depth += 1;
   }
 
-  log('info', '已采集页面结构诊断', snapshot);
-  const chapterCount = snapshot.selectorsAll?.['.readerChapterContent(count)'] ?? 0;
+  // 页面结构摘要，仅记录关键指标，不序列化整个 DOM
+  const chapterCount = allChapterContents.length;
   const issues = [];
-  if (!snapshot.selectors['.readerChapterContent']) {
+  if (chapterCount === 0) {
     issues.push('未找到 .readerChapterContent');
   }
-  if (snapshot.selectors['.readerContent'] === null) {
-    issues.push('不存在 .readerContent（使用它会无效）');
-  }
-  const appContent = snapshot.selectors['.app_content'];
-  if (appContent && appContent.offsetWidth === 0 && appContent.rect.width === 0) {
-    issues.push('.app_content 的 offsetWidth/rect.width 为 0（不适合作为布局锚点）');
+  if (!document.querySelector('.readerContent')) {
+    issues.push('不存在 .readerContent');
   }
   if (chapterCount > 1) {
-    issues.push(`当前存在多个 .readerChapterContent（${chapterCount} 个），需要确认是否双页/横向模式`);
+    issues.push(`当前存在多个 .readerChapterContent（${chapterCount} 个）`);
   }
-  if (!snapshot.selectors['.readerTopBar'] && !snapshot.selectors['.readerControls']) {
-    issues.push('未找到常见工具栏选择器（.readerTopBar / .readerControls）');
-  }
-  log('info', '诊断摘要', {
-    screenRatio: snapshot.state.screenRatio,
-    screenBasePx: snapshot.state.screenBasePx,
-    screenBaseMode: snapshot.state.screenBaseMode,
+  log('info', '页面结构摘要', {
     viewport: snapshot.viewport,
     chapterCount,
-    readerChapterContentWidthPx: snapshot.selectors['.readerChapterContent']?.rect?.width ?? null,
+    readerChapterContentRect: snapshot.selectors['.readerChapterContent']?.rect ?? null,
     toolbarFloatEnabled: document.body.classList.contains('wre-toolbar-floating'),
-    toolbarOpacity: snapshot.selectors['.readerTopBar']?.style?.opacity ?? null,
-    toolbarTopBar: snapshot.selectors['.readerTopBar']?.rect ?? null,
-    toolbarControls: snapshot.selectors['.readerControls']?.rect ?? null,
     issues,
   });
   return snapshot;
@@ -354,7 +333,7 @@ function registerRuntimeErrorHooks() {
 
 async function loadState() {
   try {
-    const result = await chrome.storage.local.get([WRE_STORAGE_KEYS.state, WRE_STORAGE_KEYS.logs]);
+    const result = await chrome.storage.local.get([WRE_STORAGE_KEYS.state, WRE_STORAGE_KEYS.onboardingVersion]);
     // #region debug-point init-theme-state-load
     log('info', '初始化读取存储状态', {
       hasState: Boolean(result[WRE_STORAGE_KEYS.state]),
@@ -362,6 +341,8 @@ async function loadState() {
       storedScreenRatio: result[WRE_STORAGE_KEYS.state]?.screenRatio || null,
     });
     // #endregion
+    // 缓存 onboarding 版本，供 init() 使用，避免二次 storage 读取
+    wreLoadedOnboardingVersion = result[WRE_STORAGE_KEYS.onboardingVersion] || null;
     if (result[WRE_STORAGE_KEYS.state]) {
       WRE_STATE = { ...WRE_DEFAULT_STATE, ...result[WRE_STORAGE_KEYS.state] };
     }
@@ -369,9 +350,6 @@ async function loadState() {
       WRE_STATE.screenBaseMode = WRE_DEFAULT_STATE.screenBaseMode;
       WRE_STATE.screenBasePx = null;
       await chrome.storage.local.set({ [WRE_STORAGE_KEYS.state]: WRE_STATE });
-    }
-    if (Array.isArray(result[WRE_STORAGE_KEYS.logs])) {
-      WRE_LOGS = result[WRE_STORAGE_KEYS.logs];
     }
   } catch (error) {
     console.warn(`${WRE_PREFIX} 加载状态失败`, error);
@@ -2074,14 +2052,16 @@ function applyThemeColors(theme) {
     if (wrePluginThemeDisabled) return 0;
     let applied = 0;
     for (const c of document.querySelectorAll('canvas')) {
-      const r = c.getBoundingClientRect();
-      if (r.width < 20 || r.height < 20) continue;
-      const parent = c.parentElement;
-      if (!parent) continue;
-      if (parent.style.filter === cfg.filter) continue;
-      parent.style.setProperty('filter', cfg.filter, 'important');
-      touched.add(parent);
-      applied++;
+      try {
+        const r = c.getBoundingClientRect();
+        if (r.width < 20 || r.height < 20) continue;
+        const parent = c.parentElement;
+        if (!parent) continue;
+        if (parent.style.filter === cfg.filter) continue;
+        parent.style.setProperty('filter', cfg.filter, 'important');
+        touched.add(parent);
+        applied++;
+      } catch (_) { /* canvas detached, skip */ }
     }
     return applied;
   };
@@ -2481,6 +2461,32 @@ function createUI() {
         </div>
       </div>
     </div>
+
+    <div class="wre-modal-overlay" id="wre-welcome-modal">
+      <div class="wre-modal">
+        <div class="wre-modal-header">
+          <span class="wre-modal-title">欢迎使用微信读书增强插件</span>
+          <button class="wre-modal-close" data-close="#wre-welcome-modal">&times;</button>
+        </div>
+        <div class="wre-modal-body">
+          <p style="font-size:14px;color:var(--wre-text);margin:0 0 16px;line-height:1.6;">
+            插件已就绪，阅读页面左下角 <span style="font-weight:600;">悬浮图标</span> 点击即可调出全部功能。
+          </p>
+          <table class="wre-shortcuts-table">
+            <thead>
+              <tr><th>快捷键</th><th>功能</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="wre-shortcut-key">Space</span></td><td>播放 / 暂停自动阅读</td></tr>
+              <tr><td><span class="wre-shortcut-key">D</span></td><td>开启 / 关闭勿扰模式</td></tr>
+              <tr><td><span class="wre-shortcut-key">F</span></td><td>进入 / 退出全屏模式</td></tr>
+              <tr><td><span class="wre-shortcut-key">?</span></td><td>显示全部快捷键</td></tr>
+            </tbody>
+          </table>
+          <div class="wre-shortcuts-footer">更多功能请点击左下角悬浮图标 → 查看菜单</div>
+        </div>
+      </div>
+    </div>
   `;
 
   document.body.appendChild(root);
@@ -2812,6 +2818,9 @@ function handleAllKeyboard(event) {
     return;
   }
 
+  // 组合键不触发：Ctrl / Alt / Meta 按下时跳过，避免与浏览器原生快捷键冲突
+  if (event.ctrlKey || event.altKey || event.metaKey) return;
+
   switch (event.key) {
     case ' ':
       event.preventDefault();
@@ -3121,7 +3130,9 @@ async function applySavedScreenRatioOnInit() {
 }
 
 async function init() {
+  const t0 = performance.now();
   await loadState();
+  const t1 = performance.now();
   // #region debug-point init-theme-before-apply
   log('info', '初始化准备应用主题', {
     theme: WRE_STATE.theme,
@@ -3131,13 +3142,42 @@ async function init() {
   // #endregion
   registerRuntimeErrorHooks();
   createUI();
+  const t2 = performance.now();
+
+  // 新手引导：首次安装或版本更新时弹出欢迎面板（版本号已随 loadState 读取）
+  const currentVersion = chrome.runtime.getManifest().version;
+  const storedVersion = wreLoadedOnboardingVersion;
+  const shouldShow = !storedVersion || storedVersion !== currentVersion;
+  if (shouldShow) {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        openModal('#wre-welcome-modal');
+      });
+    });
+    // fire-and-forget，不阻塞后续 CSS 和主题应用
+    chrome.storage.local.set({ [WRE_STORAGE_KEYS.onboardingVersion]: currentVersion });
+    log('info', '新手引导已弹出', { version: currentVersion, prevStored: storedVersion || '无' });
+  }
 
   ensureStyleTag();
   wreStyleTag.textContent = '';
+  const t3 = performance.now();
   await primeScreenBasePx(true);
+  const t4 = performance.now();
   await applySavedScreenRatioOnInit();
+  const t5 = performance.now();
   // 应用保存的主题
   applyTheme(WRE_STATE.theme);
+  const t6 = performance.now();
+  log('info', '[perf] init 各阶段耗时', {
+    loadState: Math.round(t1 - t0),
+    createUI: Math.round(t2 - t1),
+    storageGet: Math.round(t3 - t2),
+    primeScreen: Math.round(t4 - t3),
+    applyRatio: Math.round(t5 - t4),
+    applyTheme: Math.round(t6 - t5),
+    total: Math.round(t6 - t0),
+  });
   // #region debug-point init-theme-after-apply
   log('info', '初始化已调用 applyTheme', {
     theme: WRE_STATE.theme,
