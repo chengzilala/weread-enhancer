@@ -72,6 +72,8 @@ function serializeElement(el) {
       display: computed.display,
       position: computed.position,
       boxSizing: computed.boxSizing,
+      textAlign: computed.textAlign,
+      cssFloat: computed.float,
       paddingLeft: computed.paddingLeft,
       paddingRight: computed.paddingRight,
       overflowX: computed.overflowX,
@@ -261,7 +263,7 @@ function collectLayoutSnapshot() {
 
   let current = document.querySelector('.readerChapterContent');
   let depth = 0;
-  while (current && depth < 5) {
+  while (current && depth < 8) {
     snapshot.parentChain.push({
       depth,
       selectorHint: `${current.tagName.toLowerCase()}${current.id ? `#${current.id}` : ''}${current.className ? `.${String(current.className).trim().replace(/\s+/g, '.')}` : ''}`,
@@ -289,6 +291,68 @@ function collectLayoutSnapshot() {
     readerChapterContentRect: snapshot.selectors['.readerChapterContent']?.rect ?? null,
     toolbarFloatEnabled: document.body.classList.contains('wre-toolbar-floating'),
     issues,
+  });
+
+  // 阅读模式判定 + 水平滚动检测（用于诊断滚动模式下屏占比不适配）
+  const docEl = document.documentElement;
+  const readingModeGuess = {
+    hasHorizontalReader: !!document.querySelector('.wr_horizontalReader, [class*="wr_horizontalReader"]'),
+    hasChapterContainer: !!document.querySelector('.readerChapterContent_container'),
+    hasReaderContent: !!document.querySelector('.readerContent'),
+    hasCanvas: !!document.querySelector('.wr_canvasContainer, canvas'),
+  };
+  const docScroll = {
+    scrollWidth: docEl.scrollWidth,
+    clientWidth: docEl.clientWidth,
+    innerWidth: window.innerWidth,
+    hasHorizontalScroll: docEl.scrollWidth > window.innerWidth + 1,
+  };
+  // 完整快照（父级链 + 各选择器详情）写入日志，供下载排查滚动模式布局
+  log('info', '页面结构快照(完整)', {
+    state: snapshot.state,
+    viewport: snapshot.viewport,
+    readingModeGuess,
+    docScroll,
+    selectors: snapshot.selectors,
+    chapterContents: snapshot.selectorsAll,
+    parentChain: snapshot.parentChain,
+  });
+
+  // 滚动容器探测：定位真正带竖直滚动条的元素，用于精准美化滚动条
+  const scrollables = [];
+  const scrollingEl = document.scrollingElement;
+  if (scrollingEl) {
+    scrollables.push({
+      which: 'scrollingElement',
+      selectorHint: `${scrollingEl.tagName.toLowerCase()}${scrollingEl.id ? '#' + scrollingEl.id : ''}`,
+      scrollHeight: scrollingEl.scrollHeight,
+      clientHeight: scrollingEl.clientHeight,
+      canScrollY: scrollingEl.scrollHeight > scrollingEl.clientHeight + 4,
+    });
+  }
+  let scanned = 0;
+  for (const el of document.querySelectorAll('body *')) {
+    if (scanned > 5000) break;
+    scanned += 1;
+    if (el.id === 'we-read-enhancer-root' || el.closest('#we-read-enhancer-root')) continue;
+    if (el.clientHeight > 200 && el.scrollHeight > el.clientHeight + 20) {
+      const cs = window.getComputedStyle(el);
+      if (/(auto|scroll)/.test(cs.overflowY)) {
+        const cls = typeof el.className === 'string' ? el.className.trim().replace(/\s+/g, '.') : '';
+        scrollables.push({
+          selectorHint: `${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}${cls ? '.' + cls : ''}`.slice(0, 140),
+          scrollHeight: el.scrollHeight,
+          clientHeight: el.clientHeight,
+          overflowY: cs.overflowY,
+        });
+      }
+    }
+  }
+  log('info', '滚动容器探测', {
+    windowScrollY: window.scrollY,
+    scrollingElScrollTop: scrollingEl?.scrollTop,
+    count: scrollables.length,
+    scrollables,
   });
   return snapshot;
 }
@@ -477,14 +541,43 @@ body.wre-toolbar-floating.wre-show-controls [class*="readerControls"] {
   pointer-events: auto !important;
 }`;
 
-function updateStyleTag(ratio) {
-  ensureStyleTag();
+// 判定阅读方式：翻页模式有 .readerChapterContent_container 作为宽度基准；
+// 滚动模式没有该容器，正文由固定宽居中的 .app_content 承载。
+function detectScrollMode() {
+  return !document.querySelector('.readerChapterContent_container')
+    && !!document.querySelector('.app_content');
+}
+
+// 生成屏占比宽度 CSS（按阅读方式分流），供 updateStyleTag / clearPluginTheme 共用
+function buildRatioCSS(ratio) {
   const numericRatio = clampNumber(Number(ratio), 50, 100);
+
+  if (detectScrollMode()) {
+    // 滚动模式：作用于原生正文容器 .app_content，用相对视口的百分比 max-width 居中，
+    // 不沿用翻页模式的固定 px 基准（否则会超出原生容器宽度导致溢出 + 不居中 + 水平滚动条）。
+    return `
+      .app_content {
+        width: ${numericRatio}% !important;
+        max-width: ${numericRatio}% !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        box-sizing: border-box !important;
+      }
+      .readerChapterContent {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        box-sizing: border-box !important;
+      }
+    `;
+  }
+
+  // 翻页模式：沿用固定 px 基准（.readerChapterContent_container 宽度 × 比例）
   const basePx = Number.isFinite(WRE_STATE.screenBasePx) && WRE_STATE.screenBasePx > 0 ? WRE_STATE.screenBasePx : null;
   const targetPx = basePx ? Math.round((basePx * numericRatio) / 100) : null;
-
   if (targetPx) {
-    wreStyleTag.textContent = `
+    return `
       .readerChapterContent {
         width: ${targetPx}px !important;
         max-width: ${targetPx}px !important;
@@ -492,20 +585,39 @@ function updateStyleTag(ratio) {
         margin-right: auto !important;
         box-sizing: border-box !important;
       }
-      ${toolbarFloatCSS}
-      ${wreThemeCSS[WRE_STATE.theme] || wreThemeCSS.light}
     `;
+  }
+  return `
+    .readerChapterContent {
+      max-width: ${numericRatio}% !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+      box-sizing: border-box !important;
+    }
+  `;
+}
+
+function updateStyleTag(ratio) {
+  ensureStyleTag();
+  const numericRatio = clampNumber(Number(ratio), 50, 100);
+  const scrollMode = detectScrollMode();
+  const basePx = Number.isFinite(WRE_STATE.screenBasePx) && WRE_STATE.screenBasePx > 0 ? WRE_STATE.screenBasePx : null;
+  const targetPx = (!scrollMode && basePx) ? Math.round((basePx * numericRatio) / 100) : null;
+
+  wreStyleTag.textContent = `
+    ${buildRatioCSS(numericRatio)}
+    ${toolbarFloatCSS}
+    ${wreThemeCSS[WRE_STATE.theme] || wreThemeCSS.light}
+  `;
+
+  // 仅滚动模式启用视口滚动条美化的作用域标记（翻页模式/书架页不受影响）
+  document.documentElement.classList.toggle('wre-scrollmode', scrollMode);
+  if (scrollMode) {
+    ensureCustomScrollbar();
+    updateCustomScrollbar();
   } else {
-    wreStyleTag.textContent = `
-      .readerChapterContent {
-        max-width: ${numericRatio}% !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        box-sizing: border-box !important;
-      }
-      ${toolbarFloatCSS}
-      ${wreThemeCSS[WRE_STATE.theme] || wreThemeCSS.light}
-    `;
+    document.documentElement.classList.remove('wre-show-scrollbar');
+    if (wreCustomScrollbar) { wreCustomScrollbar.style.display = 'none'; }
   }
 
   // 强制重排后动态检测工具栏位置
@@ -517,11 +629,20 @@ function updateStyleTag(ratio) {
   if (controls && topBar) {
     const cr = controls.getBoundingClientRect();
     const tr = topBar.getBoundingClientRect();
-    // 触发条件（二合一）：① 比例 >85%（86% 及以上触发浮动，85% 刚好能放下工具栏保持原生）；
-    // ② 实际元素溢出（兜底，处理小屏、缩放等边缘情况）
-    const outOfView = numericRatio > 85 || tr.left < -1 || tr.right > window.innerWidth + 1 || cr.right > window.innerWidth;
-    enableToolbarFloat = outOfView;
+    if (scrollMode) {
+      // 滚动模式：工具栏不会被推出视口，改用「正文盖住工具栏区域」判定。
+      // 顶栏宽度/位置不随浮动改变（pinTopBar 只加 z-index），且正文与顶栏同中心，
+      // 用正文宽度是否超过顶栏原生宽度作参照：正文更宽即左右超出顶栏并顶到右侧 controls。
+      // 用稳定参照避免浮动移动 controls 后判定值来回变化导致的抖动。
+      const content = document.querySelector('.app_content') || document.querySelector('.readerChapterContent');
+      const contentRect = content ? content.getBoundingClientRect() : null;
+      enableToolbarFloat = !!contentRect && contentRect.width > tr.width + 4;
+    } else {
+      // 翻页模式：① 比例 >85%（86% 及以上触发，85% 刚好放下工具栏）；② 元素实际溢出视口（兜底）
+      enableToolbarFloat = numericRatio > 85 || tr.left < -1 || tr.right > window.innerWidth + 1 || cr.right > window.innerWidth;
+    }
     log('info', '工具栏位置检测', {
+      mode: scrollMode ? 'scroll' : 'page',
       controls: { left: Math.round(cr.left), right: Math.round(cr.right) },
       topBar: { left: Math.round(tr.left), right: Math.round(tr.right) },
       viewportW: window.innerWidth, enableFloat: enableToolbarFloat
@@ -634,31 +755,10 @@ function clearPluginTheme() {
   // 2. 重建 wreStyleTag：保留屏占比 CSS，清除主题 CSS
   const styleTag = document.getElementById('wreThemeStyleTag') || document.getElementById('we-read-enhancer-style');
   if (styleTag) {
-    const ratio = WRE_STATE.screenRatio;
-    const basePx = Number.isFinite(WRE_STATE.screenBasePx) && WRE_STATE.screenBasePx > 0 ? WRE_STATE.screenBasePx : null;
-    const targetPx = basePx ? Math.round((basePx * ratio) / 100) : null;
-    if (targetPx) {
-      styleTag.textContent = `
-        .readerChapterContent {
-          width: ${targetPx}px !important;
-          max-width: ${targetPx}px !important;
-          margin-left: auto !important;
-          margin-right: auto !important;
-          box-sizing: border-box !important;
-        }
-        ${toolbarFloatCSS}
-      `;
-    } else {
-      styleTag.textContent = `
-        .readerChapterContent {
-          max-width: ${ratio}% !important;
-          margin-left: auto !important;
-          margin-right: auto !important;
-          box-sizing: border-box !important;
-        }
-        ${toolbarFloatCSS}
-      `;
-    }
+    styleTag.textContent = `
+      ${buildRatioCSS(WRE_STATE.screenRatio)}
+      ${toolbarFloatCSS}
+    `;
   }
 
   // 3. 暴力清理所有 inline 样式（filter、background、color 全部清掉）
@@ -2093,8 +2193,24 @@ let wreToolbarTrigger = null;
 let wreToolbarHideTimer = null;
 let wreToolbarRightTimer = null;
 
+// 自绘悬浮滚动条（滚动模式，隐藏原生滚动条后替代）
+let wreCustomScrollbar = null;
+let wreCustomScrollbarThumb = null;
+let wreScrollbarDragging = false;
+
 function pinTopBar() {
-  // CSS 已通过 toolbarFloatCSS 处理定位与动画，无需额外 inline style
+  const topBar = document.querySelector('.readerTopBar');
+  if (!topBar) return false;
+  // 顶栏浮现时层级必须高于顶部感应区（z-index:999997），否则点击会被感应区拦截
+  topBar.style.setProperty('z-index', '999998', 'important');
+  // 浮现时水平居中于视口，视觉更协调（原生仅相对内容区居中，浮在满宽正文上会略偏）
+  const width = topBar.offsetWidth;
+  if (width > 0) {
+    const left = Math.max(0, Math.round((window.innerWidth - width) / 2));
+    topBar.style.setProperty('left', left + 'px', 'important');
+    topBar.style.setProperty('right', 'auto', 'important');
+    topBar.style.setProperty('transform', 'none', 'important');
+  }
   return true;
 }
 
@@ -2234,6 +2350,12 @@ function ensureToolbarTrigger() {
     if (wreToolbarHideTimer) { clearTimeout(wreToolbarHideTimer); wreToolbarHideTimer = null; }
     pinTopBar();
     document.body.classList.add('wre-show-topbar');
+    // 同步绑定到顶栏本身，防止鼠标移到顶栏（层级高于感应区）时感应区误判离开
+    const bar = document.querySelector('.readerTopBar');
+    if (bar) {
+      bar.addEventListener('mouseenter', showTop, { once: false });
+      bar.addEventListener('mouseleave', hideTop, { once: false });
+    }
   };
   const hideTop = () => {
     if (wreToolbarHideTimer) { clearTimeout(wreToolbarHideTimer); }
@@ -2263,7 +2385,7 @@ function ensureToolbarTrigger() {
   // 顶部感应区
   const trigger = document.createElement('div');
   trigger.id = 'wre-toolbar-trigger';
-  trigger.style.cssText = 'position:fixed;top:0;left:0;right:0;height:56px;z-index:999997;cursor:default;';
+  trigger.style.cssText = 'position:fixed;top:0;left:0;right:0;height:100px;z-index:999997;cursor:default;';
   trigger.addEventListener('mouseenter', showTop);
   trigger.addEventListener('mouseleave', hideTop);
   document.body.appendChild(trigger);
@@ -2271,14 +2393,97 @@ function ensureToolbarTrigger() {
   // 右侧感应区
   const rightTrigger = document.createElement('div');
   rightTrigger.id = 'wre-toolbar-trigger-right';
-  rightTrigger.style.cssText = 'position:fixed;top:0;right:0;bottom:0;width:30px;z-index:1;cursor:default;';
+  // z-index 需高于页面普通元素才能稳定接收 hover，同时低于呼出的 controls(999999) 以免拦截点击
+  rightTrigger.style.cssText = 'position:fixed;top:0;right:0;bottom:0;width:120px;z-index:999996;cursor:default;';
   rightTrigger.addEventListener('mouseenter', showRight);
   rightTrigger.addEventListener('mouseleave', hideRight);
   document.body.appendChild(rightTrigger);
 
   wreToolbarTrigger = trigger;
 
-  log('info', '已创建工具栏悬停触发器（顶部56px + 右侧30px感应区）');
+  log('info', '已创建工具栏悬停触发器（顶部100px + 右侧120px感应区，z-index 999997/999996）');
+}
+
+// 获取视口滚动元素
+function getViewportScroller() {
+  return document.scrollingElement || document.documentElement;
+}
+
+// 更新自绘滚动条 thumb 的高度与位置（按当前滚动状态）
+function updateCustomScrollbar() {
+  if (!wreCustomScrollbar || !wreCustomScrollbarThumb) return;
+  if (!document.documentElement.classList.contains('wre-scrollmode')) return;
+  const se = getViewportScroller();
+  const sh = se.scrollHeight;
+  const ch = se.clientHeight;
+  if (sh <= ch + 4) {
+    wreCustomScrollbar.style.display = 'none';
+    return;
+  }
+  wreCustomScrollbar.style.display = 'block';
+  const trackH = wreCustomScrollbar.clientHeight || window.innerHeight;
+  const thumbH = Math.max(40, Math.round((trackH * ch) / sh));
+  const maxScroll = sh - ch;
+  const maxThumbTop = trackH - thumbH;
+  const thumbTop = maxScroll > 0 ? Math.round(maxThumbTop * (se.scrollTop / maxScroll)) : 0;
+  wreCustomScrollbarThumb.style.height = `${thumbH}px`;
+  wreCustomScrollbarThumb.style.top = `${thumbTop}px`;
+}
+
+// 创建自绘悬浮滚动条（幂等）
+function ensureCustomScrollbar() {
+  if (wreCustomScrollbar && document.body.contains(wreCustomScrollbar)) return;
+  const bar = document.createElement('div');
+  bar.id = 'wre-custom-scrollbar';
+  const thumb = document.createElement('div');
+  thumb.id = 'wre-custom-scrollbar-thumb';
+  bar.appendChild(thumb);
+  document.body.appendChild(bar);
+  wreCustomScrollbar = bar;
+  wreCustomScrollbarThumb = thumb;
+
+  // 拖动 thumb 跳转
+  let dragStartY = 0;
+  let dragStartScroll = 0;
+  thumb.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    wreScrollbarDragging = true;
+    dragStartY = e.clientY;
+    dragStartScroll = getViewportScroller().scrollTop;
+    document.body.style.userSelect = 'none';
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!wreScrollbarDragging) return;
+    const se = getViewportScroller();
+    const sh = se.scrollHeight;
+    const ch = se.clientHeight;
+    const trackH = bar.clientHeight || window.innerHeight;
+    const thumbH = thumb.offsetHeight;
+    const maxThumbTop = trackH - thumbH;
+    const maxScroll = sh - ch;
+    if (maxThumbTop <= 0) return;
+    const deltaY = e.clientY - dragStartY;
+    se.scrollTop = dragStartScroll + (deltaY / maxThumbTop) * maxScroll;
+  });
+  document.addEventListener('mouseup', () => {
+    if (wreScrollbarDragging) {
+      wreScrollbarDragging = false;
+      document.body.style.userSelect = '';
+    }
+  });
+
+  // 点击 track 空白处跳转到对应位置
+  bar.addEventListener('mousedown', (e) => {
+    if (e.target !== bar) return;
+    const se = getViewportScroller();
+    const rect = bar.getBoundingClientRect();
+    const ratio = (e.clientY - rect.top) / rect.height;
+    se.scrollTop = ratio * (se.scrollHeight - se.clientHeight);
+    updateCustomScrollbar();
+  });
+
+  log('info', '已创建自绘悬浮滚动条');
 }
 
 function removeToolbarTrigger() {
@@ -3106,19 +3311,33 @@ function handleMenuClick(action) {
 
 async function applySavedScreenRatioOnInit() {
   const ratio = WRE_STATE.screenRatio;
-  const maxAttempts = 30;
+  const maxAttempts = 60;
   for (let i = 0; i < maxAttempts; i += 1) {
     const container = getReaderContainerElement();
     const content = getPrimaryContentElement();
     const containerWidth = container?.getBoundingClientRect?.().width;
     const contentWidth = content?.getBoundingClientRect?.().width;
+    const containerReady = Number.isFinite(containerWidth) && containerWidth > 0;
+    const contentReady = Number.isFinite(contentWidth) && contentWidth > 0;
 
-    if (Number.isFinite(containerWidth) && containerWidth > 0 && Number.isFinite(contentWidth) && contentWidth > 0) {
+    // 翻页模式：基准容器 .readerChapterContent_container 是正文祖先，正文就绪即视为就绪；
+    // 滚动模式：没有该基准容器，只要正文 .readerChapterContent + .app_content 就绪即可，
+    // 不能再强等 container（否则滚动模式永远等不到，刷新后屏占比丢失）。
+    const ready = containerReady
+      ? contentReady
+      : (detectScrollMode() && contentReady);
+
+    if (ready) {
       const applied = applyScreenRatio(ratio);
       scheduleWereadLayoutReflow('init-apply');
       inspectAppliedLayout();
       collectLayoutSnapshot();
       log('info', '已在刷新后自动应用已保存的屏占比', applied);
+      // 兜底：稍后再应用一次，防止早期模式判定/渲染时机偏差（如 app_content 晚于正文出现）
+      setTimeout(() => {
+        applyScreenRatio(WRE_STATE.screenRatio);
+        log('info', '屏占比二次兜底应用', { ratio: WRE_STATE.screenRatio, scrollMode: detectScrollMode() });
+      }, 800);
       return true;
     }
 
@@ -3208,6 +3427,35 @@ async function init() {
 
   // 注册键盘快捷键
   document.addEventListener('keydown', handleAllKeyboard);
+
+  // 滚动模式：鼠标靠近视口最右侧时淡入自绘滚动条，移开延迟淡出（拖动时不隐藏）
+  let wreScrollbarHideTimer = null;
+  const wreHideScrollbar = () => {
+    if (wreScrollbarDragging) return;
+    if (wreScrollbarHideTimer) { clearTimeout(wreScrollbarHideTimer); wreScrollbarHideTimer = null; }
+    document.documentElement.classList.remove('wre-show-scrollbar');
+  };
+  document.addEventListener('mousemove', (e) => {
+    if (!document.documentElement.classList.contains('wre-scrollmode')) return;
+    const nearRight = e.clientX >= window.innerWidth - 24;
+    if (nearRight) {
+      if (wreScrollbarHideTimer) { clearTimeout(wreScrollbarHideTimer); wreScrollbarHideTimer = null; }
+      document.documentElement.classList.add('wre-show-scrollbar');
+      updateCustomScrollbar();
+    } else if (!wreScrollbarDragging
+        && document.documentElement.classList.contains('wre-show-scrollbar')
+        && !wreScrollbarHideTimer) {
+      wreScrollbarHideTimer = setTimeout(() => {
+        document.documentElement.classList.remove('wre-show-scrollbar');
+        wreScrollbarHideTimer = null;
+      }, 400);
+    }
+  }, { passive: true });
+  // 鼠标离开页面（移出窗口）时立即隐藏，避免最后一次 mousemove 停在右侧导致滚动条残留
+  document.addEventListener('mouseleave', wreHideScrollbar);
+  // 滚动 / 尺寸变化时更新自绘滚动条的位置与高度
+  window.addEventListener('scroll', updateCustomScrollbar, { passive: true });
+  window.addEventListener('resize', updateCustomScrollbar);
 
   // 监听全屏变化（Esc 键或浏览器按钮退出全屏时恢复屏占比）
   document.addEventListener('fullscreenchange', handleFullscreenChange);

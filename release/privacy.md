@@ -1,6 +1,6 @@
 # Privacy Policy for 微信读书辅助增强版 (WeRead Enhancer)
 
-**Last updated: 2026-06-25**
+**Last updated: 2026-07-07**
 
 ## Data Collection
 
@@ -12,13 +12,13 @@ This extension **does not collect, store, or transmit any personal data or brows
 
 ## Local Storage
 
-The extension uses `chrome.storage.local` solely for saving user preferences (such as screen ratio settings). All data is stored locally in your browser and is only accessible to you. This data is never transmitted anywhere.
+The extension uses `chrome.storage.local` solely for saving user preferences (such as screen ratio, theme, auto-read speed, do-not-disturb, and full-screen settings). All data is stored locally in your browser and is only accessible to you. This data is never transmitted anywhere.
 
 ## Permissions
 
 The extension requests only one permission:
 
-- **storage**: Required to save your screen ratio preference so it persists across page refreshes and browser restarts.
+- **storage**: Required to save your reading preferences so they persist across page refreshes and browser restarts.
 
 ## Scope
 

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "微信读书屏占比调节器",
-  "version": "0.7.7",
+  "version": "0.8.1",
   "description": "增强微信读书网页版阅读体验：屏占比调节、主题切换、自动阅读、快捷键操作、勿扰模式、全屏模式。",
   "icons": {
     "16": "icons/icon-16.png",

@@ -2,6 +2,7 @@
 weread-debug-*.json
 日志/
 __debug_*
+.dbg/
 
 # 构建产物
 *.zip

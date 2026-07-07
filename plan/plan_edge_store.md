@@ -71,7 +71,7 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 | 字段             | 内容                                                                            |
 | -------------- | ----------------------------------------------------------------------------- |
 | **名称**         | 微信读书屏占比调节器                                                                    |
-| **简短描述（≤80字）** | 自定义微信读书网页版阅读区域宽度，50%-100%自由调节                                                 |
+| **简短描述（≤80字）** | 增强微信读书网页版：屏占比调节、明亮/暗黑/护眼主题、自动阅读、快捷键、勿扰与全屏模式                                     |
 | **详细描述**       | 见下方"详细描述文案"                                                                   |
 | **支持语言**       | 中文（简体）                                                                        |
 | **分类**         | 生产力 / 辅助功能                                                                    |
@@ -81,31 +81,39 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 
 **详细描述文案（中文）**：
 
-> 微信读书屏占比调节器是一个专为微信读书网页版（weread.qq.com）设计的小工具，只有一个功能：自由调整阅读区域的宽度。
+> 微信读书辅助增强版是专为微信读书网页版（weread.qq.com）打造的阅读增强工具，帮助你打造更舒适、专注的网页阅读体验。
 >
-> **使用方式**：
-> 1. 打开微信读书阅读页面
-> 2. 页面右上角会出现屏占比调节面板
-> 3. 拖动滑块或点击预设按钮（50%/70%/80%/90%/100%）即可调整
+> **核心功能**：
+> - **屏占比调节**：50%-100% 自由调整阅读区域宽度，滑块 + 快捷比例按钮，设置自动保存
+> - **主题切换**：明亮 / 暗黑 / 护眼（米黄）三主题一键切换，切换稳定无残留
+> - **自动阅读**：速度、方向可调，空格键一键开始/暂停
+> - **快捷键操作**：空格（自动阅读）、D（勿扰）、T（主题）、F（全屏）、?（帮助面板）
+> - **勿扰模式**：隐藏干扰元素，专注沉浸阅读
+> - **全屏模式**：一键进入沉浸全屏，退出自动恢复
+> - **工具栏浮动**：屏占比过高时原生工具栏自动隐藏，鼠标移到感应区淡入显示，点击正常
 >
-> **配套体验**：
-> - 当屏占比 ≥90% 时，微信读书原生工具栏会自动透明隐藏，鼠标移到顶部或右侧感应区再显示，不影响正常点击
-> - 设置自动保存，刷新页面无需重新调节
-> - 零依赖、不收集任何用户数据
+> **贴心之处**：
+> - 所有设置自动保存，刷新页面无需重新调节
+> - 首次安装/更新弹出新手引导
+> - 零依赖、不收集任何用户数据，仅在 weread.qq.com 下运行
 
 **英文描述（Store Listing English）**：
 
-> WeRead Screen Ratio Adjuster is a focused tool for WeRead (weread.qq.com) with one purpose: customizing the reading area width.
+> WeRead Enhancer is a reading enhancement tool for WeRead (weread.qq.com) that helps you build a more comfortable and focused web reading experience.
 >
-> **How to use**:
-> 1. Open a WeRead book page
-> 2. A control panel appears at the top-right corner
-> 3. Drag the slider or tap preset buttons (50%/70%/80%/90%/100%)
+> **Key features**:
+> - **Screen ratio**: freely adjust reading width from 50% to 100% with a slider and preset buttons; saved automatically
+> - **Themes**: one-click switch between Light / Dark / Eye-care (sepia), stable with no leftover artifacts
+> - **Auto reading**: adjustable speed and direction, start/pause with the spacebar
+> - **Keyboard shortcuts**: Space (auto read), D (do-not-disturb), T (theme), F (full screen), ? (help panel)
+> - **Do-not-disturb**: hide distractions for immersive reading
+> - **Full screen**: one-click immersive mode, restores automatically on exit
+> - **Floating toolbar**: when the ratio is high, the native toolbar auto-hides and reappears on hover
 >
 > **Nice to know**:
-> - When ratio ≥90%, native toolbar auto-hides and reappears on hover
-> - Preferences are saved automatically across page refreshes
-> - Privacy-first: zero dependencies, no data collection
+> - All preferences are saved automatically across page refreshes
+> - A welcome guide appears on first install/update
+> - Privacy-first: zero dependencies, no data collection, runs only on weread.qq.com
 
 ### 步骤 4：制作截图（1-10 张）
 
@@ -123,13 +131,13 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 ### 步骤 5：打包 ZIP
 
 ```powershell
-# 在项目目录执行（排除不需要的文件）
-git archive --format=zip HEAD -o weread-enhancer-v0.2.0.zip
+# 在项目目录执行（用 Python 生成，确保 zip 内为正斜杠路径）
+python -c "import zipfile; files=['manifest.json','content.js','content.css','README.md','icons/icon-16.png','icons/icon-48.png','icons/icon-128.png']; z=zipfile.ZipFile('release/weread-enhancer-v0.8.0.zip','w',zipfile.ZIP_DEFLATED); [z.write(f,f) for f in files]; z.close()"
 ```
 
 或手动创建 zip，包含：
 ```
-weread-enhancer.zip
+weread-enhancer-v0.8.0.zip
 ├── manifest.json
 ├── content.js
 ├── content.css
@@ -137,10 +145,10 @@ weread-enhancer.zip
 │   ├── icon-16.png
 │   ├── icon-48.png
 │   └── icon-128.png
-└── README.md         （可选）
+└── README.md
 ```
 
-> 注意：ZIP 中不要包含 `.gitignore`、`dev/`、`plan/`、`usage/`、`screenshots/`、`inbox/`、`release/` 等非运行文件。
+> 注意：ZIP 中不要包含 `.gitignore`、`dev/`、`plan/`、`test/`、`usage/`、`screenshots/`、`inbox/`、`release/`、`.dbg/`、`debug-*.md` 等非运行文件。
 
 ### 步骤 6：提交审核
 
@@ -162,11 +170,29 @@ weread-enhancer.zip
 提交时可粘贴以下内容到"给审核团队的备注"：
 
 ```
-This extension injects a custom settings panel into the WeRead (weread.qq.com) web reader.
-It only runs on weread.qq.com.
+This extension injects a custom settings panel into the WeRead (weread.qq.com) web reader
+to enhance the reading experience. It runs ONLY on weread.qq.com.
 
-Required permission - "storage": used solely for saving user preferences
-(screen ratio settings) to browser local storage. No data is ever collected or transmitted.
+Features:
+- Screen ratio: adjust the reading area width (50%-100%).
+- Themes: switch between Light / Dark / Eye-care (sepia) modes via CSS filter.
+- Auto reading: adjustable scroll speed and direction, toggled with the spacebar.
+- Keyboard shortcuts: Space (auto read), D (do-not-disturb), T (theme), F (full screen), ? (help panel).
+- Do-not-disturb and full-screen immersive modes.
+- Onboarding guide shown on first install / update.
+
+Permission justification
+- "storage": used SOLELY to save user preferences (screen ratio, theme, auto-read
+  speed, do-not-disturb and full-screen state) to browser local storage
+  (chrome.storage.local). No data is ever collected, tracked, or transmitted.
+
+No remote code, analytics, tracking, or ads are included.
+
+How to test:
+1. Install the extension.
+2. Open any book page on https://weread.qq.com.
+3. A control panel appears at the top-right corner; adjust screen ratio, switch themes,
+   start auto reading, or press ? to open the help/debug panel.
 
 The extension is open source: https://github.com/chengzilala/weread-enhancer
 ```
@@ -218,3 +244,4 @@ The extension is open source: https://github.com/chengzilala/weread-enhancer
 - 后续功能更新 → 改版本号 → 重新打包 → Partner Center 更新提交
 - 可同步上架到 **Chrome Web Store**（Chrome 用的是同一个 manifest.json，可复用）
 - 积累用户评价后可申请"精选扩展"推荐位
+- 增加主流浏览器的上架：360浏览器、Google Chrome 浏览器，为我同步一份相关文档。分别将相关资料做好归档记录
