@@ -1,4 +1,4 @@
-# 微信读书辅助增强版 — 版本管理规划
+# 微信悦读 — 版本管理规划
 
 > **文档类型**：版本历程 + 未来规划  
 > **项目仓库**：[chengzilala/weread-enhancer](https://github.com/chengzilala/weread-enhancer)  
@@ -282,8 +282,8 @@ UI框架       +全部核心模块 +动态感应区   → 最终收敛为       
 
 | 文档/位置 | 版本号 | 说明 |
 |----------|-------|------|
-| manifest.json | `0.8.0` | 当前浏览器实际加载版本（商店追平版） |
+| manifest.json | `0.8.1` | 当前浏览器实际加载版本（滚动模式优化版） |
 | RPD_需求文档.md | `v0.7` | PRD 迭代版本（功能层面） |
-| Git Tag | `v0.1.0` | 唯一已打的 Tag（后续版本未打 Tag） |
-| release zip | `weread-enhancer-v0.8.0.zip` | Edge 商店上传包（当前） |
+| Git Tag | `v0.8.1` | 最新已打的 Tag（完整归档见 plan_github_versioning.md） |
+| release zip | `weread-enhancer-v0.8.1.zip` | Edge 商店上传包（当前） |
 | version_plan.md | `v1.1` | 本文档独立版本 |

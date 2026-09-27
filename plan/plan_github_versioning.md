@@ -3,7 +3,7 @@
 ## 版本信息
 - 仓库名称：weread-enhancer
 - 可见性：private
-- 本地目录：d:\Knowledge\ChesterObsidian\Coding\微信读书插件
+- 本地目录：/Users/Admin/Knowledge/Coding/微信读书插件
 - 当前归档版本：v0.8.1（滚动模式与工具栏体验优化，2026-07-07）
 
 ## 归档历史（Git Tags）
@@ -71,10 +71,10 @@
 - 确认 `日志` 文件夹与 `weread-debug-*.json` 不进入版本控制
 
 ### 1. 初始化 git（本地）
-在 PowerShell（不使用 &&）按顺序执行：
+在终端按顺序执行（macOS 用 `cd`，Windows 用 `Set-Location`；命令间用换行分隔，不用 `&&`）：
 
 ```powershell
-Set-Location "d:\Knowledge\ChesterObsidian\Coding\微信读书插件"
+cd "/Users/Admin/Knowledge/Coding/微信读书插件"
 git init
 git branch -M main
 ```
@@ -95,7 +95,7 @@ Thumbs.db
 ### 3. 首次提交（main）
 
 ```powershell
-Set-Location "d:\Knowledge\ChesterObsidian\Coding\微信读书插件"
+cd "/Users/Admin/Knowledge/Coding/微信读书插件"
 git add -A
 git commit -m "chore: baseline v0.1.0"
 ```
@@ -111,7 +111,7 @@ git commit -m "chore: baseline v0.1.0"
 ### 5. 绑定远端并推送
 
 ```powershell
-Set-Location "d:\Knowledge\ChesterObsidian\Coding\微信读书插件"
+cd "/Users/Admin/Knowledge/Coding/微信读书插件"
 git remote add origin "<YOUR_REMOTE_URL>"
 git push -u origin main
 ```
@@ -120,7 +120,7 @@ git push -u origin main
 本地打 tag 并推送：
 
 ```powershell
-Set-Location "d:\Knowledge\ChesterObsidian\Coding\微信读书插件"
+cd "/Users/Admin/Knowledge/Coding/微信读书插件"
 git tag v0.1.0
 git push origin v0.1.0
 ```

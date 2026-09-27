@@ -309,3 +309,59 @@
   -  后续修复过程中发现 CSS filter 规则需包含 `.wr_canvasContainer`（canvas 的实际父容器），且 `clearLastPaintedThemeStyles` 需清理 `filter` 属性防止残留
   -  JS 级 filter 改为往 `wr_canvasContainer` 父层挂 inline filter，配合 100/400/1000/2000ms 延迟兜底处理 canvas 晚创建
   -  **最终验证结果（2025-07-01）：`A1-A4` 全部通过，`F1` 快速连续切换通过。filter 方案稳定生效，canvas 响应延迟问题已从根本上解决。**
+
+---
+
+## 2026-09-27 会话条目：工作区结构梳理 + 规则/技能按项目分发（已完成）
+- **目标**：定下 Trae 的打开方式（代码窗口 + 知识库窗口双窗口并行），并让通用规则与 5 个 skill 在**代码窗口**里真正生效。
+- **已做**：
+  - 实测确认：Trae 只读「工作区根」下的 `.trae/`，父目录 `Coding` 的规则与技能**不会自动继承**（打开代码窗口后 Rules/Skill 面板确实丢失）。
+  - 改写 `Coding.code-workspace`：`folders` 从 `.` 改为项目子目录；加注释模板（逗号写在行首，去掉任意一行的 `//` 都不会触发逗号错误；三种启用组合均已用 JSON 校验通过）。
+  - 新建 `Coding/.vscode/settings.json`：知识库窗口排除 `.obsidian`，避免 AI 检索被几万个插件文件污染。
+  - 复制 5 个 skill 到 `微信读书插件/.trae/skills/`（`diff -r` 校验与来源完全一致）。
+  - 新建 `微信读书插件/.trae/rules/general_rules.md`（项目内副本，仅改开头说明块）；`project_rules.md` 里指向父目录的死链改成同目录引用。
+  - 更新 `dev/可复制项目指南.md` 至 **v1.1**：§2 目录树补 `.trae/`，新增 §2.1 每项来源表、§2.2 三层分发模型、§2.3 新项目启动清单；§0、§9 同步。
+- **关键结论/决定**：
+  - **双窗口并行**：代码窗口 = `Coding.code-workspace`（根 = 项目）；知识库窗口 = 打开文件夹 `Coding`。
+  - **规则/技能按项目复制，不建全局**；隔离性靠复制，不靠继承。
+  - **三层分发**：母本（`AI协作规划库/`）→ `Coding/.trae/` → 各项目 `.trae/`；**只改母本再向下同步**，禁止在项目副本里单点改。
+  - 约定：**改代码只在代码窗口**；同一批文件不同时在两个窗口让 AI 动；跨窗口信息靠文档传递。
+  - **不改 `Coding.code-workspace` 的文件名**（改名 = 新工作区身份 = 历史会话会"消失"）。
+- **产出物（文件/链接）**：
+  - `Coding/Coding.code-workspace`（改写）
+  - `Coding/.vscode/settings.json`（新建）
+  - `微信读书插件/.trae/rules/general_rules.md`（新建）、`.trae/rules/project_rules.md`（改引用）
+  - `微信读书插件/.trae/skills/`（gen-rpd / pack-publish / session-handoff / session-log / test-checklist）
+  - `微信读书插件/dev/可复制项目指南.md`（v1.1）
+- **待办**：
+  - 重开代码窗口后确认：Rules 面板 2 条、Skill 面板 5 个。
+  - 沿用既有待办（见 `Coding/plan/session_handoff_工作区迁移与会话还原.md`）：README/version_plan 中不存在的快捷键 `T` 待修正（需确认）；Edge v0.8.1 更新提交、360 MV3 实测（用户手动）。
+- **风险/注意事项**：
+  - 同一份通用规则现有 2 处、skill 现有 3 处副本，**必须只改母本再同步**，否则漂移。
+  - `.trae/` 会进 git 仓库，但**不会进上架 zip**（打包只挑运行文件）。
+  - 双窗口 = 两套对话历史与记忆（按工作区路径绑定），属正常现象，不是记录丢失。
+
+---
+
+## 2026-09-27 会话条目：P0 收尾（去死码 + 行尾归一 + 文档纠错）(已完成)
+- **目标**：按「项目现状分析」给出的 P0 执行顺序，把仓库从"欠账"状态收回干净可回溯状态（不引入新功能）。
+- **已做**：
+  - 清理 `content.js` 死调试代码 1286 行（3468 → 2182 行）：删除 `collectFastSwitchSnapshot`（约 907 行）、canvas 调试钩子（`installCanvasDebugHooks`/`recordCanvasDrawCall`/`getCanvasDebugId`）、`scheduleCanvasTimelineSnapshots`，以及 `hasVisibleReadableText`/`release*Overlays`/`revealHiddenRenderTargetContainer` 等**已无调用点**的分支恢复函数；同时移除仅被它们引用的 7 个模块级变量（`wreCanvas*`/`wreThemeTokenStartTimes`）与未使用的 `wreColorObserver`/`wreColorLastSet`。`applyThemeColors`（CSS filter 方案）与日志系统保持不变；IDE 诊断无报错、全文 grep 无残留引用。
+  - 新增 `.gitattributes`（`* text=auto eol=lf` + 二进制白名单），并将 `content.js` 从 CRLF 归一为 LF，消除"整文件幽灵 diff"（diff 从 3468 行噪声降为 `0 插入 / 1286 删除`）。
+  - 归档 4 个调试会话文件到 `dev/debug-archive/`，并把 `debug-fast-switch-dark-invisible.md` 状态从 `[OPEN]` 更正为 `[RESOLVED / 已归档]`（该问题随 filter 重构后 A1–A4/F1 已通过）。
+  - 文档纠错：修正 18 处过期路径（`…/ChesterObsidian/Coding/…` → `…/Knowledge/Coding/…`，5 个文件）；`dev/log.md` 的 Windows 下载路径改为 macOS `~/Downloads/`；`plan/主题需求梳理.md` 暗黑色值对齐代码 `#121212` / `#ffffff`；`README.md` 删掉代码中不存在的 `T（切换主题）` 快捷键（以 `handleAllKeyboard` 为准：空格 / D / F / ?）；`RPD_需求文档.md` 的 `T` 快捷键标注为"待新增"、头部版本澄清为"文档 v0.7（对应产品 v0.8.1）"。
+  - 修复快捷键 `?`：中文输入法**全角**或**组词**状态下 `?` 实际为 `？`（`event.key` 不匹配），导致「快捷键说明」帮助面板打不开；改用物理键 `Slash` + Shift 兜底识别 `?`/`？`，并新增 `event.isComposing` 守卫避免打断拼音输入（回归 R5 待复测）。
+- **关键结论/决定**：
+  - `content.js` 减重约 37%，纯删死码、不改任何运行逻辑；主题仍为 CSS filter 方案，诊断日志系统保留（`?` 面板）。
+  - 收尾三原则：**代码为准**（快捷键/域名/权限先 grep 再写）、**纯删不加**（不借清理之名改逻辑）、**可回溯**（调试文件归档而非直接删）。
+- **产出物（文件/链接）**：
+  - 更新：`content.js`（-1286 行）、`README.md`、`plan/主题需求梳理.md`、`plan/RPD_需求文档.md`、`dev/log.md`、`usage/GitHub操作手册.md`、`plan/plan_github_versioning.md`、`plan/plan_360_store.md`、两份 `plan/session_handoff_*.md`
+  - 新建：`.gitattributes`、`dev/debug-archive/`（含 4 个归档调试文件）
+  - 规则/文档：`.trae/rules/general_rules.md`（母本 / 工作区 / 项目三份同步）新增「需求实时回灌文档」条款；`plan/RPD_需求文档.md` 在 3.5.2 增加「输入法兼容」需求，并新增「附：文档变更记录」章节记录本次回灌
+- **待办**：
+  - 用户确认后统一提交（工作区还含另一会话的"工作区/规则整理"改动，需决定合并为一次提交还是拆开）。
+  - 提交前建议 `git add --renormalize .` 让 `.gitattributes` 生效。
+  - 后续 P1（体验）：自动阅读到书末自动停止、快捷键自定义、图标优化。
+- **风险/注意事项**：
+  - 本次仅删无用代码、未触碰业务逻辑，但**仍建议在浏览器回归一次**主题切换 / 屏占比 / 自动阅读，确认无异常。
+  - `.trae/` 会进 git 仓库但不会进上架 zip（打包只挑运行文件）；本次新增的 `.gitattributes` 也不进 zip。

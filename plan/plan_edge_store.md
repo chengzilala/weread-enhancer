@@ -70,8 +70,8 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 
 | 字段             | 内容                                                                            |
 | -------------- | ----------------------------------------------------------------------------- |
-| **名称**         | 微信读书屏占比调节器                                                                    |
-| **简短描述（≤80字）** | 增强微信读书网页版：屏占比调节、明亮/暗黑/护眼主题、自动阅读、快捷键、勿扰与全屏模式                                     |
+| **名称**         | 微信悦读                                                                    |
+| **简短描述（≤80字）** | 增强微信读书网页版：屏占比调节、明亮/暗黑/护眼主题、自动阅读、快捷键、勿扰与全屏，滚动模式工具栏浮动与自绘滚动条 |
 | **详细描述**       | 见下方"详细描述文案"                                                                   |
 | **支持语言**       | 中文（简体）                                                                        |
 | **分类**         | 生产力 / 辅助功能                                                                    |
@@ -81,16 +81,17 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 
 **详细描述文案（中文）**：
 
-> 微信读书辅助增强版是专为微信读书网页版（weread.qq.com）打造的阅读增强工具，帮助你打造更舒适、专注的网页阅读体验。
+> 微信悦读是专为微信读书网页版（weread.qq.com）打造的阅读增强工具，帮助你打造更舒适、专注的网页阅读体验。
 >
 > **核心功能**：
 > - **屏占比调节**：50%-100% 自由调整阅读区域宽度，滑块 + 快捷比例按钮，设置自动保存
 > - **主题切换**：明亮 / 暗黑 / 护眼（米黄）三主题一键切换，切换稳定无残留
 > - **自动阅读**：速度、方向可调，空格键一键开始/暂停
-> - **快捷键操作**：空格（自动阅读）、D（勿扰）、T（主题）、F（全屏）、?（帮助面板）
+> - **快捷键操作**：空格（自动阅读）、D（勿扰）、F（全屏）、?（帮助面板）
 > - **勿扰模式**：隐藏干扰元素，专注沉浸阅读
 > - **全屏模式**：一键进入沉浸全屏，退出自动恢复
-> - **工具栏浮动**：屏占比过高时原生工具栏自动隐藏，鼠标移到感应区淡入显示，点击正常
+> - **工具栏浮动**：屏占比过高或滚动模式下原生工具栏自动隐藏，鼠标移到感应区淡入显示，点击正常
+> - **滚动模式适配**：滚动阅读模式下屏占比自适应，配自绘悬浮滚动条，滚动更顺滑
 >
 > **贴心之处**：
 > - 所有设置自动保存，刷新页面无需重新调节
@@ -105,10 +106,11 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 > - **Screen ratio**: freely adjust reading width from 50% to 100% with a slider and preset buttons; saved automatically
 > - **Themes**: one-click switch between Light / Dark / Eye-care (sepia), stable with no leftover artifacts
 > - **Auto reading**: adjustable speed and direction, start/pause with the spacebar
-> - **Keyboard shortcuts**: Space (auto read), D (do-not-disturb), T (theme), F (full screen), ? (help panel)
+> - **Keyboard shortcuts**: Space (auto read), D (do-not-disturb), F (full screen), ? (help panel)
 > - **Do-not-disturb**: hide distractions for immersive reading
 > - **Full screen**: one-click immersive mode, restores automatically on exit
-> - **Floating toolbar**: when the ratio is high, the native toolbar auto-hides and reappears on hover
+> - **Floating toolbar**: when the ratio is high or in scroll mode, the native toolbar auto-hides and reappears on hover
+> - **Scroll-mode tuning**: adaptive screen ratio in scroll reading mode with a custom floating scrollbar for smoother scrolling
 >
 > **Nice to know**:
 > - All preferences are saved automatically across page refreshes
@@ -132,12 +134,12 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 
 ```powershell
 # 在项目目录执行（用 Python 生成，确保 zip 内为正斜杠路径）
-python -c "import zipfile; files=['manifest.json','content.js','content.css','README.md','icons/icon-16.png','icons/icon-48.png','icons/icon-128.png']; z=zipfile.ZipFile('release/weread-enhancer-v0.8.0.zip','w',zipfile.ZIP_DEFLATED); [z.write(f,f) for f in files]; z.close()"
+python -c "import zipfile; files=['manifest.json','content.js','content.css','README.md','icons/icon-16.png','icons/icon-48.png','icons/icon-128.png']; z=zipfile.ZipFile('release/weread-enhancer-v0.8.1.zip','w',zipfile.ZIP_DEFLATED); [z.write(f,f) for f in files]; z.close()"
 ```
 
 或手动创建 zip，包含：
 ```
-weread-enhancer-v0.8.0.zip
+weread-enhancer-v0.8.1.zip
 ├── manifest.json
 ├── content.js
 ├── content.css
@@ -177,7 +179,7 @@ Features:
 - Screen ratio: adjust the reading area width (50%-100%).
 - Themes: switch between Light / Dark / Eye-care (sepia) modes via CSS filter.
 - Auto reading: adjustable scroll speed and direction, toggled with the spacebar.
-- Keyboard shortcuts: Space (auto read), D (do-not-disturb), T (theme), F (full screen), ? (help panel).
+- Keyboard shortcuts: Space (auto read), D (do-not-disturb), F (full screen), ? (help panel).
 - Do-not-disturb and full-screen immersive modes.
 - Onboarding guide shown on first install / update.
 

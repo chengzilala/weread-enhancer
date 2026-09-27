@@ -16,7 +16,7 @@
 ---
 
 ## 项目背景
-- **项目**：微信读书辅助增强版（Chrome/Edge 扩展，Manifest V3）
+- **项目**：微信悦读（Chrome/Edge 扩展，Manifest V3）
 - **仓库**：`https://github.com/chengzilala/weread-enhancer`
 - **当前版本**：`v0.8.0`（manifest.json，商店追平版，含屏占比/主题/自动阅读/快捷键/勿扰/全屏/新手引导）
 - **Edge 商店**：已提交过 v0.2.0；v0.8.0 的 zip 已构建（`release/weread-enhancer-v0.8.0.zip`），截图 + 提交为用户手动操作
@@ -27,16 +27,16 @@
 ## 关键文件路径
 | 文件 | 路径 |
 |-----|------|
-| manifest.json（v0.8.0） | `d:\Knowledge\ChesterObsidian\Coding\微信读书插件\manifest.json` |
-| 核心逻辑 | `d:\Knowledge\ChesterObsidian\Coding\微信读书插件\content.js` |
-| 样式 | `d:\Knowledge\ChesterObsidian\Coding\微信读书插件\content.css` |
-| PRD 需求文档（v0.7） | `d:\Knowledge\ChesterObsidian\Coding\微信读书插件\plan\RPD_需求文档.md` |
-| 版本管理文档 | `d:\Knowledge\ChesterObsidian\Coding\微信读书插件\plan\version_plan.md` |
-| Edge 上架方案 | `d:\Knowledge\ChesterObsidian\Coding\微信读书插件\plan\plan_edge_store.md` |
-| 隐私政策 | `d:\Knowledge\ChesterObsidian\Coding\微信读书插件\release\privacy.md` |
-| 项目规则 | `d:\Knowledge\ChesterObsidian\Coding\微信读书插件\dev\project-rules-v1.0.md` |
-| 会话记录 | `d:\Knowledge\ChesterObsidian\Coding\微信读书插件\dev\session_log.md` |
-| 测试清单 | `d:\Knowledge\ChesterObsidian\Coding\微信读书插件\test\`（快捷键 / 自动阅读 / 新手引导） |
+| manifest.json（v0.8.0） | `/Users/Admin/Knowledge/Coding/微信读书插件/manifest.json` |
+| 核心逻辑 | `/Users/Admin/Knowledge/Coding/微信读书插件/content.js` |
+| 样式 | `/Users/Admin/Knowledge/Coding/微信读书插件/content.css` |
+| PRD 需求文档（v0.7） | `/Users/Admin/Knowledge/Coding/微信读书插件/plan/RPD_需求文档.md` |
+| 版本管理文档 | `/Users/Admin/Knowledge/Coding/微信读书插件/plan/version_plan.md` |
+| Edge 上架方案 | `/Users/Admin/Knowledge/Coding/微信读书插件/plan/plan_edge_store.md` |
+| 隐私政策 | `/Users/Admin/Knowledge/Coding/微信读书插件/release/privacy.md` |
+| 项目规则 | `/Users/Admin/Knowledge/Coding/微信读书插件/dev/project-rules-v1.0.md` |
+| 会话记录 | `/Users/Admin/Knowledge/Coding/微信读书插件/dev/session_log.md` |
+| 测试清单 | `/Users/Admin/Knowledge/Coding/微信读书插件/test/`（快捷键 / 自动阅读 / 新手引导） |
 
 ---
 

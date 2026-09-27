@@ -1,4 +1,4 @@
-# Privacy Policy for 微信读书辅助增强版 (WeRead Enhancer)
+# Privacy Policy for 微信悦读 (WeRead Enhancer)
 
 **Last updated: 2026-07-07**
 
