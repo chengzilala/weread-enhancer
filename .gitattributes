@@ -1,0 +1,11 @@
+# 统一以 LF 行尾入库，避免跨系统（Windows/macOS）编辑产生整文件幽灵 diff
+* text=auto eol=lf
+
+# 二进制资源，不做行尾转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.zip binary
+*.crx binary
+*.pem binary

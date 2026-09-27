@@ -1,4 +1,6 @@
-# [OPEN] Debug Session: fast-switch-dark-invisible
+# [RESOLVED / 已归档] Debug Session: fast-switch-dark-invisible
+
+> 状态：已解决。本问题随「CSS filter 主题方案」重构后消失，A1–A4 / F1 测试全部通过（见 `plan/主题需求梳理.md`、`dev/session_log.md`）。文件移入 `dev/debug-archive/` 仅作历史留痕，不再活跃。
 
 ## 问题描述
 - 用户最新反馈：本轮测试中，暗黑模式正文看不到，另外两个模式正常。
