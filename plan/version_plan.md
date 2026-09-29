@@ -327,6 +327,6 @@ UI框架       +全部核心模块 +动态感应区   → 最终收敛为       
 |----------|-------|------|
 | manifest.json | `0.9.0` | 当前浏览器实际加载版本（阅读统计模块 · 最小可用；含 v0.8.3 的感应区/悬浮球修复） |
 | RPD_需求文档.md | `v0.7` | PRD 迭代版本（功能层面） |
-| Git Tag | `v0.8.1` | 最新已打的 Tag（v0.8.2 之后均未打 tag；完整归档见 plan_github_versioning.md） |
-| release zip | `weread-enhancer-v0.8.2.zip` | Edge / 360 已备好的上传包（v0.8.3 修复已并入 v0.9.0，待随 v0.9.0 重新打包） |
+| Git Tag | `v0.9.0` | 最新已打的 Tag（v0.8.2 / v0.8.3 未单独打 tag；完整归档见 plan_github_versioning.md） |
+| release zip | `weread-enhancer-v0.9.0.zip` | 最新备好的上传包（40 KB，9 文件；含 HTML/PDF 报表导出） |
 | version_plan.md | `v1.1` | 本文档独立版本 |

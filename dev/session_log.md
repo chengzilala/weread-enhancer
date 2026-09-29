@@ -426,7 +426,7 @@
 
 ---
 
-## 2026-09-29 会话条目：阅读统计与数据导出模块（v0.9.0 最小可用）(实现完成，待用户验证)
+## 2026-09-29 会话条目：阅读统计与数据导出模块（v0.9.0）(已实现、实测通过并归档)
 - **目标**：按 RPD 9.1 落地「阅读统计与数据导出」。用户选定范围 = **最小可用**（阅读时长统计：今日/本周/本月/本书 + 面板 + 导出），导出格式选定 **JSON / CSV / Markdown** 三种；进度追踪、最近书目顺延到后续版本。
 - **已做**：
   - 接入点摸底：菜单容器 `#wre-main-menu`（`createUI()` 生成）、点击分发 `handleMenuClick()`、存储 `chrome.storage.local`（`storage` 权限已有）。
@@ -446,12 +446,11 @@
   - 校验：`python3` 校验 manifest JSON 通过、`content_scripts` 注册项正确；IDE 诊断无新增报错（本机无 node，未能跑 `node --check`）。
 - **产出物（文件/链接）**：
   - 新建：`modules/stats.js`、`modules/stats.css`
-  - 修改：`manifest.json`（版本 0.9.0 + 注册模块）、`content.js`（仅 `case 'stats'`）、`plan/RPD_需求文档.md`（新增 9.1.0 实现状态、重写 9.1.5 存储结构、1.3 版本、2.1 功能总览、变更记录）、`plan/version_plan.md`（v0.9.0 表格 + 已完成部分、第 5 节版本号对照）
+  - 归档：Git 提交 `979ef20`（feat(stats) HTML/PDF 导出）+ Git Tag `v0.9.0` + `release/weread-enhancer-v0.9.0.zip`（40 KB，9 文件）
+  - 修改：`manifest.json`（版本 0.9.0 + 注册模块）、`content.js`（仅 `case 'stats'`）、`plan/RPD_需求文档.md`（新增 9.1.0 实现状态、重写 9.1.5 存储结构、1.3 版本、2.1 功能总览、变更记录）、`plan/version_plan.md`（v0.9.0 表格 + 已完成部分、第 5 节版本号对照）、`plan/plan_github_versioning.md`（归档历史 + 当前归档版本）、`README.md`（功能列表 + 项目结构）
 - **待办**：
-  - 待用户实测：① 阅读页停留 1~2 分钟后，菜单「📊 阅读统计」里今日/本书时长是否增长；② 切后台、切书是否正确分段；③ 五种导出文件能否正常打开且内容正确；④ 暗色主题下面板配色是否正常。
-  - PDF 专项待实测：点「PDF」后新窗口是否正常打开报表页、是否自动弹出打印对话框（若被浏览器拦截弹窗，需允许后重试）；在打印预览里确认 A4 分页与配色正常，选「另存为 PDF」得到文件。
-  - HTML 报表待实测：下载的 `.html` 双击用浏览器打开，确认样式与 PDF 预览一致（含字体、卡片、表格）。
-  - 实测通过后再决定：是否 git 提交、是否打包 `weread-enhancer-v0.9.0.zip` 上架。
+  - ✅ 用户实测已通过（2026-09-29）：面板计时、切后台/切书分段、五种导出（HTML/PDF/Markdown/CSV/JSON）均正常。
+  - ✅ 已提交 `979ef20` → 打 Tag `v0.9.0` → 打包 `release/weread-enhancer-v0.9.0.zip`（40 KB，9 文件）；归档历史已同步至 `plan/plan_github_versioning.md`。
   - 后续版本：RPD 9.1.2 阅读进度追踪、9.1.3 最近书目列表与点击跳转。
 - **风险/注意事项**：
   - 书名解析依赖 `.readerTopBar_title*` 与 `document.title`；若微信读书改 DOM 导致取不到书名，会退化成 `url:片段` 记录（面板会显示该临时键），排查看 `[stats]` 开头的日志。
