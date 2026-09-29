@@ -247,3 +247,16 @@ The extension is open source: https://github.com/chengzilala/weread-enhancer
 - 可同步上架到 **Chrome Web Store**（Chrome 用的是同一个 manifest.json，可复用）
 - 积累用户评价后可申请"精选扩展"推荐位
 - 增加主流浏览器的上架：360浏览器、Google Chrome 浏览器，为我同步一份相关文档。分别将相关资料做好归档记录
+
+---
+
+## 九、更新提交记录
+
+| 项 | 记录 |
+|---|---|
+| 提交版本 | **v0.8.2** |
+| 提交日期 | 2026-09-27 |
+| 提交包 | `release/weread-enhancer-v0.8.2.zip` |
+| 上次商店版本 | v0.2.0（本次为追平更新） |
+| 审核状态 | ⏳ **审核中**（平台提示：预计 7 个工作日后反馈） |
+| 审核结果 | （待填：通过 / 拒绝） |

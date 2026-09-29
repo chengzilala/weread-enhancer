@@ -312,37 +312,6 @@
 
 ---
 
-## 2026-09-27 会话条目：工作区结构梳理 + 规则/技能按项目分发（已完成）
-- **目标**：定下 Trae 的打开方式（代码窗口 + 知识库窗口双窗口并行），并让通用规则与 5 个 skill 在**代码窗口**里真正生效。
-- **已做**：
-  - 实测确认：Trae 只读「工作区根」下的 `.trae/`，父目录 `Coding` 的规则与技能**不会自动继承**（打开代码窗口后 Rules/Skill 面板确实丢失）。
-  - 改写 `Coding.code-workspace`：`folders` 从 `.` 改为项目子目录；加注释模板（逗号写在行首，去掉任意一行的 `//` 都不会触发逗号错误；三种启用组合均已用 JSON 校验通过）。
-  - 新建 `Coding/.vscode/settings.json`：知识库窗口排除 `.obsidian`，避免 AI 检索被几万个插件文件污染。
-  - 复制 5 个 skill 到 `微信读书插件/.trae/skills/`（`diff -r` 校验与来源完全一致）。
-  - 新建 `微信读书插件/.trae/rules/general_rules.md`（项目内副本，仅改开头说明块）；`project_rules.md` 里指向父目录的死链改成同目录引用。
-  - 更新 `dev/可复制项目指南.md` 至 **v1.1**：§2 目录树补 `.trae/`，新增 §2.1 每项来源表、§2.2 三层分发模型、§2.3 新项目启动清单；§0、§9 同步。
-- **关键结论/决定**：
-  - **双窗口并行**：代码窗口 = `Coding.code-workspace`（根 = 项目）；知识库窗口 = 打开文件夹 `Coding`。
-  - **规则/技能按项目复制，不建全局**；隔离性靠复制，不靠继承。
-  - **三层分发**：母本（`AI协作规划库/`）→ `Coding/.trae/` → 各项目 `.trae/`；**只改母本再向下同步**，禁止在项目副本里单点改。
-  - 约定：**改代码只在代码窗口**；同一批文件不同时在两个窗口让 AI 动；跨窗口信息靠文档传递。
-  - **不改 `Coding.code-workspace` 的文件名**（改名 = 新工作区身份 = 历史会话会"消失"）。
-- **产出物（文件/链接）**：
-  - `Coding/Coding.code-workspace`（改写）
-  - `Coding/.vscode/settings.json`（新建）
-  - `微信读书插件/.trae/rules/general_rules.md`（新建）、`.trae/rules/project_rules.md`（改引用）
-  - `微信读书插件/.trae/skills/`（gen-rpd / pack-publish / session-handoff / session-log / test-checklist）
-  - `微信读书插件/dev/可复制项目指南.md`（v1.1）
-- **待办**：
-  - 重开代码窗口后确认：Rules 面板 2 条、Skill 面板 5 个。
-  - 沿用既有待办（见 `Coding/plan/session_handoff_工作区迁移与会话还原.md`）：README/version_plan 中不存在的快捷键 `T` 待修正（需确认）；Edge v0.8.1 更新提交、360 MV3 实测（用户手动）。
-- **风险/注意事项**：
-  - 同一份通用规则现有 2 处、skill 现有 3 处副本，**必须只改母本再同步**，否则漂移。
-  - `.trae/` 会进 git 仓库，但**不会进上架 zip**（打包只挑运行文件）。
-  - 双窗口 = 两套对话历史与记忆（按工作区路径绑定），属正常现象，不是记录丢失。
-
----
-
 ## 2026-09-27 会话条目：P0 收尾（去死码 + 行尾归一 + 文档纠错）(已完成)
 - **目标**：按「项目现状分析」给出的 P0 执行顺序，把仓库从"欠账"状态收回干净可回溯状态（不引入新功能）。
 - **已做**：
@@ -391,3 +360,94 @@
 - **风险/注意事项**：
   - `release/*.zip` 属 `.gitignore` 排除项，不入库；`.pem` 私钥**严禁入库**。
   - 用户提供的 GitHub token 仅用于本次推送，**未写入任何文件/日志**，建议用后在 GitHub 撤销。
+
+---
+
+## 2026-09-29 会话条目：感应区零遮挡 + 悬浮球悬停展开（v0.8.3）(已完成)
+- **目标**：① 解决用户反馈「官方『下一页』点击区被插件改动遮挡、不好点击」；② 悬浮球（🤖）鼠标悬停即展开菜单，无需点击。先了解目录结构，再定位问题并修复。
+- **已做**：
+  - 通读目录结构与关键文档（README / RPD / version_plan / session_log / 三份上架方案 / 会话交接），确认项目七大目录与 v0.8.2 现状。
+  - 定位遮挡源：屏占比高时启用的两个**透明感应层**——`#wre-toolbar-trigger`（`top:0;height:100px;z-index:999997`）与 `#wre-toolbar-trigger-right`（`top:0;bottom:0;width:120px;z-index:999996`）；两者是普通 div，全透明也会吃掉点击，右侧那条正好压住官方翻页点击区。
+  - 与用户确认改法（选「改鼠标位置判断」；←/→ 快捷键问题本轮不动）。
+  - 改写 `content.js` 的 `ensureToolbarTrigger()`：删除两个感应层，改为 `document` 上监听 `mousemove`，用 `clientY ≤ 100` / `innerWidth - clientX ≤ 120` 判断贴近边缘来呼出顶栏/右侧按钮；新增常量 `WRE_TOPBAR_ZONE_PX` / `WRE_CONTROLS_ZONE_PX` 与 `wreToolbarMoveHandler`，移除 `wreToolbarTrigger`。
+  - `removeToolbarFloating()` 改为移除 mousemove 监听并置空 handler；淡出计时器改为幂等（`if (timer) return`），避免移动鼠标时反复重置计时。
+  - 顺手修正 `pinTopBar()` 中已过期的注释。
+  - 悬浮球交互改造：在 `bindEvents()` 中新增 `openMenu()` / `scheduleCloseMenu()`，`fab` 与 `#wre-main-menu` 各自绑定 `mouseenter` → 立即展开、`mouseleave` → 250ms 延迟收起（两者间移动不误收）；`fab` 的 click 由 `menu.classList.toggle('wre-visible')` 改为 `openMenu()`（保持展开，避免"点一下反而收起"），仍保留点击退出勿扰模式。
+  - `manifest.json` 版本 `0.8.2 → 0.8.3`；同步 `plan/RPD_需求文档.md`（3.3.4 感应方式与 100/120px 数值、3.1 悬浮球悬停交互、1.3 当前版本、头部版本与日期、变更记录新增两行）与 `plan/version_plan.md`（新增 v0.8.3 段落 + 版本号对照表）。
+- **关键结论/决定**：
+  - 遮挡根因是「透明覆盖层仍属于可点击元素」，与 z-index 高低无关；只要元素在页面之上就会拦截点击。
+  - 修复原则：感应只读鼠标坐标、不落任何 DOM 覆盖层 → 从根本上不可能遮挡。
+  - 会话中发现但**本轮不改**：帮助面板写了「← / → 上一页/下一页（启用）」，而 `handleAllKeyboard` 实际只实现 空格 / D / F / ?，属文档与代码不一致，用户选择「先不动」。
+  - 版本按项目规则升 patch 号（v0.8.3）。
+- **产出物（文件/链接）**：
+  - 更新：`content.js`（`ensureToolbarTrigger` / `removeToolbarFloating` / `pinTopBar` 注释 / 顶部变量）
+  - 更新：`manifest.json`（0.8.3）
+  - 更新：`plan/RPD_需求文档.md`、`plan/version_plan.md`
+- **待办**：
+  - ✅ **全部由用户实测通过（2026-09-29）**：遮挡修复（屏占比 90%~100% / 滚动模式下，右侧点击可正常翻下一页）+ 悬浮球悬停展开（悬停即出菜单、移开收起，交互正常）。
+  - 用户当前选择「先不动」：本次改动未 git 提交、未重新打包（`release/` 现有 zip 仍为 v0.8.2）。
+  - 商店方案类文档（`plan_360_store.md` / `plan_edge_store.md` / `plan_chrome_store.md` / `session_handoff_商店上架.md`）的「下一步操作」仍写 v0.8.2，建议随下次打包一起升到 0.8.3（历史提交记录保持不动）。
+  - 帮助面板「← / →」文档与代码不一致问题，待用户决定实现或删文案。
+- **风险/注意事项**：
+  - 本次改动尚未 git 提交；工作区还残留另一批未提交改动（`plan_360_store.md`、`plan_edge_store.md`、`session_handoff_商店上架.md`、`.gitignore`、`release/360上传包/`、`备忘录.md`），提交时需决定是否合并。
+  - 若用户浏览器里仍加载旧版插件，需在扩展管理页手动「重新加载」后才会生效。
+  - 若某些场景下 `mousemove` 未触发（如触屏设备无鼠标移动），工具栏将无法呼出；当前插件面向桌面浏览器，暂不处理。
+
+---
+
+## 2026-09-29 会话条目：工作区结构梳理 + 规则/技能按项目分发（已完成）
+- **目标**：定下 Trae 的打开方式（代码窗口 + 知识库窗口双窗口并行），并让通用规则与 5 个 skill 在**代码窗口**里真正生效。
+- **已做**：
+  - 实测确认：Trae 只读「工作区根」下的 `.trae/`，父目录 `Coding` 的规则与技能**不会自动继承**（打开代码窗口后 Rules/Skill 面板确实丢失）。
+  - 改写 `Coding.code-workspace`：`folders` 从 `.` 改为项目子目录；加注释模板（逗号写在行首，去掉任意一行的 `//` 都不会触发逗号错误；三种启用组合均已用 JSON 校验通过）。
+  - 新建 `Coding/.vscode/settings.json`：知识库窗口排除 `.obsidian`，避免 AI 检索被几万个插件文件污染。
+  - 复制 5 个 skill 到 `微信读书插件/.trae/skills/`（`diff -r` 校验与来源完全一致）。
+  - 新建 `微信读书插件/.trae/rules/general_rules.md`（项目内副本，仅改开头说明块）；`project_rules.md` 里指向父目录的死链改成同目录引用。
+  - 更新 `dev/可复制项目指南.md` 至 **v1.1**：§2 目录树补 `.trae/`，新增 §2.1 每项来源表、§2.2 三层分发模型、§2.3 新项目启动清单；§0、§9 同步。
+- **关键结论/决定**：
+  - **双窗口并行**：代码窗口 = `Coding.code-workspace`（根 = 项目）；知识库窗口 = 打开文件夹 `Coding`。
+  - **规则/技能按项目复制，不建全局**；隔离性靠复制，不靠继承。
+  - **三层分发**：母本（`AI协作规划库/`）→ `Coding/.trae/` → 各项目 `.trae/`；**只改母本再向下同步**，禁止在项目副本里单点改。
+  - 约定：**改代码只在代码窗口**；同一批文件不同时在两个窗口让 AI 动；跨窗口信息靠文档传递。
+  - **不改 `Coding.code-workspace` 的文件名**（改名 = 新工作区身份 = 历史会话会"消失"）。
+- **产出物（文件/链接）**：
+  - `Coding/Coding.code-workspace`（改写）
+  - `Coding/.vscode/settings.json`（新建）
+  - `微信读书插件/.trae/rules/general_rules.md`（新建）、`.trae/rules/project_rules.md`（改引用）
+  - `微信读书插件/.trae/skills/`（gen-rpd / pack-publish / session-handoff / session-log / test-checklist）
+  - `微信读书插件/dev/可复制项目指南.md`（v1.1）
+- **待办**：
+  - 重开代码窗口后确认：Rules 面板 2 条、Skill 面板 5 个。
+  - 沿用既有待办（见 `Coding/plan/session_handoff_工作区迁移与会话还原.md`）：README/version_plan 中不存在的快捷键 `T` 待修正（需确认）；Edge v0.8.1 更新提交、360 MV3 实测（用户手动）。
+- **风险/注意事项**：
+  - 同一份通用规则现有 2 处、skill 现有 3 处副本，**必须只改母本再同步**，否则漂移。
+  - `.trae/` 会进 git 仓库，但**不会进上架 zip**（打包只挑运行文件）。
+  - 双窗口 = 两套对话历史与记忆（按工作区路径绑定），属正常现象，不是记录丢失。
+
+---
+
+## 2026-09-29 会话条目：阅读统计与数据导出模块（v0.9.0 最小可用）(实现完成，待用户验证)
+- **目标**：按 RPD 9.1 落地「阅读统计与数据导出」。用户选定范围 = **最小可用**（阅读时长统计：今日/本周/本月/本书 + 面板 + 导出），导出格式选定 **JSON / CSV / Markdown** 三种；进度追踪、最近书目顺延到后续版本。
+- **已做**：
+  - 接入点摸底：菜单容器 `#wre-main-menu`（`createUI()` 生成）、点击分发 `handleMenuClick()`、存储 `chrome.storage.local`（`storage` 权限已有）。
+  - 架构决定：走「新功能进新模块、旧代码不动」——新增 `modules/stats.js` + `modules/stats.css`，在 `manifest.json` 的 `content_scripts` 注册（`stats.js` 先于 `content.js` 加载，共享同一隔离世界，可直接复用 content.js 的全局 `log()` 与 `#we-read-enhancer-root`）。
+  - 为什么不用 RPD 9.4.3 原设想的「动态 `<script>` 注入」：那样注入的脚本会落到页面主世界（MAIN world），拿不到 content.js 的作用域；改为 manifest 静态注册即可共享隔离世界。
+  - 计时逻辑：15s 心跳结算；`visibilitychange` 转后台与 `pagehide` 时立即结算并落盘；落盘节流 30s；异常大间隔（休眠/断点）按 3×心跳封顶。
+  - 书籍识别：书名优先（`.readerTopBar_title*` → `document.title` 去掉「微信读书」后缀）；书名未就绪时用 `url:<URL片段>` 临时占位，拿到书名后自动合并为一条记录。
+  - 面板：主菜单「📊 阅读统计」入口（插在「主题设置」之后）+ 4 张卡片（今日/本周/本月/本书）+ 近 14 天条形明细 + 3 个导出按钮 + 口径说明。
+  - 导出：JSON（全量结构化）、CSV（带 BOM，Excel 不乱码）、Markdown（汇总表 + 按书累计 + 每日明细）。
+  - 旧代码只加 1 个分支：`content.js` 的 `handleMenuClick()` 增加 `case 'stats'` 分流，避免落到 `default` 打出「尚未实现」的误导日志。
+  - `manifest.json` 版本 `0.8.3 → 0.9.0`（新功能按规则升次版本号）。
+  - 校验：`python3` 校验 manifest JSON 通过、`content_scripts` 注册项正确；IDE 诊断无新增报错（本机无 node，未能跑 `node --check`）。
+- **产出物（文件/链接）**：
+  - 新建：`modules/stats.js`、`modules/stats.css`
+  - 修改：`manifest.json`（版本 0.9.0 + 注册模块）、`content.js`（仅 `case 'stats'`）、`plan/RPD_需求文档.md`（新增 9.1.0 实现状态、重写 9.1.5 存储结构、1.3 版本、2.1 功能总览、变更记录）、`plan/version_plan.md`（v0.9.0 表格 + 已完成部分、第 5 节版本号对照）
+- **待办**：
+  - 待用户实测：① 阅读页停留 1~2 分钟后，菜单「📊 阅读统计」里今日/本书时长是否增长；② 切后台、切书是否正确分段；③ 三种导出文件能否正常打开且内容正确；④ 暗色主题下面板配色是否正常。
+  - 实测通过后再决定：是否 git 提交、是否打包 `weread-enhancer-v0.9.0.zip` 上架。
+  - 后续版本：RPD 9.1.2 阅读进度追踪、9.1.3 最近书目列表与点击跳转。
+- **风险/注意事项**：
+  - 书名解析依赖 `.readerTopBar_title*` 与 `document.title`；若微信读书改 DOM 导致取不到书名，会退化成 `url:片段` 记录（面板会显示该临时键），排查看 `[stats]` 开头的日志。
+  - 只统计 `/web/reader/` 阅读页，书城/书架等页面不计时。
+  - 时长为本地估算，与微信读书 App 官方统计不会一致；页面挂着不动也会计入（本轮未做空闲检测）。
+  - 存储采用「整份对象覆盖写 + 30s 节流」，长期使用后需关注写入体积（明细已在启动时清理 400 天前的数据）。
