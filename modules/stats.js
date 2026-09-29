@@ -480,10 +480,13 @@
       buildDailyBars(summary) +
       '<div class="wre-stats-section-title">导出数据</div>' +
       '<div class="wre-stats-actions">' +
-        '<button class="wre-btn wre-btn-small" data-wre-stats-export="json">JSON</button>' +
+        '<button class="wre-btn wre-btn-small" data-wre-stats-export="html">HTML 报表</button>' +
+        '<button class="wre-btn wre-btn-small" data-wre-stats-export="pdf">PDF</button>' +
+        '<button class="wre-btn wre-btn-small" data-wre-stats-export="markdown">Markdown</button>' +
         '<button class="wre-btn wre-btn-small" data-wre-stats-export="csv">CSV</button>' +
-        '<button class="wre-btn wre-btn-small" data-wre-stats-export="markdown">Markdown 报表</button>' +
+        '<button class="wre-btn wre-btn-small" data-wre-stats-export="json">JSON</button>' +
       '</div>' +
+      '<div class="wre-stats-note">PDF 会先打开排版好的报表页，再弹出打印窗口，在打印窗口里选「另存为 PDF」即可（若被浏览器拦截弹出窗口，请允许后重试）。</div>' +
       '<div class="wre-stats-note">统计口径：仅统计「微信读书页面在前台且停留在阅读页」的时长（本地估算，官方不提供时长接口）。数据只保存在你自己的浏览器里，不会上传。章节进度追踪、最近书目将在后续版本提供。</div>';
     body.scrollTop = scrollTop;
   }
@@ -603,6 +606,165 @@
     return lines.join('\n');
   }
 
+  // ---------- HTML / PDF 报表 ----------
+
+  function escapeHtml(text) {
+    return String(text == null ? '' : text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function reportStyles() {
+    return [
+      ':root{--accent:#07c160;--accent-soft:#e8f8ef;--ink:#1f2328;--ink-2:#5b6570;--line:#e8ebe9;--bg:#f4f6f5}',
+      '*{box-sizing:border-box}',
+      'html,body{margin:0;padding:0}',
+      'body{background:var(--bg);color:var(--ink);font:14px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}',
+      '.page{max-width:820px;margin:32px auto;padding:40px 44px;background:#fff;border-radius:18px;box-shadow:0 12px 32px rgba(17,24,28,.08)}',
+      '.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding-bottom:22px;border-bottom:2px solid var(--line)}',
+      '.hero h1{margin:0;font-size:26px;letter-spacing:.5px}',
+      '.hero h1::before{content:"";display:inline-block;width:10px;height:24px;margin-right:10px;border-radius:3px;background:var(--accent);vertical-align:-3px}',
+      '.hero .sub{margin:6px 0 0;font-size:12px;color:var(--ink-2)}',
+      '.hero .meta{text-align:right;font-size:12px;color:var(--ink-2);white-space:nowrap}',
+      '.hero .meta strong{display:block;margin-top:2px;font-size:14px;color:var(--ink)}',
+      '.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:26px 0 8px}',
+      '.card{padding:16px 18px;border-radius:14px;background:var(--accent-soft);border-left:4px solid var(--accent)}',
+      '.card .label{font-size:12px;color:var(--ink-2)}',
+      '.card .value{margin-top:8px;font-size:20px;font-weight:700;letter-spacing:.3px}',
+      '.block{margin-top:32px}',
+      '.block h2{margin:0 0 12px;font-size:15px;font-weight:600}',
+      '.block h2 span{color:var(--ink-2);font-weight:400;font-size:12px;margin-left:6px}',
+      'table{width:100%;border-collapse:collapse;font-size:13px}',
+      'th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line)}',
+      'th{font-size:12px;font-weight:600;color:var(--ink-2);background:#fafbfa}',
+      'tbody tr:nth-child(even){background:#f6f8f7}',
+      'td.num,th.num{text-align:right;white-space:nowrap}',
+      '.empty{padding:18px;font-size:13px;color:var(--ink-2);background:#fafbfa;border:1px dashed var(--line);border-radius:10px}',
+      '.foot{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;line-height:1.8;color:var(--ink-2)}',
+      '.print-btn{position:fixed;right:24px;bottom:24px;padding:12px 20px;border:0;border-radius:999px;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 8px 20px rgba(7,193,96,.35)}',
+      '.print-btn:hover{filter:brightness(1.05)}',
+      '@media screen{body{padding-bottom:96px}}',
+      '@media (max-width:720px){.page{margin:16px;padding:24px}.cards{grid-template-columns:repeat(2,1fr)}.hero{flex-direction:column;align-items:flex-start}.hero .meta{text-align:left}}',
+      '@media print{@page{size:A4;margin:14mm}body{background:#fff}.page{max-width:none;margin:0;padding:0;border-radius:0;box-shadow:none}.no-print{display:none!important}.cards{break-inside:avoid}table{break-inside:auto}tr{break-inside:avoid}}',
+    ].join('');
+  }
+
+  function buildReportCards(summary) {
+    const cards = [
+      { label: '今日阅读', value: formatDuration(summary.todayMs) },
+      { label: '本周阅读', value: formatDuration(summary.weekMs) },
+      { label: '本月阅读', value: formatDuration(summary.monthMs) },
+      { label: '本书累计', value: formatDuration(summary.bookMs) },
+    ];
+    return '<div class="cards">' + cards.map((card) =>
+      '<div class="card"><div class="label">' + card.label + '</div>' +
+      '<div class="value">' + card.value + '</div></div>'
+    ).join('') + '</div>';
+  }
+
+  function buildReportBooks(limit) {
+    const books = Object.values(stats ? stats.books : {})
+      .sort((a, b) => (b.totalMs || 0) - (a.totalMs || 0));
+    if (books.length === 0) {
+      return '<div class="empty">还没有阅读记录，去读一会儿再导出吧～</div>';
+    }
+    const shown = books.slice(0, limit);
+    const rows = shown.map((book) =>
+      '<tr><td>' + escapeHtml(book.title || '未知书籍') + '</td>' +
+      '<td class="num">' + formatDuration(book.totalMs) + '</td>' +
+      '<td class="num">' + formatDateTime(book.lastReadAt) + '</td></tr>'
+    ).join('');
+    const more = books.length > shown.length
+      ? '<div class="empty" style="margin-top:12px">仅展示时长最长的 ' + shown.length + ' 本（共 ' + books.length + ' 本）</div>'
+      : '';
+    return '<table><thead><tr><th>书名</th><th class="num">累计时长</th><th class="num">最近阅读</th></tr></thead><tbody>' +
+      rows + '</tbody></table>' + more;
+  }
+
+  function buildReportDaily() {
+    const dailyTotals = {};
+    collectRows().forEach((row) => {
+      dailyTotals[row.date] = (dailyTotals[row.date] || 0) + row.ms;
+    });
+    const dates = Object.keys(dailyTotals).sort().reverse();
+    if (dates.length === 0) {
+      return '<div class="empty">暂无每日明细</div>';
+    }
+    const rows = dates.map((date) =>
+      '<tr><td>' + date + '</td><td class="num">' + formatDuration(dailyTotals[date]) + '</td></tr>'
+    ).join('');
+    return '<table><thead><tr><th>日期</th><th class="num">阅读时长</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+
+  function buildReportHtml() {
+    const summary = getSummary();
+    const exportedAt = formatDateTime(Date.now());
+    const totalMs = sumByDayKey(() => true);
+    const bookLine = summary.bookTitle ? '当前书籍：' + summary.bookTitle : '当前不在阅读页';
+    return [
+      '<!DOCTYPE html>',
+      '<html lang="zh-CN">',
+      '<head>',
+      '<meta charset="utf-8">',
+      '<meta name="viewport" content="width=device-width,initial-scale=1">',
+      '<title>微信悦读 · 阅读统计 ' + stampSuffix() + '</title>',
+      '<style>' + reportStyles() + '</style>',
+      '</head>',
+      '<body>',
+      '<div class="page">',
+      '  <header class="hero">',
+      '    <div>',
+      '      <h1>阅读统计</h1>',
+      '      <p class="sub">微信悦读 · weread-enhancer</p>',
+      '    </div>',
+      '    <div class="meta">导出时间<strong>' + exportedAt + '</strong></div>',
+      '  </header>',
+      buildReportCards(summary),
+      '  <div class="block"><h2>按书籍累计<span>共 ' + Object.keys(stats ? stats.books : {}).length + ' 本 · 累计 ' + formatDuration(totalMs) + '</span></h2>',
+      buildReportBooks(50),
+      '  </div>',
+      '  <div class="block"><h2>每日明细</h2>',
+      buildReportDaily(),
+      '  </div>',
+      '  <footer class="foot">',
+      '    <div>' + escapeHtml(bookLine) + '</div>',
+      '    <div>统计口径：仅统计「微信读书页面在前台且停留在阅读页」的时长，为本地估算值，与微信读书官方统计不会完全一致。</div>',
+      '    <div>数据仅保存在本机浏览器（chrome.storage.local），不会上传到任何服务器。</div>',
+      '  </footer>',
+      '</div>',
+      '<button class="print-btn no-print" id="wre-report-print">打印 / 另存为 PDF</button>',
+      '</body>',
+      '</html>',
+    ].join('\n');
+  }
+
+  function openReportForPrint(html) {
+    const win = window.open('', '_blank');
+    if (!win) {
+      logStats('warn', 'PDF 导出被拦截：浏览器阻止了新窗口，请允许本站弹出窗口后重试');
+      return false;
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    const printBtn = win.document.getElementById('wre-report-print');
+    if (printBtn) {
+      printBtn.addEventListener('click', () => win.print());
+    }
+    // 等浏览器完成首帧渲染再唤起打印对话框
+    setTimeout(() => {
+      try {
+        win.print();
+      } catch (error) {
+        logStats('warn', '唤起打印失败，可手动按 Ctrl/Cmd+P', { error: String(error) });
+      }
+    }, 400);
+    return true;
+  }
+
   function handleExport(format) {
     if (!stats) {
       logStats('warn', '统计数据未就绪，忽略导出请求', { format });
@@ -613,6 +775,12 @@
       downloadFile('微信悦读-阅读统计-' + suffix + '.csv', buildCsv(), 'text/csv;charset=utf-8');
     } else if (format === 'markdown') {
       downloadFile('微信悦读-阅读统计-' + suffix + '.md', buildMarkdown(), 'text/markdown;charset=utf-8');
+    } else if (format === 'html') {
+      downloadFile('微信悦读-阅读统计-' + suffix + '.html', buildReportHtml(), 'text/html;charset=utf-8');
+    } else if (format === 'pdf') {
+      if (!openReportForPrint(buildReportHtml())) {
+        return;
+      }
     } else {
       downloadFile('微信悦读-阅读统计-' + suffix + '.json', buildJson(), 'application/json;charset=utf-8');
     }
