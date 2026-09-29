@@ -1,0 +1,675 @@
+/**
+ * 微信悦读 · 阅读统计模块（v0.9.0）
+ *
+ * 定位：独立模块，不改动 content.js 既有逻辑。通过 manifest 的 content_scripts
+ * 在 content.js 之前加载，与 content.js 共享同一个隔离世界（isolated world），
+ * 因此可以直接复用 content.js 的全局函数（如 log）与 #we-read-enhancer-root 容器。
+ *
+ * 职责：
+ *   1. 识别当前正在阅读的书（书名优先，书名缺失时退化为 URL 片段）
+ *   2. 前台计时：页面可见且停留在阅读页时累计时长，切后台/关页自动结算
+ *   3. 本地存储：chrome.storage.local 的 wreReadingStats 键，按「书 × 日期」存明细
+ *   4. 面板：主菜单「📊 阅读统计」入口，展示今日/本周/本月/本书时长与近 14 天明细
+ *   5. 导出：JSON / CSV / Markdown 三种格式
+ *
+ * 计口径说明：微信读书官方不提供阅读时长接口，此处为「页面在前台且停留在阅读页」
+ * 的本地估算，与官方 App 的统计不会完全一致。
+ */
+(function () {
+  'use strict';
+
+  const STATS_KEY = 'wreReadingStats';
+  const SCHEMA_VERSION = 1;
+  const TICK_MS = 15000;      // 计时心跳：每 15s 结算一次
+  const FLUSH_MS = 30000;     // 落盘节流：最多每 30s 写一次 storage
+  const KEEP_DAYS = 400;      // 明细保留天数
+  const DETAIL_DAYS = 14;     // 面板展示的近 N 天
+  const READER_PATH_RE = /\/web\/reader\/([0-9a-zA-Z]+)/;
+
+  let stats = null;
+  let activeBookKey = null;
+  let activeBookSegment = null;
+  let countingSince = 0;      // >0 表示正在计时，值为上次结算时间
+  let lastFlushAt = 0;
+
+  // ---------- 通用小工具 ----------
+
+  function logStats(level, message, meta) {
+    if (typeof log === 'function') {
+      log(level, '[stats] ' + message, meta);
+    }
+  }
+
+  function pad2(value) {
+    return String(value).padStart(2, '0');
+  }
+
+  function toDateKey(timestamp) {
+    const date = new Date(timestamp);
+    return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
+  }
+
+  function startOfToday(timestamp) {
+    const date = new Date(timestamp);
+    date.setHours(0, 0, 0, 0);
+    return date.getTime();
+  }
+
+  function startOfWeek(timestamp) {
+    // 以周一为一周起点
+    const date = new Date(startOfToday(timestamp));
+    const offset = (date.getDay() + 6) % 7;
+    date.setDate(date.getDate() - offset);
+    return date.getTime();
+  }
+
+  function startOfMonth(timestamp) {
+    const date = new Date(timestamp);
+    date.setHours(0, 0, 0, 0);
+    date.setDate(1);
+    return date.getTime();
+  }
+
+  function formatDuration(ms) {
+    const totalSeconds = Math.floor((ms || 0) / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    if (hours > 0) {
+      return hours + '小时' + minutes + '分';
+    }
+    if (minutes > 0) {
+      return minutes + '分钟';
+    }
+    return totalSeconds + '秒';
+  }
+
+  function formatDateTime(timestamp) {
+    if (!timestamp) {
+      return '—';
+    }
+    const date = new Date(timestamp);
+    return toDateKey(timestamp) + ' ' + pad2(date.getHours()) + ':' + pad2(date.getMinutes());
+  }
+
+  function toCsvCell(value) {
+    const text = String(value == null ? '' : value);
+    return /[",\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+  }
+
+  // ---------- 书籍识别 ----------
+
+  function getBookTitle() {
+    const nodes = document.querySelectorAll(
+      '.readerTopBar_title_link, .readerTopBar_title, .readerTopBar [class*="title"]'
+    );
+    for (const node of nodes) {
+      const text = (node.textContent || '').trim();
+      if (text && text.length <= 100) {
+        return text;
+      }
+    }
+    const pageTitle = (document.title || '').replace(/\s*[-–—|]\s*微信读书.*$/, '').trim();
+    if (pageTitle && pageTitle !== '微信读书') {
+      return pageTitle;
+    }
+    return '';
+  }
+
+  function getCurrentBook() {
+    const match = window.location.href.match(READER_PATH_RE);
+    if (!match) {
+      return { key: null, segment: null, title: '' };
+    }
+    const segment = match[1];
+    const title = getBookTitle();
+    return { key: title || 'url:' + segment, segment, title };
+  }
+
+  // ---------- 存储 ----------
+
+  async function loadStats() {
+    try {
+      const result = await chrome.storage.local.get([STATS_KEY]);
+      const raw = result[STATS_KEY];
+      if (raw && typeof raw === 'object' && raw.books && typeof raw.books === 'object') {
+        stats = { version: SCHEMA_VERSION, books: raw.books, updatedAt: raw.updatedAt || 0 };
+      } else {
+        stats = { version: SCHEMA_VERSION, books: {}, updatedAt: 0 };
+      }
+    } catch (error) {
+      stats = { version: SCHEMA_VERSION, books: {}, updatedAt: 0 };
+      logStats('error', '读取统计数据失败', { error: String(error) });
+    }
+  }
+
+  async function flushStats(force) {
+    if (!stats) {
+      return;
+    }
+    const now = Date.now();
+    if (!force && now - lastFlushAt < FLUSH_MS) {
+      return;
+    }
+    lastFlushAt = now;
+    stats.updatedAt = now;
+    try {
+      await chrome.storage.local.set({ [STATS_KEY]: stats });
+      logStats('debug', '统计数据已保存', {
+        books: Object.keys(stats.books).length,
+        activeBookKey,
+      });
+    } catch (error) {
+      logStats('error', '保存统计数据失败', { error: String(error) });
+    }
+  }
+
+  function pruneOldDays() {
+    if (!stats) {
+      return;
+    }
+    const cutoffKey = toDateKey(Date.now() - KEEP_DAYS * 86400000);
+    let removed = 0;
+    Object.values(stats.books).forEach((book) => {
+      Object.keys(book.days || {}).forEach((key) => {
+        if (key < cutoffKey) {
+          delete book.days[key];
+          removed += 1;
+        }
+      });
+    });
+    if (removed > 0) {
+      logStats('info', '清理过期明细', { removed, cutoffKey });
+    }
+  }
+
+  // ---------- 计时 ----------
+
+  function ensureBook(key, title, segment) {
+    if (!stats || !key) {
+      return null;
+    }
+    let book = stats.books[key];
+    if (!book) {
+      book = { title: title || key, bookId: segment || '', totalMs: 0, lastReadAt: 0, days: {} };
+      stats.books[key] = book;
+    }
+    if (title) {
+      book.title = title;
+    }
+    if (segment && !book.bookId) {
+      book.bookId = segment;
+    }
+    if (!book.days) {
+      book.days = {};
+    }
+    return book;
+  }
+
+  function accumulate(ms) {
+    if (!stats || !activeBookKey || ms <= 0) {
+      return;
+    }
+    const book = ensureBook(activeBookKey, '', activeBookSegment);
+    if (!book) {
+      return;
+    }
+    const key = toDateKey(Date.now());
+    book.days[key] = (book.days[key] || 0) + ms;
+    book.totalMs += ms;
+    book.lastReadAt = Date.now();
+  }
+
+  function settle() {
+    if (!activeBookKey || !countingSince) {
+      return;
+    }
+    const now = Date.now();
+    const delta = now - countingSince;
+    countingSince = now;
+    // 异常场景（休眠/断点）下 delta 会很大，做上限保护
+    accumulate(Math.min(delta, TICK_MS * 3));
+  }
+
+  function startCounting() {
+    if (!activeBookKey || countingSince) {
+      return;
+    }
+    countingSince = Date.now();
+  }
+
+  function stopCounting() {
+    settle();
+    countingSince = 0;
+  }
+
+  // 书名刚加载出来前会先用「url:片段」占位，拿到书名后合并成一条记录
+  function migrateUrlKey(newKey, segment) {
+    if (!stats || !segment) {
+      return;
+    }
+    const urlKey = 'url:' + segment;
+    if (newKey === urlKey) {
+      return;
+    }
+    const legacy = stats.books[urlKey];
+    if (!legacy) {
+      return;
+    }
+    const target = ensureBook(newKey, '', segment);
+    target.totalMs += legacy.totalMs || 0;
+    Object.entries(legacy.days || {}).forEach(([key, value]) => {
+      target.days[key] = (target.days[key] || 0) + value;
+    });
+    target.lastReadAt = Math.max(target.lastReadAt || 0, legacy.lastReadAt || 0);
+    delete stats.books[urlKey];
+    logStats('info', '临时书目标识已合并到书名', { newKey, segment, mergedMs: legacy.totalMs || 0 });
+  }
+
+  function syncBook() {
+    const info = getCurrentBook();
+    if (info.key !== activeBookKey) {
+      stopCounting();
+      if (info.key) {
+        migrateUrlKey(info.key, info.segment);
+        activeBookKey = info.key;
+        activeBookSegment = info.segment;
+        ensureBook(info.key, info.title, info.segment);
+        if (document.visibilityState === 'visible') {
+          startCounting();
+        }
+        logStats('info', '开始统计阅读时长', { key: info.key, segment: info.segment });
+      } else {
+        activeBookKey = null;
+        activeBookSegment = null;
+        logStats('debug', '离开阅读页，暂停统计', { href: window.location.href });
+      }
+      return;
+    }
+    if (info.key) {
+      ensureBook(info.key, info.title, info.segment);
+    }
+  }
+
+  function tick() {
+    syncBook();
+    settle();
+    flushStats(false);
+    refreshPanel();
+  }
+
+  function handleVisibilityChange() {
+    if (document.visibilityState === 'visible') {
+      startCounting();
+      return;
+    }
+    stopCounting();
+    flushStats(true);
+  }
+
+  // ---------- 汇总计算 ----------
+
+  function sumByDayKey(predicate) {
+    if (!stats) {
+      return 0;
+    }
+    let total = 0;
+    Object.values(stats.books).forEach((book) => {
+      Object.entries(book.days || {}).forEach(([key, value]) => {
+        if (predicate(key)) {
+          total += value;
+        }
+      });
+    });
+    return total;
+  }
+
+  function getSummary() {
+    const now = Date.now();
+    const todayKey = toDateKey(now);
+    const weekStartKey = toDateKey(startOfWeek(now));
+    const monthPrefix = toDateKey(startOfMonth(now)).slice(0, 7);
+    const currentBook = activeBookKey && stats ? stats.books[activeBookKey] : null;
+    return {
+      todayMs: sumByDayKey((key) => key === todayKey),
+      weekMs: sumByDayKey((key) => key >= weekStartKey && key <= todayKey),
+      monthMs: sumByDayKey((key) => key.slice(0, 7) === monthPrefix),
+      bookMs: currentBook ? currentBook.totalMs || 0 : 0,
+      bookTitle: currentBook ? currentBook.title : '',
+      bookDays: currentBook ? currentBook.days || {} : {},
+    };
+  }
+
+  // ---------- 面板 ----------
+
+  function menuEntryExists(root) {
+    return !!root.querySelector('[data-wre-stats-entry]');
+  }
+
+  function injectMenuEntry(root) {
+    const menu = root.querySelector('#wre-main-menu');
+    if (!menu || menuEntryExists(menu)) {
+      return;
+    }
+    const item = document.createElement('div');
+    item.className = 'wre-menu-item';
+    item.setAttribute('data-action', 'stats');
+    item.setAttribute('data-wre-stats-entry', '1');
+    item.innerHTML = '<span class="wre-menu-icon">📊</span>阅读统计';
+    // 不阻断冒泡：菜单级别的监听会负责收起菜单并把 action 分发给 handleMenuClick('stats')
+    item.addEventListener('click', () => {
+      openPanel();
+    });
+    const anchor = menu.querySelector('[data-action="theme-settings"]');
+    if (anchor && anchor.nextSibling) {
+      menu.insertBefore(item, anchor.nextSibling);
+    } else if (anchor) {
+      menu.appendChild(item);
+    } else {
+      menu.appendChild(item);
+    }
+    logStats('info', '已注入「阅读统计」菜单入口');
+  }
+
+  function buildPanel(root) {
+    const existing = root.querySelector('#wre-stats-modal');
+    if (existing) {
+      return existing;
+    }
+    const overlay = document.createElement('div');
+    overlay.className = 'wre-modal-overlay';
+    overlay.id = 'wre-stats-modal';
+    overlay.innerHTML =
+      '<div class="wre-modal wre-stats-modal">' +
+        '<div class="wre-modal-header">' +
+          '<span class="wre-modal-title">📊 阅读统计</span>' +
+          '<button class="wre-modal-close" data-wre-stats-close>&times;</button>' +
+        '</div>' +
+        '<div class="wre-modal-body" id="wre-stats-body"></div>' +
+      '</div>';
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) {
+        closePanel();
+      }
+    });
+    const closeBtn = overlay.querySelector('[data-wre-stats-close]');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => closePanel());
+    }
+    root.appendChild(overlay);
+    return overlay;
+  }
+
+  function openPanel() {
+    const root = document.getElementById('we-read-enhancer-root');
+    if (!root) {
+      return;
+    }
+    const overlay = buildPanel(root);
+    renderPanel(root);
+    overlay.classList.add('wre-visible');
+    logStats('info', '打开阅读统计面板', { summary: getSummary().todayMs });
+  }
+
+  function closePanel() {
+    const overlay = document.getElementById('wre-stats-modal');
+    if (overlay) {
+      overlay.classList.remove('wre-visible');
+    }
+  }
+
+  function isPanelOpen() {
+    const overlay = document.getElementById('wre-stats-modal');
+    return !!overlay && overlay.classList.contains('wre-visible');
+  }
+
+  function buildCards(summary) {
+    const cards = [
+      { label: '今日阅读', value: formatDuration(summary.todayMs) },
+      { label: '本周阅读', value: formatDuration(summary.weekMs) },
+      { label: '本月阅读', value: formatDuration(summary.monthMs) },
+      { label: summary.bookTitle ? '本书累计' : '当前书籍', value: summary.bookTitle ? formatDuration(summary.bookMs) : '未在阅读页' },
+    ];
+    return cards.map((card) =>
+      '<div class="wre-stats-card">' +
+        '<div class="wre-stats-card-label">' + card.label + '</div>' +
+        '<div class="wre-stats-card-value">' + card.value + '</div>' +
+      '</div>'
+    ).join('');
+  }
+
+  function buildDailyBars(summary) {
+    const now = Date.now();
+    const days = summary.bookDays;
+    const rows = [];
+    for (let i = DETAIL_DAYS - 1; i >= 0; i -= 1) {
+      const timestamp = now - i * 86400000;
+      const key = toDateKey(timestamp);
+      rows.push({ key, ms: days[key] || 0 });
+    }
+    const max = rows.reduce((acc, row) => Math.max(acc, row.ms), 0);
+    if (max === 0) {
+      return '<div class="wre-stats-empty">这本书还没有累计阅读记录，读一会儿再回来看～</div>';
+    }
+    return '<div class="wre-stats-bars">' + rows.map((row) => {
+      const percent = max > 0 ? Math.round((row.ms / max) * 100) : 0;
+      return '<div class="wre-stats-bar-row">' +
+        '<span class="wre-stats-bar-date">' + row.key.slice(5) + '</span>' +
+        '<span class="wre-stats-bar-track"><span class="wre-stats-bar-fill" style="width:' + percent + '%"></span></span>' +
+        '<span class="wre-stats-bar-value">' + (row.ms > 0 ? formatDuration(row.ms) : '—') + '</span>' +
+      '</div>';
+    }).join('') + '</div>';
+  }
+
+  function renderPanel(root) {
+    const body = root.querySelector('#wre-stats-body');
+    if (!body) {
+      return;
+    }
+    const scrollTop = body.scrollTop;
+    if (!stats) {
+      body.innerHTML = '<div class="wre-stats-empty">统计数据加载中…</div>';
+      return;
+    }
+    const summary = getSummary();
+    body.innerHTML =
+      '<div class="wre-stats-cards">' + buildCards(summary) + '</div>' +
+      '<div class="wre-stats-book">' + (summary.bookTitle
+        ? '当前书籍：' + summary.bookTitle
+        : '当前不在阅读页，本书数据暂不统计') + '</div>' +
+      '<div class="wre-stats-section-title">近 ' + DETAIL_DAYS + ' 天明细</div>' +
+      buildDailyBars(summary) +
+      '<div class="wre-stats-section-title">导出数据</div>' +
+      '<div class="wre-stats-actions">' +
+        '<button class="wre-btn wre-btn-small" data-wre-stats-export="json">JSON</button>' +
+        '<button class="wre-btn wre-btn-small" data-wre-stats-export="csv">CSV</button>' +
+        '<button class="wre-btn wre-btn-small" data-wre-stats-export="markdown">Markdown 报表</button>' +
+      '</div>' +
+      '<div class="wre-stats-note">统计口径：仅统计「微信读书页面在前台且停留在阅读页」的时长（本地估算，官方不提供时长接口）。数据只保存在你自己的浏览器里，不会上传。章节进度追踪、最近书目将在后续版本提供。</div>';
+    body.scrollTop = scrollTop;
+  }
+
+  function refreshPanel() {
+    if (!isPanelOpen()) {
+      return;
+    }
+    const root = document.getElementById('we-read-enhancer-root');
+    if (root) {
+      renderPanel(root);
+    }
+  }
+
+  // ---------- 导出 ----------
+
+  function downloadFile(filename, content, mime) {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
+  function stampSuffix() {
+    return toDateKey(Date.now());
+  }
+
+  function buildJson() {
+    return JSON.stringify({
+      app: '微信悦读 · 阅读统计',
+      schemaVersion: SCHEMA_VERSION,
+      exportedAt: new Date().toISOString(),
+      stats,
+    }, null, 2);
+  }
+
+  function collectRows() {
+    const rows = [];
+    if (!stats) {
+      return rows;
+    }
+    Object.values(stats.books).forEach((book) => {
+      Object.entries(book.days || {}).forEach(([key, ms]) => {
+        rows.push({ date: key, title: book.title || '', bookId: book.bookId || '', ms });
+      });
+    });
+    rows.sort((a, b) => (a.date === b.date ? b.ms - a.ms : (a.date < b.date ? 1 : -1)));
+    return rows;
+  }
+
+  function buildCsv() {
+    const lines = ['日期,书籍,阅读时长(分钟),阅读时长(秒)'];
+    collectRows().forEach((row) => {
+      lines.push([
+        row.date,
+        toCsvCell(row.title),
+        (row.ms / 60000).toFixed(1),
+        Math.round(row.ms / 1000),
+      ].join(','));
+    });
+    // 加 BOM，Excel 打开不乱码
+    return '\ufeff' + lines.join('\n');
+  }
+
+  function buildMarkdown() {
+    const summary = getSummary();
+    const lines = [];
+    lines.push('# 微信悦读 · 阅读统计');
+    lines.push('');
+    lines.push('- 导出时间：' + formatDateTime(Date.now()));
+    lines.push('- 统计口径：页面在前台且停留在阅读页的时长（本地估算）');
+    lines.push('');
+    lines.push('## 汇总');
+    lines.push('');
+    lines.push('| 范围 | 时长 |');
+    lines.push('| --- | --- |');
+    lines.push('| 今日 | ' + formatDuration(summary.todayMs) + ' |');
+    lines.push('| 本周 | ' + formatDuration(summary.weekMs) + ' |');
+    lines.push('| 本月 | ' + formatDuration(summary.monthMs) + ' |');
+    lines.push('| 本书累计（' + (summary.bookTitle || '未在阅读页') + '） | ' + formatDuration(summary.bookMs) + ' |');
+    lines.push('');
+    lines.push('## 按书籍累计');
+    lines.push('');
+    lines.push('| 书名 | 累计时长 | 最近阅读 |');
+    lines.push('| --- | --- | --- |');
+    const books = Object.values(stats ? stats.books : {}).sort((a, b) => (b.totalMs || 0) - (a.totalMs || 0));
+    if (books.length === 0) {
+      lines.push('| — | — | — |');
+    } else {
+      books.forEach((book) => {
+        lines.push('| ' + (book.title || '未知书籍') + ' | ' + formatDuration(book.totalMs) + ' | ' + formatDateTime(book.lastReadAt) + ' |');
+      });
+    }
+    lines.push('');
+    lines.push('## 每日明细（全部书籍）');
+    lines.push('');
+    lines.push('| 日期 | 时长 |');
+    lines.push('| --- | --- |');
+    const dailyTotals = {};
+    collectRows().forEach((row) => {
+      dailyTotals[row.date] = (dailyTotals[row.date] || 0) + row.ms;
+    });
+    const dates = Object.keys(dailyTotals).sort().reverse();
+    if (dates.length === 0) {
+      lines.push('| — | — |');
+    } else {
+      dates.forEach((date) => {
+        lines.push('| ' + date + ' | ' + formatDuration(dailyTotals[date]) + ' |');
+      });
+    }
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  function handleExport(format) {
+    if (!stats) {
+      logStats('warn', '统计数据未就绪，忽略导出请求', { format });
+      return;
+    }
+    const suffix = stampSuffix();
+    if (format === 'csv') {
+      downloadFile('微信悦读-阅读统计-' + suffix + '.csv', buildCsv(), 'text/csv;charset=utf-8');
+    } else if (format === 'markdown') {
+      downloadFile('微信悦读-阅读统计-' + suffix + '.md', buildMarkdown(), 'text/markdown;charset=utf-8');
+    } else {
+      downloadFile('微信悦读-阅读统计-' + suffix + '.json', buildJson(), 'application/json;charset=utf-8');
+    }
+    logStats('info', '已导出统计数据', { format, books: Object.keys(stats.books).length });
+  }
+
+  // ---------- 启动 ----------
+
+  function attach(root) {
+    injectMenuEntry(root);
+    const overlay = buildPanel(root);
+    const body = overlay.querySelector('#wre-stats-body');
+    if (body) {
+      body.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-wre-stats-export]');
+        if (button) {
+          handleExport(button.getAttribute('data-wre-stats-export'));
+        }
+      });
+    }
+    syncBook();
+    setInterval(tick, TICK_MS);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', () => {
+      stopCounting();
+      flushStats(true);
+    });
+    logStats('info', '阅读统计模块已启动', {
+      activeBookKey,
+      interval: TICK_MS,
+    });
+  }
+
+  function bootstrap() {
+    loadStats().then(() => {
+      pruneOldDays();
+      const existing = document.getElementById('we-read-enhancer-root');
+      if (existing) {
+        attach(existing);
+        return;
+      }
+      const observer = new MutationObserver(() => {
+        const root = document.getElementById('we-read-enhancer-root');
+        if (root) {
+          observer.disconnect();
+          attach(root);
+        }
+      });
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+      logStats('debug', '等待插件根容器出现后接入统计模块');
+    });
+  }
+
+  // content.js 在 DOMContentLoaded 才初始化 UI，这里同样等 DOM 就绪
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrap);
+  } else {
+    bootstrap();
+  }
+})();

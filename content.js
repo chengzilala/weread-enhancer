@@ -903,9 +903,13 @@ function inspectAppliedLayout() {
   });
 }
 
-let wreToolbarTrigger = null;
+let wreToolbarMoveHandler = null; // 鼠标位置监听（替代透明感应层，避免遮挡点击）
 let wreToolbarHideTimer = null;
 let wreToolbarRightTimer = null;
+
+// 顶部 / 右侧感应阈值（px）
+const WRE_TOPBAR_ZONE_PX = 100;
+const WRE_CONTROLS_ZONE_PX = 120;
 
 // 自绘悬浮滚动条（滚动模式，隐藏原生滚动条后替代）
 let wreCustomScrollbar = null;
@@ -915,7 +919,7 @@ let wreScrollbarDragging = false;
 function pinTopBar() {
   const topBar = document.querySelector('.readerTopBar');
   if (!topBar) return false;
-  // 顶栏浮现时层级必须高于顶部感应区（z-index:999997），否则点击会被感应区拦截
+  // 顶栏浮现时层级高于正文，保证按钮可点击（感应已改为鼠标位置判断，无覆盖层）
   topBar.style.setProperty('z-index', '999998', 'important');
   // 浮现时水平居中于视口，视觉更协调（原生仅相对内容区居中，浮在满宽正文上会略偏）
   const width = topBar.offsetWidth;
@@ -965,13 +969,10 @@ function removeToolbarFloating() {
     controls.style.cssText = '';
   }
 
-  if (wreToolbarTrigger && document.contains(wreToolbarTrigger)) {
-    wreToolbarTrigger.remove();
+  if (wreToolbarMoveHandler) {
+    document.removeEventListener('mousemove', wreToolbarMoveHandler, true);
+    wreToolbarMoveHandler = null;
   }
-  wreToolbarTrigger = null;
-
-  const rightTrigger = document.getElementById('wre-toolbar-trigger-right');
-  if (rightTrigger) { rightTrigger.remove(); }
 
   document.body.classList.remove('wre-show-topbar');
   document.body.classList.remove('wre-show-controls');
@@ -1050,31 +1051,18 @@ function scanOfficialThemeButtons() {
 }
 
 function ensureToolbarTrigger() {
-  if (wreToolbarTrigger && document.contains(wreToolbarTrigger)
-      && document.getElementById('wre-toolbar-trigger-right')) {
-    return;
-  }
-
-  const existing = document.getElementById('wre-toolbar-trigger');
-  if (existing) { existing.remove(); }
-  const existingRight = document.getElementById('wre-toolbar-trigger-right');
-  if (existingRight) { existingRight.remove(); }
+  if (wreToolbarMoveHandler) return;
 
   const showTop = () => {
     if (wreToolbarHideTimer) { clearTimeout(wreToolbarHideTimer); wreToolbarHideTimer = null; }
     pinTopBar();
     document.body.classList.add('wre-show-topbar');
-    // 同步绑定到顶栏本身，防止鼠标移到顶栏（层级高于感应区）时感应区误判离开
-    const bar = document.querySelector('.readerTopBar');
-    if (bar) {
-      bar.addEventListener('mouseenter', showTop, { once: false });
-      bar.addEventListener('mouseleave', hideTop, { once: false });
-    }
   };
   const hideTop = () => {
-    if (wreToolbarHideTimer) { clearTimeout(wreToolbarHideTimer); }
+    if (wreToolbarHideTimer) return; // 已在淡出倒计时中，不重复计时
     wreToolbarHideTimer = setTimeout(() => {
       document.body.classList.remove('wre-show-topbar');
+      wreToolbarHideTimer = null;
     }, 400);
   };
 
@@ -1082,40 +1070,23 @@ function ensureToolbarTrigger() {
     if (wreToolbarRightTimer) { clearTimeout(wreToolbarRightTimer); wreToolbarRightTimer = null; }
     pinControls();
     document.body.classList.add('wre-show-controls');
-    // 同步绑定到 controls 本身，防止鼠标移到按钮上时感应区误判离开
-    const ctrl = document.querySelector('.readerControls');
-    if (ctrl) {
-      ctrl.addEventListener('mouseenter', showRight, { once: false });
-      ctrl.addEventListener('mouseleave', hideRight, { once: false });
-    }
   };
   const hideRight = () => {
-    if (wreToolbarRightTimer) { clearTimeout(wreToolbarRightTimer); }
+    if (wreToolbarRightTimer) return;
     wreToolbarRightTimer = setTimeout(() => {
       document.body.classList.remove('wre-show-controls');
+      wreToolbarRightTimer = null;
     }, 400);
   };
 
-  // 顶部感应区
-  const trigger = document.createElement('div');
-  trigger.id = 'wre-toolbar-trigger';
-  trigger.style.cssText = 'position:fixed;top:0;left:0;right:0;height:100px;z-index:999997;cursor:default;';
-  trigger.addEventListener('mouseenter', showTop);
-  trigger.addEventListener('mouseleave', hideTop);
-  document.body.appendChild(trigger);
+  // 用鼠标位置判断代替透明感应层：感应层即使完全透明也会吃掉点击，压住官方「下一页」点击区
+  wreToolbarMoveHandler = (event) => {
+    if (event.clientY <= WRE_TOPBAR_ZONE_PX) showTop(); else hideTop();
+    if (window.innerWidth - event.clientX <= WRE_CONTROLS_ZONE_PX) showRight(); else hideRight();
+  };
+  document.addEventListener('mousemove', wreToolbarMoveHandler, true);
 
-  // 右侧感应区
-  const rightTrigger = document.createElement('div');
-  rightTrigger.id = 'wre-toolbar-trigger-right';
-  // z-index 需高于页面普通元素才能稳定接收 hover，同时低于呼出的 controls(999999) 以免拦截点击
-  rightTrigger.style.cssText = 'position:fixed;top:0;right:0;bottom:0;width:120px;z-index:999996;cursor:default;';
-  rightTrigger.addEventListener('mouseenter', showRight);
-  rightTrigger.addEventListener('mouseleave', hideRight);
-  document.body.appendChild(rightTrigger);
-
-  wreToolbarTrigger = trigger;
-
-  log('info', '已创建工具栏悬停触发器（顶部100px + 右侧120px感应区，z-index 999997/999996）');
+  log('info', '已启用工具栏悬停触发器（鼠标位置判断：顶部 100px / 右侧 120px，无遮挡层）');
 }
 
 // 获取视口滚动元素
@@ -1808,6 +1779,24 @@ function bindEvents(root) {
     });
   }
 
+  // 悬浮球：鼠标悬停即展开菜单（无需点击），移开后延迟收起
+  let menuCloseTimer = null;
+  const openMenu = () => {
+    if (menuCloseTimer) { clearTimeout(menuCloseTimer); menuCloseTimer = null; }
+    menu.classList.add('wre-visible');
+  };
+  const scheduleCloseMenu = () => {
+    if (menuCloseTimer) clearTimeout(menuCloseTimer);
+    menuCloseTimer = setTimeout(() => {
+      menu.classList.remove('wre-visible');
+      menuCloseTimer = null;
+    }, 250);
+  };
+  fab.addEventListener('mouseenter', openMenu);
+  fab.addEventListener('mouseleave', scheduleCloseMenu);
+  menu.addEventListener('mouseenter', openMenu);
+  menu.addEventListener('mouseleave', scheduleCloseMenu);
+
   fab.addEventListener('click', (event) => {
     event.stopPropagation();
     // 勿扰模式下点击图标 → 先退出勿扰再打开菜单
@@ -1817,7 +1806,8 @@ function bindEvents(root) {
       saveState();
       log('info', '点击图标退出勿扰模式');
     }
-    menu.classList.toggle('wre-visible');
+    // 悬停已展开菜单，点击时保持展开（不再切换，避免"点一下反而收起"）
+    openMenu();
   });
 
   document.addEventListener('click', () => {
@@ -2015,6 +2005,10 @@ function handleMenuClick(action) {
       break;
     case 'shortcuts':
       openModal('#wre-shortcuts-modal');
+      break;
+    case 'stats':
+      // 阅读统计面板由 modules/stats.js 自行接管（它已绑定自己的 click），
+      // 这里只做分流，避免落到 default 打出「尚未实现」的误导日志。
       break;
     case 'clear-plugin-theme':
       const mainMenu = document.querySelector('#wre-main-menu');
