@@ -59,7 +59,7 @@
 │
 ├── release/               # 🚀 上线
 │   ├── privacy.md
-│   └── weread-enhancer-v0.8.1.zip
+│   └── weread-enhancer-v0.8.2.zip
 │
 ├── screenshots/           # 📸 截图
 │

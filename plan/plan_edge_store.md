@@ -134,12 +134,12 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 
 ```powershell
 # 在项目目录执行（用 Python 生成，确保 zip 内为正斜杠路径）
-python -c "import zipfile; files=['manifest.json','content.js','content.css','README.md','icons/icon-16.png','icons/icon-48.png','icons/icon-128.png']; z=zipfile.ZipFile('release/weread-enhancer-v0.8.1.zip','w',zipfile.ZIP_DEFLATED); [z.write(f,f) for f in files]; z.close()"
+python3 -c "import zipfile; files=['manifest.json','content.js','content.css','README.md','icons/icon-16.png','icons/icon-48.png','icons/icon-128.png']; z=zipfile.ZipFile('release/weread-enhancer-v0.8.2.zip','w',zipfile.ZIP_DEFLATED); [z.write(f,f) for f in files]; z.close()"
 ```
 
 或手动创建 zip，包含：
 ```
-weread-enhancer-v0.8.1.zip
+weread-enhancer-v0.8.2.zip
 ├── manifest.json
 ├── content.js
 ├── content.css

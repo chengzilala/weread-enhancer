@@ -2,11 +2,11 @@
 
 > **文档类型**：商店上架方案 + 归档记录（Chrome Web Store）
 > **创建日期**：2026-07-07
-> **对应版本**：v0.8.1（Manifest V3）
+> **对应版本**：v0.8.2（Manifest V3）
 > **关联文档**：`plan/plan_edge_store.md`（Edge，已上架 v0.2.0）、`plan/session_handoff_商店上架.md`
 > **说明**：本文档承接 `plan_edge_store.md` 末条需求「同步一份 Chrome 相关文档并归档」。商店要求部分已于 2026-07-07 核实官方/权威来源，见文末「资料来源」。
 
-> ⏸️ **当前状态：暂缓上架（2026-07-07 用户决定）**。原因：Chrome 需一次性 $5 注册费，暂不投入。**优先做 Edge（更新 v0.8.1）+ 360**。本文档资料已就绪，待决定付费后可直接按此上架。
+> ⏸️ **当前状态：暂缓上架（2026-07-07 用户决定）**。原因：Chrome 需一次性 $5 注册费，暂不投入。**优先做 Edge（更新 v0.8.2）+ 360**。本文档资料已就绪，待决定付费后可直接按此上架。
 
 ---
 
@@ -23,11 +23,11 @@
 
 ## 二、提交版本与安装包
 
-- `manifest.json` version = **0.8.1**，`manifest_version: 3` —— Chrome 现要求 MV3（MV2 已弃用），**本插件已满足，无需改造**。
-- **复用 Edge 同一个 zip**：`release/weread-enhancer-v0.8.1.zip`（MV3 包 Chrome/Edge 通用）。
-- ⚠️ 该 zip 目前**未生成**（`.gitignore` 排除 `*.zip`，`release/` 下仅 `privacy.md`），**需重新打包**。
+- `manifest.json` version = **0.8.2**，`manifest_version: 3` —— Chrome 现要求 MV3（MV2 已弃用），**本插件已满足，无需改造**。
+- **复用 Edge 同一个 zip**：`release/weread-enhancer-v0.8.2.zip`（MV3 包 Chrome/Edge 通用）。
+- ℹ️ 该 zip `release/` 下已生成（`.gitignore` 排除 `*.zip`，不入库）。
 - zip 根目录必须直接包含 `manifest.json`；单包上限 128MB（本插件远低于）。
-- 打包命令见文末附录（版本号 0.8.1）。
+- 打包命令见文末附录（版本号 0.8.2）。
 
 ---
 
@@ -45,7 +45,7 @@
 
 ---
 
-## 四、商店 Listing 文案（v0.8.1，已按实际功能校正）
+## 四、商店 Listing 文案（v0.8.2，已按实际功能校正）
 
 | 字段 | 内容 |
 |---|---|
@@ -116,7 +116,7 @@ Chrome 上架时需在「隐私实践 / Privacy practices」中逐项声明：
 ## 六、上架步骤
 
 1. 登录 [Developer Dashboard](https://chrome.google.com/webstore/devconsole)，如首次则付 $5 并接受开发者协议
-2. **New Item** → 上传 `release/weread-enhancer-v0.8.1.zip`
+2. **New Item** → 上传 `release/weread-enhancer-v0.8.2.zip`
 3. 填写 Store Listing：名称、简短描述、详细描述、分类、语言
 4. 上传截图（1280×800 / 640×400）、小宣传图 440×280、（可选）大宣传图 1400×560
 5. 填写隐私政策 URL + **隐私实践问卷** + 权限理由 + 单一用途说明
@@ -129,7 +129,7 @@ Chrome 上架时需在「隐私实践 / Privacy practices」中逐项声明：
 
 | 项 | 记录 |
 |---|---|
-| 提交版本 | v0.8.1 |
+| 提交版本 | v0.8.2 |
 | 提交日期 | （待填） |
 | 审核状态 | （待填：审核中 / 通过 / 拒绝） |
 | 商店链接 | （通过后填） |
@@ -149,10 +149,10 @@ Chrome 上架时需在「隐私实践 / Privacy practices」中逐项声明：
 
 ---
 
-## 附录：打包命令（v0.8.1，Python 跨平台，正斜杠路径）
+## 附录：打包命令（v0.8.2，Python 跨平台，正斜杠路径）
 
 ```powershell
-python -c "import zipfile; files=['manifest.json','content.js','content.css','README.md','icons/icon-16.png','icons/icon-48.png','icons/icon-128.png']; z=zipfile.ZipFile('release/weread-enhancer-v0.8.1.zip','w',zipfile.ZIP_DEFLATED); [z.write(f,f) for f in files]; z.close()"
+python3 -c "import zipfile; files=['manifest.json','content.js','content.css','README.md','icons/icon-16.png','icons/icon-48.png','icons/icon-128.png']; z=zipfile.ZipFile('release/weread-enhancer-v0.8.2.zip','w',zipfile.ZIP_DEFLATED); [z.write(f,f) for f in files]; z.close()"
 ```
 
 - **包含**：`manifest.json`、`content.js`、`content.css`、`README.md`、`icons/`（3 png）

@@ -365,3 +365,29 @@
 - **风险/注意事项**：
   - 本次仅删无用代码、未触碰业务逻辑，但**仍建议在浏览器回归一次**主题切换 / 屏占比 / 自动阅读，确认无异常。
   - `.trae/` 会进 git 仓库但不会进上架 zip（打包只挑运行文件）；本次新增的 `.gitattributes` 也不进 zip。
+
+---
+
+## 2026-09-27 会话条目：发布 v0.8.2 + 商店上架准备 (已完成)
+- **目标**：把 P0 收尾成果推送远端，并按既定策略（立即发 v0.8.2；Edge 更新 + 360 首次上架）备齐上架物料。
+- **已做**：
+  - 推送两个历史提交到 `origin/main`：`030c25b`（清理死码 + `?` 输入法修复）、`30521d1`（文档修正）；本地已与远端同步。
+  - `manifest.json` 版本 `0.8.1 → 0.8.2`；`README.md` 结构树的 zip 名称同步。
+  - 重打上架包 `release/weread-enhancer-v0.8.2.zip`（仅 7 个运行文件，29K；包内 manifest 已核实为 0.8.2 / 权限 storage / 域名 weread.qq.com）。
+  - 新建 360 素材目录 `release/360-素材/`：`功能说明.txt`、`图标-48x48.png`（复制自 icon-48）、`效果图-01~05-560x350.png`（由 1280×800 截图等比缩放，尺寸已校验）。
+  - 文档同步 v0.8.2：`plan/RPD_需求文档.md`（当前版本 + 文档变更记录新增一行）、`plan/version_plan.md`（新增 v0.8.2 段落 + 版本对照表）、`plan/plan_edge_store.md` / `plan_360_store.md` / `plan_chrome_store.md` / `plan/session_handoff_商店上架.md` / `dev/可复制项目指南.md`（版本号与打包命令 `python`→`python3`）。
+- **关键结论/决定**：
+  - 本次为**补丁发布**：只做代码清理与输入法修复，不新增功能，降低商店审核风险。
+  - 上架打包**只含运行文件**：`manifest.json` / `content.js` / `content.css` / `README.md` / `icons/` 三图；`.trae/`、`plan/`、`dev/`、`release/` 等一律不进包。
+  - 360 上传的是**内含 `.crx` 的 ZIP**（非直接传 crx），且图片尺寸独立（效果图 560×350、图标 48×48）。
+- **产出物（文件/链接）**：
+  - `release/weread-enhancer-v0.8.2.zip`（新）
+  - `release/360-素材/`（功能说明.txt + 图标-48x48.png + 效果图-01~05-560x350.png）
+  - 更新：`manifest.json`、`README.md`、`plan/RPD_需求文档.md`、`plan/version_plan.md`、`plan/plan_edge_store.md`、`plan/plan_360_store.md`、`plan/plan_chrome_store.md`、`plan/session_handoff_商店上架.md`、`dev/可复制项目指南.md`
+- **待办**：
+  - **Edge**：Partner Center → 现有扩展 → 上传 `weread-enhancer-v0.8.2.zip` → 提交审核（**用户手动**）。
+  - **360**：装 360 浏览器 → 实测 MV3 → 打包 `.crx`（妥存 `.pem`）→ 与 `release/360-素材/` 一起压 ZIP → 上传（**用户手动**）。
+  - 本次 manifest 升版 + 文档 + 素材改动**尚未 git 提交**（等用户确认）；上架后补 tag `v0.8.2`。
+- **风险/注意事项**：
+  - `release/*.zip` 属 `.gitignore` 排除项，不入库；`.pem` 私钥**严禁入库**。
+  - 用户提供的 GitHub token 仅用于本次推送，**未写入任何文件/日志**，建议用后在 GitHub 撤销。
