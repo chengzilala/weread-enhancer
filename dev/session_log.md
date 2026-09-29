@@ -515,3 +515,51 @@
   - 同源接口字段可能随微信读书改版变动；接口失败会自动回退 DOM 抓取（数据可能不全），排查看 `[notes]` 日志。
   - 水印清洗采用保守策略（「微信读书」单独成行需前置空行才删），以降低误删正文风险。
   - 跨书跳原文依赖 `localStorage` 传递，若微信读书改版路径需同步更新 `READER_PATH_RE`。
+
+---
+
+## 2026-09-29 会话条目：修复笔记接口「参数格式错误」——笔记改走官方网关
+- **目标**：用户实测反馈「修完 bookId 后笔记接口仍失败」。定位并修复，使「📝 笔记」面板能正常读出划线/想法。
+- **定位过程（重点）**：
+  - 用户第 2 份日志显示 `bookId` 已修对（`74332a90813ab86c4g019d98`），但接口回 **「接口业务错误：参数格式错误」**，随后回退 DOM 只抓到 1 条。
+  - 下载阅读页 webpack chunk 逆向：页面真实调用是 **POST** + body `{bookId, syncKey}`，且 axios 拦截器会给请求加 **`x-wrpa-0` 反爬签名头**（由 `window.__WRPA__.sr()` 现算，失败兜底常量 `2097d7b063d6f8b5`）。我们原来用 GET query + 小写 `synckey` + 无签名头 → 被服务端判「参数格式错误」。
+  - 结论：网页同源接口已被反爬加固，硬碰脆弱。经用户选择，改走**官方 Agent 网关**（项目已实现 `background.js` + `modules/official.js`，manifest 已接线 `0.11.0`）。
+- **已做**：
+  - `modules/notes.js`：新增 `sendBg()`（与后台通信）、`fetchBookNotesViaOfficial(bookId)`（先 `wre-official-status` 判有无 Key；有 Key 则并行调 `wre-official-call` → `api_name=/book/bookmarklist` 参数驼峰 `bookId`、`api_name=/review/list/mine` 参数小写 `bookid`；归一化复用 `normalizeBookmark`/`normalizeReview`，章节表用回包 `chapters`）；`fetchBookNotes` 改为**官方网关优先 → 网页同源接口 → 页面抓取**三级兜底。
+  - 未配置 Key 且网页接口失败时，面板 `sourceNote` 明确提示「打开「☁️ 官方数据 → 设置」粘贴 wrk- Key 即可完整读取」，避免误判为插件坏了。
+  - 导出 Markdown 的「数据来源」标注新增官方口径；模块头注释与版本号更新为 `v0.11.0`。
+  - 全部诊断继续走统一日志 `[notes]`（新增「官方网关取笔记完成/失败」日志，含各接口 keys 便于排查字段差异）。
+- **产出物**：
+  - 修改：`modules/notes.js`、`plan/RPD_需求文档.md`（9.2.0 数据来源改为三级优先级）
+  - 校验：`osascript -l JavaScript` + `new Function()` 语法检查通过（notes.js / background.js / official.js）
+- **待办**：
+  - 用户重新加载扩展后实测：先在「☁️ 官方数据 → 设置」粘贴 `wrk-` Key 并校验通过，再开「📝 笔记」验证划线/想法完整、导出与跳原文正常。
+- **风险/注意事项**：
+  - 官方接口字段名若与预期不符，看 `[notes] 官方网关取笔记完成` 日志里的 `bookmarkKeys` / `reviewKeys` 快速校准。
+  - 网页同源接口（第二级兜底）当前基本不可用，保留仅为兼容旧环境；不要依赖它。
+
+---
+
+## 2026-09-29 会话条目：v0.11.0 提交与归档（已完成）
+- **目标**：用户指令「提交当前版本」→ 把工作区累积的 v0.9.1 + v0.10.0 + v0.11.0 改动提交，并按 `pack-publish` 技能完成打 Tag、打包、归档文档同步。
+- **已做**：
+  - 提交前核查：`git status` 界定范围为「运行必需 + 项目文档」；排除 `release/weread-enhancer-v*/`、`*.zip`、`*.pem`、`.trae/`、`inbox/`（均在 `.gitignore`）。
+  - 安全检查：全仓 grep `wrk-` 仅命中 `official.js` 的占位符 `wrk-xxxxxxxx` 与 RPD 文档示例，**无真实 Key 入库**。
+  - 校验：`osascript -l JavaScript` + `new Function()` 对 `background.js` / `content.js` / `modules/{stats,notes,official}.js` 做语法检查全部 OK；`python3` 校验 manifest JSON（`0.11.0`，css/js/background/host_permissions 注册项正确）。
+  - 提交 `fadb96b`（17 文件，+4293/-86）并推送 `origin/main`。
+  - 打 Tag `v0.11.0` 并推送。
+  - 打包 `release/weread-enhancer-v0.11.0.zip`（73 KB，14 文件，`testzip()` 无损坏）：在原 9 文件基础上加入 `background.js` 与 `modules/{notes,official}.{js,css}`。
+  - 归档文档同步：`plan/plan_github_versioning.md`（当前归档版本 + 归档历史新增 v0.11.0 行 + 未打 tag 版本补 v0.9.1 / v0.10.0 说明）、`plan/version_plan.md`（第 3 节标题与模块表、新增 v0.11.0 官方数据小节、第 5 节版本号对照）、`README.md`（zip 名改 v0.11.0）。
+  - 本次一个提交内含三个版本：v0.9.1 / v0.10.0 因无独立 commit，未单独打 tag（与 v0.8.3 并入 v0.9.0 的处理方式一致）。
+- **产出物（文件/链接）**：
+  - Git 提交 `fadb96b`、Git Tag `v0.11.0`
+  - `release/weread-enhancer-v0.11.0.zip`（73 KB，14 文件）
+  - 修改文档：`plan/plan_github_versioning.md`、`plan/version_plan.md`、`README.md`、`dev/session_log.md`
+- **待办**：
+  - 浏览器实测（重载插件）：`test/笔记增强测试清单.md`、`test/官方数据测试清单.md`、以及 v0.9.1 的进度追踪与最近书目。
+  - 实测通过后：更新商店截图 → 提交 Edge / 360 审核（上传包已备好）。
+  - `notes.js` / `official.js` 的实现细节条目仍缺一条 session_log 记录（对应会话未落痕），如需补写可在下次会话补齐。
+- **风险/注意事项**：
+  - 本次归档的 notes / official 两项在文档中仍标注「待实测」，属**未验证版本**；若实测发现问题，需修复后升版本号再打 tag，不要移动已有 tag。
+  - 归档的历史 zip（v0.9.0 及更早）仍在 `release/` 本地，不进 git；需要时从本地保留或 GitHub Release 附件获取。
+  - 官方数据功能为**可选开关**（默认关闭）且新增 `i.weread.qq.com` host 权限，商店提交前需确认隐私政策已同步（本次已更新 `release/privacy.md`）。

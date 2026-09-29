@@ -75,7 +75,7 @@
 │
 ├── release/               # 🚀 上线
 │   ├── privacy.md
-│   └── weread-enhancer-v0.9.0.zip
+│   └── weread-enhancer-v0.11.0.zip
 │
 ├── screenshots/           # 📸 截图
 │
