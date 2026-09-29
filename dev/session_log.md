@@ -459,3 +459,59 @@
   - 存储采用「整份对象覆盖写 + 30s 节流」，长期使用后需关注写入体积（明细已在启动时清理 400 天前的数据）。
   - PDF 导出依赖浏览器允许弹出新窗口（`window.open`）；若站点或浏览器策略拦截，会只打日志不报错，需用户允许弹窗后重试。打印对话框由浏览器提供，用户需手动选「另存为 PDF」。
   - 生成打印页用的是 `document.write`（TS 提示该 API 已弃用，但在 Content Script 里生成可打印文档仍是标准做法，暂保留）。
+
+---
+
+## 2026-09-29 会话条目：阅读统计补齐进度追踪 + 最近书目（v0.9.1）(已实现、待实测)
+- **目标**：按 RPD 9.1 继续开发，补齐 v0.9.0 遗留的两项——9.1.2 阅读进度追踪、9.1.3 的「本书进度」与「最近 10 本书列表 + 点击跳转」。
+- **已做**：
+  - **进度采集（9.1.2）**：微信读书官方无稳定进度接口，改为探测页面文本。`PROGRESS_TEXT_SELECTORS`（`.readerFooter` / `[class*="progress"]` / `[class*="percent"]` 等）先扫，`parseProgressText()` 用正则解析 `45%` 与 `12/340` 两种写法；再兜底在 `[class*="reader"]`（最多 400 个）里找「短且带 %」的文本。章节名由 `CHAPTER_SELECTORS`（`.readerChapterContent h1~h3`、`[class*="chapterTitle"]` 等）取首个长度 ≤60 的文本。
+  - 采集时机：`tick()`（15s 心跳）调用 `updateProgress()`，`attach()` 初始化时也调一次；**只有值真正变化才写库**；采不到时保留上次值，面板显示「进度未知」，绝不误写。
+  - **存储**：`SCHEMA_VERSION` `1` → `2`，书籍新增 `progress: { percent, chapter, index, total, updatedAt }`；旧数据不需迁移（缺失即降级）。
+  - **面板（9.1.3）**：`renderPanel()` 结构改为 卡片 → 当前书籍进度 → 近 14 天明细 → 最近阅读（最多 10 本）→ 导出 → 说明；`getSummary()` 新增 `bookProgress` / `bookLastReadAt`。
+  - **点击跳转**：最近书目条目带 `data-wre-stats-open=<bookId>`，body 点击监听里 `window.open('https://weread.qq.com/web/reader/' + bookId, '_blank')`；无 `bookId` 的条目不加该属性、不可点。
+  - **导出同步**：CSV 增「当前进度」列；Markdown 书籍表增「进度」列 + 新增「最近阅读（最多 10 本）」小节；HTML/PDF 报表书籍表增「进度」列 + 新增「最近阅读」卡片区块（含排版/响应式/打印 `break-inside:avoid` 样式）。
+  - **样式**：`modules/stats.css` 新增 `.wre-stats-progress*`（进度卡：head + track/fill + meta）与 `.wre-stats-recent*`（列表项 + `is-clickable` 悬停），复用 `--wre-*` 主题变量；移除已弃用的 `.wre-stats-book` 规则。
+  - `manifest.json` 版本 `0.9.0 → 0.9.1`，描述补充「阅读统计与导出」。
+  - 校验：`python3` 校验 manifest JSON 通过（0.9.1，描述 54 字）；IDE 诊断无新增报错（仅 `document.write` 既有弃用提示，本机无 node 未能跑 `node --check`）。
+- **产出物（文件/链接）**：
+  - 修改：`modules/stats.js`、`modules/stats.css`、`manifest.json`、`plan/RPD_需求文档.md`（9.1.0 状态表、9.1.2/9.1.3 改写、9.1.4 导出内容、9.1.5 存储结构 v2、9.6/9.7、变更记录）、`plan/version_plan.md`（v0.9.x 段落 + 第 5 节版本号对照）、`README.md`（功能列表）
+  - 未产出：暂未提交 / 未打 tag / 未打包（等用户实测通过）
+- **待办**：
+  - 用户在扩展管理页「重新加载」插件后实测：本书进度显示、最近书目点击跳转、五种导出是否含进度/最近书目。
+  - 实测通过后：按 `pack-publish` 技能提交 + 打 Tag `v0.9.1` + 打 `release/weread-enhancer-v0.9.1.zip` + 同步归档文档。
+- **风险/注意事项**：
+  - 进度完全靠 DOM 文本探测：微信读书改版会导致采不到（降级「进度未知」属预期）。改版时优先补 `PROGRESS_TEXT_SELECTORS` / `CHAPTER_SELECTORS`，排查看 `[stats] 更新阅读进度` 日志。
+  - 章节名选择器可能命中封面/目录里的短文本，理论上存在误采；当前限制「长度 ≤60」以降低概率。
+  - 跳转用的 `bookId` 取自 URL 片段，仅在阅读页产生；从其他页面点开的记录可能无 `bookId`（不可点）。
+
+---
+
+## 2026-09-29 会话条目：笔记增强模块（v0.10.0）(已实现、待实测)
+- **目标**：按 RPD 9.2 开发笔记增强，一轮做全三块——9.2.1 划线快速复制、9.2.2 划线批量导出、9.2.3 想法/批注聚合面板。数据来源经用户确认为「官方同源接口优先 + DOM 兜底」。
+- **已做**：
+  - **新建 `modules/notes.js`**（IIFE，`'use strict'`，独立模块不改 content.js 逻辑）：
+    - 数据层：`fetchJson()` 带 `credentials:'include'`，401/403 标记 `unauthorized`；`fetchBookNotes(bookId)` 用 `Promise.all` 并行请求 `bookmarklist` / `review/list(listType=11&mine=1)` / `chapterInfos` 三个同源接口，**两块划线/想法均失败才抛错**（优先抛未登录错误）；`normalizeBookmark` / `normalizeReview` / `buildChapterMap` 归一化数据（`createTime` 秒/毫秒兼容）。
+    - 统一状态入口 `loadNotes(force)`：解析当前书 `bookId`（`/web/reader/<id>`）→ 命中 5 分钟内存缓存直接用 → 未登录给提示 → 接口失败回退 `scrapeDomNotes()`（多候选选择器抓页面已渲染划线）→ 统一渲染/错误/空态。
+    - 面板：菜单入口 `data-wre-notes-entry`（挂在 stats 入口之后，兼容回退到主题设置项）；`#wre-notes-modal` 面板含 Tab（划线 / 想法）、按章节分组列表、条目可点击「跳回原文」。
+    - 导出：`buildMarkdown()`（`# 《书名》读书笔记` + 按章节划线 + 想法小节）/ `buildPlainText()`，复用 `downloadFile()`。
+    - 选中复制（9.2.1）：`mouseup`/`keyup` 后读取选区，在选区上方弹出 `#wre-notes-copybtn` 浮标（`mousedown` preventDefault 防丢选区），点击复制；`copy` 事件监听改写 `text/plain` / `text/html`。
+    - 水印清洗：`TAIL_WATERMARKS` / `BARE_WATERMARK`（需前置空行）/ `TAIL_INLINE_WATERMARK` 保守匹配，仅命中特征才改写，每次清洗写 `[notes]` 日志可回溯。
+    - 跳原文：`window.find()` 定位；跨书用 `localStorage` 的 `wrePendingJump` 传递待定位文本，新页面轮询定位（20 次 × 500ms，超时明确提示）。
+    - `bootstrap()` 用 MutationObserver 等待 `#we-read-enhancer-root` 后 `attach()`。
+  - **新建 `modules/notes.css`**：面板/条目/浮标/提示/toast 样式，全部挂在 `#wre-notes-*` 下，复用 `--wre-*` 主题变量。
+  - `manifest.json` 版本 `0.9.1 → 0.10.0`，描述加「笔记导出」，`css` 加 `modules/notes.css`、`js` 加 `modules/notes.js`（stats 之后、content.js 之前）。
+  - `content.js` 仅 `handleMenuClick()` 增加 `case 'notes': break;` 分流（面板由 notes.js 自行接管）。
+  - **数据不落盘**：面板数据只在内存缓存 5 分钟，不写 storage，缩小隐私面，符合项目「不收集数据」红线。
+  - 校验：本机无 node，改用 `osascript -l JavaScript` + `new Function()` 对三个 JS 文件做语法检查（全部 OK）；`python3` 校验 manifest JSON 通过。
+- **产出物（文件/链接）**：
+  - 新建：`modules/notes.js`、`modules/notes.css`、`test/笔记增强测试清单.md`
+  - 修改：`manifest.json`、`content.js`（仅加分流）、`plan/RPD_需求文档.md`（9.2.0 状态、9.6/9.7、变更记录）、`plan/version_plan.md`（v0.10.0 段落）、`README.md`（功能列表 + 项目结构）、`release/privacy.md`（新增 Notes 小节）
+  - 未产出：暂未提交 / 未打 tag / 未打包（等用户实测通过）
+- **待办**：
+  - 用户在扩展管理页「重新加载」插件后实测：面板划线/想法、导出、选中复制、水印清洗、跳原文。
+  - 实测通过后：按 `pack-publish` 技能提交 + 打 Tag `v0.10.0` + 打 `release/weread-enhancer-v0.10.0.zip` + 同步归档文档。
+- **风险/注意事项**：
+  - 同源接口字段可能随微信读书改版变动；接口失败会自动回退 DOM 抓取（数据可能不全），排查看 `[notes]` 日志。
+  - 水印清洗采用保守策略（「微信读书」单独成行需前置空行才删），以降低误删正文风险。
+  - 跨书跳原文依赖 `localStorage` 传递，若微信读书改版路径需同步更新 `READER_PATH_RE`。

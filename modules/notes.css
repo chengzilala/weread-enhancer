@@ -1,0 +1,233 @@
+/* 微信悦读 · 笔记增强模块样式（v0.10.0）
+   仅作用于笔记面板 / 复制浮标 / 轻提示，复用 content.css 的 --wre-* 主题变量（明/暗主题自动跟随）。 */
+
+#wre-notes-modal .wre-notes-modal {
+  width: 480px;
+}
+
+/* ---------- 顶部工具条 ---------- */
+
+#wre-notes-modal .wre-notes-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--wre-border);
+}
+
+#wre-notes-modal .wre-notes-summary {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--wre-text);
+  word-break: break-all;
+}
+
+#wre-notes-modal .wre-notes-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ---------- 划线 / 想法 切换 ---------- */
+
+#wre-notes-modal .wre-notes-tabs {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+#wre-notes-modal .wre-notes-tab {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid var(--wre-border);
+  border-radius: var(--wre-border-radius);
+  background: transparent;
+  color: var(--wre-text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+#wre-notes-modal .wre-notes-tab:hover {
+  background: var(--wre-hover-bg);
+}
+
+#wre-notes-modal .wre-notes-tab.is-active {
+  background: var(--wre-hover-bg);
+  border-color: var(--wre-primary);
+  color: var(--wre-text-hover);
+  font-weight: 600;
+}
+
+/* ---------- 章节分组 ---------- */
+
+#wre-notes-modal .wre-notes-chapter {
+  margin-top: 16px;
+}
+
+#wre-notes-modal .wre-notes-chapter-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--wre-border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--wre-text);
+}
+
+#wre-notes-modal .wre-notes-chapter-count {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.6;
+}
+
+/* ---------- 条目 ---------- */
+
+#wre-notes-modal .wre-notes-item {
+  margin-top: 8px;
+  padding: 9px 11px;
+  border-left: 3px solid var(--wre-border);
+  border-radius: 0 6px 6px 0;
+  background: var(--wre-hover-bg);
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+#wre-notes-modal .wre-notes-item:hover {
+  border-left-color: var(--wre-primary);
+  transform: translateX(2px);
+}
+
+#wre-notes-modal .wre-notes-item.is-thought {
+  border-left-style: dashed;
+}
+
+#wre-notes-modal .wre-notes-text {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--wre-text);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+#wre-notes-modal .wre-notes-quote {
+  padding-left: 8px;
+  border-left: 2px solid var(--wre-border);
+  font-size: 12px;
+  line-height: 1.6;
+  opacity: 0.75;
+  color: var(--wre-text);
+  word-break: break-word;
+}
+
+#wre-notes-modal .wre-notes-thought {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--wre-text);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+#wre-notes-modal .wre-notes-meta {
+  margin-top: 6px;
+  font-size: 11px;
+  opacity: 0.55;
+  color: var(--wre-text);
+}
+
+/* ---------- 空态 / 提示 ---------- */
+
+#wre-notes-modal .wre-notes-empty {
+  margin-top: 16px;
+  padding: 18px;
+  border: 1px dashed var(--wre-border);
+  border-radius: var(--wre-border-radius);
+  font-size: 12px;
+  line-height: 1.7;
+  text-align: center;
+  opacity: 0.75;
+  color: var(--wre-text);
+}
+
+#wre-notes-modal .wre-notes-error {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid #e0a3a3;
+  border-radius: var(--wre-border-radius);
+  background: rgba(224, 163, 163, 0.12);
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--wre-text);
+}
+
+#wre-notes-modal .wre-notes-warn {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px dashed #d8b26a;
+  border-radius: var(--wre-border-radius);
+  font-size: 12px;
+  line-height: 1.6;
+  opacity: 0.9;
+  color: var(--wre-text);
+}
+
+#wre-notes-modal .wre-notes-note {
+  margin-top: 12px;
+  font-size: 11px;
+  line-height: 1.7;
+  opacity: 0.6;
+  color: var(--wre-text);
+}
+
+/* ---------- 选中复制浮标 ---------- */
+
+#wre-notes-copybtn {
+  position: fixed;
+  z-index: calc(var(--wre-z-index) + 2);
+  display: none;
+  padding: 5px 10px;
+  border: 1px solid var(--wre-border);
+  border-radius: 999px;
+  background: var(--wre-bg);
+  box-shadow: var(--wre-shadow);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--wre-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+#wre-notes-copybtn.wre-visible {
+  display: inline-block;
+}
+
+#wre-notes-copybtn:hover {
+  color: var(--wre-text-hover);
+  background: var(--wre-hover-bg);
+}
+
+/* ---------- 轻提示 ---------- */
+
+#wre-notes-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 64px;
+  z-index: calc(var(--wre-z-index) + 3);
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.78);
+  font-size: 12px;
+  color: #ffffff;
+  opacity: 0;
+  transform: translate(-50%, 8px);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#wre-notes-toast.wre-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}

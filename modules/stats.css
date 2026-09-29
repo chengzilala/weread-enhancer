@@ -1,4 +1,4 @@
-/* 微信悦读 · 阅读统计模块样式（v0.9.0）
+/* 微信悦读 · 阅读统计模块样式（v0.9.1）
    仅作用于统计面板，复用 content.css 的 --wre-* 主题变量（明/暗主题自动跟随）。 */
 
 #wre-stats-modal .wre-stats-modal {
@@ -31,11 +31,105 @@
   color: var(--wre-text);
 }
 
-#wre-stats-modal .wre-stats-book {
-  margin-top: 10px;
+#wre-stats-modal .wre-stats-progress {
+  padding: 10px 12px;
+  border: 1px solid var(--wre-border);
+  border-radius: var(--wre-border-radius);
+  background: var(--wre-hover-bg);
+}
+
+#wre-stats-modal .wre-stats-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--wre-text);
+}
+
+#wre-stats-modal .wre-stats-progress-book {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#wre-stats-modal .wre-stats-progress-value {
+  flex: none;
+  font-weight: 600;
+  color: var(--wre-primary, #07c160);
+}
+
+#wre-stats-modal .wre-stats-progress-track {
+  display: block;
+  height: 8px;
+  margin-top: 8px;
+  background: var(--wre-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+#wre-stats-modal .wre-stats-progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--wre-primary, #07c160);
+  border-radius: 4px;
+}
+
+#wre-stats-modal .wre-stats-progress-meta {
+  margin-top: 8px;
   font-size: 12px;
   line-height: 1.6;
-  opacity: 0.75;
+  opacity: 0.7;
+  color: var(--wre-text);
+  word-break: break-all;
+}
+
+#wre-stats-modal .wre-stats-recent {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#wre-stats-modal .wre-stats-recent-item {
+  padding: 8px 10px;
+  border: 1px solid var(--wre-border);
+  border-radius: var(--wre-border-radius);
+}
+
+#wre-stats-modal .wre-stats-recent-item.is-clickable {
+  cursor: pointer;
+}
+
+#wre-stats-modal .wre-stats-recent-item.is-clickable:hover {
+  background: var(--wre-hover-bg);
+}
+
+#wre-stats-modal .wre-stats-recent-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--wre-text);
+}
+
+#wre-stats-modal .wre-stats-recent-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#wre-stats-modal .wre-stats-recent-percent {
+  flex: none;
+  opacity: 0.85;
+}
+
+#wre-stats-modal .wre-stats-recent-sub {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.6;
+  opacity: 0.65;
   color: var(--wre-text);
   word-break: break-all;
 }

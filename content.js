@@ -2010,6 +2010,12 @@ function handleMenuClick(action) {
       // 阅读统计面板由 modules/stats.js 自行接管（它已绑定自己的 click），
       // 这里只做分流，避免落到 default 打出「尚未实现」的误导日志。
       break;
+    case 'notes':
+      // 笔记面板由 modules/notes.js 自行接管（它已绑定自己的 click），同上。
+      break;
+    case 'official':
+      // 官方数据面板由 modules/official.js 自行接管（它已绑定自己的 click），同上。
+      break;
     case 'clear-plugin-theme':
       const mainMenu = document.querySelector('#wre-main-menu');
       if (mainMenu) mainMenu.classList.remove('wre-visible');
