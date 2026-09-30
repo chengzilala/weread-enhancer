@@ -16,3 +16,16 @@
 2. 开启右上角的 **“开发者模式”** 开关。
 3. 点击左上角的 **“加载已解压的扩展程序”**。
 4. 选择当前文件夹即可载入代码。随时点击刷新并回到网页重新检查功能。
+
+## 配套网站本地预览
+
+网站（文档站）源码在 `web/`，与插件同仓库，零第三方依赖（本机 Python 3.9 即可）：
+
+```bash
+python3 web/build.py    # 构建：生成 web/dist/ 与 web/dist/api/latest.json
+python3 web/serve.py    # 本地预览：http://localhost:5173
+```
+
+- 文章源在 `web/content/`，可用 Obsidian 直接打开为 vault 编辑
+- `web/dist/api/latest.json` 的版本号构建时自动读根目录 `manifest.json`
+- 部署到 Vercel 时，把项目根目录设为 `web/` 即可静态托管

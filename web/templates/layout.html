@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{TITLE}}</title>
+  <meta name="description" content="{{DESCRIPTION}}">
+  <meta property="og:title" content="{{TITLE}}">
+  <meta property="og:description" content="{{DESCRIPTION}}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{SITE_NAME}}">
+  <link rel="icon" href="/assets/img/icon-48.png">
+  <link rel="stylesheet" href="/assets/site.css">
+</head>
+<body class="{{BODY_CLASS}}">
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="brand" href="/">
+        <img class="brand-icon" src="/assets/img/icon-48.png" alt="">
+        <span class="brand-name">{{SITE_NAME}}</span>
+      </a>
+      <button class="nav-toggle" type="button" aria-label="打开导航" aria-expanded="false">☰</button>
+      <nav class="site-nav">
+      {{NAV}}
+      </nav>
+    </div>
+  </header>
+
+  <div class="site-body">
+    {{SIDEBAR}}
+    <main class="site-main">
+      <article class="doc">
+        {{CONTENT}}
+      </article>
+      {{PREVNEXT}}
+    </main>
+  </div>
+
+  <footer class="site-footer">
+    {{FOOTER}}
+  </footer>
+
+  <script src="/assets/site.js" defer></script>
+</body>
+</html>

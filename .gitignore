@@ -29,6 +29,14 @@ inbox/
 *.swp
 *.swo
 attachments/
+# 网站内容图片需入库：覆盖上面的 attachments/ 通用忽略规则
+!web/content/attachments/
+!web/content/attachments/**
+
+# 网站：构建产物与 Obsidian 本地配置不入库
+web/dist/
+web/content/.obsidian/
+web/content/.trash/
 
 # 系统
 .DS_Store

@@ -1,0 +1,6 @@
+{
+  "buildCommand": "python3 build.py",
+  "outputDirectory": "dist",
+  "cleanUrls": false,
+  "trailingSlash": true
+}

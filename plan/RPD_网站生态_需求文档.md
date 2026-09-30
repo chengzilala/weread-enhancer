@@ -1,6 +1,6 @@
 # 微信悦读 · 网站生态 - RPD 需求文档
 
-**文档版本：v0.2（已按 2026-09-29 二次确认修订）**
+**文档版本：v0.3（三次确认后定稿）**
 **最后更新：2026-09-29**
 **同源文档**：插件功能需求见 [RPD_需求文档.md](./RPD_需求文档.md)（本文档不重复、不覆盖它）
 
@@ -51,14 +51,17 @@
 | **内容工作台** | **Obsidian + 本仓库 `web/content/` 作为 vault** | 你日常用 Obsidian，直接在里面写；front-matter 即 Obsidian 属性；构建脚本兼容 wiki 链接 / `![[图片]]` / callout |
 | 第一版内容范围 | **标准版 + 知识资产（阅读方法论）** | 方法论板块是粘性核心，**进第一版**，不放储备 |
 | 复刻程度 | **结构照搬，视觉自定** | 见 1.2 |
-| 代码落点与部署 | **本项目内 `web/` 目录 + Vercel 免费域名** | 与插件同仓库；后续可绑自有域名 |
+| 代码落点与部署 | **本项目内 `web/` 目录 + Vercel** | 与插件同仓库；后续可绑自有域名 |
+| 站点域名 | **无自有域名**，用 Vercel 免费子域名 `weread-enhancer.vercel.app`（若前缀被占用则部署时再换） | 以后有域名只改 `site.config.json` 一处 |
+| Obsidian vault 形态 | **独立 vault（`web/content/`）** | 不并入你现有库，零冲突 |
+| 知识资产首版选题 | **已确认**（4 篇，见 3.3） | — |
 
 > ⚠️ **与最初设想的偏差（需知悉）**：你最初说"需要后台系统来填写文章数据"，最终选择"本地 Markdown + Obsidian"。这意味着**没有网页版登录后台**，"写文章"= 在 Obsidian 里写 Markdown + 跑一条命令发布。换来零后端、零数据库、零运维、零成本。若以后需要网页版后台，可平滑升级（见 6.6 储备）。
 
 ### 1.5 当前状态
 
-- ✅ 插件本体已完成（`manifest.json` 当前版本 **v0.11.0**，含官方数据 / 阅读行为报告）
-- ⬜ 网站：**未开发**（本文档即开发前基线）
+- ✅ 插件本体已完成（`manifest.json` 当前版本 **v0.12.0**，含官方数据 / 阅读行为报告）
+- 🚧 网站：**阶段一（壳子与构建链）已完成**（`web/` 目录、`build.py`/`serve.py`、内容 vault 骨架、`dist/api/latest.json`）；阶段二（教程与 FAQ）、阶段三（知识资产）内容已随构建链一并起草，待审阅
 - ⬜ 插件侧联动入口：**未开发**
 
 ---
@@ -172,7 +175,7 @@ aliases: [屏占比, 宽度]       # Obsidian 别名，同时用于 [[双链]] �
 
 **需求**：对标 flomo 的 `thinking/`（知识资产）与 flomo101，写**不依赖插件也能看**的阅读内容，让用户"为了方法而回来"。
 
-**首版文章（初稿，标题待你确认）**：
+**首版文章（已确认）**：
 
 | 文件 | 对标 | 内容方向 |
 |---|---|---|
@@ -207,7 +210,7 @@ aliases: [屏占比, 宽度]       # Obsidian 别名，同时用于 [[双链]] �
   "releasedAt": "2026-09-29",
   "minSupportedVersion": "0.9.0",
   "notice": "v0.11.0 新增：官方数据阅读行为报告",
-  "changelogUrl": "https://<域名>/changelog/",
+  "changelogUrl": "https://weread-enhancer.vercel.app/changelog/",
   "storeUrls": { "edge": "…", "chrome": "…" }
 }
 ```
@@ -224,18 +227,18 @@ aliases: [屏占比, 宽度]       # Obsidian 别名，同时用于 [[双链]] �
 1. Obsidian 里 **打开 `web/content/` 作为 vault**（独立 vault，不影响你现有库）；
 2. 「设置 → 文件与链接」中把**附件默认位置**设为 `attachments/`（与 3.1 目录一致）；
 3. 新建 `.md`（或用模板插件套 front-matter 模板）→ 写内容 → 用 `[[双链]]` 互链、`![[图.png]]` 插图；
-4. 发布：终端跑 `node web/build.js`（可选：装 Obsidian 的 **Shell commands** 插件，绑定该命令，在 Obsidian 内一键构建 + 部署）；
-5. 本地预览：`node web/serve.js`。
+4. 发布：终端跑 `python3 web/build.py`（可选：装 Obsidian 的 **Shell commands** 插件，绑定该命令，在 Obsidian 内一键构建 + 部署）；
+5. 本地预览：`python3 web/serve.py`。
 
 **可选增强**：
 - **Obsidian Git 插件**：自动 commit / push 内容变更（若你已在用 Git 工作流）；
 - **模板**：提供一份 `_模板.md`，新建文章时自动带 front-matter 骨架（title / slug / order / description / draft）；
-- **发布前自检**：`build.js` 输出告警清单（双链解析失败 / 图片缺失 / slug 重复 / 缺 description），写完就发现问题。
+- **发布前自检**：`build.py` 输出告警清单（双链解析失败 / 图片缺失 / slug 重复 / 缺 description），写完就发现问题。
 
 **边界与红线**：
 - `web/content/.obsidian/` 属本地配置，**不入库**（加入 `.gitignore`）；
 - 文章里不写密钥、不放个人隐私信息；
-- 若你更希望把内容放在**现有 vault** 里维护，替代方案：在 `web/content/` 放软链指向现有 vault 子目录（见 附 B 假设 6）——本期先用独立 vault，简单可控。
+- **本期确定用独立 vault**；若以后要把内容并回你现有 Obsidian 库，再改用软链方案（`web/content/` 软链指向现有 vault 的子目录）。
 
 ### 3.7 插件侧联动（P1）
 
@@ -288,10 +291,10 @@ aliases: [屏占比, 宽度]       # Obsidian 别名，同时用于 [[双链]] �
 ### 5.1 技术栈
 
 - **内容**：Markdown + front-matter（在 Obsidian 中书写）
-- **构建**：Node 脚本 `web/build.js`（优先**零 npm 依赖**：Markdown 渲染先自写"够用子集"，覆盖 3.1 的语法清单；若确认不够，再引入 `marked` 作为唯一 dev 依赖，并在本文档登记）
+- **构建**：Python 脚本 `web/build.py`（**零第三方依赖**：只用 Python 标准库，本机 Python 3.9 即可；Markdown 渲染先自写"够用子集"，覆盖 3.1 的语法清单，不引入任何 npm/pip 依赖）
 - **产出**：`web/dist/` 纯静态 HTML/CSS/JS（**零 CDN、零第三方脚本、无运行时依赖**）
-- **预览**：`web/serve.js`（Node 内置 `http` 模块，极简静态服务器）
-- **部署**：Vercel（静态托管，先跑免费子域名 `xxx.vercel.app`）
+- **预览**：`web/serve.py`（Python 内置 `http` 模块，极简静态服务器）
+- **部署**：Vercel（静态托管；无自有域名，先用免费子域名 `weread-enhancer.vercel.app`）
 
 ### 5.2 文件结构（规划）
 
@@ -309,16 +312,17 @@ aliases: [屏占比, 宽度]       # Obsidian 别名，同时用于 [[双链]] �
     ├── templates/
     │   └── layout.html          # 站点骨架（顶栏 / 侧栏 / 页脚）
     ├── site.config.json         # 站点名 / 导航 / 页脚 / 商店链接 / 站点域名
-    ├── build.js                 # 🔨 一键构建：md → dist/ + dist/api/latest.json
-    ├── serve.js                 # 🖥 本地预览（零依赖）
+    ├── build.py                 # 🔨 一键构建：md → dist/ + dist/api/latest.json
+    ├── serve.py                 # 🖥 本地预览（零依赖）
+    ├── vercel.json              # ☁️ Vercel 部署配置
     └── dist/                    # 🚫 构建产物，不入库
 ```
 
 ### 5.3 一键命令
 
 ```bash
-node web/build.js     # 构建（生成 dist/ 与 dist/api/latest.json）
-node web/serve.js     # 本地预览（默认 http://localhost:5173）
+python3 web/build.py    # 构建（生成 dist/ 与 dist/api/latest.json）
+python3 web/serve.py    # 本地预览（默认 http://localhost:5173）
 ```
 
 ### 5.4 构建脚本要做的事
@@ -343,12 +347,12 @@ node web/serve.js     # 本地预览（默认 http://localhost:5173）
 ## 6. 分阶段规划
 
 ### 6.1 阶段一：壳子与构建链（P0）
-- [ ] 建 `web/` 目录骨架 + `site.config.json`
-- [ ] `build.js`：front-matter 解析 + Markdown→HTML + **Obsidian 语法（双链 / 图片 / callout）** + 模板套用 + 导航生成
-- [ ] `serve.js` 本地预览跑通
-- [ ] 产出 `dist/api/latest.json`（版本号自动读 `manifest.json`）
-- [ ] 内容目录可被 Obsidian 直接打开为 vault（附件目录约定 + `_模板.md`）
-- [ ] Vercel 静态部署跑通（拿到 `xxx.vercel.app`）
+- [x] 建 `web/` 目录骨架 + `site.config.json`
+- [x] `build.py`：front-matter 解析 + Markdown→HTML + **Obsidian 语法（双链 / 图片 / callout）** + 模板套用 + 导航生成
+- [x] `serve.py` 本地预览跑通
+- [x] 产出 `dist/api/latest.json`（版本号自动读 `manifest.json`）
+- [x] 内容目录可被 Obsidian 直接打开为 vault（附件目录约定 + `_模板.md`）
+- [ ] Vercel 静态部署跑通（拿到 `weread-enhancer.vercel.app`）
 
 ### 6.2 阶段二：教程与 FAQ（P0）
 - [ ] 首页 `/`
@@ -360,7 +364,7 @@ node web/serve.js     # 本地预览（默认 http://localhost:5173）
 - [ ] 全站导航、页脚、响应式、亮暗主题
 
 ### 6.3 阶段三：知识资产 / 阅读方法论（P0）
-- [ ] `/thinking/` 栏目 + 首版 4 篇（见 3.3，标题待确认）
+- [ ] `/thinking/` 栏目 + 首版 4 篇（见 3.3，已确认）
 - [ ] 文章间 `[[双链]]` 打通，形成知识网络
 - [ ] 首页增加"知识资产"入口（对标 flomo 首页的"知识资产"引导）
 
@@ -387,8 +391,8 @@ node web/serve.js     # 本地预览（默认 http://localhost:5173）
 
 ## 7. 成功标准（可判定）
 
-1. `node web/build.js` 一条命令无报错产出 `web/dist/`，含首页与所有栏目页（含 `/thinking/`），以及 `dist/api/latest.json`；
-2. `node web/serve.js` 本地预览所有链接可点、无 404 死链、移动端与暗色下可读；
+1. `python3 web/build.py` 一条命令无报错产出 `web/dist/`，含首页与所有栏目页（含 `/thinking/`），以及 `dist/api/latest.json`；
+2. `python3 web/serve.py` 本地预览所有链接可点、无 404 死链、移动端与暗色下可读；
 3. **Obsidian 可直接打开 `web/content/` 写作**：`[[双链]]` 与 `![[图片]]` 构建后正确渲染为站内链接与图片；构建告警清单在无问题时为空；
 4. Vercel 部署成功，公网可访问；
 5. **内容与代码一致**：快捷键仅 `空格 / D / F / ?`，权限、生效域名与 `manifest.json` 一致，无矛盾表述；
@@ -403,7 +407,7 @@ node web/serve.js     # 本地预览（默认 http://localhost:5173）
 
 | 风险 | 应对措施 |
 |---|---|
-| 自写 Markdown 子集不够用，或 Obsidian 特殊语法渲染出错 | 3.1 明确"语法支持清单"，清单外用 Obsidian 原生预览即可、不指望构建支持；构建输出告警清单；确认不够时引入 `marked` 单一 dev 依赖并登记 |
+| 自写 Markdown 子集不够用，或 Obsidian 特殊语法渲染出错 | 3.1 明确"语法支持清单"，清单外用 Obsidian 原生预览即可、不指望构建支持；构建输出告警清单；确认不够时在 `build.py` 内扩展渲染子集（保持零依赖），不引入第三方 Markdown 库 |
 | Obsidian 双链 / 图片解析不到（改名、中文名、路径） | `slug` 与文件名解耦（改文件名不影响链接）；`aliases` 参与解析；解析失败降级为普通文字 + 构建告警，不中断构建 |
 | 内容放仓库 vs 放 Obsidian 现有 vault 的取舍 | 本期用**独立 vault = `web/content/`**，零冲突；后续若想并入现有 vault，用软链切换（附 B 假设 6） |
 | `.obsidian/` 本地配置误入库 | `.gitignore` 增加 `web/content/.obsidian/` |
@@ -411,7 +415,7 @@ node web/serve.js     # 本地预览（默认 http://localhost:5173）
 | 用户误以为插件向网站上传了阅读数据 | 动线文案与隐私政策写明："只发一个 GET 请求取版本号，不上传任何阅读数据，不使用 Cookie" |
 | 网站文案与代码漂移（快捷键 / 权限 / 域名说错） | 每篇功能文章标注"以 vX.Y.Z 代码为准"；发布前按第 7 章第 5 条逐项核对；版本号由构建自动同步 |
 | 网站与插件版本号两处维护、容易不一致 | `latest.json` 与页脚版本号**一律构建时读 `manifest.json`**，禁止手写 |
-| Vercel 免费额度 / 域名限制 | 纯静态站，额度足够；先跑 `xxx.vercel.app`，后续可绑自有域名（改 `site.config.json` 一处） |
+| Vercel 免费额度 / 域名限制 | 纯静态站，额度足够；无自有域名，先用 `weread-enhancer.vercel.app`（前缀被占用就换一个），后续可绑自有域名（改 `site.config.json` 一处） |
 | 内容长期不更新，网站变"僵尸" | 更新日志与插件发版**绑定**：发版即补一节 changelog 再构建；写入插件发版流程 |
 | 方法论文章写成插件硬广，失去粘性 | 明确红线（3.3）：主体是通用方法，插件只能自然带出 |
 | `dist/` 误入库导致仓库膨胀 | `.gitignore` 增加 `web/dist/` |
@@ -427,16 +431,23 @@ node web/serve.js     # 本地预览（默认 http://localhost:5173）
   - 输出 = ① 纯静态网站（Vercel）；② `dist/api/latest.json`（插件版本公告源）；③ 插件内「📖 帮助中心」入口
 - **成功标准**：见第 7 章（9 条，均可判定）。
 
-## 附 B. 假设（未与你逐一确认，先按此推进，有异议请指出）
+## 附 B. 已确认项与假设
 
-1. 站点先用 Vercel 免费子域名，域名待定；
-2. Edge 商店链接已存在（上线后可填），Chrome / 360 链接暂缺则留空不显示；
-3. 更新日志由人工写（构建只负责提取最新一节生成公告）；
-4. 暂不做站点侧统计，`from=ext` 参数先只做预留；
-5. 插件改为"启动时请求一次静态 JSON"，视为可接受的最小权限扩张；
-6. Obsidian 侧先用**独立 vault（`web/content/`）**，不并入你现有 vault；若你坚持并入，改用软链方案；
-7. 知识资产栏目首版 4 篇的主题（见 3.3）为初步拟定，待你确认；
-8. 网站文章首版由 AI 依据插件代码与现有文档起草，你审阅后定稿。
+### B-1 本轮已确认（2026-09-29）
+
+| 项 | 结论 |
+|---|---|
+| 知识资产首版选题 | 沿用 3.3 的 4 篇 |
+| 站点域名 | 无自有域名，用 Vercel 免费子域名 `weread-enhancer.vercel.app` |
+| Obsidian vault | 独立 vault（`web/content/`），不并入现有库 |
+
+### B-2 仍按假设推进（有异议请指出）
+
+1. Edge 商店链接已存在（上线后可填），Chrome / 360 链接暂缺则留空不显示；
+2. 更新日志由人工写（构建只负责提取最新一节生成公告）；
+3. 暂不做站点侧统计，`from=ext` 参数先只做预留；
+4. 插件改为"启动时请求一次静态 JSON"，视为可接受的最小权限扩张；
+5. 网站文章首版由 AI 依据插件代码与现有文档起草，你审阅后定稿。
 
 ## 附 C. 文档变更记录
 
@@ -444,3 +455,4 @@ node web/serve.js     # 本地预览（默认 http://localhost:5173）
 |---|---|---|---|
 | 2026-09-29 | 新建本文档（v0.1） | 用户要求复刻 flomo 生态（帮助中心 + 内容 + 与插件联动 + 写作后台）；确认四项决策后产出 | 全文 |
 | 2026-09-29 | 二次修订（v0.2） | 依二次确认改：① **知识资产 / 阅读方法论进第一版**（粘性核心，不再留储备）；② 「后台」确认为**本地 Markdown**；③ 复刻程度定为**结构照搬、视觉自定**；④ 新增 **Obsidian 内容工作流**（`web/content/` 作 vault、front-matter=属性、兼容 `[[双链]]`/`![[图片]]`/callout、附件目录、一键发布）；⑤ 新增 1.2 复刻对照表；⑥ 内容目录改为"目录即栏目 + 中文文件名 + slug 解耦" | 1.1–1.4、2.1、3.1–3.3、3.6、4.2、5.1–5.4、6、7、8、附 A、附 B |
+| 2026-09-29 | 三次修订（v0.3，定稿） | 补齐最后 3 处待定：① 知识资产首版选题沿用已拟 4 篇；② **无自有域名**，用 Vercel 免费子域名 `weread-enhancer.vercel.app`；③ Obsidian 用**独立 vault**（`web/content/`），不并入现有库。附 B 拆为「已确认项 / 假设」两段；同步更新示例 JSON 与风险表里的域名 | 1.4、3.3、3.5、3.6、5.1、6.3、8、附 B |
