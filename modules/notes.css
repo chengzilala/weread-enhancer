@@ -28,6 +28,57 @@
   gap: 6px;
 }
 
+/* ---------- 搜索 ---------- */
+
+#wre-notes-modal .wre-notes-search {
+  position: relative;
+  margin-top: 12px;
+}
+
+#wre-notes-modal .wre-notes-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 34px 8px 12px;
+  border: 1px solid var(--wre-border);
+  border-radius: var(--wre-border-radius);
+  background: var(--wre-bg);
+  color: var(--wre-text);
+  font-size: 13px;
+  line-height: 1.4;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+#wre-notes-modal .wre-notes-search-input::placeholder {
+  color: var(--wre-text);
+  opacity: 0.5;
+}
+
+#wre-notes-modal .wre-notes-search-input:focus {
+  border-color: var(--wre-primary);
+}
+
+#wre-notes-modal .wre-notes-search-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--wre-hover-bg);
+  color: var(--wre-text);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#wre-notes-modal .wre-notes-search-clear:hover {
+  color: var(--wre-text-hover);
+}
+
 /* ---------- 划线 / 想法 切换 ---------- */
 
 #wre-notes-modal .wre-notes-tabs {
@@ -180,6 +231,41 @@
   line-height: 1.7;
   opacity: 0.6;
   color: var(--wre-text);
+}
+
+#wre-notes-modal .wre-notes-warn-actions {
+  margin-top: 8px;
+}
+
+/* ---------- Key 引导态（未配置 / 已失效） ---------- */
+
+#wre-notes-modal .wre-notes-guide {
+  margin-top: 16px;
+  padding: 22px 18px;
+  border: 1px dashed var(--wre-border);
+  border-radius: var(--wre-border-radius);
+  text-align: center;
+  color: var(--wre-text);
+}
+
+#wre-notes-modal .wre-notes-guide-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#wre-notes-modal .wre-notes-guide-text {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.8;
+  opacity: 0.8;
+}
+
+#wre-notes-modal .wre-notes-guide-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
 }
 
 /* ---------- 选中复制浮标 ---------- */

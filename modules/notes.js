@@ -1,24 +1,33 @@
 /**
- * 微信悦读 · 笔记增强模块（v0.10.0）
+ * 微信悦读 · 笔记增强模块（v0.11.0）
  *
  * 定位：独立模块，不改动 content.js 既有逻辑。通过 manifest 的 content_scripts
  * 在 content.js 之前加载，与 content.js 共享同一个隔离世界（isolated world），
  * 可直接复用 content.js 的全局函数（如 log）与 #we-read-enhancer-root 容器。
  *
  * 职责：
+ *   0. Key 必选：读取划线/想法依赖「官方 API Key」（wrk- 开头）。未配置或已失效时
+ *      不再尝试其它来源，面板直接进入「引导态」，并一键跳转到「☁️ 官方数据 → 设置」。
  *   1. 数据获取：优先微信读书「同源接口」（用你自己的登录态，数据不外传），
  *      接口不可用时回退「页面抓取」，并在面板上明示数据来源
- *   2. 面板：主菜单「📝 笔记」入口，按章节分组展示本书划线、想法与批注
- *   3. 导出：Markdown / 纯文本（按 RPD 9.2.2 的结构）
- *   4. 选中即复制：选中正文文字后在选区旁显示「复制」浮标，一键复制
- *   5. Ctrl/Cmd+C 增强：拦截 copy 事件，清掉官方附加的版权声明（水印）
- *   6. 点击条目跳原文：同书直接在当前页定位；跨书打开阅读页后延时定位（尽力而为）
+ *   2. 面板：主菜单「📝 笔记」入口，按章节分组展示本书划线、想法与批注；内置搜索框，
+ *      输入关键词实时过滤（命中章节名整组保留，否则按「摘要 + 正文」逐条匹配），便于定位某条笔记
+ *   3. 导出：Markdown / 纯文本 / HTML / PDF（打印视图），样式与「阅读统计」报表同一套
+ *   4. 复制笔记：一次复制全文（剪贴板同时带「富文本」与「干净纯文本」——粘到富文本编辑器
+ *      用前者保留排版，粘到记事本/微信等纯文本场景用后者，纯文本不含 Markdown 符号）
+ *   5. 选中即复制：选中正文文字后在选区旁显示「复制」浮标，一键复制
+ *   6. Ctrl/Cmd+C 增强：拦截 copy 事件，清掉官方附加的版权声明（水印）
  *
- * 数据来源说明（重要）：
- *   - 接口路径（均为 weread.qq.com 同源，走浏览器自带的登录 Cookie）：
- *       GET  /web/book/bookmarklist?bookId=<id>
- *       GET  /web/review/list?bookId=<id>&listType=11&mine=1&synckey=0&listMode=1
- *       POST /web/book/chapterInfos      （用于拿章节名与章节顺序）
+ * 数据来源说明（重要，优先级由高到低）：
+ *   1. 官方 Agent 网关（推荐，需先在「☁️ 官方数据 → 设置」配好 wrk- Key）：
+ *        POST https://i.weread.qq.com/api/agent/gateway（由 background.js 代发）
+ *        api_name=/book/bookmarklist（划线）
+ *        api_name=/review/list/mine（想法/批注，注意参数是小写 bookid）
+ *   2. 微信读书网页同源接口（备用，走浏览器登录 Cookie，可能被反爬拦截）：
+ *        GET  /web/book/bookmarklist?bookId=<id>
+ *        GET  /web/review/list?bookId=<id>&listType=11&mine=1&synckey=0&listMode=1
+ *        POST /web/book/chapterInfos      （用于拿章节名与章节顺序）
+ *   3. 页面抓取（最后兜底，只能拿到当前已渲染内容，可能不完整）
  *   - 不向任何第三方服务器发送数据；面板数据只在内存里缓存 5 分钟，不落盘。
  */
 (function () {
@@ -27,8 +36,6 @@
   const NOTES_CACHE_TTL = 5 * 60 * 1000; // 面板数据内存缓存时长
   // 阅读页 URL 形如 /web/reader/{bookId}k{chapterHash}，需整体捕获后再切出 bookId
   const READER_SEGMENT_RE = /\/web\/reader\/([^/?#]+)/;
-  const PENDING_JUMP_KEY = 'wrePendingJump'; // 跨书跳转的待办定位（存 localStorage，跨标签页可见）
-  const PENDING_JUMP_TTL = 2 * 60 * 1000;
   const MIN_SELECTION_LENGTH = 1;
   const MAX_SELECTION_LENGTH = 2000;
 
@@ -45,8 +52,8 @@
 
   let cache = { bookId: null, at: 0, data: null };
   let panelTab = 'highlights';
-  let panelState = { loading: false, error: '', emptyReason: '', data: null };
-  let jumpTargets = []; // 当前面板条目的跳转信息，index ↔ DOM data 属性
+  let searchQuery = ''; // 笔记搜索关键词（实时过滤划线/想法）
+  let panelState = { loading: false, error: '', emptyReason: '', needsKey: '', data: null };
 
   // ---------- 通用小工具 ----------
 
@@ -357,7 +364,224 @@
     return map;
   }
 
+  // ---------- 数据层：官方 Agent 网关（已配置 wrk- Key 时优先） ----------
+
+  // 与后台 service worker 通信：Key 与网关请求都只在后台发生，内容脚本拿不到 Key
+  function sendBg(message) {
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage(message, (response) => {
+          if (chrome.runtime.lastError) {
+            resolve({ ok: false, code: 'channel', error: '扩展后台未响应，请重新加载扩展后再试' });
+            return;
+          }
+          resolve(response || { ok: false, code: 'empty', error: '后台无响应内容' });
+        });
+      } catch (err) {
+        resolve({ ok: false, code: 'channel', error: '扩展后台通信失败：' + (err && err.message ? err.message : '未知错误') });
+      }
+    });
+  }
+
+  // Key 必选：判断后台返回是否属于「Key 缺失/失效」这类必须先去配置的错误
+  //   code 'nokey' → 从未配置；code 'auth' → HTTP 401/403，Key 无效或已失效
+  function isKeyError(result) {
+    return !!result && (result.code === 'nokey' || result.code === 'auth');
+  }
+
+  // 跳转到「☁️ 官方数据 → 设置」页：跨模块用 document 自定义事件解耦，
+  // 由 modules/official.js 监听并打开设置页（不模拟点击、不暴露全局函数）
+  function openOfficialKeySettings() {
+    logNotes('info', '引导用户前往「官方数据 → 设置」配置 API Key');
+    document.dispatchEvent(new CustomEvent('wre-open-key-settings'));
+    closePanel();
+  }
+
+  // 官方网关的章节表：chapters[{ chapterUid, chapterIdx, title }]
+  function buildChapterMapFromOfficial(chapters) {
+    const map = {};
+    (Array.isArray(chapters) ? chapters : []).forEach((chapter, index) => {
+      if (chapter && chapter.chapterUid != null) {
+        map[String(chapter.chapterUid)] = {
+          name: chapter.title || chapter.chapterName || '',
+          index: chapter.chapterIdx != null ? chapter.chapterIdx : index,
+        };
+      }
+    });
+    return map;
+  }
+
+  // 用书名反查官方 bookId（/store/search）。网页阅读页 URL 里的 ID 与官方接口的 bookId
+  // 可能属于两套编号，直接用 URL 里的 ID 调笔记接口会回 -2003「参数格式错误」。
+  async function resolveOfficialBookId(title) {
+    const keyword = String(title || '').trim();
+    if (!keyword) {
+      return '';
+    }
+    const res = await sendBg({
+      type: 'wre-official-call',
+      apiName: '/store/search',
+      params: { keyword: keyword, scope: 10 },
+    });
+    if (!res.ok || !res.data) {
+      logNotes('warn', '官方 bookId 反查失败', { keyword, code: res.code || '', error: res.error || '' });
+      return '';
+    }
+    const candidates = [];
+    pickArrayDeep(res.data, '', ['results']).forEach((group) => {
+      pickArrayDeep(group, '', ['books']).forEach((entry) => {
+        const info = (entry && entry.bookInfo) || entry || {};
+        if (info.bookId) {
+          candidates.push({ bookId: info.bookId, title: info.title || '' });
+        }
+      });
+    });
+    logNotes('info', '官方 bookId 反查结果', { keyword, candidates: candidates.slice(0, 3) });
+    if (candidates.length === 0) {
+      return '';
+    }
+    // 优先取书名对得上的那本，避免搜到同名/相似书导致取错笔记
+    const exact = candidates.find((item) => item.title && (
+      item.title === keyword || item.title.indexOf(keyword) === 0 || keyword.indexOf(item.title) === 0
+    ));
+    return (exact || candidates[0]).bookId;
+  }
+
+  // /review/list/mine 是分页接口（默认每页 20 条），循环取完，避免想法多于 20 条时被截断
+  async function fetchOfficialReviews(bookId) {
+    const items = [];
+    let synckey = 0;
+    let more = true;
+    let lastData = null;
+    for (let page = 0; page < 10 && more; page += 1) {
+      const res = await sendBg({
+        type: 'wre-official-call',
+        apiName: '/review/list/mine',
+        params: { bookid: bookId, synckey: synckey, count: 50 },
+      });
+      if (!res.ok || !res.data) {
+        return { ok: items.length > 0, items: items, keys: [], code: res.code || '', error: res.error || '' };
+      }
+      pickArrayDeep(res.data, bookId, ['reviews']).forEach((item) => items.push(item));
+      synckey = res.data.synckey != null ? res.data.synckey : synckey;
+      more = Number(res.data.hasMore) === 1;
+      lastData = res.data;
+    }
+    return { ok: true, items: items, keys: lastData ? Object.keys(lastData) : [], code: '', error: '' };
+  }
+
+  // 尝试走官方网关取本书笔记。
+  //   - Key 缺失/失效 → 返回 { __needsKey: 'missing'|'invalid' }，由上层转「引导态」
+  //   - 其它失败或取不到任何数据 → 返回 null，交给网页同源接口 / 页面抓取兜底
+  async function fetchBookNotesViaOfficial(bookId) {
+    const status = await sendBg({ type: 'wre-official-status' });
+    if (!status.ok || !status.hasKey) {
+      return { __needsKey: 'missing' }; // 没配 Key：Key 必选，交由上层引导配置
+    }
+
+    // 官方易错点：划线接口参数是驼峰 bookId，想法接口参数是小写 bookid
+    const withBookId = async (id) => {
+      const [b, r] = await Promise.all([
+        sendBg({ type: 'wre-official-call', apiName: '/book/bookmarklist', params: { bookId: id } }),
+        fetchOfficialReviews(id),
+      ]);
+      return { b: b, r: r };
+    };
+
+    let attempt = await withBookId(bookId);
+    let usedBookId = bookId;
+    if (isKeyError(attempt.b) || isKeyError(attempt.r)) {
+      // Key 缺失/失效不属于「bookId 不对」，反查重试没有意义，直接引导去配置
+      logNotes('warn', '官方网关鉴权失败（Key 缺失或失效），引导去配置', {
+        bookmark: { code: attempt.b.code, error: attempt.b.error },
+        review: { code: attempt.r.code, error: attempt.r.error },
+      });
+      const missing = attempt.b.code === 'nokey' || attempt.r.code === 'nokey';
+      return { __needsKey: missing ? 'missing' : 'invalid' };
+    }
+    if (!attempt.b.ok && !attempt.r.ok) {
+      logNotes('warn', '官方网关取笔记失败，尝试用书名反查 bookId 后重试', {
+        bookId,
+        bookmark: { code: attempt.b.code, error: attempt.b.error, snippet: attempt.b.snippet || '' },
+        review: { code: attempt.r.code, error: attempt.r.error, snippet: attempt.r.snippet || '' },
+      });
+      const altBookId = await resolveOfficialBookId(getBookTitle());
+      if (altBookId && altBookId !== bookId) {
+        const retry = await withBookId(altBookId);
+        logNotes('info', '官方 bookId 反查重试结果', {
+          urlBookId: bookId,
+          altBookId,
+          bookmarkOk: retry.b.ok,
+          reviewOk: retry.r.ok,
+          bookmarkError: retry.b.ok ? '' : (retry.b.error || ''),
+          reviewError: retry.r.ok ? '' : (retry.r.error || ''),
+        });
+        if (retry.b.ok || retry.r.ok) {
+          attempt = retry;
+          usedBookId = altBookId;
+        }
+      }
+    }
+
+    const bookmarkRes = attempt.b;
+    const reviewRes = attempt.r;
+    if (isKeyError(bookmarkRes) || isKeyError(reviewRes)) {
+      const missing = bookmarkRes.code === 'nokey' || reviewRes.code === 'nokey';
+      logNotes('warn', '官方网关鉴权失败（重试后仍失败），引导去配置');
+      return { __needsKey: missing ? 'missing' : 'invalid' };
+    }
+    if (!bookmarkRes.ok && !reviewRes.ok) {
+      logNotes('warn', '官方网关两个接口均不可用，回退网页接口', { bookId });
+      return null;
+    }
+
+    const bookmarkData = bookmarkRes.ok ? bookmarkRes.data : null;
+    const highlights = pickArrayDeep(bookmarkData, usedBookId, ['updated', 'bookmarks', 'bookmarkList'])
+      .map(normalizeBookmark)
+      .filter(Boolean);
+    const thoughts = (reviewRes.items || [])
+      .map(normalizeReview)
+      .filter(Boolean);
+
+    logNotes('info', '官方网关取笔记完成', {
+      requestedBookId: bookId,
+      usedBookId,
+      highlights: highlights.length,
+      thoughts: thoughts.length,
+      chapterCount: bookmarkData && Array.isArray(bookmarkData.chapters) ? bookmarkData.chapters.length : 0,
+      bookmarkKeys: bookmarkData ? Object.keys(bookmarkData) : [],
+      reviewKeys: reviewRes.keys || [],
+    });
+
+    if (highlights.length === 0 && thoughts.length === 0 && (!bookmarkRes.ok || !reviewRes.ok)) {
+      // 有接口失败且没取到任何数据 → 无法判断是「真没笔记」还是「取失败」，交旧路兜底
+      return null;
+    }
+
+    return {
+      source: 'official',
+      sourceNote: '数据来自微信读书官方网关（用你自己的 API Key 读取，只存本机、不外传）' +
+        (bookmarkRes.ok && reviewRes.ok ? '' : '；有一项数据本次未取到，可能不完整'),
+      highlights,
+      thoughts,
+      chapterMap: buildChapterMapFromOfficial(bookmarkData && bookmarkData.chapters),
+    };
+  }
+
   async function fetchBookNotes(bookId) {
+    // 1) 优先官方网关（Key 必选；缺失/失效时抛 needsKey，由上层转「引导态」）
+    const official = await fetchBookNotesViaOfficial(bookId);
+    if (official && official.__needsKey) {
+      const err = new Error('需要先配置或更新 API Key');
+      err.code = 'needsKey';
+      err.reason = official.__needsKey;
+      throw err;
+    }
+    if (official) {
+      return official;
+    }
+
+    // 2) 回退网页同源接口
     const [bookmarkRes, reviewRes, chapterRes] = await Promise.all([
       requestJson('/web/book/bookmarklist?bookId=' + encodeURIComponent(bookId), null, 'bookmarklist'),
       requestJson('/web/book/review/list?bookId=' + encodeURIComponent(bookId) + '&listType=11&mine=1&synckey=0&listMode=1', null, 'review/list'),
@@ -498,11 +722,22 @@
     const context = getBookContext();
     panelState.error = '';
     panelState.emptyReason = '';
+    panelState.needsKey = '';
     if (!context.bookId) {
       panelState.data = null;
       panelState.loading = false;
       panelState.emptyReason = '当前不在微信读书阅读页，先打开一本书的阅读页再来～';
       renderPanel();
+      return null;
+    }
+    // Key 必选：先确认已配置 API Key，未配置直接进「引导态」，不尝试网页/抓取兜底
+    const keyStatus = await sendBg({ type: 'wre-official-status' });
+    if (!keyStatus.ok || !keyStatus.hasKey) {
+      panelState.data = null;
+      panelState.loading = false;
+      panelState.needsKey = 'missing';
+      renderPanel();
+      logNotes('warn', '未配置官方 API Key，拦截笔记读取并引导去配置');
       return null;
     }
     const now = Date.now();
@@ -519,6 +754,14 @@
     try {
       data = await fetchBookNotes(context.bookId);
     } catch (error) {
+      if (error && error.code === 'needsKey') {
+        panelState.loading = false;
+        panelState.data = null;
+        panelState.needsKey = error.reason || 'invalid';
+        renderPanel();
+        logNotes('warn', '官方 API Key 失效，已拦截笔记读取并引导重新配置', { reason: error.reason || '' });
+        return null;
+      }
       if (error && error.code === 'unauthorized') {
         panelState.loading = false;
         panelState.data = null;
@@ -528,10 +771,14 @@
         return null;
       }
       data = scrapeDomNotes();
-      logNotes('warn', '两个接口都不可用，已回退页面抓取（可能不完整）', {
+      logNotes('warn', '官方网关与网页接口都不可用，已回退页面抓取（可能不完整）', {
         bookId: context.bookId,
         error: error && error.message ? String(error.message) : String(error),
       });
+      // Key 已配置却仍失败：多为网关临时抖动或 bookId 反查失败，提示去「设置」检查 Key
+      data.sourceNote = '官方网关与网页接口本次都不可用，已回退「页面抓取」，只能拿到当前已渲染的内容。' +
+        '可到「☁️ 官方数据 → 设置」检查 API Key 状态后点「重新检测」。';
+      data.needKeyHint = true;
     }
     data.bookId = context.bookId;
     data.title = context.title || '';
@@ -603,6 +850,7 @@
     const body = overlay.querySelector('#wre-notes-body');
     if (body) {
       body.addEventListener('click', handlePanelClick);
+      body.addEventListener('input', handlePanelInput);
     }
     root.appendChild(overlay);
     return overlay;
@@ -616,6 +864,7 @@
     const overlay = buildPanel(root);
     overlay.classList.add('wre-visible');
     panelTab = panelTab === 'thoughts' ? 'thoughts' : 'highlights';
+    searchQuery = '';
     renderPanel();
     logNotes('info', '打开笔记面板');
     loadNotes(false).catch((error) => {
@@ -644,7 +893,10 @@
           : '正在读取…') + '</div>' +
         '<div class="wre-notes-actions">' +
           '<button class="wre-btn wre-btn-small" data-wre-notes-refresh>刷新</button>' +
+          '<button class="wre-btn wre-btn-small" data-wre-notes-copy>复制笔记</button>' +
           '<button class="wre-btn wre-btn-small" data-wre-notes-export="markdown">导出 Markdown</button>' +
+          '<button class="wre-btn wre-btn-small" data-wre-notes-export="html">导出 HTML</button>' +
+          '<button class="wre-btn wre-btn-small" data-wre-notes-export="pdf">导出 PDF</button>' +
           '<button class="wre-btn wre-btn-small" data-wre-notes-export="text">导出纯文本</button>' +
         '</div>' +
       '</div>';
@@ -659,26 +911,55 @@
       '</div>';
   }
 
+  function renderSearchBar() {
+    return '<div class="wre-notes-search">' +
+        '<input type="text" class="wre-notes-search-input" data-wre-notes-search ' +
+          'placeholder="搜索划线 / 想法内容…" autocomplete="off" spellcheck="false" value="' + escapeHtml(searchQuery) + '">' +
+        (searchQuery
+          ? '<button class="wre-notes-search-clear" data-wre-notes-search-clear title="清空搜索">×</button>'
+          : '') +
+      '</div>';
+  }
+
+  // 按关键词过滤分组：章节名命中 → 该章节整组保留；否则按「摘要 + 正文」逐条匹配
+  function filterGroups(groups) {
+    const keyword = searchQuery.trim().toLowerCase();
+    if (!keyword) {
+      return { groups: groups, matched: 0, active: false };
+    }
+    const result = [];
+    let matched = 0;
+    groups.forEach((group) => {
+      if (group.name.toLowerCase().indexOf(keyword) !== -1) {
+        result.push(group);
+        matched += group.items.length;
+        return;
+      }
+      const items = group.items.filter((item) => {
+        return ((item.abstract || '') + ' ' + (item.text || '')).toLowerCase().indexOf(keyword) !== -1;
+      });
+      if (items.length > 0) {
+        result.push(Object.assign({}, group, { items: items }));
+        matched += items.length;
+      }
+    });
+    return { groups: result, matched: matched, active: true };
+  }
+
   function renderGroups(groups, emptyText) {
     if (groups.length === 0) {
       return '<div class="wre-notes-empty">' + emptyText + '</div>';
     }
     return groups.map((group) => {
       const items = group.items.map((item) => {
-        const index = jumpTargets.length;
-        jumpTargets.push({
-          bookId: cache.bookId || '',
-          anchorText: item.abstract || item.text || '',
-          chapterName: group.name,
-        });
         if (item.kind === 'thought') {
-          return '<div class="wre-notes-item is-thought" data-wre-notes-jump="' + index + '" title="点击尝试定位到原文">' +
+          return '<div class="wre-notes-item is-thought">' +
               (item.abstract ? '<div class="wre-notes-quote">' + escapeHtml(item.abstract) + '</div>' : '') +
               '<div class="wre-notes-thought">' + escapeHtml(item.text) + '</div>' +
               '<div class="wre-notes-meta">' + escapeHtml(formatDateTime(item.createTime)) + '</div>' +
             '</div>';
         }
-        return '<div class="wre-notes-item" data-wre-notes-jump="' + index + '" title="点击尝试定位到原文">' +
+        return '<div class="wre-notes-item">' +
             '<div class="wre-notes-text">' + escapeHtml(item.text) + '</div>' +
             (item.createTime ? '<div class="wre-notes-meta">' + escapeHtml(formatDateTime(item.createTime)) + '</div>' : '') +
           '</div>';
@@ -692,6 +973,24 @@
     }).join('');
   }
 
+  // 「引导态」：Key 未配置或已失效时的拦截视图，一键跳去官方数据设置页
+  function renderKeyGuide(reason) {
+    const invalid = reason === 'invalid';
+    const title = invalid ? '⚠️ API Key 已失效' : '🔑 需要先配置 API Key';
+    const text = invalid
+      ? '本机保存的 API Key 未能通过官方校验（可能已过期或被重置）。请到「☁️ 官方数据 → 设置」重新填写后再回来使用笔记功能。'
+      : '读取本书的划线 / 想法需要「微信读书官方 API Key」（wrk- 开头）。配置一次即可长期使用，Key 只保存在本机、不会上传。';
+    return '<div class="wre-notes-guide">' +
+        '<div class="wre-notes-guide-title">' + title + '</div>' +
+        '<div class="wre-notes-guide-text">' + escapeHtml(text) + '</div>' +
+        '<div class="wre-notes-guide-actions">' +
+          '<button class="wre-btn" data-wre-notes-goto-key>⚙️ 去配置 Key</button>' +
+          '<button class="wre-btn wre-btn-small" data-wre-notes-recheck>我已配置，重新检测</button>' +
+        '</div>' +
+        '<div class="wre-notes-note">获取方式：微信读书 App →「微信读书 Skill」页面 → 复制 wrk- 开头的 API Key。</div>' +
+      '</div>';
+  }
+
   function renderPanel() {
     const root = document.getElementById('we-read-enhancer-root');
     const body = root ? root.querySelector('#wre-notes-body') : null;
@@ -699,7 +998,11 @@
       return;
     }
     const data = panelState.data || (cache.data && cache.bookId === getBookContext().bookId ? cache.data : null);
-    jumpTargets = [];
+
+    if (panelState.needsKey) {
+      body.innerHTML = renderKeyGuide(panelState.needsKey);
+      return;
+    }
 
     if (panelState.loading && !data) {
       body.innerHTML = renderToolbar(null) + '<div class="wre-notes-empty">正在读取笔记…</div>';
@@ -718,26 +1021,90 @@
     }
 
     const scrollTop = body.scrollTop;
-    const groups = panelTab === 'thoughts' ? data.thoughtGroups : data.highlightGroups;
-    const emptyText = panelTab === 'thoughts'
+    const allGroups = panelTab === 'thoughts' ? data.thoughtGroups : data.highlightGroups;
+    const filtered = filterGroups(allGroups);
+    const baseEmptyText = panelTab === 'thoughts'
       ? '这本书还没有想法/批注～'
       : '这本书还没有划线～';
+
+    let groupHtml;
+    if (filtered.active && filtered.groups.length === 0) {
+      groupHtml = '<div class="wre-notes-empty">没有找到包含「' + escapeHtml(searchQuery.trim()) + '」的' +
+        (panelTab === 'thoughts' ? '想法/批注' : '划线') + '</div>';
+    } else {
+      groupHtml = renderGroups(filtered.groups, baseEmptyText) +
+        (filtered.active
+          ? '<div class="wre-notes-note">找到 ' + filtered.matched + ' 条匹配</div>'
+          : '');
+    }
+
     body.innerHTML = renderToolbar(data) +
+      renderSearchBar() +
       renderTabs(data) +
-      (data.source === 'dom' || data.source === 'mixed' ? '<div class="wre-notes-warn">' + escapeHtml(data.sourceNote) + '</div>' : '') +
-      renderGroups(groups, emptyText) +
-      '<div class="wre-notes-note">' + escapeHtml(data.sourceNote || '') + '</div>' +
-      '<div class="wre-notes-note">点击任意条目，会尝试在正文里定位这段原文（同书直接定位；换书会打开阅读页后定位）。</div>';
+      (data.source === 'dom' || data.source === 'mixed'
+        ? '<div class="wre-notes-warn">' + escapeHtml(data.sourceNote) +
+          (data.needKeyHint
+            ? '<div class="wre-notes-warn-actions"><button class="wre-btn wre-btn-small" data-wre-notes-goto-key>去设置检查 Key</button></div>'
+            : '') +
+          '</div>'
+        : '') +
+      groupHtml +
+      '<div class="wre-notes-note">' + escapeHtml(data.sourceNote || '') + '</div>';
     body.scrollTop = scrollTop;
   }
 
+  // 搜索框实时输入：更新关键词并重绘，重绘后恢复焦点与光标位置（避免每次击键失焦）
+  function handlePanelInput(event) {
+    const input = event.target;
+    if (!input || !input.closest || !input.closest('[data-wre-notes-search]')) {
+      return;
+    }
+    searchQuery = input.value;
+    renderPanel();
+    const box = document.querySelector('[data-wre-notes-search]');
+    if (box) {
+      box.focus();
+      const caret = searchQuery.length;
+      try {
+        box.setSelectionRange(caret, caret);
+      } catch (err) {
+        /* 部分输入框不支持 setSelectionRange，忽略 */
+      }
+    }
+  }
+
   function handlePanelClick(event) {
+    if (event.target.closest('[data-wre-notes-search-clear]')) {
+      searchQuery = '';
+      renderPanel();
+      const box = document.querySelector('[data-wre-notes-search]');
+      if (box) {
+        box.focus();
+      }
+      return;
+    }
+    if (event.target.closest('[data-wre-notes-goto-key]')) {
+      openOfficialKeySettings();
+      return;
+    }
+    if (event.target.closest('[data-wre-notes-recheck]')) {
+      cache = { bookId: null, at: 0, data: null };
+      loadNotes(true).catch((error) => {
+        logNotes('error', '重新检测 Key 后读取失败', { error: String(error && error.message ? error.message : error) });
+      });
+      return;
+    }
     const refresh = event.target.closest('[data-wre-notes-refresh]');
     if (refresh) {
       cache = { bookId: null, at: 0, data: null };
       loadNotes(true).catch((error) => {
         logNotes('error', '刷新笔记失败', { error: String(error && error.message ? error.message : error) });
       });
+      return;
+    }
+    const copyBtn = event.target.closest('[data-wre-notes-copy]');
+    if (copyBtn) {
+      handleCopyNotes();
       return;
     }
     const exportBtn = event.target.closest('[data-wre-notes-export]');
@@ -751,11 +1118,6 @@
       renderPanel();
       return;
     }
-    const jump = event.target.closest('[data-wre-notes-jump]');
-    if (jump) {
-      const index = Number(jump.getAttribute('data-wre-notes-jump'));
-      jumpToItem(jumpTargets[index]);
-    }
   }
 
   // ---------- 导出 ----------
@@ -764,12 +1126,26 @@
     return panelState.data || (cache.data && cache.bookId === getBookContext().bookId ? cache.data : null);
   }
 
+  function sourceLabel(data) {
+    if (data.source === 'official') {
+      return '微信读书官方网关（本地读取）';
+    }
+    if (data.source === 'api') {
+      return '微信读书接口（本地读取）';
+    }
+    return '页面抓取（可能不完整）';
+  }
+
+  function escapeMultiline(text) {
+    return escapeHtml(text).replace(/\n/g, '<br>');
+  }
+
   function buildMarkdown(data) {
     const lines = [];
     lines.push('# 《' + (data.title || '未知书籍') + '》读书笔记');
     lines.push('');
     lines.push('- 导出时间：' + formatDateTime(Date.now()));
-    lines.push('- 数据来源：' + (data.source === 'api' ? '微信读书接口（本地读取）' : '页面抓取（可能不完整）'));
+    lines.push('- 数据来源：' + sourceLabel(data));
     lines.push('- 划线 ' + data.highlights.length + ' 条 · 想法/批注 ' + data.thoughts.length + ' 条');
     lines.push('');
     lines.push('## 划线');
@@ -856,6 +1232,264 @@
     return lines.join('\n');
   }
 
+  // ---------- 复制 / 导出 HTML / 导出 PDF ----------
+
+  // 导出样式：与「阅读统计」报表保持同一套视觉语言（绿色主色 / 卡片 / 打印优化）
+  function notesReportStyles() {
+    return [
+      ':root{--accent:#07c160;--accent-soft:#e8f8ef;--ink:#1f2328;--ink-2:#5b6570;--line:#e8ebe9;--bg:#f4f6f5}',
+      '*{box-sizing:border-box}',
+      'html,body{margin:0;padding:0}',
+      'body{background:var(--bg);color:var(--ink);font:14px/1.75 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}',
+      '.page{max-width:820px;margin:32px auto;padding:40px 44px;background:#fff;border-radius:18px;box-shadow:0 12px 32px rgba(17,24,28,.08)}',
+      '.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding-bottom:22px;border-bottom:2px solid var(--line)}',
+      '.hero h1{margin:0;font-size:24px;line-height:1.4;letter-spacing:.3px}',
+      '.hero h1::before{content:"";display:inline-block;width:10px;height:22px;margin-right:10px;border-radius:3px;background:var(--accent);vertical-align:-2px}',
+      '.hero .sub{margin:8px 0 0;font-size:12px;color:var(--ink-2)}',
+      '.hero .meta{text-align:right;font-size:12px;color:var(--ink-2);white-space:nowrap}',
+      '.hero .meta strong{display:block;margin-top:2px;font-size:14px;color:var(--ink)}',
+      '.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:26px 0 8px}',
+      '.card{padding:16px 18px;border-radius:14px;background:var(--accent-soft);border-left:4px solid var(--accent)}',
+      '.card .label{font-size:12px;color:var(--ink-2)}',
+      '.card .value{margin-top:8px;font-size:20px;font-weight:700}',
+      '.block{margin-top:32px}',
+      '.block>h2{margin:0 0 14px;font-size:15px;font-weight:600}',
+      '.block>h2 span{color:var(--ink-2);font-weight:400;font-size:12px;margin-left:6px}',
+      '.chapter{margin-bottom:22px}',
+      '.chapter h3{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 0 10px;padding-bottom:6px;border-bottom:1px dashed var(--line);font-size:13.5px;font-weight:600;color:var(--accent)}',
+      '.chapter h3 .count{flex:none;font-size:12px;font-weight:400;color:var(--ink-2)}',
+      'ol.highlights{margin:0;padding-left:22px}',
+      'ol.highlights>li{margin-bottom:12px}',
+      'ol.highlights>li::marker{color:var(--accent);font-weight:600}',
+      'ol.highlights p{margin:0}',
+      '.thought{margin-bottom:14px;padding:12px 16px;background:#fafbfa;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:0 12px 12px 0}',
+      '.thought blockquote{margin:0 0 8px;padding:0;font-size:13px;color:var(--ink-2)}',
+      '.thought blockquote::before{content:"「"}',
+      '.thought blockquote::after{content:"」"}',
+      '.thought .text{margin:0}',
+      'time{display:block;margin-top:6px;font-size:12px;color:#9aa3ab}',
+      '.empty{padding:18px;font-size:13px;color:var(--ink-2);background:#fafbfa;border:1px dashed var(--line);border-radius:10px}',
+      '.foot{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;line-height:1.8;color:var(--ink-2)}',
+      '.print-btn{position:fixed;right:24px;bottom:24px;padding:12px 20px;border:0;border-radius:999px;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 8px 20px rgba(7,193,96,.35)}',
+      '.print-btn:hover{filter:brightness(1.05)}',
+      '@media screen{body{padding-bottom:96px}}',
+      '@media (max-width:720px){.page{margin:16px;padding:24px}.cards{grid-template-columns:1fr}.hero{flex-direction:column;align-items:flex-start}.hero .meta{text-align:left}}',
+      '@media print{@page{size:A4;margin:14mm}body{background:#fff}.page{max-width:none;margin:0;padding:0;border-radius:0;box-shadow:none}.no-print{display:none!important}.chapter,.thought,ol.highlights>li{break-inside:avoid}.chapter h3{break-after:avoid}}',
+    ].join('');
+  }
+
+  function countChapters(data) {
+    const names = {};
+    data.highlightGroups.concat(data.thoughtGroups).forEach((group) => {
+      names[group.name] = 1;
+    });
+    return Object.keys(names).length;
+  }
+
+  function buildHighlightChapter(group) {
+    const items = group.items.map((item) =>
+      '<li><p>' + escapeMultiline(item.text) + '</p>' +
+        (item.createTime ? '<time>' + escapeHtml(formatDateTime(item.createTime)) + '</time>' : '') +
+      '</li>'
+    ).join('');
+    return '<div class="chapter"><h3>' + escapeHtml(group.name) +
+      '<span class="count">' + group.items.length + ' 条</span></h3>' +
+      '<ol class="highlights">' + items + '</ol></div>';
+  }
+
+  function buildThoughtChapter(group) {
+    const items = group.items.map((item) =>
+      '<div class="thought">' +
+        (item.abstract ? '<blockquote>' + escapeMultiline(item.abstract) + '</blockquote>' : '') +
+        '<p class="text">' + escapeMultiline(item.text) + '</p>' +
+        (item.createTime ? '<time>' + escapeHtml(formatDateTime(item.createTime)) + '</time>' : '') +
+      '</div>'
+    ).join('');
+    return '<div class="chapter"><h3>' + escapeHtml(group.name) +
+      '<span class="count">' + group.items.length + ' 条</span></h3>' + items + '</div>';
+  }
+
+  function buildNotesReportBody(data) {
+    const parts = [
+      '<header class="hero">',
+      '  <div><h1>《' + escapeHtml(data.title || '未知书籍') + '》读书笔记</h1>',
+      '    <p class="sub">' + escapeHtml(sourceLabel(data)) + '</p></div>',
+      '  <div class="meta">导出时间<strong>' + escapeHtml(formatDateTime(Date.now())) + '</strong></div>',
+      '</header>',
+      '<div class="cards">',
+      '  <div class="card"><div class="label">划线</div><div class="value">' + data.highlights.length + ' 条</div></div>',
+      '  <div class="card"><div class="label">想法 / 批注</div><div class="value">' + data.thoughts.length + ' 条</div></div>',
+      '  <div class="card"><div class="label">覆盖章节</div><div class="value">' + countChapters(data) + ' 个</div></div>',
+      '</div>',
+    ];
+
+    parts.push('<div class="block"><h2>划线<span>共 ' + data.highlights.length + ' 条</span></h2>');
+    if (data.highlightGroups.length === 0) {
+      parts.push('<div class="empty">这本书还没有划线～</div>');
+    } else {
+      data.highlightGroups.forEach((group) => parts.push(buildHighlightChapter(group)));
+    }
+    parts.push('</div>');
+
+    if (data.thoughts.length > 0) {
+      parts.push('<div class="block"><h2>想法与批注<span>共 ' + data.thoughts.length + ' 条</span></h2>');
+      if (data.thoughtGroups.length === 0) {
+        parts.push('<div class="empty">这本书还没有想法～</div>');
+      } else {
+        data.thoughtGroups.forEach((group) => parts.push(buildThoughtChapter(group)));
+      }
+      parts.push('</div>');
+    }
+
+    parts.push('<footer class="foot">',
+      '  <div>数据来源：' + escapeHtml(sourceLabel(data)) + '。</div>',
+      '  <div>由「微信悦读」在本地生成并导出，数据不会上传到任何服务器。</div>',
+      '</footer>');
+    return parts.join('\n');
+  }
+
+  function buildNotesReportHtml(data) {
+    return [
+      '<!DOCTYPE html>',
+      '<html lang="zh-CN">',
+      '<head>',
+      '<meta charset="utf-8">',
+      '<meta name="viewport" content="width=device-width,initial-scale=1">',
+      '<title>《' + escapeHtml(data.title || '未知书籍') + '》读书笔记</title>',
+      '<style>' + notesReportStyles() + '</style>',
+      '</head>',
+      '<body>',
+      '<div class="page">',
+      buildNotesReportBody(data),
+      '</div>',
+      '<button class="print-btn no-print" id="wre-notes-print">打印 / 另存为 PDF</button>',
+      '</body>',
+      '</html>',
+    ].join('\n');
+  }
+
+  // 复制用的富文本用内联样式：粘贴到 Word / 飞书 / 公众号编辑器等目标里也能保留排版
+  function buildNotesClipboardHtml(data) {
+    const style = {
+      h1: 'font-size:19px;margin:0 0 6px;line-height:1.5;',
+      meta: 'font-size:12px;color:#6b7280;margin:0 0 16px;',
+      h2: 'font-size:15px;margin:20px 0 8px;padding-bottom:4px;border-bottom:1px solid #e8ebe9;color:#07c160;',
+      h3: 'font-size:13.5px;margin:14px 0 6px;',
+      quote: 'margin:0 0 6px;padding:6px 10px;border-left:3px solid #07c160;background:#f6f8f7;color:#4b5563;font-size:13px;',
+      text: 'margin:0 0 4px;',
+      time: 'display:block;margin:2px 0 12px;font-size:12px;color:#9ca3af;',
+    };
+    const parts = [
+      '<div style="font:14px/1.75 -apple-system,BlinkMacSystemFont,\'PingFang SC\',\'Microsoft YaHei\',sans-serif;color:#1f2328;">',
+      '<p style="' + style.h1 + '"><strong>《' + escapeHtml(data.title || '未知书籍') + '》读书笔记</strong></p>',
+      '<p style="' + style.meta + '">划线 ' + data.highlights.length + ' 条 · 想法/批注 ' + data.thoughts.length + ' 条 · ' +
+        escapeHtml(sourceLabel(data)) + ' · ' + escapeHtml(formatDateTime(Date.now())) + '</p>',
+    ];
+    if (data.highlights.length > 0) {
+      parts.push('<p style="' + style.h2 + '"><strong>划线</strong></p>');
+      data.highlightGroups.forEach((group) => {
+        parts.push('<p style="' + style.h3 + '"><strong>' + escapeHtml(group.name) + '</strong>（' + group.items.length + ' 条）</p>');
+        parts.push('<ul style="margin:0 0 10px;padding-left:20px;">');
+        group.items.forEach((item) => {
+          parts.push('<li style="' + style.text + '">' + escapeMultiline(item.text) +
+            (item.createTime ? '<span style="' + style.time + '">' + escapeHtml(formatDateTime(item.createTime)) + '</span>' : '') +
+            '</li>');
+        });
+        parts.push('</ul>');
+      });
+    }
+    if (data.thoughts.length > 0) {
+      parts.push('<p style="' + style.h2 + '"><strong>想法与批注</strong></p>');
+      data.thoughtGroups.forEach((group) => {
+        parts.push('<p style="' + style.h3 + '"><strong>' + escapeHtml(group.name) + '</strong>（' + group.items.length + ' 条）</p>');
+        group.items.forEach((item) => {
+          parts.push('<div style="margin:0 0 10px;">');
+          if (item.abstract) {
+            parts.push('<p style="' + style.quote + '">' + escapeMultiline(item.abstract) + '</p>');
+          }
+          parts.push('<p style="' + style.text + '">' + escapeMultiline(item.text) + '</p>');
+          if (item.createTime) {
+            parts.push('<span style="' + style.time + '">' + escapeHtml(formatDateTime(item.createTime)) + '</span>');
+          }
+          parts.push('</div>');
+        });
+      });
+    }
+    parts.push('</div>');
+    return parts.join('');
+  }
+
+  // 一次性写入「富文本 + 干净纯文本」两种格式：粘到富文本编辑器用 HTML，
+  // 粘到记事本 / 微信等纯文本场景用 plainText（不含 Markdown 符号，直接可读）
+  async function copyNotesRich(plainText, html) {
+    if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/plain': new Blob([plainText], { type: 'text/plain' }),
+            'text/html': new Blob([html], { type: 'text/html' }),
+          }),
+        ]);
+        return 'rich';
+      } catch (error) {
+        logNotes('warn', '富文本复制失败，退回纯文本复制', { reason: String(error) });
+      }
+    }
+    return (await copyText(plainText)) ? 'text' : '';
+  }
+
+  async function handleCopyNotes() {
+    const data = currentData();
+    if (!data) {
+      toast('还没有可复制的笔记，先等数据读出来～');
+      logNotes('warn', '笔记数据未就绪，忽略复制请求');
+      return;
+    }
+    const mode = await copyNotesRich(buildPlainText(data), buildNotesClipboardHtml(data));
+    if (!mode) {
+      toast('复制失败，请重试');
+      logNotes('warn', '复制笔记失败');
+      return;
+    }
+    toast(mode === 'rich' ? '已复制笔记（可直接粘贴）' : '已复制笔记（纯文本）');
+    logNotes('info', '已复制笔记到剪贴板', {
+      mode,
+      highlights: data.highlights.length,
+      thoughts: data.thoughts.length,
+      source: data.source,
+    });
+  }
+
+  function openNotesForPrint(html) {
+    const win = window.open('', '_blank');
+    if (!win) {
+      toast('浏览器拦截了新窗口，请允许本站弹窗后重试');
+      logNotes('warn', 'PDF 导出被拦截：浏览器阻止了新窗口');
+      return false;
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    const printBtn = win.document.getElementById('wre-notes-print');
+    if (printBtn) {
+      printBtn.addEventListener('click', () => win.print());
+    }
+    // 等浏览器完成首帧渲染再唤起打印对话框
+    setTimeout(() => {
+      try {
+        win.print();
+      } catch (error) {
+        logNotes('warn', '唤起打印失败，可手动按 Ctrl/Cmd+P', { error: String(error) });
+      }
+    }, 400);
+    return true;
+  }
+
+  function exportFileName(data, ext) {
+    return '微信悦读-读书笔记-' + toDateKey(Date.now()) + '-' + sanitizeFileName(data.title || '未知书籍') + '.' + ext;
+  }
+
   function handleExport(format) {
     const data = currentData();
     if (!data) {
@@ -863,108 +1497,28 @@
       logNotes('warn', '笔记数据未就绪，忽略导出请求', { format });
       return;
     }
-    const suffix = toDateKey(Date.now()) + '-' + sanitizeFileName(data.title || '未知书籍');
-    if (format === 'text') {
-      downloadFile('微信悦读-读书笔记-' + suffix + '.txt', buildPlainText(data), 'text/plain;charset=utf-8');
-    } else {
-      downloadFile('微信悦读-读书笔记-' + suffix + '.md', buildMarkdown(data), 'text/markdown;charset=utf-8');
+    if (format === 'pdf') {
+      if (openNotesForPrint(buildNotesReportHtml(data))) {
+        toast('已打开打印视图，在对话框里选「另存为 PDF」即可');
+        logNotes('info', '已打开 PDF 打印视图', { highlights: data.highlights.length, thoughts: data.thoughts.length });
+      }
+      return;
     }
-    toast('已导出' + (format === 'text' ? '纯文本' : ' Markdown'));
+    if (format === 'html') {
+      downloadFile(exportFileName(data, 'html'), buildNotesReportHtml(data), 'text/html;charset=utf-8');
+    } else if (format === 'text') {
+      downloadFile(exportFileName(data, 'txt'), buildPlainText(data), 'text/plain;charset=utf-8');
+    } else {
+      downloadFile(exportFileName(data, 'md'), buildMarkdown(data), 'text/markdown;charset=utf-8');
+    }
+    const names = { html: ' HTML', text: '纯文本', markdown: ' Markdown' };
+    toast('已导出' + (names[format] || format));
     logNotes('info', '已导出笔记', {
       format,
       highlights: data.highlights.length,
       thoughts: data.thoughts.length,
       source: data.source,
     });
-  }
-
-  // ---------- 跳原文 ----------
-
-  function findTextInPage(text) {
-    const needle = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 30);
-    if (!needle) {
-      return false;
-    }
-    try {
-      if (typeof window.find === 'function') {
-        // aString, aCaseSensitive, aBackwards, aWrapAround
-        const found = window.find(needle, false, false, true);
-        if (found) {
-          logNotes('info', '已在正文定位到目标文本', { needle });
-          return true;
-        }
-      }
-    } catch (error) {
-      logNotes('warn', 'window.find 定位失败', { error: String(error) });
-    }
-    return false;
-  }
-
-  function jumpToItem(target) {
-    if (!target) {
-      return;
-    }
-    const context = getBookContext();
-    if (context.bookId && context.bookId === target.bookId) {
-      if (findTextInPage(target.anchorText)) {
-        toast('已定位到原文');
-      } else {
-        toast('当前章节里没找到这段原文，先翻到对应章节再试');
-      }
-      return;
-    }
-    const data = currentData();
-    try {
-      localStorage.setItem(PENDING_JUMP_KEY, JSON.stringify({
-        bookId: target.bookId,
-        text: target.anchorText,
-        at: Date.now(),
-      }));
-    } catch (error) {
-      logNotes('warn', '写入待定位目标失败', { error: String(error) });
-    }
-    logNotes('info', '跳转到其他书籍的阅读页', { bookId: target.bookId, title: data ? data.title : '' });
-    window.open('https://weread.qq.com/web/reader/' + target.bookId, '_blank');
-  }
-
-  // 页面加载后处理「从笔记面板跳过来」的待定位目标
-  function handlePendingJump() {
-    let pending = null;
-    try {
-      const raw = localStorage.getItem(PENDING_JUMP_KEY);
-      if (raw) {
-        pending = JSON.parse(raw);
-      }
-    } catch (error) {
-      pending = null;
-    }
-    if (!pending || !pending.text) {
-      return;
-    }
-    const context = getBookContext();
-    const expired = !pending.at || Date.now() - pending.at > PENDING_JUMP_TTL;
-    if (expired || !context.bookId || context.bookId !== pending.bookId) {
-      return;
-    }
-    try {
-      localStorage.removeItem(PENDING_JUMP_KEY);
-    } catch (error) {
-      // 忽略
-    }
-    let attempts = 0;
-    const timer = setInterval(() => {
-      attempts += 1;
-      if (findTextInPage(pending.text)) {
-        clearInterval(timer);
-        toast('已定位到原文');
-        return;
-      }
-      if (attempts >= 20) {
-        clearInterval(timer);
-        toast('没能自动定位到原文，可以手动翻到对应章节');
-        logNotes('warn', '跨书定位超时', { bookId: pending.bookId });
-      }
-    }, 500);
   }
 
   // ---------- 选中即复制 ----------
@@ -1124,7 +1678,6 @@
     window.addEventListener('scroll', hideFloatButton, true);
     window.addEventListener('copy', handleCopyEvent);
 
-    handlePendingJump();
     logNotes('info', '笔记增强模块已启动');
   }
 

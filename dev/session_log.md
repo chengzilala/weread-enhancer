@@ -538,6 +538,31 @@
   - 官方接口字段名若与预期不符，看 `[notes] 官方网关取笔记完成` 日志里的 `bookmarkKeys` / `reviewKeys` 快速校准。
   - 网页同源接口（第二级兜底）当前基本不可用，保留仅为兼容旧环境；不要依赖它。
 
+### 同日补充：根因确认与最终修复（实测通过）
+- **根因（两次实测日志定位）**：
+  - 网关本身正常（`/_list`、`/user/notebooks` 均成功：413 本、9662 条笔记），但 `/book/bookmarklist`、`/review/list/mine` 均回 `errcode -2003「参数格式错误」`，HTTP 499、耗时仅约 0.36s → 服务端快速拒绝，非超时。
+  - **bookId 是两套编号**：阅读页网址的是 23 位字符串（`74332a90813ab86c4g019d98`），官方接口要的是纯数字 ID（`3300082609`）。这就是 -2003 的原因。
+- **修复**：
+  - `modules/notes.js` 新增 `resolveOfficialBookId(title)`：直连失败时用书名调 `/store/search`(scope=10)，优先取书名对得上的那本，拿到官方 `bookId` 后重试两个笔记接口。
+  - 新增 `fetchOfficialReviews(bookId)`：`/review/list/mine` 默认每页 20 条，按 `synckey` + `hasMore` 循环取完（上限 10 页），避免想法被截断。
+  - `background.js`：HTTP 非 2xx 时把响应体前 300 字放进 `snippet`，便于从统一日志看到服务端真实报错。
+- **实测结果**：书名「这就是ChatGPT」反查得 `bookId=3300082609`，重试成功，取到 **24 条划线 / 5 条想法 / 8 个章节**，面板显示正常。
+- **文档回灌**：`plan/RPD_需求文档.md` 9.2.0 增补「官方网关两个易错点」（bookId 两套编号 + 想法接口分页）。
+
+### 同日续：v0.12.0 导出扩展（复制笔记 / HTML / PDF）
+- **用户要求**：笔记面板增加「复制笔记、导出 PDF、导出 HTML」，并把导出样式做好看。
+- **实现（均在 `modules/notes.js`，旧代码未动）**：
+  - 工具栏新增「复制笔记 / 导出 HTML / 导出 PDF」三个按钮（原「刷新 / 导出 Markdown / 导出纯文本」保留，共 6 个，窄屏自动换行）。
+  - `buildNotesReportHtml(data)` + `notesReportStyles()`：单文件 HTML 报表，样式直接沿用 `modules/stats.js` 的 `reportStyles()` 设计语言（`--accent:#07c160` 绿色主色、hero 头、3 张概览卡片「划线 / 想法 / 覆盖章节」、章节虚线分隔、想法用左侧绿条卡片、`@media print` 下 A4 + `break-inside:avoid`）。
+  - `openNotesForPrint(html)`：PDF 走「新窗口打印视图 + 自动唤起打印」（与 stats 完全同一套做法），窗口被拦时明确提示并写日志。
+  - `buildNotesClipboardHtml(data)` + `copyNotesRich()`：复制笔记时剪贴板**同时写 `text/html`（内联样式，粘到飞书/Word 保留排版）与 `text/plain`（Markdown，粘到代码编辑器/Obsidian 得 Markdown）**；`ClipboardItem` 不可用时回退 `copyText(markdown)`。
+  - `escapeMultiline()`：导出时把换行转 `<br>`，保留原文换行。
+  - `sourceLabel(data)`：抽出数据来源文案（Markdown / HTML / 剪贴板三处共用）。
+- **版本**：`manifest.json` `0.11.0` → `0.12.0`。
+- **校验**：`osascript -l JavaScript` + `new Function()` 语法检查通过（notes.js / background.js / manifest.json）。
+- **文档回灌**：RPD 9.2.0 与 9.2.2（导出格式加 HTML/PDF + 一键复制）、`plan/version_plan.md`（新增 v0.12.0 段）、`README.md`（笔记增强特性行）、`test/笔记增强测试清单.md`（1.4 改六按钮、新增 2.7~2.9 与 4.6~4.10）。
+- **待办**：用户重载扩展实测；通过后再归档（tag v0.12.0 + zip）。
+
 ---
 
 ## 2026-09-29 会话条目：v0.11.0 提交与归档（已完成）
@@ -563,3 +588,180 @@
   - 本次归档的 notes / official 两项在文档中仍标注「待实测」，属**未验证版本**；若实测发现问题，需修复后升版本号再打 tag，不要移动已有 tag。
   - 归档的历史 zip（v0.9.0 及更早）仍在 `release/` 本地，不进 git；需要时从本地保留或 GitHub Release 附件获取。
   - 官方数据功能为**可选开关**（默认关闭）且新增 `i.weread.qq.com` host 权限，商店提交前需确认隐私政策已同步（本次已更新 `release/privacy.md`）。
+
+---
+
+## 2026-09-29 会话条目：笔记功能改为「Key 必选」＋ 一键跳转设置（v0.12.1）
+- **目标**：用户明确「笔记需要 Key 才能实现，Key 是必选项」——未配置 Key 或 Key 有问题时，先引导用户去配 Key，再使用笔记功能；并在笔记面板提供跳转到 Key 设置页的入口。
+- **已做（均在 `modules/notes.js` / `modules/official.js` / `modules/notes.css`，未动旧代码）**：
+  - **Key 必选拦截**：`loadNotes()` 取书后先查 `wre-official-status`，`hasKey=false` 时直接进入「引导态」（`panelState.needsKey='missing'`），**不再**尝试网页接口 / 页面抓取兜底。
+  - **Key 失效识别**：`fetchBookNotesViaOfficial()` 遇到后台返回 `code:'nokey'`（未配置）或 `code:'auth'`（HTTP 401/403，Key 无效/失效）时，返回 `{__needsKey}` 哨兵；`fetchBookNotes()` 转抛 `code='needsKey'` 错误，`loadNotes()` 捕获后进入引导态（`needsKey='invalid'`），并跳过没有意义的 bookId 反查重试。
+  - **引导态 UI**：新增 `renderKeyGuide(reason)`（标题区分「需要先配置」/「已失效」）+ `modules/notes.css` 新增 `.wre-notes-guide*` / `.wre-notes-warn-actions` 样式；含「⚙️ 去配置 Key」与「我已配置，重新检测」两个按钮及获取方式提示。
+  - **跨模块跳转**：`notes.js` 的 `openOfficialKeySettings()` 派发 `document` 自定义事件 `wre-open-key-settings` 并关闭笔记面板；`official.js` 在 `bootstrap()` 监听该事件 → `activeTab='settings'` + `openPanel()`。解耦实现，不模拟点击、不暴露全局函数。
+  - Key 有效但网关临时失败时仍保留页面抓取兜底，警示条（`.wre-notes-warn`）上附「去设置检查 Key」按钮。
+- **产出物**：
+  - 修改：`modules/notes.js`、`modules/official.js`、`modules/notes.css`、`manifest.json`（`0.12.0` → `0.12.1`）
+  - 文档回灌：`plan/RPD_需求文档.md`（9.2.0 增 v0.12.1 说明 + 变更记录两行）、`plan/version_plan.md`（新增 v0.12.1 段）、`README.md`（笔记特性行）、`test/笔记增强测试清单.md`（2.9/2.10 改写 + 新增第七组、原第七组顺延为第八组）
+  - 校验：`osascript -l JavaScript` + `new Function()` / `JSON.parse` 语法检查通过（notes.js / official.js / background.js / manifest.json v0.12.1）
+- **待办**：
+  - 用户重载扩展实测第七组验收项（未配置 Key 拦截、跳转设置、失效提示、重新检测）。
+  - 与 v0.12.0 的导出/复制一起实测通过后，再走 `pack-publish` 归档（`0.12.0` 与 `0.12.1` 若无独立 commit，可并入同一 tag，与以往处理一致）。
+- **风险/注意事项**：
+  - 判定「Key 有问题」目前只认 `code:'auth'` / `'nokey'`；若官方对失效 Key 返回其它 code，会落到「页面抓取兜底」而非引导态，需据实测日志再收敛。
+  - 跳转依赖 `official.js` 已加载（同一 workspace 的 content script）；若该模块未注入，按钮点击不会打开设置页（当前 manifest 已注册，正常可用）。
+
+### 同日续：v0.12.2 「复制笔记」纯文本去除 Markdown 符号
+- **用户反馈**：复制笔记后粘到记事本 / 微信会带 `#` `*` `>` 等 Markdown 符号，希望是干净的纯文本格式。
+- **实现（仅 `modules/notes.js`）**：
+  - `handleCopyNotes()` 传给 `copyNotesRich()` 的 `text/plain` 内容由 `buildMarkdown(data)` 改为 `buildPlainText(data)`（`【划线】` / `[章节]` / 数字序号，无 Markdown 符号），直接可读。
+  - `copyNotesRich(markdown, html)` 形参更名为 `plainText`；`text/html` 富文本格式保留不变（粘到飞书 / Word 仍保留排版）。
+  - Toast 回退文案「已复制笔记（Markdown）」→「已复制笔记（纯文本）」，模块头注释同步更新。
+- **版本**：`manifest.json` `0.12.1` → `0.12.2`。
+- **文档回灌**：`plan/RPD_需求文档.md`（9.2.0 增 v0.12.2 说明 + 9.2.2 一键复制描述 + 变更记录一行）、`plan/version_plan.md`（新增 v0.12.2 段）、`README.md`（笔记特性行）、`test/笔记增强测试清单.md`（4.9 改写 + 新增 4.10，原 4.10 顺延 4.11）。
+- **校验**：`osascript -l JavaScript` + `new Function()` / `JSON.parse` 语法检查通过。
+- **待办**：随 v0.12.0/v0.12.1 一起实测后归档。
+
+### 同日续：v0.12.3 笔记面板新增搜索定位
+- **用户要求**：笔记增加搜索功能，方便定位到自己的笔记。
+- **实现（`modules/notes.js` + `modules/notes.css`，未动旧代码）**：
+  - 新增状态 `searchQuery` 与 `renderSearchBar()`（搜索框 + 条件「×」清空按钮）、`filterGroups(groups)`（关键词命中章节名 → 整组保留；否则按「摘要 + 正文」逐条匹配，返回 `{groups, matched, active}`）。
+  - `renderPanel()` 数据就绪分支插入搜索框，过滤后的 `groupHtml` 带「找到 N 条匹配」提示；无结果给「没有找到包含『xx』的划线/想法」空态。
+  - `buildPanel()` 给 `#wre-notes-body` 增加 `input` 事件监听 → `handlePanelInput()`：更新 `searchQuery`、重绘、恢复焦点与光标（`setSelectionRange`）。
+  - `handlePanelClick()` 增加 `[data-wre-notes-search-clear]` 分支：清空搜索并重绘、聚焦搜索框。
+  - `openPanel()` 打开时把 `searchQuery` 复位为空（避免上次搜索词残留）。
+  - `modules/notes.css` 新增 `.wre-notes-search*` 样式（复用 `--wre-primary` / `--wre-border` / `--wre-hover-bg` 变量，深浅主题自适应）。
+- **版本**：`manifest.json` `0.12.2` → `0.12.3`。
+- **文档回灌**：`plan/RPD_需求文档.md`（9.2.0 增 v0.12.3 说明 + 变更记录一行）、`plan/version_plan.md`（新增 v0.12.3 段）、`README.md`（笔记特性行）、`test/笔记增强测试清单.md`（3.4 + 新增「三·一、搜索定位」3A.1~3A.8）。
+- **校验**：`osascript -l JavaScript` + `new Function()` / `JSON.parse` 语法检查通过；`GetDiagnostics` 无新增错误。
+- **待办**：随前面各版本一起实测后归档。
+
+### 同日续：v0.12.4 修复「点击笔记定位原文」失效
+- **用户反馈**：点击笔记条目「定位到原文」没实现，不能跳转到原文。
+- **根因**：原「跳原文」仅用 `window.find()`。微信读书正文里划线文本常跨多个内联元素（`span`/`<br>`/注音等），`window.find` 只按「连续字符串」匹配，跨节点时匹配不到 → 表现为点笔记无跳转。
+- **修复（仅 `modules/notes.js`，未动旧代码）**：
+  - 新增 `normalizeForMatch(text)`：去掉所有空白 + 转小写，用于跨节点模糊匹配。
+  - 新增 `revealNode(node)`：命中后 `scrollIntoView` 居中 + 临时绿色高亮（2 秒自动还原）。
+  - 新增 `locateTextInReader(text)`：先 `window.find` 快速路径；失败则 `TreeWalker` 遍历正文文本节点（`.app_content` / `.readerChapterContent` 等容器优先，`document.body` 兜底），归一化后做「单节点 + 相邻节点拼接（≤12 节点 / 400 字符）」子串匹配。
+  - `jumpToItem()` 同书定位改用 `locateTextInReader`，定位失败时 toast 提示目标章节名；`handlePendingJump()` 跨书定位同步改用该函数。
+- **版本**：`manifest.json` `0.12.3` → `0.12.4`。
+- **文档回灌**：`plan/RPD_需求文档.md`（9.2.0 增 v0.12.4 说明 + 变更记录一行）、`plan/version_plan.md`（新增 v0.12.4 段）、`test/笔记增强测试清单.md`（第六组 6.1/6.2 改写 + 新增 6.4/6.5）。
+- **校验**：`osascript -l JavaScript` + `new Function()` 语法检查通过。
+- **已知限制（待实测确认）**：若正文为 canvas 渲染（翻页模式，无 DOM 文本节点），`TreeWalker` 也定位不到，仅能提示章节名；如需 canvas 章节级定位，需另接微信读书阅读器内部章节跳转（涉及章节 hash 映射，复杂度高），留待用户实测反馈后再评估。
+- **待办**：用户重载扩展实测第六组（尤其 6.4 跨节点文本）；随前面版本一起归档。
+
+### 同日续：v0.13.0 官方数据报告 V2·上半（接入书架 + 笔记，第二步）
+- **用户目标**：在已跑通的报告骨架（V1 只用 `/readdata/detail`）基础上，「第二步接入」书架与笔记数据源，补齐此前在附录标注「待补」的章节。
+- **数据层（`modules/official.js`）**：
+  - 新增 `/shelf/sync`（**无参数**）与 `/user/notebooks`（**游标分页**：首页 `count:100`，下一页带上一页末条 `sort` 作 `lastSort`，上限 5 页，超限置 `truncated`）拉取；新增 `slimShelf()` / `slimNotebook()` 精简字段（丢弃封面）。
+  - 新增概览缓存 `OVERVIEW_CACHE_KEY = 'wreOfficialOverviewCache'`（30 分钟，与周期无关）；`readOverviewCache()` / `writeOverviewCache()`，**仅当书架与笔记两路都成功才写缓存**。
+  - `loadReport(force)` 重构为 `Promise.all([loadDetail(force), loadOverview(force)])` 并行拉取；新增状态机 `overviewState = idle|loading|ok|partial|error`，单路失败降级为 `partial` 并给出中文提示，报告主体不受影响。
+- **统计函数**：`shelfCounts()`（严格官方口径：总数 = books + albums +（mp 非空 ? 1 : 0）；私密 = secret 命中 + 文章收藏入口）、`shelfCategories()`（按电子书 `category` 聚合，前 15 类）、`notebookStats()`（总条数优先官方 `totalNoteCount`，分项为明细求和；笔记最多前 10）、`finishStats()`（完读率，不计专辑）、`finishedBooks()`（读完按 `readUpdateTime` 降序，前 20）。
+- **报告模型**：`buildReportModel(data, mode, overviewData)` 新增「2.2 书架结构 / 九、知识脉络 / 十、笔记行为 / 十一、完读率 / 十二、已读完书目」；`数据来源` 行动态拼接三接口；附录新增书架/笔记口径，并把「下一阶段将补充」收窄为「想法与划线深度解读 / 价值取向与精神底色」。调用点（`buildStandaloneHtml` / `exportMarkdown`）透传 `overview`。
+- **`background.js`**：清 Key（`wre-official-clear` 与清缓存分支）时一并清理 `wreOfficialOverviewCache`。
+- **版本**：`manifest.json` `0.12.4` → `0.13.0`；`official.js` 头部版本注释同步。
+- **校验（本机无 Node，用 JXA 桩环境）**：
+  - 语法检查 `osascript -l JavaScript` + `new Function()`：`official.js` / `background.js` 均 **OK**。
+  - 桩环境冒烟（`chrome.runtime.sendMessage` 同步桩 + 微任务在脚本末尾 drain）：正常路径 `overviewState=ok`、书架总数 5（3 书+1 专辑+1 文章）、私密 2、笔记三项求和、完读率 2/3、已读完书目按时间降序；**partial 降级**（书架失败→`partial`、报告主体仍 `ok`、九/十二 隐藏、提示出现）；**分页截断**（5 页上限、`truncated=true`、调用 5 次）；新章节在 Markdown 与 HTML 中均正确渲染（含条形 `bar-td`）。**全部符合预期**。
+- **文档回灌**：`test/官方数据测试清单.md`（标题/前置改 v0.13.0；4.2/4.9/4.10/4.20/4.21 改写 + 新增 4.22~4.29；5.5/5.6；6.4；8.9~8.11；9.1；十·口径补书架/笔记）、`README.md`（官方数据功能行补新章节与缓存/降级说明）、`plan/RPD_需求文档.md`（10.2.3 章节骨架与四段标注第二步完成、10.5 十三-3 拆「已完成/待办」、变更记录一行）、`plan/version_plan.md`（新增 v0.13.0 段）。
+- **待办**：用户重载扩展后按测试清单实测（重点 4.22~4.29 的书架/笔记章节、5.5 概览缓存、8.9/8.10 与 App 口径核对）；时段热力 / 原生 Canvas 图表留待后续。
+
+### 同日续：v0.13.1 笔记「跳原文」适配翻页/canvas 模式
+- **用户反馈**：点击笔记「定位到原文」仍无法跳转，并导出调试日志。
+- **日志诊断（根因）**：用户阅读页是**翻页模式**——`mode: page`、`scrollMode: false`、`readingModeGuess = { hasHorizontalReader:true, hasCanvas:true, hasReaderContent:false }`，正文画在 canvas 上、DOM 里无正文文本节点；故 v0.12.4 的 `window.find` / `TreeWalker` 文本定位对 canvas 全部失效。
+- **修复（仅 `modules/notes.js`）**：
+  - `jumpTargets` 补充 `chapterUid` 字段。
+  - 新增 `detectCanvasMode()`：判 `hasCanvas` + `hasHorizontalReader` + 正文容器 `textContent` 长度，输出 `isCanvas`。
+  - 新增 `wait()` + `jumpToChapter(chapterName)`（async）：点击顶栏章节标题呼出目录 → 轮询（5×200ms）等目录面板出现（候选 `.readerCatalog` / `[class*="catalog"]` / `[class*="chapterList"]` 等）→ 按章节名匹配目录项并点击（章节级，不精确到行）。
+  - `jumpToItem` 改 async：文本定位失败 → `detectCanvasMode()`，命中 canvas 则 `jumpToChapter()` 降级；仍失败给明确 toast。全链路打 `[notes]` 诊断日志（canvas 判定、目录面板候选结构、章节项采样），便于一次实测定位剩余结构问题。
+- **版本**：`manifest.json` `0.13.0` → `0.13.1`。
+- **文档回灌**：`plan/RPD_需求文档.md`（9.2.0 增 v0.13.1 说明）、`plan/version_plan.md`（新增 v0.13.1 段）、`test/笔记增强测试清单.md`（第六组 6.5 改写 + 新增 6.6）。
+- **校验**：`osascript -l JavaScript` + `new Function()` 语法检查通过。
+- **已知限制/待确认**：翻页模式只能定位到**章节级**（无法精确到某一行，因正文在 canvas 上）；目录面板 DOM 结构为启发式选择器，需用户实测后按日志 `candidates` / `sample` 精确校正。
+- **待办**：用户重载扩展后，按第六组 6.5/6.6 实测；若目录跳转失败，导出日志看 `未找到可见目录面板` 或 `目录面板内未找到匹配章节项` 的候选结构，据此精确修复。
+
+### 同日续：v0.13.1 内修复「window.find 假成功、视觉不跳转」
+- **用户反馈**：再导日志「没有成功」。
+- **日志关键**：`[notes] 已在正文定位到目标文本`（needle「钱是一种力量…」）——即 `window.find` 返回 true，但用户视觉上没跳转。
+- **根因**：上一版 `locateTextInReader` 先走 `window.find`，命中即 `return true`，**没执行 `revealNode`（scrollIntoView + 高亮）**；而 `window.find` 在微信读书翻页/正文容器（overflow:hidden）里只「找到」文本、默认滚动不可靠，且无任何视觉反馈 → 表现为「没跳转」。同时确认 DOM 里**确有**正文文本（window.find 能找到），并非纯 canvas。
+- **修复（仅 `modules/notes.js`）**：
+  - `locateTextInReader` 调序：**TreeWalker 优先**（命中后 `revealNode` 滚动+高亮），`window.find` 降为兜底。
+  - `revealNode` 改进：`closest` 优先取 `p/section` 再 `div` 再 `span`（高亮/滚动范围更明显）；`scrollIntoView` 去掉 `behavior:'smooth'` 改用 instant，确保在 `overflow:hidden` 正文容器内可靠滚动。
+- **校验**：`osascript -l JavaScript` + `new Function()` 语法检查通过。
+- **待办**：用户重载扩展后，点划线验证「滚动 + 绿色高亮」是否可见；若仍不动，导出日志看是 `TreeWalker 在正文容器内定位成功` / `全页兜底定位成功` 还是走 `window.find` 兜底。
+
+### 同日续：v0.13.1 内修复「翻页模式文本定位假成功」
+- **用户反馈**：第三次导日志，仍无视觉跳转。
+- **日志关键**：`TreeWalker 在正文容器内定位成功`（连续 5 次，needle「钱是一种力量…」「注重三种力量：剑、宝石」）——TreeWalker 找到了 DOM 文本节点，但用户视觉上仍无反应。
+- **根因**：翻页模式（`readingModeGuess = { hasHorizontalReader:true, hasCanvas:true, hasReaderContent:false }`）下，正文画在 canvas 上，**DOM 里的文字是隐藏的**（供无障碍/复制用）。TreeWalker 遍历到这些隐藏文本 → `revealNode` 对隐藏元素滚动/高亮 → 视觉无任何变化，即「假成功」；且 `jumpToItem` 里文本定位成功即 `return`，**章节跳转从未被触发**。
+- **修复（仅 `modules/notes.js`）**：`jumpToItem` 同书分支**先 `detectCanvasMode()`**，命中 `isCanvas` 则跳过文本定位、直接走 `jumpToChapter()` 章节级跳转（首次真正触发）；只有 DOM/滚动模式才走文本定位。翻页模式章节跳转失败时给出明确 toast。
+- **校验**：`osascript -l JavaScript` + `new Function()` 语法检查通过。
+- **待办**：用户重载扩展后点划线——此为**首次真正走目录跳转**，需重点验证 `jumpToChapter` 的启发式目录点击是否命中；若失败，日志会带 `未找到可见目录面板`（含 `candidates`）或 `目录面板内未找到匹配章节项`（含 `sample`），据此精确校正目录选择器。
+
+### 同日续：v0.13.1 内修正「目录呼出方式 + 章节项匹配」
+- **用户反馈**：第四次导日志，目录跳转仍未命中。
+- **日志关键**：`检测到翻页模式` → `尝试点击顶栏标题呼出目录`（title「富爸爸穷爸爸」）→ `目录面板内未找到匹配章节项`（`panelCls: "readerControls_item catalog"`、`sample: []`）。`canvasInfo.chapterTextLen = 17647`，进一步印证 DOM 里有完整正文文本（隐藏）。
+- **根因**：① 顶栏标题显示的是**书名**「富爸爸穷爸爸」而非章节名，点它未必呼出目录；② 轮询面板选择器 `[class*="catalog"]` 误匹配到底部控制栏的**目录按钮**（`.readerControls_item.catalog`），把它当目录面板，里面当然没有章节项 → `sample: []`。
+- **修复（仅 `modules/notes.js`）**：`jumpToChapter` 重写——① 优先点底部控制栏的「目录」按钮（`.readerControls_item.catalog` 等），顶栏标题仅兜底；② 不再依赖特定目录面板类名，改为**在整页可见元素里按章节名匹配、取文本最短（最具体）者**点击；③ 失败采样整页可见文本（≤40 字），供下一步精确修复。
+- **校验**：`osascript -l JavaScript` + `new Function()` 语法检查通过。
+- **待办**：用户重载扩展后点划线；若仍未命中，日志 `未能在目录中找到匹配章节项` 的 `sample` 会暴露目录面板打开后的真实章节项文本/结构，据此做最后校准。
+
+### 同日续：v0.13.1 内修正「误点自己笔记面板的章节标题」
+- **用户反馈**：第五次导日志，目录按钮点击成功但仍未跳转。
+- **日志关键**：`点击「目录」按钮呼出目录` → `命中章节项，点击跳转`，但 `matched: "序言1 条"`、`cls: "wre-notes-chapter-title"`——**匹配到的是插件自己笔记面板里的章节标题**（「序言」+ 笔记条数「1 条」），不是微信读书目录面板的章节项；点它自然没跳转。
+- **根因**：`findChapterItem` 整页匹配时，笔记面板一直开着，其章节标题（含章节名、文本更短）被优先命中；同时把「点到自己 UI」误判成「命中目录项」。
+- **修复（仅 `modules/notes.js`）**：`findChapterItem` 排除插件自身 UI——先排除 `#we-read-enhancer-root` 容器内元素，再排除 `className`/`id` 含 `wre-` 的元素；轮询次数 8→12（约 3 秒），给目录面板更多渲染时间。
+- **校验**：`osascript -l JavaScript` + `new Function()` 语法检查通过。
+- **待办**：用户重载扩展后点划线；若仍未命中，日志 `sample` 将首次暴露微信读书目录面板的真实章节项文本（或证明目录面板未打开），据此做最后校准。
+
+### 同日续：v0.13.1 内加「真实点击序列 + 目录容器诊断」
+- **用户反馈**：第六次导日志，目录按钮点击后目录面板仍未打开。
+- **日志关键**：`未能在目录中找到匹配章节项`，`sample` 里全是底部控制栏/顶栏文字（「目录」「笔记」「上一页」「下一跳」「字号」「深色」等），**没有任何章节列表**（无「序言」「第一课…」）→ 证明点「目录」按钮后**目录面板根本没渲染出来**。
+- **根因（推断）**：微信读书用 React，`.click()` 派发的原生 click 可能未触发其事件处理（部分按钮监听 `mousedown`/`pointerdown`/`touchstart`），目录面板未被呼出。
+- **修复（仅 `modules/notes.js`）**：① 新增 `simulateClick()`，用完整鼠标事件序列（pointerdown → mousedown → pointerup → mouseup → click）替代 `.click()`；② 失败时新增 `catalogContainers` 诊断——dump 所有 className 含 `catalog/chapter/menu/drawer/panel/sidebar` 的容器（含隐藏的）的 `cls/tag/display/visible/textLen/text`，一次暴露目录面板真实结构。
+- **校验**：`osascript -l JavaScript` + `new Function()` 语法检查通过。
+- **待办**：用户重载扩展后点划线；若仍失败，日志 `catalogContainers` 会列出目录面板真实容器的类名与章节项文本，据此做最终一次精确修复。
+
+### 同日续：v0.13.1 内定位到「章节标题」才是目录入口
+- **用户反馈**：第七次导日志，`catalogContainers` 首次曝光 DOM 结构。
+- **日志关键**：① `renderTargetPageInfo_header_chapterTitle`（SPAN，text「讨论学习环节」）是**当前章节标题**，显示在页面顶部；② `menu_container js_reader_navBarMenu`（display:block、visible:true、**textLen:0**）是目录菜单容器，但**空**（未展开）；③ 底部「目录」按钮 `.readerControls_item.catalog` 点击后菜单仍未展开。结论：翻页模式呼出目录的正确入口是**点章节标题**，而非底部「目录」按钮。
+- **修复（仅 `modules/notes.js`）**：`jumpToChapter` 呼出目录顺序改为「章节标题 `.renderTargetPageInfo_header_chapterTitle`/`.renderTargetPageInfo_header` → 底部『目录』按钮 → 顶栏标题（兜底）」。
+- **校验**：`osascript -l JavaScript` + `new Function()` 语法检查通过。
+- **待办**：用户重载扩展后点划线；点章节标题后目录应在 `menu_container js_reader_navBarMenu` 展开章节列表，`findChapterItem` 整页匹配应能命中章节项并点击跳转。
+
+### 同日续：v0.13.1 内翻页模式定位降级为「引导切滚动模式」
+- **用户反馈**：第八次导日志，点章节标题后目录仍未展开。
+- **日志关键**：点 `.renderTargetPageInfo_header_chapterTitle`（「讨论学习环节」）后，`menu_container js_reader_navBarMenu` 的 `textLen` 仍为 **0**（目录菜单始终空、未展开）。
+- **根因（已确认）**：微信读书 web 版翻页模式下，目录呼出无法通过内容脚本 `dispatchEvent`（含完整鼠标事件序列）触发——疑似 `isTrusted` 校验或事件绑定位置特殊；「章节标题」「底部目录按钮」均非可靠入口。翻页模式正文在 canvas，本就只能章节级，且章节级 UI 呼出在内容脚本里不可控。
+- **决策**：翻页模式定位**降级为明确引导**，不再反复盲试 UI 点击——章节跳转失败时 toast 提示「翻页模式无法精确跳转划线，建议切到『上下滚动阅读』模式后重试，切好后再点笔记即可精确定位」。滚动模式下正文是 DOM 可见文本，文本定位（TreeWalker + scrollIntoView + 高亮）已能精确工作。
+- **修复（仅 `modules/notes.js`）**：`jumpToItem` 翻页模式分支失败 toast 改为上述引导文案。
+- **校验**：`osascript -l JavaScript` + `new Function()` 语法检查通过。
+- **待办**：用户在滚动模式下实测「点笔记 → 精确定位 + 绿色高亮」；确认后即可收尾本功能。
+
+### 同日续：v0.13.2 报告补「阅读人格画像」章节
+- **用户反馈**：导出报告「缺少对阅读人的阅读内容分析 / 性格行为类型的人格化分析」；要求对比是否满足 PRD 与测试清单。
+- **对比结论**：结构满足 PRD/测试清单（人格化分析在 PRD 里本就标注为「尚未覆盖·属主观解读」），但用户期望的「人格画像」层确实缺失——报告停留在「数据罗列」，缺「人格化」收尾。
+- **对齐（AskUserQuestion）**：用户选**客观规则化类型画像**（不接原文接口、不做主观语义，守住「禁止主观心理推断」红线）。
+- **实现（仅 `modules/official.js`）**：新增 `buildPersona`，按固定阈值把 5 个客观维度归类为类型标签，输出「维度/类型画像/判定依据」三元组，数据不足维度自动省略——完读倾向（≥60% 善始善终 / ≥30% 随性而为 / <30% 广泛涉猎）、笔记投入（平均每本 ≥5 深度精读 / ≥1 适度批注 / <1 少记浏览）、主题聚焦（第一分类占比 ≥50% 主题聚焦 / <30% 且分类≥5 兴趣广博 / 其余 多元均衡）、内容形态（有声书占比 ≥30% 听读兼修 / 否则 以读为主）、阅读时段（峰值 21–5 夜读 / 6–8 晨读 / 11–13 午间 / 其余 日间，仅累计周期）；新增「十三、阅读人格画像」章节（十二之后、附录之前）；附录「分析边界」与「尚未覆盖」措辞同步（价值取向与精神底色注明为主观语义、以十三章客观替代）。
+- **版本**：`manifest.json` `0.13.1` → `0.13.2`；`official.js` 头部版本注释同步。
+- **校验**：语法检查通过；桩环境冒烟（`/tmp/wre_smoke4.js`）验证十三章渲染——5 个维度标签全部正确（完读倾向=善始善终型 67%、笔记投入=深度精读型、主题聚焦=多元均衡型、内容形态=以读为主型、阅读时段=夜读型 23:00）。
+- **文档回灌**：`test/官方数据测试清单.md`（标题 v0.13.2 + 前置补十三章 + 新增 4.30 + 4.21/6.4 同步）、`README.md`（功能行补「阅读人格画像」）、`plan/RPD_需求文档.md`（10.2.3 骨架加十三章、10.5 十三-3「已完成」改 v0.13.2、变更记录加一行）、`plan/version_plan.md`（新增 v0.13.2 段）。
+- **待办**：用户重载扩展后按 4.30 实测十三章；时段热力 / 原生 Canvas 图表留待后续。
+
+### 同日续：v0.14.0 AI 人格化执行摘要（DeepSeek，可选）
+- **用户目标**：报告「一、执行摘要」目前是规则化文案，缺「人格化」收尾；用户希望接近 workbuddy 那种「有人味」的解读。
+- **方案（用户选定）**：**客观数据 + DeepSeek 写文字**——数字本地算准、人格化文字交给 DeepSeek 生成，最接近 workbuddy 效果（不用 AI 算数字，AI 只把已算好的客观统计写成自然语言）。
+- **实现**：
+  - `background.js`：新增 DeepSeek 转发 `callDeepSeek()`（POST `api.deepseek.com/chat/completions`，`deepseek-chat`，30s 超时）＋ 可选 Key 管理消息 `wre-ai-status` / `wre-ai-save`（须 `sk-` 开头）/ `wre-ai-clear` / `wre-ai-chat`；Key 存 `wreDeepSeekKey`，日志只留掩码。
+  - `modules/official.js`：设置面板新增「AI 增强（DeepSeek，可选）」区（独立于 `wrk-` Key）；报告加载成功后若已配 DeepSeek Key 自动触发 `runAIEnhance()`——`fetchAnnualTrend()`（最近 4 年 `annually`）＋ `fetchBookContents()`（笔记最多前 5 本书的 `/book/bookmarklist` 划线 + `/review/list/mine` 想法，各最多 6 条）→ `buildAIPrompt()` 拼客观事实 → DeepSeek → `splitParagraphs()` 分段 → `aiSummary` 写入「一、执行摘要」；未配/失败/空返回则 `aiState='skipped'|'error'` 退回规则化摘要（不阻塞报告主体）。
+  - `manifest.json`：`host_permissions` 增 `https://api.deepseek.com/*`，版本 `0.13.2` → `0.14.0`，描述补「含 DeepSeek AI 人格化解读，可选」。
+- **版本**：`manifest.json` `0.13.2` → `0.14.0`。
+- **校验（本机无 Node，用 JXA 桩环境）**：语法检查 `osascript -l JavaScript` + `new Function()` OK；桩环境冒烟（`/tmp/wre_smoke5.js`）——`splitParagraphs` 分段正确、`buildAIPrompt` 含年度趋势/划线样本、`loadReport` 全链路 `aiState=ok`、AI 摘要 3 段正确写入「一、执行摘要」、Markdown **不含** `object Promise`（此前串接 Promise 的坑已修复）、`md 不含规则化摘要首句` 验证 AI 替换生效。**全部符合预期**。
+- **文档回灌**：`test/官方数据测试清单.md`（标题/前置补 v0.14.0 + 新增第十一组 11.1~11.12）、`README.md`（官方数据功能行补「可选接入 DeepSeek」+ 结构注释）、`plan/RPD_需求文档.md`（新增 10.2.9 + 10.5 十三-7 + 10.6 风险三行 + 变更记录一行）、`plan/version_plan.md`（新增 v0.14.0 段）、`release/privacy.md` 与 `web/content/隐私政策.md`（新增 AI 增强小节 + 权限/域名说明）。
+- **待办**：用户重载扩展后按第十一组实测（重点 11.5 AI 摘要替换、11.10 隐私红线、11.8 失败退回）；通过后归档。
+
+### 同日续：v0.14.1 移除「点击笔记跳转定位原文」功能
+- **用户反馈**：「这个功能去掉，不用跳转了」——因翻页模式下微信读书 web 版正文画在 canvas、目录呼出又不受内容脚本 `dispatchEvent` 控制（历经 8 轮排查确认），跳原文功能始终无法可靠工作，用户决定直接移除。
+- **实现（仅 `modules/notes.js`）**：删除整个「跳原文」功能块——`findTextInPage` / `normalizeForMatch` / `revealNode` / `locateTextInReader` / `detectCanvasMode` / `wait` / `simulateClick` / `jumpToChapter` / `findChapterItem` / `jumpToItem` / `handlePendingJump`；同步删除状态 `jumpTargets`、常量 `PENDING_JUMP_KEY`/`PENDING_JUMP_TTL`、条目渲染里的 `data-wre-notes-jump` 属性与 `title="点击尝试定位到原文"`、面板底部「点击任意条目会尝试定位」提示、`handlePanelClick` 的跳转分支、`attach()` 里的 `handlePendingJump()` 调用；头部注释第 7 点删除。
+- **版本**：`manifest.json` `0.14.0` → `0.14.1`。
+- **校验**：`osascript -l JavaScript` + `new Function()` 语法检查通过；`GetDiagnostics` 无新增错误（仅余既有的 `execCommand`/`document.write` 弃用、`highlightGroups`/`isPanelOpen` 类型提示）。
+- **文档回灌**：`README.md`（功能行删「可跳回原文」）、`test/笔记增强测试清单.md`（删跳原文测试项 3A.6/6.1/6.3/6.4/6.6）、`plan/RPD_需求文档.md`（跳原文标注已移除）、`plan/version_plan.md`（补 v0.14.1 移除段）。
