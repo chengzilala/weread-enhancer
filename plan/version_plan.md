@@ -447,6 +447,6 @@ UI框架       +全部核心模块 +动态感应区   → 最终收敛为       
 |----------|-------|------|
 | manifest.json | `0.14.1` | 当前浏览器实际加载版本（阅读统计 + 笔记增强 + 官方数据阅读行为报告 + 可选 DeepSeek AI 人格化执行摘要） |
 | RPD_需求文档.md | `v0.10` | PRD 迭代版本（功能层面；第 10 章为 v0.11.0 官方数据） |
-| Git Tag | `v0.11.0` | 最新已打的 Tag（提交 `fadb96b`，2026-09-29；v0.8.2 / v0.8.3 / v0.9.1 / v0.10.0 未单独打 tag；完整归档见 plan_github_versioning.md） |
-| release zip | `weread-enhancer-v0.11.0.zip` | 最新备好的上传包（73 KB，14 文件；含 stats / notes / official 三模块 + background.js） |
+| Git Tag | `v0.14.1` | 最新已打的 Tag（提交 `1687175`，2026-10-01；v0.8.2 / v0.8.3 / v0.9.1 / v0.10.0 / v0.12.x / v0.13.x / v0.14.0 未单独打 tag；完整归档见 plan_github_versioning.md） |
+| release zip | `weread-enhancer-v0.14.1.zip` | 最新备好的上传包（95 KB，14 文件；含 manifest / content / background + stats / notes / official 三模块 + 图标） |
 | version_plan.md | `v1.1` | 本文档独立版本 |
