@@ -1,4 +1,4 @@
-/* 全局变量：明亮模式与暗黑模式 */
+/* 全局变量 */
 :root {
   --wre-bg: #ffffff;
   --wre-border: #e0e0e0;
@@ -9,16 +9,6 @@
   --wre-icon-bg: #ffffff;
   --wre-border-radius: 8px;
   --wre-z-index: 999999;
-}
-
-[data-wre-theme="dark"] {
-  --wre-bg: #2c2c2c;
-  --wre-border: #444444;
-  --wre-text: #e0e0e0;
-  --wre-text-hover: #ffffff;
-  --wre-hover-bg: #3a3a3a;
-  --wre-shadow: 0 4px 12px rgba(0,0,0,0.5);
-  --wre-icon-bg: #333333;
 }
 
 /* 根容器，隔离样式防干扰 */
@@ -362,41 +352,6 @@ body.wre-toolbar-floating.wre-show-controls .readerControls,
 body.wre-toolbar-floating.wre-show-controls [class*="readerControls"] {
   opacity: 1 !important;
   pointer-events: auto !important;
-}
-
-/* ========== 主题按钮样式 ========== */
-.wre-theme-options {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.wre-theme-btn {
-  flex: 1;
-  min-width: 80px;
-  padding: 10px 12px;
-  text-align: center;
-  border: 2px solid var(--wre-border);
-  border-radius: 8px;
-  background: var(--wre-bg);
-  cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
-}
-
-.wre-theme-btn.wre-theme-active {
-  border-color: var(--wre-primary);
-  background: #e8f5e9;
-}
-
-.wre-theme-btn:hover {
-  border-color: var(--wre-primary);
-}
-
-.wre-theme-hint {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #888;
-  text-align: center;
 }
 
 /* ========== 自动阅读样式 ========== */

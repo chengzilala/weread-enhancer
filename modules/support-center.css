@@ -1,0 +1,80 @@
+/* 微信悦读 · 支持与反馈中心样式（v0.14.6）
+   作用于合并弹层（.wre-support-center-overlay 作用域），复用 content.css 的 --wre-* 主题变量。 */
+
+.wre-support-center-overlay .wre-support-center-modal {
+  width: 460px;
+}
+
+/* 页签栏 */
+.wre-support-center-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 20px 0;
+  border-bottom: 1px solid var(--wre-border);
+}
+
+.wre-sc-tab {
+  flex: 1;
+  padding: 8px 0 10px;
+  margin-bottom: -1px;
+  font-size: 14px;
+  color: #999;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.wre-sc-tab.wre-sc-tab-active {
+  color: var(--wre-primary);
+  border-bottom-color: var(--wre-primary);
+  font-weight: 600;
+}
+
+.wre-support-center-body {
+  text-align: center;
+}
+
+.wre-sc-panel {
+  display: none;
+}
+
+.wre-sc-panel.wre-sc-panel-active {
+  display: block;
+}
+
+.wre-sc-tip {
+  margin: 0 0 18px;
+  font-size: 14px;
+  color: var(--wre-text);
+  line-height: 1.6;
+}
+
+.wre-sc-codes {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.wre-sc-code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.wre-sc-qr {
+  width: 180px;
+  height: 180px;
+  border-radius: 8px;
+  border: 1px solid var(--wre-border);
+  display: block;
+  object-fit: contain;
+  background: #fff;
+}
+
+.wre-sc-label {
+  font-size: 13px;
+  color: #999;
+}

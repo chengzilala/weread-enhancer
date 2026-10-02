@@ -38,6 +38,10 @@ web/dist/
 web/content/.obsidian/
 web/content/.trash/
 
+# Vercel 本地项目关联（含 projectId，属本机配置）
+.vercel/
+web/.vercel/
+
 # 系统
 .DS_Store
 Thumbs.db

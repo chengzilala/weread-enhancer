@@ -7,7 +7,7 @@
  *
  * 职责：
  *   0. Key 必选：读取划线/想法依赖「官方 API Key」（wrk- 开头）。未配置或已失效时
- *      不再尝试其它来源，面板直接进入「引导态」，并一键跳转到「☁️ 官方数据 → 设置」。
+ *      不再尝试其它来源，面板直接进入「引导态」，并一键跳转到「🔑 API Key」设置入口。
  *   1. 数据获取：优先微信读书「同源接口」（用你自己的登录态，数据不外传），
  *      接口不可用时回退「页面抓取」，并在面板上明示数据来源
  *   2. 面板：主菜单「📝 笔记」入口，按章节分组展示本书划线、想法与批注；内置搜索框，
@@ -19,7 +19,7 @@
  *   6. Ctrl/Cmd+C 增强：拦截 copy 事件，清掉官方附加的版权声明（水印）
  *
  * 数据来源说明（重要，优先级由高到低）：
- *   1. 官方 Agent 网关（推荐，需先在「☁️ 官方数据 → 设置」配好 wrk- Key）：
+ *   1. 官方 Agent 网关（推荐，需先在「🔑 API Key」入口配好 wrk- Key）：
  *        POST https://i.weread.qq.com/api/agent/gateway（由 background.js 代发）
  *        api_name=/book/bookmarklist（划线）
  *        api_name=/review/list/mine（想法/批注，注意参数是小写 bookid）
@@ -389,10 +389,10 @@
     return !!result && (result.code === 'nokey' || result.code === 'auth');
   }
 
-  // 跳转到「☁️ 官方数据 → 设置」页：跨模块用 document 自定义事件解耦，
-  // 由 modules/official.js 监听并打开设置页（不模拟点击、不暴露全局函数）
+  // 跳转到「🔑 API Key」设置入口：跨模块用 document 自定义事件解耦，
+  // 由 modules/official.js 监听并打开 Key 面板（不模拟点击、不暴露全局函数）
   function openOfficialKeySettings() {
-    logNotes('info', '引导用户前往「官方数据 → 设置」配置 API Key');
+    logNotes('info', '引导用户前往「🔑 API Key」配置 API Key');
     document.dispatchEvent(new CustomEvent('wre-open-key-settings'));
     closePanel();
   }
@@ -775,9 +775,9 @@
         bookId: context.bookId,
         error: error && error.message ? String(error.message) : String(error),
       });
-      // Key 已配置却仍失败：多为网关临时抖动或 bookId 反查失败，提示去「设置」检查 Key
+      // Key 已配置却仍失败：多为网关临时抖动或 bookId 反查失败，提示去「🔑 API Key」检查 Key
       data.sourceNote = '官方网关与网页接口本次都不可用，已回退「页面抓取」，只能拿到当前已渲染的内容。' +
-        '可到「☁️ 官方数据 → 设置」检查 API Key 状态后点「重新检测」。';
+        '可到「🔑 API Key」检查 API Key 状态后点「重新检测」。';
       data.needKeyHint = true;
     }
     data.bookId = context.bookId;
@@ -811,7 +811,7 @@
     item.addEventListener('click', () => {
       openPanel();
     });
-    const anchor = menu.querySelector('[data-wre-stats-entry]') || menu.querySelector('[data-action="theme-settings"]');
+    const anchor = menu.querySelector('[data-wre-stats-entry]') || menu.querySelector('[data-action="read-settings"]');
     if (anchor && anchor.nextSibling) {
       menu.insertBefore(item, anchor.nextSibling);
     } else if (anchor) {
@@ -973,18 +973,18 @@
     }).join('');
   }
 
-  // 「引导态」：Key 未配置或已失效时的拦截视图，一键跳去官方数据设置页
+  // 「引导态」：Key 未配置或已失效时的拦截视图，一键跳去「🔑 API Key」设置入口
   function renderKeyGuide(reason) {
     const invalid = reason === 'invalid';
     const title = invalid ? '⚠️ API Key 已失效' : '🔑 需要先配置 API Key';
     const text = invalid
-      ? '本机保存的 API Key 未能通过官方校验（可能已过期或被重置）。请到「☁️ 官方数据 → 设置」重新填写后再回来使用笔记功能。'
+      ? '本机保存的 API Key 未能通过官方校验（可能已过期或被重置）。请到「🔑 API Key」重新填写后再回来使用笔记功能。'
       : '读取本书的划线 / 想法需要「微信读书官方 API Key」（wrk- 开头）。配置一次即可长期使用，Key 只保存在本机、不会上传。';
     return '<div class="wre-notes-guide">' +
         '<div class="wre-notes-guide-title">' + title + '</div>' +
         '<div class="wre-notes-guide-text">' + escapeHtml(text) + '</div>' +
         '<div class="wre-notes-guide-actions">' +
-          '<button class="wre-btn" data-wre-notes-goto-key>⚙️ 去配置 Key</button>' +
+          '<button class="wre-btn" data-wre-notes-goto-key>🔑 去配置 Key</button>' +
           '<button class="wre-btn wre-btn-small" data-wre-notes-recheck>我已配置，重新检测</button>' +
         '</div>' +
         '<div class="wre-notes-note">获取方式：微信读书 App →「微信读书 Skill」页面 → 复制 wrk- 开头的 API Key。</div>' +
@@ -1044,7 +1044,7 @@
       (data.source === 'dom' || data.source === 'mixed'
         ? '<div class="wre-notes-warn">' + escapeHtml(data.sourceNote) +
           (data.needKeyHint
-            ? '<div class="wre-notes-warn-actions"><button class="wre-btn wre-btn-small" data-wre-notes-goto-key>去设置检查 Key</button></div>'
+            ? '<div class="wre-notes-warn-actions"><button class="wre-btn wre-btn-small" data-wre-notes-goto-key>🔑 去配置 Key</button></div>'
             : '') +
           '</div>'
         : '') +

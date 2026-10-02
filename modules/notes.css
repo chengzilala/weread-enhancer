@@ -1,5 +1,5 @@
 /* 微信悦读 · 笔记增强模块样式（v0.10.0）
-   仅作用于笔记面板 / 复制浮标 / 轻提示，复用 content.css 的 --wre-* 主题变量（明/暗主题自动跟随）。 */
+   仅作用于笔记面板 / 复制浮标 / 轻提示，复用 content.css 的 --wre-* 变量。 */
 
 #wre-notes-modal .wre-notes-modal {
   width: 480px;

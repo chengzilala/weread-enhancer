@@ -765,3 +765,16 @@
 - **版本**：`manifest.json` `0.14.0` → `0.14.1`。
 - **校验**：`osascript -l JavaScript` + `new Function()` 语法检查通过；`GetDiagnostics` 无新增错误（仅余既有的 `execCommand`/`document.write` 弃用、`highlightGroups`/`isPanelOpen` 类型提示）。
 - **文档回灌**：`README.md`（功能行删「可跳回原文」）、`test/笔记增强测试清单.md`（删跳原文测试项 3A.6/6.1/6.3/6.4/6.6）、`plan/RPD_需求文档.md`（跳原文标注已移除）、`plan/version_plan.md`（补 v0.14.1 移除段）。
+
+### 同日续：v0.14.2 API Key 集中入口
+- **用户需求**：把散在「官方数据面板 → ⚙️ 设置」页签里的两个 Key（微信读书 `wrk-`、DeepSeek `sk-`）集中到一个独立入口「🔑 API Key」，单独做成一个功能入口统一填写。
+- **决策（AskUserQuestion 确认）**：入口命名为「🔑 API Key」放进现有「设置」分组；官方数据面板移除旧「⚙️ 设置」页签，Key 只在新入口填。
+- **实现**：
+  - `modules/official.js`：移除面板页签栏，官方数据面板只留「📊 阅读行为报告」；新增独立弹层 `#wre-api-key-modal`（`buildKeyPanel` / `renderSettings` / `openKeyPanel` / `closeKeyPanel`），集中展示 `wrk-` Key 与 DeepSeek Key 两个配置区；`render` 只画报告、`renderSettings` 只画 Key 配置；`openPanel`/`openKeyPanel` 互斥；主菜单注入「🔑 API Key」（插在「恢复默认」之后）；报告空态按钮与 `wre-open-key-settings` 事件均改打开新面板。
+  - `content.js`：`handleMenuClick()` 增 `case 'api-key'` 分流。
+  - `modules/notes.js`：引导态/警示条/注释文案统一由「☁️ 官方数据 → 设置」改为「🔑 API Key」，按钮图标 `⚙️` → `🔑`。
+  - `manifest.json`：版本 `0.14.1` → `0.14.2`。
+- **版本**：`manifest.json` `0.14.1` → `0.14.2`。
+- **校验**：`notes.js` 旧文案 grep 已清零；待 `GetDiagnostics` 确认无新增错误。
+- **文档回灌**：`plan/RPD_需求文档.md`（10.2.1 面板位置 / 10.2.9 / 10.3 UI / 10.5 十三-8 / 变更记录）、`plan/version_plan.md`（新增 v0.14.2 段 + 版本对照表）、`test/官方数据测试清单.md`（1.3/2.1/2.2/第十一组文案 + 新增第十二组 12.1~12.10）、`test/笔记增强测试清单.md`（引导态跳转文案）、`README.md`（功能行 + 结构注释）、`release/privacy.md` 与 `web/content/隐私政策.md`（「⚙️ 设置」改为「🔑 API Key」）。
+- **待办**：用户重载扩展后按第十二组实测（重点 12.1 菜单入口、12.4 无旧页签、12.5 双面板互斥、12.7/12.8 两个 Key 都能在新入口配）。

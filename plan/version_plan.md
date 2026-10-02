@@ -3,7 +3,7 @@
 > **文档类型**：版本历程 + 未来规划  
 > **项目仓库**：[chengzilala/weread-enhancer](https://github.com/chengzilala/weread-enhancer)  
 > **版本规则**：`v主.次.补`（语义化简化）  
-> **最后更新**：2026-09-29
+> **最后更新**：2026-10-03
 
 ---
 
@@ -50,9 +50,9 @@
 | 模块 | 功能 |
 |-----|------|
 | 阅读设置 | 屏占比滑块 + 快捷按钮（100/90/80/70）、基准模式迁移 |
-| 主题设置 | 明亮 / 暗黑 / 护眼（米黄）三主题切换 + 自定义颜色 |
+| 主题设置 | ~~明亮 / 暗黑 / 护眼（米黄）三主题切换 + 自定义颜色~~（**已取消**，官方已自带主题，插件再做属多余） |
 | 自动阅读 | 速度滑块 + 方向切换 + 开始/暂停（空格快捷键） |
-| 快捷键 | 空格（自动阅读）、D（勿扰）、T（切换主题）、?（帮助面板） |
+| 快捷键 | 空格（自动阅读）、D（勿扰）、?（帮助面板） |
 | 插件设置 | 勿扰模式、图标位置、恢复默认设置 |
 
 **Edge 商店就绪**：
@@ -233,7 +233,7 @@
 |-----|-------|------|------|
 | 阅读统计与数据导出 | P0 | ✅ **已完成**（v0.9.0 归档 / v0.9.1 补齐，待实测） | 时长统计（今日/本周/本月/本书）+ 进度追踪 + 最近书目 + 面板 + JSON/CSV/Markdown/HTML/PDF 导出 |
 | 代码模块化重构 | P1 | 🚧 **已开张**（2026-09-29） | `modules/` 目录已建立（`stats.js` / `notes.js` / `official.js` + 配套 css），走「新功能进新模块、旧代码不动」路线 |
-| 更多主题预设 | P1 | ⏳ 待开发 | 灰色模式、羊皮纸模式、夜间阅读模式 |
+| 更多主题预设 | — | ❌ **已取消** | 主题设置功能整体取消（官方已自带），灰色/羊皮纸/夜间预设一并废弃 |
 | 笔记增强 | P1 | ✅ **已完成**（v0.10.0；v0.12.0 补齐导出与修复，待实测） | 划线快速复制（浮动按钮 + 去版权声明）、批量导出（Markdown / 纯文本 / HTML / PDF）+ 一键复制笔记、想法/批注聚合面板（按章节分组 + 搜索定位；~~点击跳原文~~ 已随 v0.14.1 移除） |
 | 官方数据阅读行为报告 | P0 | ✅ **已完成 V1**（v0.11.0，待实测） | 用户粘贴自己的 `wrk-` Key，纯本地经官方 Agent 网关生成阅读行为分析报告（时长趋势 / 偏好画像 / 书架结构 / 笔记行为）；详见 RPD 第 10 章 |
 | 打包上架 | P0 | 🚧 **已打包** | 已构建 `release/weread-enhancer-v0.11.0.zip`；实测通过后再更新商店截图并提交审核（manifest 已是 `0.11.0`） |
@@ -367,15 +367,65 @@
 - `modules/notes.js` 删除整个「跳原文」功能块（`locateTextInReader` / `jumpToChapter` / `jumpToItem` / `handlePendingJump` / `detectCanvasMode` 等）与相关状态/常量/条目跳转属性；笔记条目不再「点击定位原文」
 - 文档回灌：`README.md`（功能行删「可跳回原文」）、`test/笔记增强测试清单.md`（删跳原文测试项）、`plan/RPD_需求文档.md`（跳原文标注已移除）
 
+**v0.14.2 API Key 集中入口（2026-10-01）**：
+
+- `manifest.json` 版本号 `0.14.1` → `0.14.2`
+- **用户需求**：把散在「官方数据面板 → ⚙️ 设置」的两个 Key（微信读书 `wrk-`、DeepSeek `sk-`）集中到一个独立入口「🔑 API Key」
+- **`modules/official.js`**：官方数据面板移除「⚙️ 设置」页签、只留「📊 阅读行为报告」；新增独立弹层 `#wre-api-key-modal`（`buildKeyPanel` / `renderSettings` / `openKeyPanel` / `closeKeyPanel`），集中展示 `wrk-` Key 与 DeepSeek Key 两个配置区；两个面板互斥；`render` 只画报告、`renderSettings` 只画 Key 配置
+- **主菜单**：新增「🔑 API Key」入口（放在「恢复默认」之后，即现有「设置」分组内）；报告空态与引导按钮改跳「🔑 API Key」
+- **`content.js`**：`handleMenuClick()` 增加 `case 'api-key'` 分流
+- **`modules/notes.js`**：引导态/警示条文案统一由「☁️ 官方数据 → 设置」改为「🔑 API Key」，`wre-open-key-settings` 事件改打开新入口
+- 验收项见 `test/官方数据测试清单.md`（新增第十二组）与 `test/笔记增强测试清单.md`（引导态跳转文案）
+
+**v0.14.3 AI 人性化人格分析（2026-10-03）**：
+
+- `manifest.json` 版本号 `0.14.2` → `0.14.3`
+- **用户需求**：阅读分析报告加一段像朋友口吻的「人性化人格分析」，DeepSeek 生成的内容（执行摘要 + 人格分析）统一放在导出报告最上方
+- **`modules/official.js`**：新增 `AI_PERSONA_PROMPT`（独立 system prompt，深度要求对齐执行摘要：引用具体书名/划线·想法条数/原文、识别系统进阶、结合年度时长变化看生活状态信号）与 `aiPersona` 状态；`runAIEnhance()` 由单次生成改为**串行**生成「人格化执行摘要 + 人性化人格分析」（复用同一份 `buildAIPrompt()` 事实句，先摘要后人格分析避免并发限流）；两段 AI 内容改为**点击「导出」时才按需生成**（打开报告不消耗 token，`handleExport()` 里 `aiState==='idle'` 时触发）；人格分析输出改为**分点结构**（`splitPersonaPoints()` 解析「第N、小标题＋论述」，渲染成四级小标题＋段落）；`buildReportModel()` 把「人性化人格分析」放在报告**最上方**（紧跟「一、执行摘要」），「十三、阅读人格画像」仅保留客观类型标签表；失败则静默省略仅保留客观画像；附录「分析边界 / 尚未覆盖的章节」文案同步更新
+- **面板预览**：`buildReportHtml()` 的 AI 提示与「导出报告还包含」清单同步提到「人性化人格分析」
+- 需求详见 `plan/RPD_需求文档.md` 第 10.2.10 节
+
+**v0.14.4 打赏功能 · 阶段一（占位图打通链路）（2026-10-03）**：
+
+- `manifest.json` 版本号 `0.14.3` → `0.14.4`；`content_scripts` 的 `js` 加 `modules/support.js`、`css` 加 `modules/support.css`；新增 `web_accessible_resources` 声明收款码图片 `assets/donate/wechat.png` / `assets/donate/alipay.png`
+- **新增 `modules/support.js`**：主菜单「关于」分组注入「💗 打赏支持」入口（`data-action="support"`，在「快捷键说明」之后），点击打开打赏弹层；收款码图片用 `chrome.runtime.getURL()` 引用扩展内资源，避免相对路径被解析到 weread.qq.com 域名 404
+- **新增 `modules/support.css`**：打赏弹层样式（桌面两张码并排、窄屏自动竖排），复用 `--wre-*` 主题变量
+- **新增 `assets/donate/`**：微信/支付宝收款码占位图（纯色 PNG），待用户提供真实收款码后替换
+- **`content.js`**：`handleMenuClick()` 增加 `case 'support'` 分流（面板由模块自行接管）
+- 隐私口径：仅展示静态收款码，不新增权限（仍仅 `storage`），不收集/不上传数据
+- 需求文档：`plan/RPD_打赏功能_需求文档.md`
+
+**v0.14.5 ～ v0.14.6 引流入口（2026-10-03）**：
+
+- `0.14.4` → `0.14.5`：新增「📣 公众号」引流入口（`modules/wechat-mp.js` + `wechat-mp.css`）
+- `0.14.5` → `0.14.6`：把「打赏 / 反馈 / 公众号」合并为单个「💗 支持与反馈」入口（新建 `modules/support-center.js` + `support-center.css`，弹层内页签切换；移除原 `support.js` / `feedback.js` / `wechat-mp.js`）；同一版本落地「帮助中心」（`modules/help.js`）
+
+**v0.14.7 报告对象昵称 + 摘要/人格分析固定累计口径（2026-10-03）**：
+
+- `manifest.json` 版本号 `0.14.6` → `0.14.7`
+- **用户需求**：①问「报告对象能否查出具体用户名」；②问「不管本月 / 本年 / 累计，执行摘要是否都应基于总体数据」，并选定「顶部两段都固定用累计（总体）口径」
+- **昵称**：`modules/official.js` 新增 `getReaderNickname()`——优先读网页版 cookie `wr_name`（URL 解码），再退化尝试 localStorage 常见字段；日志只记命中来源与昵称长度、不记原文；读不到回退「微信读书用户（本机账号）」；元信息「报告对象」改用该函数
+- **分析口径**：新增 `overallReport` 状态与 `loadOverallData()`——打开报告时并行预取累计数据（`/readdata/detail mode=overall`，10 分钟缓存）；「一、执行摘要」规则化兜底改用**累计数据**渲染（`buildInsights(overallReport, 'overall', …)`），AI 两段本就基于累计并改为**复用已预取数据**（不再重复请求）；`loadReport()` 在 `aiState==='ok'` 时不再重置 AI 结果，**切换周期不重复调用 DeepSeek**（省 token）；报告内新增口径提示 note 与附录「分析口径」条
+- **测试**：`test/官方数据测试清单.md` 头部标注 v0.14.7，新增/更新用例 4.2 / 4.3 / 11.12 / 13.8
+- 需求详见 `plan/RPD_需求文档.md` 第 10.2.9 / 10.2.10 / 10.3 节
+
+**v0.15.0 取消「主题设置」功能（2026-10-03）**：
+
+- `manifest.json` 版本号 `0.14.7` → `0.15.0`
+- **用户决定**：该功能实现多次效果仍有问题；且微信读书官方已自带主题切换，插件再做属多余、对实际使用无意义，故整体取消
+- **代码移除**：`content.js` 删除主题相关常量 / `applyTheme` / `clearPluginTheme` / `applyThemeColors` / `highlightActiveTheme` / `scanOfficialThemeButtons`、菜单项「🎨 主题设置」、主题弹窗、事件绑定与相关日志；`content.css` 删除 `[data-wre-theme="dark"]` 变量块与 `.wre-theme-*` 按钮样式；`manifest.json` 描述去掉「主题切换」
+- **连带修复**：`stats.js` / `notes.js` / `official.js` 的主菜单注入锚点由 `theme-settings` 改为 `read-settings`
+- **文档同步**：`RPD_需求文档.md` 标注取消（3.4 / 4.2 / 9.3 等）；删除 `plan/主题需求梳理.md`；更新 `version_plan.md`、`RPD_网站生态_需求文档.md`、三个商店文案（edge / chrome / 360）、`release/360-素材/功能说明.txt`、六份测试清单；网站删除「主题切换」教程页并清理首页 / 快速上手 / FAQ / 隐私政策 / 沉浸夜读等文章与 `site.config.json`；新增 `web/content/更新日志.md` v0.15.0 一节
+
 ### 还未确认的开发计划
 
 1. 浏览器上架：将主流的浏览器都做，商店上架。
 2. 增加用户反馈功能
-3. 增加打赏功能：随喜赞叹，几个二维码
+3. 增加打赏功能：随喜赞叹，几个二维码（已启动 v0.14.4，占位图链路打通，待接入真实收款码）
 4. 文档需要全部优化整理。
 5. 优化：滚动模式下，文字占比有问题
 6. **横屏 / 双栏快捷键切换（⏸️ 搁置）**：原生按钮已定位为右侧工具栏 `.readerControls_item.isNormalReader`（第 4 个，tooltip「双栏阅读」）。但脚本模拟点击（`.click()` / 完整鼠标事件序列 pointerdown→mousedown→mouseup→click / React `onClick` 直呼）在翻页 + 滚动模式下**均无效**（class 不变、无浮层、正文无变化）。推测：按钮非 React 组件 + 微信读书校验 `event.isTrusted` 拒绝合成事件。**后续方向**：改用插件自绘 CSS 布局实现横屏/双栏，或深挖原生事件通道 / API。
-7. **全屏模式加入主题面板支持切换（⏸️ 搁置）**：随第 6 项一并延后。
+7. ~~**全屏模式加入主题面板支持切换（⏸️ 搁置）**~~：主题设置功能已整体取消，本项一并废弃。
 
 **文件结构变化**：
 ```
@@ -383,7 +433,6 @@
 ├── modules/                # [新增] 模块目录
 │   ├── stats.js            # 阅读统计与导出
 │   ├── notes.js            # 笔记增强
-│   ├── themes.js           # 主题管理（后续从 content.js 提取）
 │   └── utils.js            # 通用工具函数
 ├── manifest.json           # [修改] 版本号 0.8.0 → 0.9.0
 ├── content.js              # [保持] 入口 + 初始化 + 旧逻辑
@@ -397,7 +446,6 @@
 
 > **目标**：里程碑式稳定发布，体验打磨
 
-- 将 themes.js 从 content.js 中提取完毕
 - 所有已知 Bug 清零
 - README 与 Running.md 重写为正式版文档
 - Edge 商店版本更新至 v1.0.0
@@ -445,7 +493,7 @@ UI框架       +全部核心模块 +动态感应区   → 最终收敛为       
 
 | 文档/位置 | 版本号 | 说明 |
 |----------|-------|------|
-| manifest.json | `0.14.1` | 当前浏览器实际加载版本（阅读统计 + 笔记增强 + 官方数据阅读行为报告 + 可选 DeepSeek AI 人格化执行摘要） |
+| manifest.json | `0.15.0` | 当前浏览器实际加载版本（屏占比 + 自动阅读 + 阅读统计 + 笔记增强 + 官方数据阅读行为报告 + 可选 DeepSeek AI 人格化执行摘要 / 人性化人格分析 + 集中 API Key 入口 + 支持与反馈/帮助中心 + 报告对象昵称与累计口径；已移除主题设置） |
 | RPD_需求文档.md | `v0.10` | PRD 迭代版本（功能层面；第 10 章为 v0.11.0 官方数据） |
 | Git Tag | `v0.14.1` | 最新已打的 Tag（提交 `1687175`，2026-10-01；v0.8.2 / v0.8.3 / v0.9.1 / v0.10.0 / v0.12.x / v0.13.x / v0.14.0 未单独打 tag；完整归档见 plan_github_versioning.md） |
 | release zip | `weread-enhancer-v0.14.1.zip` | 最新备好的上传包（95 KB，14 文件；含 manifest / content / background + stats / notes / official 三模块 + 图标） |

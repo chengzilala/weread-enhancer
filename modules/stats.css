@@ -1,5 +1,5 @@
 /* 微信悦读 · 阅读统计模块样式（v0.9.1）
-   仅作用于统计面板，复用 content.css 的 --wre-* 主题变量（明/暗主题自动跟随）。 */
+   仅作用于统计面板，复用 content.css 的 --wre-* 变量。 */
 
 #wre-stats-modal .wre-stats-modal {
   width: 460px;

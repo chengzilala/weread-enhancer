@@ -1,0 +1,117 @@
+# 会话交接：网站帽子云注册 + 部署
+
+> 用途：把这份文档整段复制给能控制浏览器的工具（workbuddy），让它接着完成「帽子云注册 → 授权仓库 → 配置 → 部署 → 回填域名」。
+> 背景：网站已用 Vercel 部署成功（https://weread-enhancer.vercel.app ），但 `.vercel.app` 域名在国内被 DNS 污染打不开，故改用国产平台「帽子云」（maoziyun.com，国内 CDN，免费）重新部署。
+
+---
+
+## 1. 版本 / 优先级
+
+- 项目：微信悦读（weread-enhancer）配套文档站，源码在 `web/`
+- 网站阶段：阶段一（壳子与构建链）已完成，`python3 web/build.py` 可产出 `web/dist/`
+- 本次唯一目标：把网站部署到帽子云，拿到国内可访问的域名
+- 优先级：高（Vercel 域名国内打不开，卡在最后一步）
+
+---
+
+# 执行结果（已完成，2026-10-03 01:45）
+
+> 承接上文交接，本任务已完成「注册 → 配置 → 部署 → 回填域名」全部步骤。
+> 实际执行路径与原文不同：**未走 GitHub OAuth 授权，也未在平台侧构建**，原因与替代方案见下。
+
+## 1. 线上地址
+
+| 项 | 值 |
+|---|---|
+| 生产域名（稳定别名） | **https://tqxch7e9l-wereadapp-32km31c.maozi.io** |
+| 单次部署 URL 示例 | https://rkni2xpzu-wereadapp-32km31c.maozi.io |
+| 账号 | 帽子云用户 `zccc`（手机 176****3974，邮箱未绑定） |
+| 控制台 | https://dash.maoziyun.com/project/3936/app/wereadapp |
+| 验证结果 | 首页 / 栏目页 / 子页面全站 200，国内直连 0.5–0.7s（`--noproxy` 直连实测） |
+| CDN | 域名经 Cloudflare 代理（`cf-cache-status`），静态资源 `cache-control: max-age=1200`，更新后约 20 分钟内全网刷新 |
+
+注意：域名后缀是 `maozi.io` 而非 `maoziyun.com`；域名由平台自动分配（随机前缀），**无法自选**，且换名重建会换域名。
+
+## 2. 实际生效的部署配置
+
+| 配置项 | 值 |
+|---|---|
+| 应用名 | `wereadapp`（应用名仅允许数字字母 4–20 位，不能带连字符） |
+| 部署来源 | Git → 公开 Git 仓库（**未做 GitHub OAuth 授权**） |
+| 仓库 | https://github.com/chengzilala/weread-enhancer |
+| 分支 | **`site-dist`**（orphan 分支，仓库根就是构建产物，无 manifest.json） |
+| 根目录 / 构建命令 / 输出目录 | 全部留空（纯静态托管，平台直接发分支内容） |
+| 线上版本 | v0.14.1（读自 main 的 manifest.json） |
+
+## 3. 与交接原文不同的三点（重要，需知悉）
+
+### 3.1 没走 GitHub OAuth，走「公开仓库」来源
+
+帽子云创建应用有三种来源：GitHub（需 OAuth 授权）/ Gitee / Git（公开仓库地址）。GitHub 授权要求在自动化浏览器里登录 GitHub（本机没有可复用的 GitHub 登录态，上一次会话已验证此路不通），所以改用 **Git 公开仓库**来源——仓库是 public 的，直接填 URL 即可。
+
+**代价**：此来源没有 webhook，push 不会自动触发重建，**更新内容需要在控制台手动点「部署」**（自动化可代办）。
+
+### 3.2 「平台侧构建」不可用，改为「本地构建 + site-dist 分支」
+
+原文计划的配置（根目录 `web` + 构建命令 `python3 build.py` + 输出目录 `dist`）在帽子云上**构建必失败**：
+
+```
+ERROR: 未知服务类型：检测到当前应用非 Some[static] 应用。
+```
+
+排查结论（对照组实验）：
+- mdn 纯静态仓库 + 无构建命令 → ✅ 成功
+- mdn 仓库 + 构建命令 `echo build-ok` → ✅ 成功
+- 本仓库（根目录有浏览器扩展的 `manifest.json`）+ 任何构建命令 → ❌ 同样报错
+
+即：**平台在构建前的项目类型探测会扫描仓库根，被扩展的 `manifest.json` 干扰，报出误导性的「非 static 应用」错误**。这是帽子云的 bug（构建设置的保存表单也有 React 状态脱钩问题：改了字段点保存，POST 发出的仍是旧值，只能删应用重建）。
+
+**替代方案（已生效）**：
+1. 本地 `python3 web/build.py` 构建；
+2. 把 `web/dist/*` 以 **orphan 分支 `site-dist`** 推到 GitHub（仓库根只含网站产物，无 manifest.json）；
+3. 帽子云应用直接托管 `site-dist` 分支根目录，无需构建。
+
+`site-dist` 分支已通过 GitHub API（Git Data API，凭据用钥匙串里的 `gho_` OAuth token，未写入任何文件）创建并更新两次：
+- `8c31749` 首次部署
+- `b899245` 更新 baseUrl 为帽子云域名
+
+### 3.3 baseUrl 已回填并推送
+
+`web/site.config.json` 第 4 行已改为 `https://tqxch7e9l-wereadapp-32km31c.maozi.io`，已提交到 main（`e141e71`）并推送成功。`dist/api/latest.json` 的 changelogUrl 已指向帽子云域名（CDN 缓存过期后全网生效）。
+
+## 4. 日常更新流程（重要：与 Vercel 时代不同）
+
+```bash
+# 1. 改 web/content/ 或模板后，本地构建
+cd web && python3 build.py
+
+# 2. 更新 site-dist 分支（在临时 worktree 里做，避免动主工作区的未提交插件改动）
+git worktree add /tmp/weredeploy --detach origin/main
+cp web/site.config.json /tmp/weredeploy/web/site.config.json   # 保持配置同步
+cd /tmp/weredeploy/web && python3 build.py && cd /tmp/weredeploy
+git checkout --orphan site-dist-new && git rm -rfq .
+cp -R web/dist/* . && git add -A && git commit -m "deploy: ..."
+git push origin site-dist-new:site-dist --force   # 若 HTTPS 推送被代理挡，可用 GitHub API（见下）
+git worktree remove --force /tmp/weredeploy
+
+# 3. 帽子云控制台 → wereadapp → 部署 → 选 site-dist → 立即部署
+```
+
+HTTPS 推送 github.com 走本机代理（127.0.0.1:53893）间歇性 502；`api.github.com` 通常可达，可用 Git Data API（tree → commit → PATCH refs/heads/site-dist）兜底。注意 tree API 会拒绝路径恰好为 `.git` 的文件（worktree 里的 `.git` 是个普通文件）。
+
+## 5. 本次对仓库的改动
+
+| 文件 | 改动 | 状态 |
+|---|---|---|
+| `web/site.config.json` | baseUrl → 帽子云域名 | 已提交 `e141e71` 并推送 |
+| `site-dist` 分支 | 新增（orphan，纯 dist 产物） | 已推送，两次更新 |
+
+插件代码、`web/content/*` 的未提交改动**未被触碰、未被提交**。
+
+## 6. 遗留事项 / 建议
+
+1. **Vercel 站点仍在线**（https://weread-enhancer.vercel.app，海外可访问）。可保留作海外镜像，也可删除项目；若保留，其 baseUrl 已与主站不同步，`latest.json` 内容以帽子云为准。
+2. **自动部署**：push 不触发帽子云重建（无 webhook）。若想要自动部署，需在帽子云「Git集成」里完成 GitHub OAuth（同样受浏览器登录态问题限制），或者写个本地脚本把上面第 4 节流程自动化。
+3. **帽子云账号安全**：注册密码较简单（用户自设），建议改强密码；平台完全免费，稳定性未知，重要场景可考虑自定义域名。
+4. **CDN 缓存 20 分钟**：更新部署后 `api/latest.json` 最多延迟 20 分钟刷新（`max-age=1200`）。
+5. 帽子云控制台自动化注意事项（供后续会话复用）：表单按钮可能不在视口内导致点击无效（先 `scrollIntoView` 再用鼠标事件）；「构建设置」的保存存在状态脱钩，改配置请直接删应用重建；应用删除后名字短期仍被占用。

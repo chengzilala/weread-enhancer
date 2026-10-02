@@ -5,7 +5,6 @@ const WRE_STORAGE_KEYS = {
   onboardingVersion: 'wreOnboardingVersion',
 };
 const WRE_DEFAULT_STATE = {
-  theme: 'light',
   dndMode: false,
   screenRatio: 80,
   screenBasePx: null,
@@ -398,13 +397,10 @@ function registerRuntimeErrorHooks() {
 async function loadState() {
   try {
     const result = await chrome.storage.local.get([WRE_STORAGE_KEYS.state, WRE_STORAGE_KEYS.onboardingVersion]);
-    // #region debug-point init-theme-state-load
     log('info', '初始化读取存储状态', {
       hasState: Boolean(result[WRE_STORAGE_KEYS.state]),
-      storedTheme: result[WRE_STORAGE_KEYS.state]?.theme || null,
       storedScreenRatio: result[WRE_STORAGE_KEYS.state]?.screenRatio || null,
     });
-    // #endregion
     // 缓存 onboarding 版本，供 init() 使用，避免二次 storage 读取
     wreLoadedOnboardingVersion = result[WRE_STORAGE_KEYS.onboardingVersion] || null;
     if (result[WRE_STORAGE_KEYS.state]) {
@@ -548,7 +544,7 @@ function detectScrollMode() {
     && !!document.querySelector('.app_content');
 }
 
-// 生成屏占比宽度 CSS（按阅读方式分流），供 updateStyleTag / clearPluginTheme 共用
+// 生成屏占比宽度 CSS（按阅读方式分流），供 updateStyleTag 使用
 function buildRatioCSS(ratio) {
   const numericRatio = clampNumber(Number(ratio), 50, 100);
 
@@ -607,7 +603,6 @@ function updateStyleTag(ratio) {
   wreStyleTag.textContent = `
     ${buildRatioCSS(numericRatio)}
     ${toolbarFloatCSS}
-    ${wreThemeCSS[WRE_STATE.theme] || wreThemeCSS.light}
   `;
 
   // 仅滚动模式启用视口滚动条美化的作用域标记（翻页模式/书架页不受影响）
@@ -682,217 +677,6 @@ function updateStyleTag(ratio) {
 
 function applyScreenRatio(ratio) {
   return updateStyleTag(ratio);
-}
-
-/* ========== 主题设置 ========== */
-
-// 颜色配置（背景走 CSS，文字走 element.style.setProperty）
-const wreThemeColors = {
-  light:         { bg: '#ffffff', color: '#000000', topbarBg: '#ffffff', filter: 'none' },
-  dark:          { bg: '#121212', color: '#ffffff', topbarBg: '#1a1a1a', filter: 'invert(1) hue-rotate(180deg)' },
-  'eye-protection': { bg: '#f5e6c8', color: '#1a0a00', topbarBg: '#ede0c8', filter: 'sepia(0.4)' },
-};
-
-const wreThemeBackgroundSelector = [
-  'div.app',
-  'div.app_content',
-  'div.app_content_in_reader',
-  'div.wr_horizontalReader',
-  'div.wr_horizontalReader_app_content',
-  'div.readerChapterContent_container',
-  'div.readerChapterContent',
-  'div.horizontal_reader_back_cover_wrapper',
-  'div.reader_flyleaf_container',
-  'div.horizontalReaderCoverPage',
-  'div[class*="needPay_container"]',
-].join(',');
-
-const wreThemeCSS = {
-  light: `.renderTargetContainer,.renderTargetContainer>div{background:transparent!important}html > body.wre-theme-light,html > body.wre-theme-light ${wreThemeBackgroundSelector}{background:#ffffff!important}html > body.wre-theme-light div.readerTopBar{background:#ffffff!important}html > body.wre-theme-light .renderTargetContainer,html > body.wre-theme-light .wr_canvasContainer,html > body.wre-theme-light canvas{filter:none!important}`,
-  dark: `.renderTargetContainer,.renderTargetContainer>div{background:transparent!important}html > body.wre-theme-dark,html > body.wre-theme-dark ${wreThemeBackgroundSelector}{background:#121212!important}html > body.wre-theme-dark div.readerTopBar{background:#1a1a1a!important}html > body.wre-theme-dark .renderTargetContainer,html > body.wre-theme-dark .wr_canvasContainer,html > body.wre-theme-dark canvas{filter:invert(1) hue-rotate(180deg)!important}`,
-  'eye-protection': `.renderTargetContainer,.renderTargetContainer>div{background:transparent!important}html > body.wre-theme-eye-protection,html > body.wre-theme-eye-protection ${wreThemeBackgroundSelector}{background:#f5e6c8!important}html > body.wre-theme-eye-protection div.readerTopBar{background:#ede0c8!important}html > body.wre-theme-eye-protection .renderTargetContainer,html > body.wre-theme-eye-protection .wr_canvasContainer,html > body.wre-theme-eye-protection canvas{filter:sepia(0.4)!important}`,
-};
-
-function applyTheme(theme) {
-  // 移除旧主题类
-  document.body.classList.remove('wre-theme-light', 'wre-theme-dark', 'wre-theme-eye-protection');
-  // 添加新主题类
-  document.body.classList.add('wre-theme-' + theme);
-
-  // 同步更新插件UI的 data 属性
-  const root = document.getElementById('we-read-enhancer-root');
-  if (root) {
-    root.setAttribute('data-wre-theme', theme);
-  }
-
-  // 更新状态并通过 updateStyleTag 重建完整样式（含主题 CSS + 屏占比 CSS）
-  WRE_STATE.theme = theme;
-  ensureStyleTag();
-  updateStyleTag(WRE_STATE.screenRatio);
-
-  // 用 element.style.setProperty('color', ..., 'important') 直接设文字颜色
-  // 此方式优先级高于任何样式表 !important，React 无法覆盖
-  applyThemeColors(theme);
-
-  log('info', '主题已应用', {
-    theme,
-    officialThemeHint: '插件不再强制同步微信读书官方主题，仅保证插件主题自身的背景与文字可读性',
-    bodyClass: document.body.className,
-  });
-}
-
-/**
- * 清除插件主题样式，让官方主题完全接管
- * 点击官方主题按钮时调用
- */
-function clearPluginTheme() {
-  // 0. 设标记位，阻止所有延迟兜底重新覆盖
-  wrePluginThemeDisabled = true;
-
-  // 1. 移除 body 上的插件主题 class
-  document.body.classList.remove('wre-theme-light', 'wre-theme-dark', 'wre-theme-eye-protection');
-
-  // 2. 重建 wreStyleTag：保留屏占比 CSS，清除主题 CSS
-  const styleTag = document.getElementById('wreThemeStyleTag') || document.getElementById('we-read-enhancer-style');
-  if (styleTag) {
-    styleTag.textContent = `
-      ${buildRatioCSS(WRE_STATE.screenRatio)}
-      ${toolbarFloatCSS}
-    `;
-  }
-
-  // 3. 暴力清理所有 inline 样式（filter、background、color 全部清掉）
-  for (const c of document.querySelectorAll('canvas')) {
-    const parent = c.parentElement;
-    if (parent) {
-      parent.style.removeProperty('filter');
-      parent.style.removeProperty('background-color');
-    }
-    c.style.removeProperty('filter');
-  }
-  const all = document.querySelectorAll('[style]');
-  for (const el of all) {
-    const s = el.style;
-    if (s.filter && (s.filter.includes('invert') || s.filter.includes('sepia') || s.filter.includes('hue-rotate'))) {
-      s.removeProperty('filter');
-    }
-    if (s.backgroundColor === 'rgb(18, 18, 18)' || s.backgroundColor === 'rgb(245, 230, 200)' ||
-        s.backgroundColor === 'rgb(26, 26, 26)' || s.backgroundColor === 'rgb(237, 224, 200)' ||
-        s.backgroundColor === 'rgb(255, 255, 255)') {
-      s.removeProperty('background-color');
-    }
-    if (s.color === 'rgb(0, 0, 0)' || s.color === 'rgb(255, 255, 255)' || s.color === 'rgb(26, 10, 0)') {
-      s.removeProperty('color');
-      s.removeProperty('-webkit-text-fill-color');
-    }
-  }
-
-  // 4. 清理顶栏
-  const topBar = document.querySelector('.readerTopBar');
-  if (topBar) {
-    topBar.style.removeProperty('color');
-    topBar.style.removeProperty('-webkit-text-fill-color');
-    topBar.style.removeProperty('background-color');
-  }
-
-  // 5. 清理所有 recorded elements
-  clearLastPaintedThemeStyles();
-
-  // 6. 重置状态
-  WRE_STATE.theme = 'light';
-
-  // 7. 更新 UI
-  const root = document.getElementById('we-read-enhancer-root');
-  if (root) {
-    root.setAttribute('data-wre-theme', 'light');
-  }
-  // 显式设置主题按钮高亮：移除所有，仅高亮「明亮」
-  const themeOptions = document.getElementById('wre-theme-options');
-  if (themeOptions) {
-    themeOptions.querySelectorAll('[data-theme]').forEach((btn) => {
-      btn.classList.toggle('wre-theme-active', btn.getAttribute('data-theme') === 'light');
-    });
-  }
-
-  log('info', '插件主题已清除，官方主题接管（所有插件样式已移除）');
-}
-
-/**
- * 直接设置 .readerChapterContent 内所有元素的 color，
- * 使用 style.setProperty('color', ..., 'important')，
- * 优先级高于一切样式表，保证文字始终清晰可见。
- */
-let wreLastPaintedElements = new Set();
-let wrePluginThemeDisabled = false; // 标记是否已清除插件主题，防止延迟兜底重新覆盖
-
-function clearLastPaintedThemeStyles() {
-  let clearedCount = 0;
-  for (const el of wreLastPaintedElements) {
-    if (!el || !el.style) {
-      continue;
-    }
-    el.style.removeProperty('color');
-    el.style.removeProperty('-webkit-text-fill-color');
-    el.style.removeProperty('background-color');
-    el.style.removeProperty('filter');
-    clearedCount++;
-  }
-  wreLastPaintedElements = new Set();
-  return clearedCount;
-}
-
-function applyThemeColors(theme) {
-  const cfg = wreThemeColors[theme];
-  if (!cfg) return;
-
-  // 1. 清理上一主题的 inline 样式
-  const cleared = clearLastPaintedThemeStyles();
-
-  // 2. CSS 背景 + filter 已通过 body class 自动生效，这里再补 JS 级兜底
-  const touched = new Set();
-
-  // 3. 顶栏文字色
-  const topBar = document.querySelector('.readerTopBar');
-  if (topBar) {
-    topBar.style.setProperty('color', cfg.color, 'important');
-    topBar.style.setProperty('-webkit-text-fill-color', cfg.color, 'important');
-    touched.add(topBar);
-  }
-
-  wrePluginThemeDisabled = false;
-
-  // 4. 往 canvas 的父容器上挂 filter。用标记位防止 clearPluginTheme 后被延迟兜底覆盖
-  const applyParentFilter = () => {
-    if (wrePluginThemeDisabled) return 0;
-    let applied = 0;
-    for (const c of document.querySelectorAll('canvas')) {
-      try {
-        const r = c.getBoundingClientRect();
-        if (r.width < 20 || r.height < 20) continue;
-        const parent = c.parentElement;
-        if (!parent) continue;
-        if (parent.style.filter === cfg.filter) continue;
-        parent.style.setProperty('filter', cfg.filter, 'important');
-        touched.add(parent);
-        applied++;
-      } catch (_) { /* canvas detached, skip */ }
-    }
-    return applied;
-  };
-  applyParentFilter();
-  [100, 400, 1000, 2000].forEach(ms => setTimeout(applyParentFilter, ms));
-
-  wreLastPaintedElements = touched;
-  log('info', '主题滤镜已应用', { theme, filter: cfg.filter, cleared });
-}
-
-function highlightActiveTheme() {
-  const options = document.getElementById('wre-theme-options');
-  if (!options) return;
-  options.querySelectorAll('[data-theme]').forEach((btn) => {
-    const theme = btn.getAttribute('data-theme');
-    btn.classList.toggle('wre-theme-active', theme === WRE_STATE.theme);
-  });
 }
 
 function inspectAppliedLayout() {
@@ -977,77 +761,6 @@ function removeToolbarFloating() {
   document.body.classList.remove('wre-show-topbar');
   document.body.classList.remove('wre-show-controls');
   log('info', '已移除工具栏浮动');
-}
-
-/**
- * 扫描页面上所有可能和主题切换相关的按钮/元素，把详细信息写入日志，
- * 用于定位官方白天/夜间切换按钮的确切选择器。
- */
-function scanOfficialThemeButtons() {
-  const searchAreas = [
-    '.readerControls',
-    '.readerTopBar',
-    '.reader_footer',
-  ];
-
-  const results = {};
-
-  for (const areaSel of searchAreas) {
-    const area = document.querySelector(areaSel);
-    if (!area) {
-      results[areaSel] = 'NOT_FOUND';
-      continue;
-    }
-
-    // 获取所有可能可交互的子元素（不限深度）
-    const allChildren = Array.from(area.querySelectorAll('div, span, button, a, i, svg, img, [role="button"], [onclick], [class*="btn"], [class*="icon"], [class*="tooltip"]'));
-
-    const items = allChildren.slice(0, 40).map((el) => ({
-      tag: el.tagName,
-      className: el.className || '',
-      text: (el.textContent || '').trim().slice(0, 50) || '(empty)',
-      id: el.id || '(none)',
-      rect: {
-        w: Math.round(el.getBoundingClientRect().width),
-        h: Math.round(el.getBoundingClientRect().height),
-        x: Math.round(el.getBoundingClientRect().left),
-        y: Math.round(el.getBoundingClientRect().top),
-      },
-      onclick: el.onclick ? 'has onclick' : 'none',
-      role: el.getAttribute('role') || 'none',
-      cursor: window.getComputedStyle(el).cursor,
-    }));
-
-    results[areaSel] = {
-      total: allChildren.length,
-      sample: items,
-    };
-  }
-
-  // 额外扫描：直接搜索是否包含"白天"/"夜间"/"深色"/"浅色"文字的元素（不限区域）
-  const allPageElements = Array.from(document.querySelectorAll('div, span, button'));
-  const themeTextMatches = [];
-  for (const el of allPageElements) {
-    const text = (el.textContent || '').trim();
-    if (text === '白天' || text === '夜间' || text === '深色' || text === '浅色' || text === '日间' || text === '夜晚') {
-      themeTextMatches.push({
-        tag: el.tagName,
-        className: el.className || '',
-        text,
-        rect: {
-          w: Math.round(el.getBoundingClientRect().width),
-          h: Math.round(el.getBoundingClientRect().height),
-          x: Math.round(el.getBoundingClientRect().left),
-          y: Math.round(el.getBoundingClientRect().top),
-        },
-        parentTag: el.parentElement?.tagName || 'none',
-        parentClass: el.parentElement?.className || 'none',
-      });
-    }
-  }
-  results['_themeTextMatches_all'] = themeTextMatches;
-
-  log('info', '官方主题按钮扫描结果', results);
 }
 
 function ensureToolbarTrigger() {
@@ -1198,7 +911,6 @@ function createUI() {
 
   const root = document.createElement('div');
   root.id = 'we-read-enhancer-root';
-  root.setAttribute('data-wre-theme', WRE_STATE.theme);
   if (WRE_STATE.dndMode) {
     root.classList.add('wre-dnd');
   }
@@ -1209,7 +921,6 @@ function createUI() {
     <div class="wre-panel-container" id="wre-main-menu">
       <div class="wre-menu-group">设置</div>
       <div class="wre-menu-item" data-action="read-settings"><span class="wre-menu-icon">📖</span>阅读设置</div>
-      <div class="wre-menu-item" data-action="theme-settings"><span class="wre-menu-icon">🎨</span>主题设置</div>
       <div class="wre-menu-item" data-action="debug-logs"><span class="wre-menu-icon">🧪</span>调试日志</div>
       <div class="wre-menu-item" data-action="restore-default"><span class="wre-menu-icon">🔄</span>恢复默认设置</div>
 
@@ -1262,27 +973,6 @@ function createUI() {
               <button class="wre-btn wre-btn-small" data-speed="80">⚡ 80</button>
             </div>
             <div class="wre-setting-tip">快捷键：空格 开始/暂停 | 按 ? 查看全部快捷键</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="wre-modal-overlay" id="wre-theme-settings-modal">
-      <div class="wre-modal">
-        <div class="wre-modal-header">
-          <span class="wre-modal-title">🎨 主题设置</span>
-          <button class="wre-modal-close" data-close="#wre-theme-settings-modal">&times;</button>
-        </div>
-        <div class="wre-modal-body">
-          <div class="wre-setting-item">
-            <label class="wre-setting-label">预设主题</label>
-            <div class="wre-theme-options" id="wre-theme-options">
-              <button class="wre-btn wre-theme-btn" data-theme="light">☀️ 明亮</button>
-              <button class="wre-btn wre-theme-btn" data-theme="dark">🌙 暗黑</button>
-              <button class="wre-btn wre-theme-btn" data-theme="eye-protection">👁️ 护眼</button>
-            </div>
-            <p class="wre-theme-hint">插件主题与官方主题独立运行。如需恢复官方原生外观，点击下方按钮清除所有插件样式</p>
-            <button class="wre-btn" id="wre-clear-plugin-theme-btn" style="margin-top:8px;width:100%;background:#f0f0f0;color:#333;border:1px solid #ddd;">↩️ 使用官方主题（清除插件样式）</button>
           </div>
         </div>
       </div>
@@ -1753,32 +1443,6 @@ function bindEvents(root) {
   const debugDownload = root.querySelector('#wre-debug-download');
   const debugClear = root.querySelector('#wre-debug-clear');
 
-  // 主题按钮事件
-  const themeOptions = root.querySelector('#wre-theme-options');
-  if (themeOptions) {
-    themeOptions.addEventListener('click', async (event) => {
-      const btn = event.target.closest('[data-theme]');
-      if (!btn) return;
-      const theme = btn.getAttribute('data-theme');
-      if (theme === WRE_STATE.theme) return;
-      WRE_STATE.theme = theme;
-      applyTheme(theme);
-      highlightActiveTheme();
-      await saveState();
-      log('info', '主题已切换', { theme });
-    });
-  }
-
-  // 使用官方主题按钮事件
-  const clearPluginThemeBtn = root.querySelector('#wre-clear-plugin-theme-btn');
-  if (clearPluginThemeBtn) {
-    clearPluginThemeBtn.addEventListener('click', async () => {
-      clearPluginTheme();
-      await saveState();
-      log('info', '已清除插件主题，官方主题接管');
-    });
-  }
-
   // 悬浮球：鼠标悬停即展开菜单（无需点击），移开后延迟收起
   let menuCloseTimer = null;
   const openMenu = () => {
@@ -1972,11 +1636,6 @@ function handleMenuClick(action) {
     case 'read-settings':
       openModal('#wre-read-settings-modal');
       break;
-    case 'theme-settings':
-      openModal('#wre-theme-settings-modal');
-      highlightActiveTheme();
-      scanOfficialThemeButtons();
-      break;
     case 'debug-logs':
       openModal('#wre-debug-modal');
       collectLayoutSnapshot();
@@ -1984,7 +1643,6 @@ function handleMenuClick(action) {
     case 'restore-default':
       stopAutoRead();
       WRE_STATE = { ...WRE_DEFAULT_STATE };
-      applyTheme(WRE_STATE.theme);
       const applied = applyScreenRatio(WRE_STATE.screenRatio);
       scheduleWereadLayoutReflow('restore-default');
       saveState();
@@ -2016,12 +1674,14 @@ function handleMenuClick(action) {
     case 'official':
       // 官方数据面板由 modules/official.js 自行接管（它已绑定自己的 click），同上。
       break;
-    case 'clear-plugin-theme':
-      const mainMenu = document.querySelector('#wre-main-menu');
-      if (mainMenu) mainMenu.classList.remove('wre-visible');
-      clearPluginTheme();
-      saveState();
-      log('info', '已清除插件主题，官方主题接管');
+    case 'api-key':
+      // API Key 设置面板由 modules/official.js 自行接管（它已绑定自己的 click），同上。
+      break;
+    case 'support-center':
+      // 支持与反馈中心由 modules/support-center.js 自行接管（它已绑定自己的 click），同上。
+      break;
+    case 'help':
+      // 帮助中心由 modules/help.js 自行接管（它已绑定自己的 click），同上。
       break;
     default:
       log('warn', '该菜单功能尚未实现', { action });
@@ -2072,13 +1732,10 @@ async function init() {
   const t0 = performance.now();
   await loadState();
   const t1 = performance.now();
-  // #region debug-point init-theme-before-apply
-  log('info', '初始化准备应用主题', {
-    theme: WRE_STATE.theme,
+  log('info', '初始化准备应用屏占比', {
     screenRatio: WRE_STATE.screenRatio,
     bodyClassBefore: document.body?.className || '',
   });
-  // #endregion
   registerRuntimeErrorHooks();
   createUI();
   const t2 = performance.now();
@@ -2093,7 +1750,7 @@ async function init() {
         openModal('#wre-welcome-modal');
       });
     });
-    // fire-and-forget，不阻塞后续 CSS 和主题应用
+    // fire-and-forget，不阻塞后续 CSS 和屏占比应用
     chrome.storage.local.set({ [WRE_STORAGE_KEYS.onboardingVersion]: currentVersion });
     log('info', '新手引导已弹出', { version: currentVersion, prevStored: storedVersion || '无' });
   }
@@ -2105,24 +1762,14 @@ async function init() {
   const t4 = performance.now();
   await applySavedScreenRatioOnInit();
   const t5 = performance.now();
-  // 应用保存的主题
-  applyTheme(WRE_STATE.theme);
-  const t6 = performance.now();
   log('info', '[perf] init 各阶段耗时', {
     loadState: Math.round(t1 - t0),
     createUI: Math.round(t2 - t1),
     storageGet: Math.round(t3 - t2),
     primeScreen: Math.round(t4 - t3),
     applyRatio: Math.round(t5 - t4),
-    applyTheme: Math.round(t6 - t5),
-    total: Math.round(t6 - t0),
+    total: Math.round(t5 - t0),
   });
-  // #region debug-point init-theme-after-apply
-  log('info', '初始化已调用 applyTheme', {
-    theme: WRE_STATE.theme,
-    bodyClassAfter: document.body?.className || '',
-  });
-  // #endregion
 
   // 监听 <head> 中 <style> 标签注入，确保我们的样式始终在最后（优先级最高）
   let headMoveTimer = null;

@@ -25,9 +25,14 @@ const TIMEOUT_MS = 10000;
 
 // DeepSeek（AI 增强，可选项）：数字本地算、人格化文字交给 DeepSeek 生成。
 const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
+const DEEPSEEK_MODELS_URL = 'https://api.deepseek.com/models';
 const DEEPSEEK_STORAGE_KEY = 'wreDeepSeekKey';
 const DEEPSEEK_MODEL = 'deepseek-chat';
 const DEEPSEEK_TIMEOUT_MS = 30000;      // AI 生成较慢，放宽到 30 秒
+
+// 配套网站（帮助中心 / 版本检查）：只读一个公开的静态 JSON，不带任何用户数据。
+const SITE_LATEST_URL = 'https://tqxch7e9l-wereadapp-32km31c.maozi.io/api/latest.json';
+const HELP_TIMEOUT_MS = 3000;
 
 function maskKey(key) {
   if (typeof key !== 'string' || !key) {
@@ -184,14 +189,70 @@ async function callDeepSeek(messages, apiKey) {
   }
 }
 
+/** 校验 DeepSeek Key：调 models 接口确认身份有效（不消耗推理 token） */
+async function verifyAiKey(apiKey) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const resp = await fetch(DEEPSEEK_MODELS_URL, {
+      method: 'GET',
+      headers: { 'Authorization': 'Bearer ' + apiKey },
+      signal: controller.signal,
+    });
+    if (resp.status === 401 || resp.status === 403) {
+      return { ok: false, code: 'auth', error: 'DeepSeek Key 无效或已失效，请重新填写' };
+    }
+    if (!resp.ok) {
+      return { ok: false, code: 'http', error: 'DeepSeek 校验返回异常（HTTP ' + resp.status + '）' };
+    }
+    logBg('info', 'DeepSeek Key 校验通过', { key: maskKey(apiKey) });
+    return { ok: true };
+  } catch (err) {
+    if (err && err.name === 'AbortError') {
+      return { ok: false, code: 'timeout', error: '校验超时，请检查网络后重试' };
+    }
+    return { ok: false, code: 'network', error: '网络不通或 DeepSeek 不可达' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** 拉取配套网站的版本公告（只读 GET，超时 3s，失败静默由调用方兜底） */
+async function fetchSiteLatest() {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), HELP_TIMEOUT_MS);
+  try {
+    const resp = await fetch(SITE_LATEST_URL, { method: 'GET', signal: controller.signal, cache: 'no-store' });
+    const raw = await resp.text();
+    let data = null;
+    try {
+      data = raw ? JSON.parse(raw) : null;
+    } catch (parseErr) {
+      data = null;
+    }
+    if (!resp.ok || !data || typeof data !== 'object') {
+      return { ok: false, code: 'http', error: '站点版本接口返回异常' };
+    }
+    return { ok: true, data: data };
+  } catch (err) {
+    return {
+      ok: false,
+      code: err && err.name === 'AbortError' ? 'timeout' : 'network',
+      error: '站点版本接口不可达',
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function handleMessage(message) {
   const type = message && message.type;
-
   if (type === 'wre-official-status') {
     const skill = await readSkillState();
     return {
       ok: true,
       hasKey: !!(skill && skill.apiKey),
+      apiKey: skill && skill.apiKey ? skill.apiKey : '',
       savedAt: skill ? skill.savedAt || 0 : 0,
       lastVerifiedAt: skill ? skill.lastVerifiedAt || 0 : 0,
       skillVersion: SKILL_VERSION,
@@ -251,7 +312,12 @@ async function handleMessage(message) {
 
   if (type === 'wre-ai-status') {
     const ai = await readAiState();
-    return { ok: true, hasKey: !!(ai && ai.apiKey), savedAt: ai ? ai.savedAt || 0 : 0 };
+    return {
+      ok: true,
+      hasKey: !!(ai && ai.apiKey),
+      apiKey: ai && ai.apiKey ? ai.apiKey : '',
+      savedAt: ai ? ai.savedAt || 0 : 0,
+    };
   }
 
   if (type === 'wre-ai-save') {
@@ -262,12 +328,16 @@ async function handleMessage(message) {
     if (apiKey.indexOf('sk-') !== 0) {
       return { ok: false, code: 'format', error: 'Key 格式不对：应以 sk- 开头' };
     }
+    const verified = await verifyAiKey(apiKey);
+    if (!verified.ok) {
+      return verified;
+    }
     const now = Date.now();
     await chrome.storage.local.set({
-      [DEEPSEEK_STORAGE_KEY]: { apiKey: apiKey, savedAt: now },
+      [DEEPSEEK_STORAGE_KEY]: { apiKey: apiKey, savedAt: now, lastVerifiedAt: now },
     });
     logBg('info', '已保存 DeepSeek Key', { key: maskKey(apiKey) });
-    return { ok: true, hasKey: true, savedAt: now };
+    return { ok: true, hasKey: true, savedAt: now, lastVerifiedAt: now };
   }
 
   if (type === 'wre-ai-clear') {
@@ -286,6 +356,10 @@ async function handleMessage(message) {
       return { ok: false, code: 'empty', error: '缺少对话内容' };
     }
     return await callDeepSeek(messages, ai.apiKey);
+  }
+
+  if (type === 'wre-help-latest') {
+    return await fetchSiteLatest();
   }
 
   return { ok: false, code: 'unknown', error: '未知的后台请求类型' };

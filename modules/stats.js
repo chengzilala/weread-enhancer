@@ -497,7 +497,7 @@
     item.addEventListener('click', () => {
       openPanel();
     });
-    const anchor = menu.querySelector('[data-action="theme-settings"]');
+    const anchor = menu.querySelector('[data-action="read-settings"]');
     if (anchor && anchor.nextSibling) {
       menu.insertBefore(item, anchor.nextSibling);
     } else if (anchor) {

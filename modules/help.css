@@ -1,0 +1,16 @@
+/* 微信悦读 · 帮助中心样式（v0.14.6）
+   仅负责「📖 帮助中心」菜单入口上的新版本红点，复用 content.css 的 .wre-menu-item。 */
+
+.wre-help-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fa5151;
+  margin-left: auto;
+  display: none;
+  flex: 0 0 auto;
+}
+
+.wre-help-dot.wre-visible {
+  display: inline-block;
+}

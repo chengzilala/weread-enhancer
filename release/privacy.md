@@ -8,6 +8,7 @@ This extension **does not collect, store, or transmit any personal data or brows
 
 - No analytics, tracking, or advertising code is included.
 - No data is sent to any server other than the domains described below (WeRead's own gateway, and — only if you opt in to the optional AI enhancement — DeepSeek's API).
+- The extension also makes a single, anonymous GET request to its companion website (`tqxch7e9l-wereadapp-32km31c.maozi.io`) to check whether a newer version is available. This request carries no user data or identifiers, is cached locally for 24 hours, and is silently ignored on failure.
 - No cookies are created or read beyond what the extension needs to function.
 
 ## Reading Notes / Highlights
@@ -25,7 +26,7 @@ The "Official Data" feature is **off by default** and requires you to paste **yo
 - The Key is stored **only locally** in `chrome.storage.local` on your own device. It is never sent to the extension's author or any third party.
 - When you open the report, the extension sends the Key and your request **only to WeRead's official gateway `i.weread.qq.com`** (via the extension's background service worker) — the same official service the WeRead App skill uses. No other server is contacted.
 - The report is **generated locally in your browser**; the resulting report is not uploaded anywhere. Exporting simply saves a file to your own computer.
-- You can remove the Key at any time from the "⚙️ 设置" tab (it is then deleted from local storage together with the report cache).
+- You can remove the Key at any time from the "🔑 API Key" menu entry (it is then deleted from local storage together with the report cache).
 - Security note: the Key grants read access to your own WeRead data. Treat it like a password — do not share it or commit it to any repository.
 
 ## AI Enhancement (DeepSeek) — optional, opt-in
@@ -36,11 +37,11 @@ The "Official Data" report can optionally upgrade its "Executive Summary" with A
 - All report numbers are still computed **locally by fixed rules**; DeepSeek only turns those already-computed facts (plus a small sample of your own highlights/thoughts) into natural-language wording. It never computes the statistics itself.
 - When enabled, the extension sends **only** the following to `api.deepseek.com`: a summary of your shelf/cumulative reading/notes/finish-rate/category preferences, annual trend, and a bounded sample of highlight/thought text from the top few most-annotated books (at most 6 samples per book). Your WeRead `wrk-` Key is **never** sent to DeepSeek.
 - If you do not configure a DeepSeek Key, **no request is ever made to `api.deepseek.com`**, and the report falls back to the rule-based summary.
-- You can remove the DeepSeek Key at any time from the "⚙️ 设置" tab.
+- You can remove the DeepSeek Key at any time from the "🔑 API Key" menu entry.
 
 ## Local Storage
 
-The extension uses `chrome.storage.local` solely for saving user preferences (such as screen ratio, theme, auto-read speed, do-not-disturb, and full-screen settings) and, if you opt in, your own WeRead API Key, your own DeepSeek API Key, and a short-lived report cache. All data is stored locally in your browser and is only accessible to you. This data is never transmitted anywhere except the WeRead official gateway and (only if you opt in to the AI enhancement) DeepSeek's API as described above.
+The extension uses `chrome.storage.local` solely for saving user preferences (such as screen ratio, theme, auto-read speed, do-not-disturb, and full-screen settings) and, if you opt in, your own WeRead API Key, your own DeepSeek API Key, and a short-lived report cache. It also stores the 24-hour cached result of the version check described above. All data is stored locally in your browser and is only accessible to you. This data is never transmitted anywhere except the WeRead official gateway and (only if you opt in to the AI enhancement) DeepSeek's API as described above.
 
 ## Permissions
 
@@ -49,10 +50,11 @@ The extension requests the following permissions:
 - **storage**: Required to save your reading preferences (and, optionally, your own API Keys) so they persist across page refreshes and browser restarts.
 - **host permission for `https://i.weread.qq.com/*`**: Required only to send your own request to WeRead's official data gateway when you use the optional "Official Data" feature. No other host is accessed.
 - **host permission for `https://api.deepseek.com/*`**: Required only to send the bounded summary/sample described above to DeepSeek when you opt in to the optional AI enhancement. No request is made to this host unless you have configured a DeepSeek Key.
+- **host permission for `https://tqxch7e9l-wereadapp-32km31c.maozi.io/*`**: Required only to read the public version file (`/api/latest.json`) for the version-update hint. No user data is sent to this host.
 
 ## Scope
 
-This extension only runs on `weread.qq.com` and does not interact with any other websites. The only external domains it can contact are `i.weread.qq.com` (WeRead's own official gateway, for the optional "Official Data" feature) and `api.deepseek.com` (DeepSeek's API, for the optional AI enhancement).
+This extension only runs on `weread.qq.com` and does not interact with any other websites. The only external domains it can contact are `i.weread.qq.com` (WeRead's own official gateway, for the optional "Official Data" feature), `api.deepseek.com` (DeepSeek's API, for the optional AI enhancement), and `tqxch7e9l-wereadapp-32km31c.maozi.io` (the companion website, for the anonymous version check).
 
 ## Contact
 

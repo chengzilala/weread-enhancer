@@ -1,16 +1,16 @@
 /**
- * 微信悦读 · 官方数据模块（v0.13.2）
+ * 微信悦读 · 官方数据模块（v0.14.2）
  *
  * 定位：独立模块，不改动 content.js 与既有模块逻辑。经 manifest 的 content_scripts
  * 在 content.js 之前加载，与 content.js 共享隔离世界，可复用其全局 log() 与
  * #we-read-enhancer-root 容器。
  *
- * 职责（阶段十三 V1 + V2·上半）：
+ * 职责（阶段十三 V1 + V2·上半 + v0.14.0 AI + v0.14.2 Key 集中入口）：
  *   1. 主菜单「☁️ 官方数据」入口
  *   2. 面板：📊 阅读行为报告（时长与天数趋势 / 书架结构 / 知识脉络 / 笔记行为 /
  *      完读率 / 已读完书目 / 周期切换 / 环比 / 导出 Markdown / HTML / PDF）
- *   3. 面板：⚙️ 设置（用户粘贴自己的 wrk- API Key，保存即校验 / 清除）；
- *      并监听 `wre-open-key-settings` 事件，供其它模块（如笔记）一键跳来配 Key
+ *   3. 主菜单「🔑 API Key」独立入口：集中填写微信读书 wrk- Key 与 DeepSeek Key
+ *      （保存即校验 / 清除）；并监听 `wre-open-key-settings` 事件，供其它模块（如笔记）一键跳来配 Key
  *
  * 数据来源：微信读书官方 Agent Skill 网关（经 background.js 转发）：
  *   /readdata/detail（按周期）＋ /shelf/sync（书架）＋ /user/notebooks（笔记概览，游标分页）。
@@ -41,6 +41,13 @@
     '要求：1) 用中文，真诚、有洞察，但不浮夸、不编造、不堆形容词；2) 严格基于所给数据，不得虚构任何数字，也不得杜撰用户没做过的事；3) 结构分三段——' +
     '① 一句话定性＋总体投入（书架数、累计时长、划线数、想法数）；② 2~3 个最突出的阅读特征（每个必须引用具体数据或原文佐证）；③ 时间轨迹信号（如年度时长变化）；' +
     '4) 直接输出正文自然段，不要加任何标题、序号或 Markdown 符号。';
+  const AI_PERSONA_PROMPT = '你是一位克制、客观的阅读分析师。请根据用户提供的微信读书真实统计值、分类偏好、笔记最多的几本书及划线/想法原文样本、年度时长变化，为这位读者写一段有深度、有洞察的「人性化人格分析」。' +
+    '要求：1) 用中文，真诚、有洞察，像朋友的口吻，但不浮夸、不编造、不堆形容词；2) 严格基于所给数据与原文，不得虚构任何数字，也不得杜撰用户没做过的事；' +
+    '3) 分 4~6 个要点输出，每个要点揭示一个最鲜明的阅读/思维特质，做深挖而非概述，每个论断都要落到具体证据上（须点出具体书名、划线/想法条数、引用原文或年度数字）；' +
+    '4) 输出格式必须严格如下——每个要点两行起步：第一行是「第N、小标题」（小标题 2~6 个字，如「第一性原理」「系统进阶」「深夜思考者」），下一行开始为该要点的论述正文；要点之间空一行。示例：\n' +
+    '第一、第一性原理\n他不接受给定的知识，而是追问概念的起源……（正文）\n\n' +
+    '第二、系统进阶\n他每进入一个新领域都沿一条路径系统性地读多本书……（正文）\n' +
+    '5) 不要输出总标题，不要用 Markdown 符号，直接按上述格式输出。';
   const MODES = [
     { key: 'weekly', label: '本周' },
     { key: 'monthly', label: '本月' },
@@ -48,23 +55,28 @@
     { key: 'overall', label: '累计' },
   ];
 
-  let activeTab = 'report';
   let mode = 'monthly';
   let report = null;        // 当前展示的报告数据（/readdata/detail，按周期）
   let reportState = 'idle'; // idle | loading | ok | error
   let reportError = '';
   let reportFromCache = false;
   let reportAt = 0;
+  let overallReport = null; // 累计（总体）数据：执行摘要 / 人格分析固定基于它，与周期选择无关
   let upgradeInfo = null;
   let overview = null;        // 与周期无关的书架 + 笔记概览：{ at, shelf, notebooks }
   let overviewState = 'idle'; // idle | loading | ok | partial | error
   let overviewError = '';
-  let keyStatus = { hasKey: false, savedAt: 0, lastVerifiedAt: 0, skillVersion: '' };
+  let keyStatus = { hasKey: false, apiKey: '', savedAt: 0, lastVerifiedAt: 0, skillVersion: '' };
   let settingsMessage = '';
-  let aiKeyStatus = { hasKey: false, savedAt: 0 };  // DeepSeek Key 状态（可选）
+  let aiSettingsMessage = '';   // DeepSeek Key 区的提示（独立于微信读书 Key 区）
+  let draftWrkKey = '';   // 输入框草稿：保存/重渲染后仍保留用户粘贴的微信读书 Key
+  let draftAiKey = '';    // 输入框草稿：保留用户粘贴的 DeepSeek Key
+  let aiKeyStatus = { hasKey: false, apiKey: '', savedAt: 0 };  // DeepSeek Key 状态（可选）
   let aiSummary = null;   // AI 生成的人格化执行摘要（字符串数组，每项一段）
+  let aiPersona = null;   // AI 生成的人性化人格分析（[{ title, body }] 分点数组）
   let aiState = 'idle';   // idle | loading | ok | error | skipped
   let aiError = '';
+  let aiPersonaError = '';   // 人格分析失败原因（成功后清空）
 
   // ---------- 通用小工具 ----------
 
@@ -208,6 +220,7 @@
     if (result.ok) {
       keyStatus = {
         hasKey: !!result.hasKey,
+        apiKey: result.apiKey || '',
         savedAt: result.savedAt || 0,
         lastVerifiedAt: result.lastVerifiedAt || 0,
         skillVersion: result.skillVersion || '',
@@ -220,9 +233,15 @@
     reportState = 'loading';
     reportError = '';
     upgradeInfo = null;
-    aiSummary = null;
-    aiState = aiKeyStatus.hasKey ? 'idle' : 'skipped';
-    aiError = '';
+    // 执行摘要 / 人格分析固定基于「累计（总体）」数据，与周期选择无关：
+    // 已成功生成过就保留，切换周期不重复调用 DeepSeek（省 token）。
+    if (aiState !== 'ok') {
+      aiSummary = null;
+      aiPersona = null;
+      aiError = '';
+      aiPersonaError = '';
+      aiState = aiKeyStatus.hasKey ? 'idle' : 'skipped';
+    }
     render();
 
     if (!keyStatus.hasKey) {
@@ -232,15 +251,37 @@
       return;
     }
 
-    // 报告（按周期）与概览（书架 + 笔记，与周期无关）并行拉取，互不阻塞
-    await Promise.all([loadDetail(force), loadOverview(force)]);
+    // 报告（按周期）、概览（书架 + 笔记）、累计数据并行拉取，互不阻塞
+    await Promise.all([loadDetail(force), loadOverview(force), loadOverallData(force)]);
     render();
 
-    // AI 增强（可选，独立于报告主体；失败只影响执行摘要，不阻塞）
-    if (aiKeyStatus.hasKey && reportState === 'ok') {
-      await runAIEnhance();
-      render();
+    // AI 解读改为「导出时」按需生成，避免打开报告就消耗 DeepSeek token（见 handleExport）
+  }
+
+  /** 拉取「累计（总体）」数据（命中缓存则跳过网络）；失败不影响报告主体 */
+  async function loadOverallData(force) {
+    if (!force) {
+      const cache = await readCache();
+      const hit = cache.overall;
+      if (hit && hit.data && (Date.now() - (hit.at || 0)) < CACHE_TTL_MS) {
+        overallReport = hit.data;
+        logOfficial('info', '命中累计数据缓存');
+        return;
+      }
     }
+
+    const result = await sendBg({
+      type: 'wre-official-call',
+      apiName: '/readdata/detail',
+      params: { mode: 'overall', baseTime: 0 },
+    });
+    if (!result.ok) {
+      logOfficial('warn', '累计数据拉取失败（不影响报告主体）', { code: result.code });
+      return;
+    }
+    overallReport = result.data;
+    await writeCache('overall', result.data);
+    logOfficial('info', '累计数据拉取成功', { readDays: result.data && result.data.readDays });
   }
 
   /** 按周期拉取 /readdata/detail（命中缓存则跳过网络） */
@@ -436,6 +477,36 @@
     return text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
   }
 
+  // 解析 DeepSeek 人格分析的结构化分点文本为 [{ title, body }]
+  // 约定格式：每点首行「第N、小标题」，其后为论述正文；点与点之间空行分隔。
+  function splitPersonaPoints(text) {
+    if (!text || typeof text !== 'string') {
+      return [];
+    }
+    const points = [];
+    const blocks = text.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
+    blocks.forEach((block) => {
+      const lines = block.split('\n').map((l) => l.trim()).filter(Boolean);
+      if (!lines.length) {
+        return;
+      }
+      let title = lines[0];
+      // 保留「第N、小标题」完整编号（如「第一、第一性原理」），仅归一化编号与标题间的空白
+      const m = title.match(/^(第\s*[一二三四五六七八九十百]+\s*[、，.:：])\s*(.+)$/);
+      if (m) {
+        title = m[1] + m[2].trim();
+      }
+      const body = lines.slice(1).join('\n');
+      if (body) {
+        points.push({ title: title, body: body });
+      } else {
+        // 首行后无正文，整块作为无标题段落兜底
+        points.push({ title: '', body: block });
+      }
+    });
+    return points;
+  }
+
   // 年度趋势：对最近 N 年（含当年）逐次查 /readdata/detail annually
   async function fetchAnnualTrend() {
     const now = new Date();
@@ -567,6 +638,8 @@
     aiState = 'loading';
     aiError = '';
     aiSummary = null;
+    aiPersona = null;
+    aiPersonaError = '';
     render();
     try {
       const shelf = overview && overview.shelf ? overview.shelf : null;
@@ -581,32 +654,65 @@
       const [annual, contents, overallRes] = await Promise.all([
         fetchAnnualTrend(),
         topBooks.length ? fetchBookContents(topBooks) : Promise.resolve([]),
-        sendBg({ type: 'wre-official-call', apiName: '/readdata/detail', params: { mode: 'overall', baseTime: 0 } }),
+        // 复用报告页已拉取的累计数据，避免重复请求（未取到时再补一次）
+        overallReport ? Promise.resolve({ ok: true, data: overallReport }) :
+          sendBg({ type: 'wre-official-call', apiName: '/readdata/detail', params: { mode: 'overall', baseTime: 0 } }),
       ]);
       const overallData = (overallRes && overallRes.ok && overallRes.data) ? overallRes.data : null;
       const prompt = buildAIPrompt(overallData, shelf, notes, annual, contents);
-      const res = await sendBg({
+
+      // 先执行摘要（失败退回规则化摘要）
+      const summaryRes = await sendBg({
         type: 'wre-ai-chat',
         messages: [
           { role: 'system', content: AI_SYSTEM_PROMPT },
           { role: 'user', content: prompt },
         ],
       });
-      if (!res || !res.ok) {
+      if (!summaryRes || !summaryRes.ok) {
         aiState = 'error';
-        aiError = (res && res.error) ? res.error : 'AI 生成失败';
-        return;
+        aiError = (summaryRes && summaryRes.error) ? summaryRes.error : 'AI 生成失败';
+      } else {
+        aiSummary = splitParagraphs(summaryRes.text);
+        aiState = aiSummary.length ? 'ok' : 'error';
+        if (!aiSummary.length) {
+          aiError = 'AI 返回内容为空';
+        }
       }
-      aiSummary = splitParagraphs(res.text);
-      aiState = aiSummary.length ? 'ok' : 'error';
-      if (!aiSummary.length) {
-        aiError = 'AI 返回内容为空';
+
+      // 再生成人格分析（串行，避免与摘要并发触发限流；失败只影响人格分析，不影响报告主体）
+      try {
+        const personaRes = await sendBg({
+          type: 'wre-ai-chat',
+          messages: [
+            { role: 'system', content: AI_PERSONA_PROMPT },
+            { role: 'user', content: prompt },
+          ],
+        });
+        if (personaRes && personaRes.ok) {
+          const persona = splitPersonaPoints(personaRes.text);
+          aiPersona = persona.length ? persona : null;
+          if (!persona.length) {
+            aiPersonaError = 'AI 返回内容为空';
+          }
+        } else {
+          aiPersona = null;
+          aiPersonaError = (personaRes && personaRes.error) ? personaRes.error : 'AI 生成失败';
+        }
+      } catch (err) {
+        aiPersona = null;
+        aiPersonaError = '生成异常';
+      }
+      if (aiPersonaError) {
+        logOfficial('warn', '人格分析未生成', { error: aiPersonaError });
       }
     } catch (err) {
       aiState = 'error';
       aiError = 'AI 生成异常';
       logOfficial('error', 'AI 增强失败', { message: err && err.message });
     }
+    // 生成结束后面板刷新一次，把「生成中」状态更新为最终结果（ok / error）
+    render();
   }
 
   // ---------- 渲染片段 ----------
@@ -731,8 +837,8 @@
 
     if (!keyStatus.hasKey) {
       return privacy + toolbar +
-        '<div class="wre-off-empty">还没有配置 API Key。<br>去「⚙️ 设置」粘贴你自己的 wrk- Key 后即可生成报告。' +
-        '<div style="margin-top:12px"><button class="wre-btn" data-wre-off-goto-settings="1">去设置</button></div></div>';
+        '<div class="wre-off-empty">还没有配置 API Key。<br>去「🔑 API Key」粘贴你自己的 wrk- Key 后即可生成报告。' +
+        '<div style="margin-top:12px"><button class="wre-btn" data-wre-off-goto-settings="1">去配置 API Key</button></div></div>';
     }
 
     if (reportState === 'loading') {
@@ -763,17 +869,23 @@
     if (aiState === 'ok') {
       exportParts.push('DeepSeek AI 生成的人格化执行摘要');
     }
+    if (aiPersona && aiPersona.length) {
+      exportParts.push('人性化人格分析');
+    }
     const exportHint = exportParts.length
       ? '<div class="wre-off-note">导出的报告还包含：' + exportParts.join('、') + '。</div>'
       : '';
 
     const aiHint = aiState === 'loading'
-      ? '<div class="wre-off-note">🤖 正在用 DeepSeek 生成人格化执行摘要…</div>'
+      ? '<div class="wre-off-note">🤖 正在用 DeepSeek 生成人格化执行摘要与人性化人格分析…</div>'
       : (aiState === 'error'
         ? '<div class="wre-off-note">🤖 AI 解读生成失败（' + escapeHtml(aiError) + '），导出时改用规则化摘要。</div>'
         : (aiState === 'ok'
-          ? '<div class="wre-off-note">🤖 已用 DeepSeek 生成人格化执行摘要（导出报告可见）。</div>'
-          : ''));
+          ? '<div class="wre-off-note">🤖 已用 DeepSeek 生成人格化执行摘要' + (aiPersona && aiPersona.length ? '与人性化人格分析' : '') + '（导出报告可见）。</div>'
+            + (aiPersonaError ? '<div class="wre-off-note">⚠️ 人性化人格分析未生成：' + escapeHtml(aiPersonaError) + '（不影响报告主体，可在「🔑 API Key」确认 DeepSeek Key 有效后重试）。</div>' : '')
+          : (aiKeyStatus.hasKey
+            ? '<div class="wre-off-note">🤖 已配置 DeepSeek Key：点击「导出」时将生成人格化执行摘要与人性化人格分析（打开报告不消耗 token）。</div>'
+            : '')));
 
     return privacy + toolbar + upgradeBanner + aiHint +
       '<div class="wre-off-section-title">一、总览</div>' +
@@ -788,6 +900,8 @@
   }
 
   function buildSettingsHtml() {
+    const wrkKeyValue = draftWrkKey || keyStatus.apiKey;
+    const aiKeyValue = draftAiKey || aiKeyStatus.apiKey;
     const statusLines = [
       '状态：' + (keyStatus.hasKey ? '已配置' : '未配置'),
       keyStatus.hasKey ? '保存于 ' + fmtDateTime(keyStatus.savedAt) : '',
@@ -799,8 +913,8 @@
       '<div class="wre-off-section-title">API Key</div>' +
       '<div class="wre-off-note">获取方式：微信读书 App → 「微信读书 Skill」页面 → 复制 wrk- 开头的 API Key。</div>' +
       '<div class="wre-off-set-row">' +
-        '<input type="password" id="wre-off-key-input" class="wre-off-input" placeholder="wrk-xxxxxxxx" autocomplete="off" spellcheck="false">' +
-        '<button class="wre-btn wre-btn-small" data-wre-off-toggle-key="1">显示</button>' +
+        '<input type="password" id="wre-off-key-input" class="wre-off-input" placeholder="wrk-xxxxxxxx" autocomplete="off" spellcheck="false" value="' + escapeHtml(wrkKeyValue) + '">' +
+        '<button type="button" class="wre-btn wre-btn-small" data-wre-off-toggle-key="1">显示</button>' +
       '</div>' +
       '<div class="wre-off-set-row">' +
         '<button class="wre-btn" data-wre-off-save="1">保存并校验</button>' +
@@ -813,13 +927,14 @@
       '<div class="wre-off-section-title">AI 增强（DeepSeek，可选）</div>' +
       '<div class="wre-off-note">可选：接入 DeepSeek 后，报告「执行摘要」由 AI 生成人格化解读（数字仍由本机规则计算，不交给 AI 算）。不配置则用默认的规则化摘要。</div>' +
       '<div class="wre-off-set-row">' +
-        '<input type="password" id="wre-off-ai-key-input" class="wre-off-input" placeholder="sk-xxxxxxxx（可选）" autocomplete="off" spellcheck="false">' +
-        '<button class="wre-btn wre-btn-small" data-wre-off-toggle-aikey="1">显示</button>' +
+        '<input type="password" id="wre-off-ai-key-input" class="wre-off-input" placeholder="sk-xxxxxxxx（可选）" autocomplete="off" spellcheck="false" value="' + escapeHtml(aiKeyValue) + '">' +
+        '<button type="button" class="wre-btn wre-btn-small" data-wre-off-toggle-aikey="1">显示</button>' +
       '</div>' +
       '<div class="wre-off-set-row">' +
-        '<button class="wre-btn" data-wre-off-save-ai="1">保存 AI Key</button>' +
+        '<button class="wre-btn" data-wre-off-save-ai="1">保存并校验</button>' +
         '<button class="wre-btn" data-wre-off-clear-ai="1">清除 AI Key</button>' +
       '</div>' +
+      (aiSettingsMessage ? '<div class="wre-off-set-message">' + escapeHtml(aiSettingsMessage) + '</div>' : '') +
       '<div class="wre-off-set-status">AI 状态：' + (aiKeyStatus.hasKey ? '已配置（保存于 ' + fmtDateTime(aiKeyStatus.savedAt) + '）' : '未配置') + '</div>' +
       '<div class="wre-off-note">隐私提醒：启用 AI 后，报告生成时会把「笔记最多几本书」的划线/想法原文样本发送给 DeepSeek（api.deepseek.com）用于生成文字，请知悉。</div>';
   }
@@ -832,28 +947,48 @@
 
   function injectMenuEntry(root) {
     const menu = root.querySelector('#wre-main-menu');
-    if (!menu || menuEntryExists(menu)) {
+    if (!menu) {
       return;
     }
-    const item = document.createElement('div');
-    item.className = 'wre-menu-item';
-    item.setAttribute('data-action', 'official');
-    item.setAttribute('data-wre-official-entry', '1');
-    item.innerHTML = '<span class="wre-menu-icon">☁️</span>官方数据';
-    item.addEventListener('click', () => {
-      openPanel();
-    });
-    const anchor = menu.querySelector('[data-wre-notes-entry]') ||
-      menu.querySelector('[data-wre-stats-entry]') ||
-      menu.querySelector('[data-action="theme-settings"]');
-    if (anchor && anchor.nextSibling) {
-      menu.insertBefore(item, anchor.nextSibling);
-    } else if (anchor) {
-      menu.appendChild(item);
-    } else {
-      menu.appendChild(item);
+    if (!menuEntryExists(menu)) {
+      const item = document.createElement('div');
+      item.className = 'wre-menu-item';
+      item.setAttribute('data-action', 'official');
+      item.setAttribute('data-wre-official-entry', '1');
+      item.innerHTML = '<span class="wre-menu-icon">☁️</span>官方数据';
+      item.addEventListener('click', () => {
+        openPanel();
+      });
+      const anchor = menu.querySelector('[data-wre-notes-entry]') ||
+        menu.querySelector('[data-wre-stats-entry]') ||
+        menu.querySelector('[data-action="read-settings"]');
+      if (anchor && anchor.nextSibling) {
+        menu.insertBefore(item, anchor.nextSibling);
+      } else if (anchor) {
+        menu.appendChild(item);
+      } else {
+        menu.appendChild(item);
+      }
+      logOfficial('info', '已注入「官方数据」菜单入口');
     }
-    logOfficial('info', '已注入「官方数据」菜单入口');
+
+    if (!menu.querySelector('[data-wre-api-key-entry]')) {
+      const keyItem = document.createElement('div');
+      keyItem.className = 'wre-menu-item';
+      keyItem.setAttribute('data-action', 'api-key');
+      keyItem.setAttribute('data-wre-api-key-entry', '1');
+      keyItem.innerHTML = '<span class="wre-menu-icon">🔑</span>API Key';
+      keyItem.addEventListener('click', () => {
+        openKeyPanel();
+      });
+      const keyAnchor = menu.querySelector('[data-action="restore-default"]');
+      if (keyAnchor && keyAnchor.nextSibling) {
+        menu.insertBefore(keyItem, keyAnchor.nextSibling);
+      } else {
+        menu.appendChild(keyItem);
+      }
+      logOfficial('info', '已注入「API Key」菜单入口');
+    }
   }
 
   function buildPanel(root) {
@@ -862,17 +997,13 @@
       return existing;
     }
     const overlay = document.createElement('div');
-    overlay.className = 'wre-modal-overlay';
+    overlay.className = 'wre-modal-overlay wre-off-overlay';
     overlay.id = 'wre-official-modal';
     overlay.innerHTML =
       '<div class="wre-modal wre-off-modal">' +
         '<div class="wre-modal-header">' +
           '<span class="wre-modal-title">☁️ 官方数据</span>' +
           '<button class="wre-modal-close" data-wre-off-close>&times;</button>' +
-        '</div>' +
-        '<div class="wre-off-tabs">' +
-          '<button class="wre-off-tab" data-wre-off-tab="report">📊 阅读行为报告</button>' +
-          '<button class="wre-off-tab" data-wre-off-tab="settings">⚙️ 设置</button>' +
         '</div>' +
         '<div class="wre-modal-body wre-off-body" id="wre-off-body"></div>' +
       '</div>';
@@ -892,16 +1023,41 @@
     return overlay;
   }
 
+  function buildKeyPanel(root) {
+    const existing = root.querySelector('#wre-api-key-modal');
+    if (existing) {
+      return existing;
+    }
+    const overlay = document.createElement('div');
+    overlay.className = 'wre-modal-overlay wre-off-overlay';
+    overlay.id = 'wre-api-key-modal';
+    overlay.innerHTML =
+      '<div class="wre-modal wre-off-modal">' +
+        '<div class="wre-modal-header">' +
+          '<span class="wre-modal-title">🔑 API Key</span>' +
+          '<button class="wre-modal-close" data-wre-key-close>&times;</button>' +
+        '</div>' +
+        '<div class="wre-modal-body wre-off-body" id="wre-key-body"></div>' +
+      '</div>';
+
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) {
+        closeKeyPanel();
+      }
+    });
+    const closeBtn = overlay.querySelector('[data-wre-key-close]');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => closeKeyPanel());
+    }
+    overlay.addEventListener('click', handlePanelClick);
+    overlay.addEventListener('change', handlePanelChange);
+    root.appendChild(overlay);
+    return overlay;
+  }
+
   function handlePanelClick(event) {
     const target = event.target;
     if (!target || !target.closest) {
-      return;
-    }
-    const tabBtn = target.closest('[data-wre-off-tab]');
-    if (tabBtn) {
-      activeTab = tabBtn.getAttribute('data-wre-off-tab');
-      settingsMessage = '';
-      render();
       return;
     }
     const modeBtn = target.closest('[data-wre-off-mode]');
@@ -923,23 +1079,30 @@
       return;
     }
     if (target.closest('[data-wre-off-goto-settings]')) {
-      activeTab = 'settings';
-      render();
+      openKeyPanel();
       return;
     }
     if (target.closest('[data-wre-off-toggle-key]')) {
+      const btn = target.closest('[data-wre-off-toggle-key]');
       const input = document.getElementById('wre-off-key-input');
       if (input) {
         input.type = input.type === 'password' ? 'text' : 'password';
-        target.textContent = input.type === 'password' ? '显示' : '隐藏';
+        btn.textContent = input.type === 'password' ? '显示' : '隐藏';
+        logOfficial('info', '切换 API Key 输入框为 ' + (input.type === 'password' ? '掩码' : '明文'));
+      } else {
+        logOfficial('warn', '切换失败：未找到 #wre-off-key-input');
       }
       return;
     }
     if (target.closest('[data-wre-off-toggle-aikey]')) {
+      const btn = target.closest('[data-wre-off-toggle-aikey]');
       const input = document.getElementById('wre-off-ai-key-input');
       if (input) {
         input.type = input.type === 'password' ? 'text' : 'password';
-        target.textContent = input.type === 'password' ? '显示' : '隐藏';
+        btn.textContent = input.type === 'password' ? '显示' : '隐藏';
+        logOfficial('info', '切换 DeepSeek Key 输入框为 ' + (input.type === 'password' ? '掩码' : '明文'));
+      } else {
+        logOfficial('warn', '切换失败：未找到 #wre-off-ai-key-input');
       }
       return;
     }
@@ -962,7 +1125,7 @@
     if (target.closest('[data-wre-off-refresh-status]')) {
       refreshKeyStatus().then(() => {
         settingsMessage = '状态已刷新：' + (keyStatus.hasKey ? '已配置' : '未配置');
-        render();
+        renderSettings();
       });
     }
   }
@@ -976,23 +1139,21 @@
     const value = input ? input.value.trim() : '';
     if (!value) {
       settingsMessage = '请先粘贴 API Key';
-      render();
+      renderSettings();
       return;
     }
+    draftWrkKey = value;
     settingsMessage = '正在校验 Key…';
-    render();
+    renderSettings();
     sendBg({ type: 'wre-official-save', apiKey: value }).then((result) => {
       if (!result.ok) {
         settingsMessage = '保存失败：' + (result.error || '未知原因');
         logOfficial('warn', 'Key 保存失败', { code: result.code });
-        render();
+        renderSettings();
         return;
       }
       settingsMessage = '保存成功，Key 已通过校验';
-      const box = document.getElementById('wre-off-key-input');
-      if (box) {
-        box.value = '';
-      }
+      renderSettings();
       refreshKeyStatus().then(() => loadReport(true));
     });
   }
@@ -1004,15 +1165,16 @@
     sendBg({ type: 'wre-official-clear' }).then(() => {
       report = null;
       reportState = 'idle';
+      draftWrkKey = '';
       settingsMessage = '已清除 Key';
-      refreshKeyStatus().then(() => render());
+      refreshKeyStatus().then(() => renderSettings());
     });
   }
 
   async function refreshAiKeyStatus() {
     const result = await sendBg({ type: 'wre-ai-status' });
     if (result && result.ok) {
-      aiKeyStatus = { hasKey: result.hasKey, savedAt: result.savedAt || 0 };
+      aiKeyStatus = { hasKey: result.hasKey, apiKey: result.apiKey || '', savedAt: result.savedAt || 0 };
     }
     return aiKeyStatus;
   }
@@ -1021,25 +1183,25 @@
     const input = document.getElementById('wre-off-ai-key-input');
     const value = input ? input.value.trim() : '';
     if (!value) {
-      settingsMessage = '请先粘贴 DeepSeek Key';
-      render();
+      aiSettingsMessage = '请先粘贴 DeepSeek Key';
+      renderSettings();
       return;
     }
+    draftAiKey = value;
+    aiSettingsMessage = '正在校验 DeepSeek Key…';
+    renderSettings();
     sendBg({ type: 'wre-ai-save', apiKey: value }).then((result) => {
       if (!result.ok) {
-        settingsMessage = 'AI Key 保存失败：' + (result.error || '未知原因');
+        aiSettingsMessage = '保存失败：' + (result.error || '未知原因');
         logOfficial('warn', 'AI Key 保存失败', { code: result.code });
-        render();
+        renderSettings();
         return;
       }
-      settingsMessage = 'AI Key 已保存，下次生成报告时将启用 AI 解读';
-      const box = document.getElementById('wre-off-ai-key-input');
-      if (box) {
-        box.value = '';
-      }
+      aiSettingsMessage = '保存成功，Key 已通过校验';
       aiSummary = null;
+      aiPersona = null;
       aiState = 'idle';
-      refreshAiKeyStatus().then(() => render());
+      refreshAiKeyStatus().then(() => renderSettings());
     });
   }
 
@@ -1049,9 +1211,11 @@
     }
     sendBg({ type: 'wre-ai-clear' }).then(() => {
       aiSummary = null;
+      aiPersona = null;
       aiState = 'idle';
-      settingsMessage = '已清除 AI Key';
-      refreshAiKeyStatus().then(() => render());
+      draftAiKey = '';
+      aiSettingsMessage = '已清除 AI Key';
+      refreshAiKeyStatus().then(() => renderSettings());
     });
   }
 
@@ -1060,6 +1224,7 @@
     if (!root) {
       return;
     }
+    closeKeyPanel();
     const overlay = buildPanel(root);
     overlay.classList.add('wre-visible');
     refreshKeyStatus().then(() => refreshAiKeyStatus()).then(() => {
@@ -1087,14 +1252,41 @@
     if (!body) {
       return;
     }
-    overlay.querySelectorAll('[data-wre-off-tab]').forEach((btn) => {
-      if (btn.getAttribute('data-wre-off-tab') === activeTab) {
-        btn.classList.add('is-active');
-      } else {
-        btn.classList.remove('is-active');
-      }
+    body.innerHTML = buildReportHtml();
+  }
+
+  function renderSettings() {
+    const overlay = document.getElementById('wre-api-key-modal');
+    if (!overlay) {
+      return;
+    }
+    const body = overlay.querySelector('#wre-key-body');
+    if (!body) {
+      return;
+    }
+    body.innerHTML = buildSettingsHtml();
+  }
+
+  function openKeyPanel() {
+    const root = document.getElementById('we-read-enhancer-root');
+    if (!root) {
+      return;
+    }
+    closePanel();
+    const overlay = buildKeyPanel(root);
+    overlay.classList.add('wre-visible');
+    renderSettings();
+    refreshKeyStatus().then(() => refreshAiKeyStatus()).then(() => {
+      renderSettings();
     });
-    body.innerHTML = activeTab === 'settings' ? buildSettingsHtml() : buildReportHtml();
+    logOfficial('info', '打开 API Key 设置面板');
+  }
+
+  function closeKeyPanel() {
+    const overlay = document.getElementById('wre-api-key-modal');
+    if (overlay) {
+      overlay.classList.remove('wre-visible');
+    }
   }
 
   // ---------- 导出 ----------
@@ -1196,7 +1388,8 @@
     const positive = buckets.filter((item) => item.seconds > 0);
     const total = positive.reduce((acc, item) => acc + item.seconds, 0) || 1;
 
-    let head = '本周期阅读总时长 ' + fmtDuration(data.totalReadTime) + '，覆盖 ' + (data.readDays || 0) + ' 天';
+    let head = (currentMode === 'overall' ? '累计阅读总时长 ' : '本周期阅读总时长 ') +
+      fmtDuration(data.totalReadTime) + '，覆盖 ' + (data.readDays || 0) + ' 天';
     if (data.dayAverageReadTime != null) {
       head += '，自然日均 ' + fmtDuration(data.dayAverageReadTime);
     }
@@ -1207,7 +1400,7 @@
       items.push('较上一周期' + (data.compare >= 0 ? '增长' : '下降') + ' ' +
         Math.abs(data.compare * 100).toFixed(1) + '%（官方 compare 口径，仅当前周期提供）。');
     } else {
-      items.push('该周期官方未提供环比数据。');
+      items.push(currentMode === 'overall' ? '累计口径官方未提供环比数据。' : '该周期官方未提供环比数据。');
     }
 
     if (positive.length) {
@@ -1395,6 +1588,80 @@
     return tags;
   }
 
+  // 读取当前微信读书网页版登录昵称（本机账号）。
+  // 优先从 cookie 的 wr_name（微信读书 web 登录态，昵称做了 URL 编码）读取；
+  // 再尝试 localStorage 常见字段；均拿不到返回空串，由调用方回退默认文案。
+  function getReaderNickname() {
+    const readName = (raw) => {
+      if (!raw) {
+        return '';
+      }
+      let val = String(raw).trim();
+      if (!val) {
+        return '';
+      }
+      try {
+        val = decodeURIComponent(val);
+      } catch (e) {
+        // 不是 URL 编码，直接用原文
+      }
+      val = String(val).trim();
+      // 昵称一般很短；过长多半是误读，直接放弃
+      return (val && val.length <= 40) ? val : '';
+    };
+
+    // 1) cookie：wr_name（URL 编码昵称）
+    try {
+      const m = document.cookie.match(/(?:^|;\s*)wr_name=([^;]*)/);
+      const name = readName(m && m[1]);
+      if (name) {
+        logOfficial('info', '已取到读者昵称（来源 cookie.wr_name）', { len: name.length });
+        return name;
+      }
+    } catch (e) {
+      logOfficial('warn', '读取 cookie 昵称异常', { err: String(e && e.message) });
+    }
+
+    // 2) localStorage 常见字段
+    try {
+      const keys = ['wr_name', 'userName', 'nickname', 'userInfo', 'wr_userInfo', 'wr_user'];
+      for (const key of keys) {
+        let raw = null;
+        try {
+          raw = localStorage.getItem(key);
+        } catch (e) {
+          continue;
+        }
+        if (!raw) {
+          continue;
+        }
+        // userInfo / user 可能是 JSON，先尝试解析出 name/nickname
+        if (/info|user/i.test(key)) {
+          try {
+            const obj = JSON.parse(raw);
+            const n = readName(obj && (obj.name || obj.nickname || obj.nickName));
+            if (n) {
+              logOfficial('info', '已取到读者昵称（来源 localStorage.' + key + '）', { len: n.length });
+              return n;
+            }
+          } catch (e) {
+            // 非 JSON，走下面的明文分支
+          }
+        }
+        const n = readName(raw);
+        if (n) {
+          logOfficial('info', '已取到读者昵称（来源 localStorage.' + key + '）', { len: n.length });
+          return n;
+        }
+      }
+    } catch (e) {
+      logOfficial('warn', '读取 localStorage 昵称异常', { err: String(e && e.message) });
+    }
+
+    logOfficial('info', '未取到读者昵称，回退默认文案');
+    return '';
+  }
+
   function buildReportModel(data, currentMode, overviewData) {
     const blocks = [];
     const buckets = reportBuckets(data);
@@ -1409,7 +1676,7 @@
     }
 
     blocks.push({ type: 'kv', rows: [
-      ['报告对象', '微信读书用户（本机账号）'],
+      ['报告对象', getReaderNickname() || '微信读书用户（本机账号）'],
       ['数据来源', '微信读书官方 Agent Skill · ' + sources.join(' · ')],
       ['统计周期', modeLabel(currentMode)],
       ['生成时间', fmtDateTime(Date.now())],
@@ -1424,21 +1691,42 @@
     }
 
     // 一、执行摘要（优先用 DeepSeek AI 生成的人格化解读，否则退回规则化摘要）
+    // 两者都固定基于「累计（总体）」数据，与上方周期选择无关。
     blocks.push({ type: 'heading', level: 2, text: '一、执行摘要' });
+    blocks.push({ type: 'note', text: overallReport
+      ? '本节执行摘要与下方「人性化人格分析」均基于累计（总体）数据，不随上方周期切换变化；正文各章节仍按所选周期统计。'
+      : '本次未取到累计（总体）数据，执行摘要暂按所选周期（' + modeLabel(currentMode) + '）展示。' });
     if (aiState === 'ok' && aiSummary && aiSummary.length) {
       aiSummary.forEach((para) => {
         blocks.push({ type: 'paragraph', text: para });
       });
       blocks.push({ type: 'note', text: '本执行摘要由 DeepSeek AI 基于本机计算的客观数据与划线/想法原文样本生成；具体数字以正文各章节的规则化统计为准。' });
     } else {
-      const insights = buildInsights(data, currentMode, buckets);
-      blocks.push({ type: 'paragraph', text: insights[0] });
-      if (insights.length > 1) {
-        blocks.push({ type: 'list', items: insights.slice(1) });
+      const summaryData = overallReport || data;
+      const summaryInsights = buildInsights(summaryData, overallReport ? 'overall' : currentMode, reportBuckets(summaryData));
+      blocks.push({ type: 'paragraph', text: summaryInsights[0] });
+      if (summaryInsights.length > 1) {
+        blocks.push({ type: 'list', ordered: true, items: summaryInsights.slice(1) });
       }
       if (aiState === 'error') {
         blocks.push({ type: 'note', text: 'AI 解读生成失败（' + aiError + '），已退回规则化摘要。' });
+      } else if (aiState === 'skipped') {
+        blocks.push({ type: 'note', text: '未配置 DeepSeek Key，当前为规则化摘要。在「🔑 API Key」里配置 DeepSeek 后，导出时可生成人格化执行摘要与人性化人格分析。' });
       }
+    }
+
+    // 人性化人格分析（DeepSeek，可选）：紧跟在执行摘要之后，放在文档最上方
+    if (aiPersona && aiPersona.length) {
+      blocks.push({ type: 'heading', level: 3, text: '人性化人格分析' });
+      aiPersona.forEach((point) => {
+        if (point && point.title) {
+          blocks.push({ type: 'heading', level: 4, text: point.title });
+        }
+        if (point && point.body) {
+          blocks.push({ type: 'paragraph', text: point.body });
+        }
+      });
+      blocks.push({ type: 'note', text: '本段人格分析由 DeepSeek AI 基于本机计算的客观数据与划线/想法原文样本生成，属参考性解读，不构成专业心理或性格鉴定。' });
     }
 
     // 二、数据全景
@@ -1721,7 +2009,7 @@
       }
     }
 
-    // 十三、阅读人格画像（客观规则化类型归类，非主观推断）
+    // 十三、阅读人格画像（客观规则化类型归类；人性化解读见文档开头「人性化人格分析」）
     const persona = buildPersona(data, currentMode, shelf, notebooks);
     if (persona.length) {
       blocks.push({ type: 'heading', level: 2, text: '十三、阅读人格画像' });
@@ -1730,7 +2018,7 @@
         head: ['维度', '类型画像', '判定依据'],
         rows: persona,
       });
-      blocks.push({ type: 'note', text: '口径：以上类型标签由客观统计指标按固定阈值归类（完读率 / 笔记密度 / 分类集中度 / 有声书占比 / 时段峰值），属客观画像，不构成性格、价值观等主观判断；数据不足的维度自动省略。' });
+      blocks.push({ type: 'note', text: '口径：以上类型标签由客观统计指标按固定阈值归类（完读率 / 笔记密度 / 分类集中度 / 有声书占比 / 时段峰值），属客观画像，不构成性格、价值观等主观判断；数据不足的维度自动省略。' + (aiPersona && aiPersona.length ? '更深层的人性化解读见文档开头的「人性化人格分析」。' : '') });
     }
 
     // 附录：数据说明
@@ -1747,13 +2035,14 @@
       '书架口径：书架条目 = 电子书 + 专辑/有声书 +（有文章收藏入口时 +1）；文章收藏入口固定计入私密阅读；分类分布按电子书「分类」字段聚合。',
       '笔记口径：笔记数 = 想法/点评(reviewCount) + 划线(noteCount) + 书签(bookmarkCount)；书签只统计数量、不含内容。',
       '偏好字段：preferCategory / preferAuthor / preferPublisher / preferCp / preferTime 由官方按各周期可得性返回，缺失即不展示对应小节。',
-      '分析边界：本报告为基于官方统计与偏好字段的规则化解读；「阅读人格画像」为按固定阈值的客观类型归类，不构成性格、价值观等主观判断。',
+      '分析边界：本报告为基于官方统计与偏好字段的规则化解读；「阅读人格画像」的客观标签为按固定阈值的类型归类，「人性化人格分析」为 DeepSeek AI 参考性解读，均不构成性格、价值观等主观判断或专业鉴定。',
+      '分析口径：「一、执行摘要」与「人性化人格分析」固定基于累计（总体）数据（mode=overall），不随上方周期切换变化；正文各章节按所选周期统计。',
       '隐私：报告在浏览器本机生成，数据不上传；API Key 仅保存在本机。',
     ]});
     blocks.push({ type: 'heading', level: 3, text: '尚未覆盖的章节' });
     blocks.push({ type: 'list', items: [
       '想法与划线深度解读（需接入 /review/list/mine、/book/bestbookmarks 的原文内容）',
-      '价值取向与精神底色（主观语义层面，需基于划线与想法原文；当前以「十三、阅读人格画像」提供客观类型画像作为替代）',
+      '价值取向与精神底色（主观语义层面，已由「十三、阅读人格画像」中的 AI 人性化人格分析提供参考性解读）',
     ]});
     return blocks;
   }
@@ -1798,8 +2087,24 @@
 
   function renderHtmlBlock(block) {
     if (block.type === 'heading') {
-      const tag = block.level >= 3 ? 'h3' : 'h2';
-      return '<' + tag + ' class="' + (block.level >= 3 ? 'sub' : 'sec') + '">' + escapeHtml(block.text) + '</' + tag + '>';
+      let tag = 'h2';
+      let cls = 'sec';
+      if (block.level === 3) {
+        tag = 'h3';
+        cls = 'sub';
+      } else if (block.level >= 4) {
+        tag = 'h4';
+        cls = 'sub2';
+      }
+      let text = escapeHtml(block.text);
+      // 分点编号高亮：「第一、」「第二、」等序号用强调色突出
+      if (block.level >= 4) {
+        const m = text.match(/^(第[一二三四五六七八九十百]+[、，.:：])/);
+        if (m) {
+          text = '<span class="idx">' + m[1] + '</span>' + text.slice(m[1].length);
+        }
+      }
+      return '<' + tag + ' class="' + cls + '">' + text + '</' + tag + '>';
     }
     if (block.type === 'paragraph') {
       return '<p class="p">' + escapeHtml(block.text) + '</p>';
@@ -1944,10 +2249,15 @@
     logOfficial('info', '已打开打印视图（可另存为 PDF）', { mode: mode });
   }
 
-  function handleExport(format) {
+  async function handleExport(format) {
     if (reportState !== 'ok' || !report) {
       logOfficial('warn', '报告未就绪，忽略导出请求', { format: format });
       return;
+    }
+    // 导出时才按需生成 AI 解读，避免打开报告就消耗 DeepSeek token；
+    // 已生成过（ok/error）则不重复调用，切换周期后 aiState 会重置回 idle。
+    if (aiKeyStatus.hasKey && aiState === 'idle') {
+      await runAIEnhance();
     }
     if (format === 'html') {
       exportHtml();
@@ -1975,10 +2285,12 @@
       '.hero .meta strong{display:block;margin-top:2px;font-size:14px;color:var(--ink)}',
       'h2.sec{margin:34px 0 14px;font-size:16px;font-weight:700;letter-spacing:.3px;padding-left:12px;border-left:4px solid var(--accent)}',
       'h3.sub{margin:22px 0 10px;font-size:14px;font-weight:600}',
-      '.p{margin:0 0 12px}',
+      'h4.sub2{margin:16px 0 6px;padding-left:10px;border-left:3px solid var(--accent);font-size:14px;font-weight:700;color:var(--ink)}',
+      'h4.sub2 .idx{color:var(--accent)}',
+      '.p{margin:0 0 12px;text-indent:2em}',
       '.callout{margin:12px 0;padding:10px 14px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 10px 10px 0;font-size:13px}',
       '.note{margin:10px 0;font-size:12px;color:var(--ink-2)}',
-      '.list{margin:0 0 12px;padding-left:22px}',
+      '.list{margin:0 0 12px;padding-left:2em}',
       '.list li{margin-bottom:6px;break-inside:avoid}',
       '.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:14px 0}',
       '.card{padding:16px 18px;border-radius:14px;background:var(--accent-soft);border-left:4px solid var(--accent)}',
@@ -2005,7 +2317,7 @@
       '.print-btn:hover{filter:brightness(1.05)}',
       '@media screen{body{padding-bottom:96px}}',
       '@media (max-width:720px){.page{margin:16px;padding:24px}.cards{grid-template-columns:repeat(2,1fr)}.hero{flex-direction:column;align-items:flex-start}.hero .meta{text-align:left}}',
-      '@media print{@page{size:A4;margin:14mm}body{background:#fff}.page{max-width:none;margin:0;padding:0;border-radius:0;box-shadow:none}.no-print{display:none!important}h2.sec,h3.sub{break-after:avoid}.card,.list li,tr{break-inside:avoid}}',
+      '@media print{@page{size:A4;margin:14mm}body{background:#fff}.page{max-width:none;margin:0;padding:0;border-radius:0;box-shadow:none}.no-print{display:none!important}h2.sec,h3.sub,h4.sub2{break-after:avoid}.card,.list li,tr{break-inside:avoid}}',
     ].join('');
   }
 
@@ -2046,10 +2358,9 @@
   function bootstrap() {
     // 跨模块跳转：笔记模块遇到「未配置 / Key 失效」时会派发此事件，引导用户到设置页配 Key
     document.addEventListener('wre-open-key-settings', () => {
-      activeTab = 'settings';
       settingsMessage = '';
-      openPanel();
-      logOfficial('info', '收到跨模块跳转请求：打开 Key 设置页');
+      openKeyPanel();
+      logOfficial('info', '收到跨模块跳转请求：打开 API Key 设置面板');
     });
 
     const existing = document.getElementById('we-read-enhancer-root');
