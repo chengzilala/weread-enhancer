@@ -65,7 +65,7 @@
 | 隐私政策 | `release\privacy.md` |
 | 版本管理 + 归档历史 | `plan\version_plan.md`、`plan\plan_github_versioning.md` |
 | 图标 | `icons\icon-16/48/128.png` |
-| 上架截图（成品） | `screenshots\resized\` |
+| 上架截图（成品） | `screenshots\store\`（磁贴与 1280×800）+ `screenshots\promo\`（README 卡片） |
 
 ---
 

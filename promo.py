@@ -29,6 +29,8 @@ CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 OUT_GITHUB = os.path.join(ROOT, "screenshots", "promo")
 OUT_STORE = os.path.join(ROOT, "screenshots", "store")
 OUT_360 = os.path.join(ROOT, "release", "360-素材")
+# 微软 Partner Center / Chrome 商店「上传包」：按槽位分好文件夹，直接拖到对应位置上传
+OUT_MS = os.path.join(ROOT, "release", "微软商店-上传")
 
 ICON = os.path.join(ROOT, "icons", "icon-128.png")
 EFF = os.path.join(ROOT, "screenshots", "效果参考图")
@@ -68,6 +70,13 @@ _AUTO_SCENE = {
     "support": "support",
     "welcome": "welcome",
     "fullscreen": "fullscreen",
+    # —— 官方数据分支（新增）——
+    "shelf": "shelf",
+    "discover": "discover",
+    "persona": "persona",
+    "persona-share": "persona-share",
+    "ai": "ai",
+    "help": "help",
 }
 
 
@@ -83,8 +92,8 @@ SRC = {key: _pick_source(key) for key in _AUTO_SCENE}
 
 # 清晰度档位
 QUALITY = 95      # 内联 JPEG 质量（4:4:4 无色度抽样），偏高减少小字糊化
-SCALE_HI = 3      # 高倍渲染：Banner / 卡片 / 磁贴 / 360，超采样后再缩放，边缘更锐
-SCALE_STD = 2     # 商店 1280x800 截图：源图仅 2864 宽，3 倍(3840)会超过源分辨率反被放大，故保持 2 倍
+SCALE_HI = 3      # 高倍渲染：Banner / 卡片 / 磁贴，超采样后再缩放，边缘更锐
+STORE_SCALE = 1   # 商店截图：源图已按功能面板裁剪放大，用 1 倍渲染可避免 <img> 先被放大再缩小而发虚
 
 _uri_cache = {}
 
@@ -204,7 +213,7 @@ BANNER_BODY = """
     <div class="tag">让微信读书网页版，更好读</div>
     <div class="chips">
       <span class="chip">屏占比调节</span><span class="chip">自动阅读</span><span class="chip">笔记增强</span>
-      <span class="chip">阅读统计</span><span class="chip">官方数据报告</span>
+      <span class="chip">阅读统计</span><span class="chip">官方数据报告</span><span class="chip">AI 阅读人格</span>
     </div>
   </div>
   <div class="right"><div class="shot"><img src="__READ__"></div></div>
@@ -260,6 +269,18 @@ CARDS = [
      "内置支持中心，问题反馈与交流入口一步直达。", "support"),
     ("feature-13-api-key.png", "🔑", "API Key 配置", "API KEY",
      "集中管理微信读书 wrk- 与 DeepSeek sk- Key，本地保存、不上传。", "api-key"),
+    ("feature-14-persona.png", "🧬", "阅读人格", "READING PERSONA",
+     "基于官方阅读数据在本机算出 4 位人格代码 + 主称号 + 四维进度，附数据与原文证据，零依赖可复算。", "persona"),
+    ("feature-15-persona-share.png", "📤", "人格分享图", "SHARE CARD",
+     "一键生成竖版手机分享图，复制到剪贴板或下载 PNG，随手发朋友圈。", "persona-share"),
+    ("feature-16-ai.png", "🤖", "AI 解读", "AI INSIGHTS",
+     "配置 DeepSeek Key 后一键生成人格化解读；数字仍由本机规则计算，失败自动退回规则文案。", "ai"),
+    ("feature-17-shelf.png", "📚", "书架概览", "MY SHELF",
+     "汇总电子书 / 专辑 / 公众号数量并分区展示封面、作者、进度与来源，支持显示更多。", "shelf"),
+    ("feature-18-discover.png", "🔍", "发现与搜书", "DISCOVER",
+     "多范围搜书、个性化推荐、公开书评与相似书，一屏完成选书前的了解。", "discover"),
+    ("feature-19-help.png", "📖", "帮助中心", "HELP CENTER",
+     "主菜单一键跳转配套教程网站，启动时静默检查新版本并红点提示。", "help"),
 ]
 
 
@@ -334,6 +355,7 @@ LARGE_BODY = """
       <div class="item"><span class="dot">✓</span>自动阅读 + 快捷操作：空格开始 / 暂停</div>
       <div class="item"><span class="dot">✓</span>笔记增强：划线想法一键聚合与导出</div>
       <div class="item"><span class="dot">✓</span>阅读统计 &amp; 官方数据报告：一键导出</div>
+      <div class="item"><span class="dot">✓</span>AI 阅读人格：读书人版 MBTI 与手机分享图</div>
     </div>
   </div>
   <div class="right">
@@ -368,30 +390,33 @@ SHOT_CSS = """
 .body img{width:100%;height:100%;object-fit:cover;object-position:center}
 """
 
+# 商店截图规格固定 1280x800，整窗塞进去功能面板太小、文字发糊，故按功能面板位置裁剪放大。
+# box=(l,t,r,b) 为 0~1 比例，围绕面板取景、并让框接近画面比例（体区 1280x736≈1.74），铺满时不裁切内容。
 STORE_SHOTS = [
-    ("store-01-1280x800.png", "屏占比自由调节", "width"),
-    ("store-02-1280x800.png", "沉浸式阅读", "immersive"),
-    ("store-03-1280x800.png", "勿扰模式与主题", "focus"),
-    ("store-04-1280x800.png", "快捷操作", "shortcut"),
-    ("store-05-1280x800.png", "诊断日志", "diag"),
-    ("store-06-1280x800.png", "阅读统计与导出", "stats"),
-    ("store-07-1280x800.png", "笔记增强", "notes"),
-    ("store-08-1280x800.png", "官方数据报告", "official"),
-    ("store-09-1280x800.png", "功能主菜单", "menu"),
-    ("store-10-1280x800.png", "全屏模式", "fullscreen"),
+    ("store-01-1280x800.png", "屏占比自由调节", "width",      (0.239, 0.263, 0.768, 0.750)),
+    ("store-02-1280x800.png", "沉浸式阅读",     "immersive",  (0.025, 0.060, 0.475, 0.475)),
+    ("store-03-1280x800.png", "勿扰模式与主题", "focus",      (0.025, 0.060, 0.475, 0.475)),
+    ("store-04-1280x800.png", "快捷操作",       "shortcut",   (0.243, 0.266, 0.760, 0.742)),
+    ("store-05-1280x800.png", "诊断日志",       "diag",       (0.135, 0.156, 0.865, 0.828)),
+    ("store-06-1280x800.png", "阅读统计与导出", "stats",      (0.155, 0.102, 0.856, 0.747)),
+    ("store-07-1280x800.png", "笔记增强",       "notes",      (0.280, 0.291, 0.730, 0.705)),
+    ("store-08-1280x800.png", "官方数据报告",   "official",   (0.279, 0.270, 0.729, 0.684)),
+    ("store-09-1280x800.png", "功能主菜单",     "menu",       (0.000, 0.047, 0.747, 0.734)),
+    ("store-10-1280x800.png", "全屏模式",       "fullscreen", (0.025, 0.005, 0.475, 0.420)),
+    ("store-11-1280x800.png", "阅读人格 MBTI",  "persona",    (0.279, 0.385, 0.729, 0.799)),
 ]
 
 
 def build_store_shots():
-    for name, caption, key in STORE_SHOTS:
+    for name, caption, key, box in STORE_SHOTS:
         body = (
             '<div class="w"><div class="bar"><div class="bl">'
             '<img src="__ICON__"><div class="t">%s</div></div>'
             '<div class="br">微信悦读 · WeRead Enhancer</div></div>'
             '<div class="body"><img src="%s"></div></div>'
-        ) % (caption, uri(SRC[key], 2900))
+        ) % (caption, uri_crop(SRC[key], box, max_width=2600))
         render(page(1280, 800, body.replace("__ICON__", icon_uri()), SHOT_CSS),
-               os.path.join(OUT_STORE, name), 1280, 800, scale=SCALE_STD, final=(1280, 800))
+               os.path.join(OUT_STORE, name), 1280, 800, scale=STORE_SCALE, final=(1280, 800))
 
 
 # ------------------------------------------------- 360 商店效果图（560x350）
@@ -406,17 +431,16 @@ SHOT360_CSS = """
 .body img{width:100%;height:100%;object-fit:cover;object-position:center}
 """
 
+# 360 效果图：统一改用真实书页自动图（screenshots/auto/，1440x900），裁剪框按自动图重新调校。
 SHOTS_360 = [
-    ("效果图-01-560x350.png", "屏占比自由调节", "width", (0.30, 0.045, 0.70, 0.457)),
-    ("效果图-02-560x350.png", "沉浸式阅读", "immersive", (0.02, 0.08, 0.60, 0.678)),
-    ("效果图-03-560x350.png", "勿扰模式与主题", "focus", (0.30, 0.00, 0.70, 0.412)),
-    ("效果图-04-560x350.png", "快捷操作", "shortcut", (0.30, 0.00, 0.70, 0.412)),
-    ("效果图-05-560x350.png", "诊断日志", "diag", (0.22, 0.216, 0.78, 0.793)),
+    ("效果图-01-560x350.png", "屏占比自由调节", "width", (0.239, 0.263, 0.769, 0.747)),
+    ("效果图-02-560x350.png", "沉浸式阅读", "immersive", (0.025, 0.060, 0.475, 0.471)),
+    ("效果图-03-560x350.png", "勿扰模式与主题", "focus", (0.025, 0.060, 0.475, 0.471)),
+    ("效果图-04-560x350.png", "快捷操作", "shortcut", (0.242, 0.253, 0.768, 0.734)),
+    ("效果图-05-560x350.png", "诊断日志", "diag", (0.126, 0.153, 0.873, 0.836)),
 ]
 
-# 360 效果图沿用早期手工截图：560x350 太小，其裁剪框是围绕手工图逐张调好的；
-# 自动抓图尺寸/版式不同，若直接套用会错位，故这里单独固定用手工图，保持不变。
-SRC_360 = {key: _MANUAL_SRC[key] for _, _, key, _ in SHOTS_360}
+SRC_360 = {key: SRC[key] for _, _, key, _ in SHOTS_360}
 
 
 def build_360_shots():
@@ -427,6 +451,60 @@ def build_360_shots():
         ) % (caption, uri_crop(SRC_360[key], box))
         render(page(560, 350, body.replace("__ICON__", icon_uri()), SHOT360_CSS),
                os.path.join(OUT_360, name), 560, 350, scale=SCALE_HI, final=(560, 350))
+
+
+# ------------------------------------------- 微软 Partner Center / Chrome 上传包
+
+# 截图槽位「最多 6 张」，这里挑最能代表产品的 6 张（列表顺序 = 上传顺序）。
+# 源文件来自 screenshots/store/（全量），此处只做「按槽位归类」的拷贝，不改内容。
+MS_SCREENSHOTS = [
+    ("01-屏占比自由调节", "store-01-1280x800.png"),
+    ("02-沉浸式阅读",     "store-02-1280x800.png"),
+    ("03-快捷操作",       "store-04-1280x800.png"),
+    ("04-阅读统计与导出", "store-06-1280x800.png"),
+    ("05-笔记增强",       "store-07-1280x800.png"),
+    ("06-阅读人格MBTI",   "store-11-1280x800.png"),
+]
+
+
+def _copy(src, dst):
+    if not os.path.exists(src):
+        raise SystemExit("缺少素材：%s（请先跑 build_store_shots / build_tiles）" % src)
+    shutil.copyfile(src, dst)
+
+
+def build_ms_upload():
+    """按 Microsoft Partner Center 的槽位分好文件夹，方便直接上传。
+
+    槽位（来自「合作伙伴中心」要求）：
+        扩展徽标      300x300（最小 128，1:1）
+        小促销磁贴    440x280
+        大促销磁贴    1400x560
+        屏幕截图      精确 1280x800 或 640x400，最多 6 张
+    """
+    # 1) 扩展徽标 300x300（由 128 图标放大；如后续有高清源，替换 icons/icon-128.png 即可）
+    d1 = os.path.join(OUT_MS, "1-扩展徽标-300x300")
+    os.makedirs(d1, exist_ok=True)
+    Image.open(ICON).convert("RGBA").resize((300, 300), Image.LANCZOS).save(
+        os.path.join(d1, "扩展徽标-300x300.png"))
+
+    # 2) 小促销磁贴 440x280
+    d2 = os.path.join(OUT_MS, "2-小促销磁贴-440x280")
+    os.makedirs(d2, exist_ok=True)
+    _copy(os.path.join(OUT_STORE, "promo-440x280.png"),
+          os.path.join(d2, "小促销磁贴-440x280.png"))
+
+    # 3) 大促销磁贴 1400x560
+    d3 = os.path.join(OUT_MS, "3-大促销磁贴-1400x560")
+    os.makedirs(d3, exist_ok=True)
+    _copy(os.path.join(OUT_STORE, "promo-1400x560.png"),
+          os.path.join(d3, "大促销磁贴-1400x560.png"))
+
+    # 4) 屏幕截图 1280x800（最多 6 张）
+    d4 = os.path.join(OUT_MS, "4-屏幕截图-1280x800-最多6张")
+    os.makedirs(d4, exist_ok=True)
+    for label, fname in MS_SCREENSHOTS:
+        _copy(os.path.join(OUT_STORE, fname), os.path.join(d4, label + "-1280x800.png"))
 
 
 def main():
@@ -440,6 +518,8 @@ def main():
     build_store_shots()
     print("360 商店素材 → release/360-素材/")
     build_360_shots()
+    print("微软 Partner Center 上传包 → release/微软商店-上传/")
+    build_ms_upload()
     print("完成。")
 
 

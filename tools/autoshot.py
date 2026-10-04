@@ -36,6 +36,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROFILE = os.path.join(ROOT, ".autoshot", "chrome-profile")
 OUT_DIR = os.path.join(ROOT, "screenshots", "auto")
 DEFAULT_URL = "https://weread.qq.com/"
+# 配套网站（「帮助中心」跳转目标，用于给「帮助中心」出一张真实图）
+SITE_URL = "https://wereadapp-32km31c.maozi.io"
 
 # 测试用浏览器（Chrome for Testing）：官方明确它仍支持 --load-extension
 CFT_VERSION = "154.0.8037.92"
@@ -184,6 +186,90 @@ def sc_fullscreen(page):
     page.wait_for_timeout(800)
 
 
+# ---- 官方数据分支：阅读人格 / 分享图 / AI 解读 / 书架 / 发现 ----
+
+def _open_official(page):
+    """打开「官方数据」面板并等官方接口回数据。"""
+    open_menu(page, "官方数据")
+    wait_visible(page, "#wre-official-modal", timeout=15000)
+    # ⚠️ 面板页签状态会跨次保留（模块级变量），先强制回到「阅读行为报告」，
+    #    否则上一个「发现 / 书架」场景会把后面的人格卡 / AI 场景也定在错误页签。
+    try:
+        page.click('.wre-off-tab[data-wre-off-view="report"]')
+    except Exception:
+        pass
+    page.wait_for_timeout(2500)
+
+
+def _enable_persona(page):
+    """点「启用分析」读取语料生成人格卡（未配 Key / 数据不足时会走降级引导）。"""
+    try:
+        page.click('[data-wre-off-enable-persona="1"]', timeout=5000)
+    except Exception:
+        pass
+    try:
+        page.wait_for_selector(".wre-off-persona", timeout=20000)
+    except Exception:
+        pass
+    page.wait_for_timeout(800)
+
+
+def sc_persona(page):
+    """阅读人格（读书人版 MBTI）：首屏人格卡 + 词语分析。"""
+    _open_official(page)
+    _enable_persona(page)
+
+
+def sc_persona_share(page):
+    """阅读人格分享图：点「下载图片」，把生成的竖版 PNG 存为 persona-share.png。"""
+    _open_official(page)
+    _enable_persona(page)
+    with page.expect_download(timeout=15000) as dl:
+        page.click('[data-wre-off-persona-share="download"]')
+    dl.value.save_as(os.path.join(OUT_DIR, "persona-share.png"))
+    return False  # 已在函数内自行落盘，无需再截当前页
+
+
+def sc_ai(page):
+    """AI 解读：点「生成 AI 解读」后等 DeepSeek 返回（需已配置 DeepSeek Key）。"""
+    _open_official(page)
+    try:
+        page.click('[data-wre-off-run-ai="1"]', timeout=5000)
+    except Exception:
+        pass
+    page.wait_for_timeout(12000)  # 等 DeepSeek 生成文字
+
+
+def sc_shelf(page):
+    """官方数据 · 书架：切到「📚 书架」页签。"""
+    _open_official(page)
+    page.click('.wre-off-tab[data-wre-off-view="shelf"]')
+    page.wait_for_timeout(3500)
+
+
+def sc_discover(page):
+    """官方数据 · 发现：切到「🔍 发现」并搜一本书，展示封面/作者/书评入口。"""
+    _open_official(page)
+    page.click('.wre-off-tab[data-wre-off-view="discover"]')
+    page.wait_for_timeout(800)
+    try:
+        page.fill("#wre-off-search-input", "心理学")
+        page.click('[data-wre-off-search="1"]')
+        page.wait_for_timeout(3000)
+    except Exception:
+        pass
+
+
+def sc_help(page):
+    """帮助中心：点「帮助中心」跳转的配套网站首页。
+
+    ⚠️ 本场景会导航离开书页，必须放在 SCENES 最后。
+    """
+    js_reset(page)
+    page.goto(SITE_URL, wait_until="domcontentloaded")
+    page.wait_for_timeout(3000)
+
+
 # (场景名 → 出图文件名 / 中文标题 / 动作)
 SCENES = [
     ("reading", "沉浸阅读", sc_reading),
@@ -199,6 +285,14 @@ SCENES = [
     ("support", "支持与反馈", sc_support),
     ("dnd", "勿扰模式", sc_dnd),
     ("fullscreen", "全屏模式", sc_fullscreen),
+    # —— 官方数据分支（新增）——
+    ("shelf", "官方数据 · 书架", sc_shelf),
+    ("discover", "官方数据 · 发现", sc_discover),
+    ("persona", "阅读人格（读书人版 MBTI）", sc_persona),
+    ("persona-share", "阅读人格分享图", sc_persona_share),
+    ("ai", "AI 解读", sc_ai),
+    # ⚠️ help 会导航离开书页，务必保持最后
+    ("help", "帮助中心（配套网站）", sc_help),
 ]
 
 
@@ -238,6 +332,7 @@ def launch(pw):
         headless=False,
         viewport={"width": 1440, "height": 900},
         device_scale_factor=2,
+        accept_downloads=True,   # 「阅读人格分享图」场景要点「下载图片」
         args=[
             "--disable-extensions-except=%s" % ROOT,
             "--load-extension=%s" % ROOT,
@@ -279,12 +374,17 @@ def do_capture(ctx, url, only):
     for key, title, fn in scenes:
         try:
             js_reset(page)  # 每个场景都从干净状态开始
-            fn(page)
+            produced = fn(page)
             page.wait_for_timeout(500)
-            path = os.path.join(OUT_DIR, key + ".png")
-            page.screenshot(path=path)
-            ok += 1
-            print("  ✓ %-14s %s" % (key, title))
+            if produced is False:
+                # 场景已在函数内自行落盘（如「分享图」下载），不再截当前页
+                ok += 1
+                print("  ✓ %-14s %s（脚本内已产图）" % (key, title))
+            else:
+                path = os.path.join(OUT_DIR, key + ".png")
+                page.screenshot(path=path)
+                ok += 1
+                print("  ✓ %-14s %s" % (key, title))
         except Exception as exc:  # 单个场景失败不影响其余
             fail += 1
             print("  ✗ %-14s %s：%s" % (key, title, exc))
