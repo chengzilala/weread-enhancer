@@ -54,17 +54,9 @@ SCALE_STD = 2     # 商店 1280x800 截图：源图仅 2864 宽，3 倍(3840)会
 _uri_cache = {}
 
 
-def uri(path, max_width=2900):
-    """把图片转成内联 data URI。
-
-    ⚠️ max_width 必须 ≥ 该图在页面中的「设备像素宽度」（CSS 宽度 × 渲染倍率），
-       否则 <img> 的 object-fit:cover 会把它二次放大，出图就会发虚。
-    统一用 JPEG 4:4:4（无色度抽样），避免截图里的小字被色度压缩糊掉。
-    """
-    key = (path, max_width)
+def _encode_uri(im, max_width, key):
     if key in _uri_cache:
         return _uri_cache[key]
-    im = Image.open(path).convert("RGB")
     if im.width > max_width:
         im = im.resize((max_width, round(im.height * max_width / im.width)), Image.LANCZOS)
     buf = io.BytesIO()
@@ -72,6 +64,29 @@ def uri(path, max_width=2900):
     value = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
     _uri_cache[key] = value
     return value
+
+
+def uri(path, max_width=2900):
+    """把图片转成内联 data URI。
+
+    ⚠️ max_width 必须 ≥ 该图在页面中的「设备像素宽度」（CSS 宽度 × 渲染倍率），
+       否则 <img> 的 object-fit:cover 会把它二次放大，出图就会发虚。
+    统一用 JPEG 4:4:4（无色度抽样），避免截图里的小字被色度压缩糊掉。
+    """
+    return _encode_uri(Image.open(path).convert("RGB"), max_width, (path, max_width))
+
+
+def uri_crop(path, box, max_width=1800):
+    """按比例框裁剪后转 data URI（box=(l, t, r, b)，取值 0~1）。
+
+    用于 360 商店效果图：560x350 太小，整页缩进去文字必然糊，
+    所以只截取关键控件区域并铺满画面，让文字在 560 宽下仍可辨认。
+    """
+    im = Image.open(path).convert("RGB")
+    W, H = im.size
+    l, t, r, b = box
+    im = im.crop((int(l * W), int(t * H), int(r * W), int(b * H)))
+    return _encode_uri(im, max_width, (path, box, max_width))
 
 
 def icon_uri():
@@ -336,20 +351,20 @@ SHOT360_CSS = """
 """
 
 SHOTS_360 = [
-    ("效果图-01-560x350.png", "屏占比自由调节", "width"),
-    ("效果图-02-560x350.png", "沉浸式阅读", "immersive"),
-    ("效果图-03-560x350.png", "勿扰模式与主题", "focus"),
-    ("效果图-04-560x350.png", "快捷操作", "shortcut"),
-    ("效果图-05-560x350.png", "诊断日志", "diag"),
+    ("效果图-01-560x350.png", "屏占比自由调节", "width", (0.30, 0.045, 0.70, 0.457)),
+    ("效果图-02-560x350.png", "沉浸式阅读", "immersive", (0.02, 0.08, 0.60, 0.678)),
+    ("效果图-03-560x350.png", "勿扰模式与主题", "focus", (0.30, 0.00, 0.70, 0.412)),
+    ("效果图-04-560x350.png", "快捷操作", "shortcut", (0.30, 0.00, 0.70, 0.412)),
+    ("效果图-05-560x350.png", "诊断日志", "diag", (0.22, 0.216, 0.78, 0.793)),
 ]
 
 
 def build_360_shots():
-    for name, caption, key in SHOTS_360:
+    for name, caption, key, box in SHOTS_360:
         body = (
             '<div class="w"><div class="bar"><img src="__ICON__"><div class="t">%s</div></div>'
             '<div class="body"><img src="%s"></div></div>'
-        ) % (caption, uri(SRC[key], 1800))
+        ) % (caption, uri_crop(SRC[key], box))
         render(page(560, 350, body.replace("__ICON__", icon_uri()), SHOT360_CSS),
                os.path.join(OUT_360, name), 560, 350, scale=SCALE_HI, final=(560, 350))
 
