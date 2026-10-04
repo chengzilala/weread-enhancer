@@ -41,7 +41,7 @@ The "Official Data" report can optionally upgrade its "Executive Summary" with A
 
 ## Local Storage
 
-The extension uses `chrome.storage.local` solely for saving user preferences (such as screen ratio, theme, auto-read speed, do-not-disturb, and full-screen settings) and, if you opt in, your own WeRead API Key, your own DeepSeek API Key, and a short-lived report cache. It also stores the 24-hour cached result of the version check described above. All data is stored locally in your browser and is only accessible to you. This data is never transmitted anywhere except the WeRead official gateway and (only if you opt in to the AI enhancement) DeepSeek's API as described above.
+The extension uses `chrome.storage.local` solely for saving user preferences (such as screen ratio, auto-read speed, do-not-disturb, and full-screen settings) and, if you opt in, your own WeRead API Key, your own DeepSeek API Key, and a short-lived report cache. It also stores the 24-hour cached result of the version check described above. All data is stored locally in your browser and is only accessible to you. This data is never transmitted anywhere except the WeRead official gateway and (only if you opt in to the AI enhancement) DeepSeek's API as described above.
 
 ## Permissions
 

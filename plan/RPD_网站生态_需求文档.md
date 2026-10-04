@@ -401,30 +401,30 @@ python3 web/serve.py    # 本地预览（默认 http://localhost:5173）
 - [x] 帽子云静态部署跑通（拿到 `tqxch7e9l-wereadapp-32km31c.maozi.io`）
 
 ### 6.2 阶段二：教程与 FAQ（P0）
-- [ ] 首页 `/`
-- [ ] 快速上手 `/start/`
-- [ ] 功能教程 7 篇（屏占比 / 自动阅读 / 快捷键 / 统计 / 笔记 / 官方数据 / **API Key 使用说明**，见 3.8）
-- [ ] 进阶技巧 `/tips/`
-- [ ] FAQ `/faq/`
-- [ ] 更新日志 `/changelog/`
-- [ ] 全站导航、页脚、响应式、亮暗主题
+- [x] 首页 `/`
+- [x] 快速上手 `/start/`
+- [x] 功能教程 7 篇（屏占比 / 自动阅读 / 快捷键 / 统计 / 笔记 / 官方数据 / **API Key 使用说明**，见 3.8）
+- [x] 进阶技巧 `/tips/`
+- [x] FAQ `/faq/`
+- [x] 更新日志 `/changelog/`
+- [x] 全站导航、页脚、响应式、亮暗主题
 
 ### 6.3 阶段三：知识资产 / 阅读方法论（P0）
-- [ ] `/thinking/` 栏目 + 首版 4 篇（见 3.3，已确认）
-- [ ] 文章间 `[[双链]]` 打通，形成知识网络
-- [ ] 首页增加"知识资产"入口（对标 flomo 首页的"知识资产"引导）
+- [x] `/thinking/` 栏目 + 首版 4 篇（见 3.3，已确认）
+- [x] 文章间 `[[双链]]` 打通，形成知识网络
+- [x] 首页增加"知识资产"入口（对标 flomo 首页的"知识资产"引导）
 
 ### 6.4 阶段四：插件联动（P1）
-- [ ] `modules/help.js` + `help.css`：注入「📖 帮助中心」菜单项（含红点）
-- [ ] `content.js` 增 `case 'help'`（仅分流）
-- [ ] 启动拉取 `latest.json` + 24h 缓存 + 失败静默
-- [ ] `manifest.json` 新增站点域名到 `host_permissions`
+- [x] `modules/help.js` + `help.css`：注入「📖 帮助中心」菜单项（含红点）
+- [x] `content.js` 增 `case 'help'`（仅分流）
+- [x] 启动拉取 `latest.json` + 24h 缓存 + 失败静默
+- [x] `manifest.json` 新增站点域名到 `host_permissions`
 
 ### 6.5 阶段五：收口（P1）
-- [ ] 关于 `/about/`、隐私 `/privacy/`、反馈 `/feedback/`
-- [ ] SEO（title / description / OG）+ 移动端细节打磨
-- [ ] 文档回灌：`README.md`、`release/privacy.md`、商店文案、本 RPD 与插件 RPD 交叉引用
-- [ ] 发版流程并入"发版即补 changelog 并重新构建"
+- [x] 关于 `/about/`、隐私 `/privacy/`、反馈 `/feedback/`
+- [x] SEO（title / description / OG）+ 移动端细节打磨
+- [x] 文档回灌：`README.md`、`release/privacy.md`、商店文案、本 RPD 与插件 RPD 交叉引用
+- [x] 发版流程并入"发版即补 changelog 并重新构建"
 
 ### 6.6 储备（本期不做）
 - [ ] 网页版管理后台（若"改文件"实在麻烦，可升级为 Supabase + Vercel 在线编辑）
