@@ -37,7 +37,12 @@ SS = os.path.join(ROOT, "screenshots")
 # 素材来源（均为插件真实界面截图；统一取高分辨率原图，避免被放大后发虚）
 # ⚠️ 商店截图在页面里会被放大到 2560 设备像素宽，所以必须用 ≥2560 的原图，
 #    不要用 screenshots/resized/ 里 1280 宽的缩略图。
-SRC = {
+#
+# 自动抓图（推荐）：先跑 `python3 tools/autoshot.py`，它会把真实界面截图写到
+# screenshots/auto/。存在自动图时优先用它，没有就回退到下面的手工图，保证老流程不坏。
+AUTO_DIR = os.path.join(SS, "auto")
+
+_MANUAL_SRC = {
     "width": os.path.join(EFF, "微信图片_20260613151713_19_3084.png"),      # 阅读设置：屏占比 / 阅读进度 / 主题色
     "focus": os.path.join(EFF, "微信图片_20260613151713_20_3084.png"),      # 插件设置：勿扰模式 / 插件主题色
     "immersive": os.path.join(EFF, "微信图片_20260613151713_21_3084.png"),  # 沉浸阅读正文
@@ -45,6 +50,24 @@ SRC = {
     "diag": os.path.join(SS, "Snipaste_2026-06-26_10-05-25.png"),   # 调试日志（2864x1588）
     "read": os.path.join(SS, "Snipaste_2026-06-26_10-05-52.png"),   # 沉浸阅读正文（2864x1520）
 }
+
+# SRC 键 → tools/autoshot.py 抓取的场景文件名
+_AUTO_SCENE = {
+    "width": "read-settings",
+    "focus": "dnd",
+    "immersive": "reading",
+    "shortcut": "shortcuts",
+    "diag": "debug",
+    "read": "reading",
+}
+
+
+def _pick_source(key):
+    auto = os.path.join(AUTO_DIR, _AUTO_SCENE[key] + ".png")
+    return auto if os.path.exists(auto) else _MANUAL_SRC[key]
+
+
+SRC = {key: _pick_source(key) for key in _MANUAL_SRC}
 
 # 清晰度档位
 QUALITY = 95      # 内联 JPEG 质量（4:4:4 无色度抽样），偏高减少小字糊化

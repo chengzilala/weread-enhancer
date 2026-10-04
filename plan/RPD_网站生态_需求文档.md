@@ -52,7 +52,7 @@
 | 第一版内容范围 | **标准版 + 知识资产（阅读方法论）** | 方法论板块是粘性核心，**进第一版**，不放储备 |
 | 复刻程度 | **结构照搬，视觉自定** | 见 1.2 |
 | 代码落点与部署 | **本项目内 `web/` 目录 + 帽子云静态托管** | 与插件同仓库；构建产物走 `site-dist` 分支 |
-| 站点域名 | **帽子云自动分配**：`tqxch7e9l-wereadapp-32km31c.maozi.io`（随机前缀，无法自选） | 换域名只改 `site.config.json` 一处 |
+| 站点域名 | **帽子云自动分配**：`wereadapp-32km31c.maozi.io`（随机前缀，无法自选；不带前缀的为跟随最新部署的主域名） | 换域名只改 `site.config.json` 一处 |
 | Obsidian vault 形态 | **独立 vault（`web/content/`）** | 不并入你现有库，零冲突 |
 | 知识资产首版选题 | **已确认**（4 篇，见 3.3） | — |
 
@@ -211,7 +211,7 @@ aliases: [屏占比, 宽度]       # Obsidian 别名，同时用于 [[双链]] �
   "releasedAt": "2026-09-29",
   "minSupportedVersion": "0.9.0",
   "notice": "v0.11.0 新增：官方数据阅读行为报告",
-  "changelogUrl": "https://tqxch7e9l-wereadapp-32km31c.maozi.io/changelog/",
+  "changelogUrl": "https://wereadapp-32km31c.maozi.io/changelog/",
   "storeUrls": { "edge": "…", "chrome": "…" }
 }
 ```
@@ -398,7 +398,7 @@ python3 web/serve.py    # 本地预览（默认 http://localhost:5173）
 - [x] `serve.py` 本地预览跑通
 - [x] 产出 `dist/api/latest.json`（版本号自动读 `manifest.json`）
 - [x] 内容目录可被 Obsidian 直接打开为 vault（附件目录约定 + `_模板.md`）
-- [x] 帽子云静态部署跑通（拿到 `tqxch7e9l-wereadapp-32km31c.maozi.io`）
+- [x] 帽子云静态部署跑通（拿到 `wereadapp-32km31c.maozi.io`）
 
 ### 6.2 阶段二：教程与 FAQ（P0）
 - [x] 首页 `/`
@@ -487,7 +487,7 @@ python3 web/serve.py    # 本地预览（默认 http://localhost:5173）
 | 项 | 结论 |
 |---|---|
 | 知识资产首版选题 | 沿用 3.3 的 4 篇 |
-| 站点域名 | 帽子云自动分配 `tqxch7e9l-wereadapp-32km31c.maozi.io`（国内可直连，随机前缀无法自选） |
+| 站点域名 | 帽子云自动分配 `wereadapp-32km31c.maozi.io`（国内可直连，随机前缀无法自选） |
 | Obsidian vault | 独立 vault（`web/content/`），不并入现有库 |
 
 ### B-2 仍按假设推进（有异议请指出）
