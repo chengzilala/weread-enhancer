@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "微信悦读",
-  "version": "0.15.0",
+  "version": "0.15.1",
   "description": "增强微信读书网页版阅读体验：屏占比调节、自动阅读、快捷键操作、勿扰模式、全屏模式、阅读统计、笔记导出与官方数据阅读行为分析（含 DeepSeek AI 人格化解读，可选）。",
   "homepage_url": "https://tqxch7e9l-wereadapp-32km31c.maozi.io",
   "icons": {

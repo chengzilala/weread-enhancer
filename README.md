@@ -29,9 +29,9 @@
 4. 选择本项目的根目录（包含 `manifest.json` 的文件夹）
 5. 打开 https://weread.qq.com 即可看到效果
 
-### 从 Edge 商店安装（即将上线）
+### 从 Edge 商店安装
 
-插件正在准备上架 Microsoft Edge 加载项商店，上架后可直接一键安装。
+插件已上架 Microsoft Edge 加载项商店，[点此一键安装](https://microsoftedge.microsoft.com/addons/detail/%E5%BE%AE%E4%BF%A1%E6%82%A6%E8%AF%BB/nkcckbonpafeclefhlhbencibkaabmgb)。
 
 ## 项目结构
 
@@ -68,7 +68,7 @@
 │   ├── site.config.json   #    站点名 / 导航 / 栏目 / 商店链接
 │   ├── build.py           #    一键构建：content/*.md → dist/ + dist/api/latest.json
 │   ├── serve.py           #    本地预览（零依赖）
-│   ├── vercel.json        #    Vercel 部署配置
+│   ├── vercel.json        #    Vercel 海外镜像配置（可选，主站已迁帽子云）
 │   └── dist/              #    构建产物（不入库）
 │
 ├── plan/                  # 📋 规划

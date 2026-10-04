@@ -71,7 +71,7 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 | 字段             | 内容                                                                            |
 | -------------- | ----------------------------------------------------------------------------- |
 | **名称**         | 微信悦读                                                                    |
-| **简短描述（≤80字）** | 增强微信读书网页版：屏占比调节、自动阅读、快捷键、勿扰与全屏，滚动模式工具栏浮动与自绘滚动条 |
+| **简短描述（≤80字）** | 增强微信读书网页版：屏占比、自动阅读、快捷键、勿扰与全屏、阅读统计、笔记聚合导出、官方阅读数据报告与帮助中心 |
 | **详细描述**       | 见下方"详细描述文案"                                                                   |
 | **支持语言**       | 中文（简体）                                                                        |
 | **分类**         | 生产力 / 辅助功能                                                                    |
@@ -87,15 +87,18 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 > - **屏占比调节**：50%-100% 自由调整阅读区域宽度，滑块 + 快捷比例按钮，设置自动保存
 > - **自动阅读**：速度、方向可调，空格键一键开始/暂停
 > - **快捷键操作**：空格（自动阅读）、D（勿扰）、F（全屏）、?（帮助面板）
-> - **勿扰模式**：隐藏干扰元素，专注沉浸阅读
-> - **全屏模式**：一键进入沉浸全屏，退出自动恢复
+> - **勿扰模式 / 全屏模式**：一键进入沉浸阅读，退出自动恢复
 > - **工具栏浮动**：屏占比过高或滚动模式下原生工具栏自动隐藏，鼠标移到感应区淡入显示，点击正常
 > - **滚动模式适配**：滚动阅读模式下屏占比自适应，配自绘悬浮滚动条，滚动更顺滑
+> - **阅读统计与导出**：统计前台阅读时长（今日 / 本周 / 本月 / 本书），显示当前书籍进度与最近书目，一键导出 HTML / PDF / Markdown / CSV / JSON
+> - **笔记增强**：一键聚合本书全部划线与想法/批注（按章节分组、可搜索），支持干净复制与 Markdown / 纯文本 / HTML / PDF 导出（需在插件内配置自己的微信读书 API Key）
+> - **官方数据阅读行为报告**：用你自己的 API Key 拉取官方阅读数据，在本机生成「阅读行为报告」，支持本周 / 本月 / 本年 / 累计切换与导出；可选接入 DeepSeek Key 生成 AI 解读
+> - **帮助中心与支持反馈**：一键跳转配套教程网站，内置反馈与打赏入口
 >
 > **贴心之处**：
 > - 所有设置自动保存，刷新页面无需重新调节
 > - 首次安装/更新弹出新手引导
-> - 零依赖、不收集任何用户数据，仅在 weread.qq.com 下运行
+> - 隐私优先：零依赖、不收集任何用户数据，仅在 weread.qq.com 下运行
 
 **英文描述（Store Listing English）**：
 
@@ -103,13 +106,15 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 >
 > **Key features**:
 > - **Screen ratio**: freely adjust reading width from 50% to 100% with a slider and preset buttons; saved automatically
-> - **Themes**: one-click switch between Light / Dark / Eye-care (sepia), stable with no leftover artifacts
 > - **Auto reading**: adjustable speed and direction, start/pause with the spacebar
 > - **Keyboard shortcuts**: Space (auto read), D (do-not-disturb), F (full screen), ? (help panel)
-> - **Do-not-disturb**: hide distractions for immersive reading
-> - **Full screen**: one-click immersive mode, restores automatically on exit
+> - **Do-not-disturb / Full screen**: immersive reading modes that restore automatically on exit
 > - **Floating toolbar**: when the ratio is high or in scroll mode, the native toolbar auto-hides and reappears on hover
 > - **Scroll-mode tuning**: adaptive screen ratio in scroll reading mode with a custom floating scrollbar for smoother scrolling
+> - **Reading stats & export**: track foreground reading time (today / this week / this month / this book), show current book progress and recent books, export to HTML / PDF / Markdown / CSV / JSON
+> - **Notes enhancement**: aggregate all highlights and thoughts of the current book by chapter, searchable, with a clean copy and export to Markdown / text / HTML / PDF (requires your own WeRead API key configured in the extension)
+> - **Official reading report**: pull your own official WeRead data with your API key and generate an on-device reading behavior report (weekly / monthly / yearly / all-time, exportable); optional DeepSeek AI summary with your own key
+> - **Help center & feedback**: one-click link to the companion guide site, with built-in feedback and support entries
 >
 > **Nice to know**:
 > - All preferences are saved automatically across page refreshes
@@ -176,24 +181,34 @@ to enhance the reading experience. It runs ONLY on weread.qq.com.
 
 Features:
 - Screen ratio: adjust the reading area width (50%-100%).
-- Themes: switch between Light / Dark / Eye-care (sepia) modes via CSS filter.
 - Auto reading: adjustable scroll speed and direction, toggled with the spacebar.
 - Keyboard shortcuts: Space (auto read), D (do-not-disturb), F (full screen), ? (help panel).
 - Do-not-disturb and full-screen immersive modes.
+- Floating toolbar and adaptive screen ratio in scroll mode, with a custom floating scrollbar.
+- Reading statistics with local export (HTML / PDF / Markdown / CSV / JSON).
+- Notes enhancement: aggregate the user's own highlights and thoughts, using the user's OWN
+  WeRead API key (stored locally); it only reads the user's own book notes.
+- Official reading report: fetch the user's OWN official data with their API key; optional
+  DeepSeek summary using the user's OWN DeepSeek key.
+- Help center and feedback entries.
 - Onboarding guide shown on first install / update.
 
 Permission justification
-- "storage": used SOLELY to save user preferences (screen ratio, theme, auto-read
-  speed, do-not-disturb and full-screen state) to browser local storage
-  (chrome.storage.local). No data is ever collected, tracked, or transmitted.
+- "storage": used SOLELY to save user preferences (screen ratio, auto-read speed,
+  do-not-disturb and full-screen state) to browser local storage (chrome.storage.local).
+- Host permissions (i.weread.qq.com / api.deepseek.com / companion site): used ONLY when the
+  user actively opens the notes / official-data panels, to fetch the user's OWN data with the
+  user's OWN API key, or to silently check the companion site's version file. No data is ever
+  collected, tracked, or transmitted to the developer.
 
 No remote code, analytics, tracking, or ads are included.
 
 How to test:
 1. Install the extension.
 2. Open any book page on https://weread.qq.com.
-3. A control panel appears at the top-right corner; adjust screen ratio, switch themes,
-   start auto reading, or press ? to open the help/debug panel.
+3. A control panel appears at the top-right corner; adjust the screen ratio, start auto
+   reading, or press ? to open the help panel. (Notes / official-data features require the
+   user's own WeRead API key.)
 
 The extension is open source: https://github.com/chengzilala/weread-enhancer
 ```
@@ -223,7 +238,7 @@ The extension is open source: https://github.com/chengzilala/weread-enhancer
 
 ---
 
-## 七、执行任务分配
+## 七、首次上架任务分配（已完成，历史留档）
 
 | 序号 | 任务 | 执行方式 | 状态 |
 |------|------|---------|------|
@@ -232,10 +247,10 @@ The extension is open source: https://github.com/chengzilala/weread-enhancer
 | 3 | 创建 icons/ 目录 | 已完成 | ✅ |
 | 4 | 撰写 privacy.md | 已完成（`release/privacy.md`） | ✅ |
 | 5 | 更新 README.md（补充实际功能说明） | 已完成 | ✅ |
-| 6 | 准备中英文商店文案 | 文档中已有 | ✅ |
-| 7 | 截图整理与尺寸调整 | **用户操作**（从 `screenshots/` 选取 2-3 张，裁剪为 1280x800 或 640x400） | ⏳ 待执行 |
-| 8 | 重新打包上架 zip | 我来打包 | 🔄 即将执行 |
-| 9 | 注册 Partner Center + 上传提交 | 用户操作（已提交审核） | ✅ |
+| 6 | 准备中英文商店文案 | 已完成 | ✅ |
+| 7 | 截图整理与尺寸调整 | 已完成（`screenshots/resized/`） | ✅ |
+| 8 | 重新打包上架 zip | 已完成（现由 `pack.py` 一键打包） | ✅ |
+| 9 | 注册 Partner Center + 上传提交 | 已完成（v0.8.2 已上架） | ✅ |
 
 ---
 
@@ -251,11 +266,30 @@ The extension is open source: https://github.com/chengzilala/weread-enhancer
 
 ## 九、更新提交记录
 
+### v0.8.2｜已完成
 | 项 | 记录 |
 |---|---|
 | 提交版本 | **v0.8.2** |
 | 提交日期 | 2026-09-27 |
 | 提交包 | `release/weread-enhancer-v0.8.2.zip` |
 | 上次商店版本 | v0.2.0（本次为追平更新） |
-| 审核状态 | ⏳ **审核中**（平台提示：预计 7 个工作日后反馈） |
-| 审核结果 | （待填：通过 / 拒绝） |
+| 审核状态 | ✅ **已通过，已上架** |
+
+### v0.15.0｜已完成
+| 项 | 记录 |
+|---|---|
+| 提交版本 | **v0.15.0** |
+| 提交包 | `release/weread-enhancer-v0.15.0.zip` |
+| 上次商店版本 | v0.8.2 |
+| 本次要点 | 追平功能：阅读统计与导出、笔记增强、官方数据阅读行为报告（含可选 DeepSeek AI 解读）、帮助中心、支持与反馈；**移除主题设置** |
+| 审核状态 | ✅ **已上架** |
+
+### v0.15.1｜本次
+| 项 | 记录 |
+|---|---|
+| 提交版本 | **v0.15.1** |
+| 提交日期 | 2026-10-04 |
+| 提交包 | `release/weread-enhancer-v0.15.1.zip`（由 `pack.py` 自动打包，22 个运行文件） |
+| 上次商店版本 | v0.15.0 |
+| 本次要点 | 重新打包提交：排查商店版功能异常（本地版正常、商店版异常），用 `pack.py` 确保包内含 `background.js` / `modules/` / `assets/` 全部运行文件 |
+| 审核状态 | ⏳ **待提交**（用户在 Partner Center 上传 zip 并提交后更新此状态） |
