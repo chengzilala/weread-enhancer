@@ -1,7 +1,7 @@
 {
   "siteName": "微信悦读",
   "siteDescription": "微信悦读是微信读书网页版的阅读增强插件：屏占比调节、自动阅读、阅读统计、笔记增强与官方数据阅读行为报告。这里是它的使用教程与阅读方法论。",
-  "baseUrl": "https://tqxch7e9l-wereadapp-32km31c.maozi.io",
+  "baseUrl": "https://wereadapp-32km31c.maozi.io",
   "repoUrl": "https://github.com/chengzilala/weread-enhancer",
   "issuesUrl": "https://github.com/chengzilala/weread-enhancer/issues",
   "minSupportedVersion": "0.9.0",
