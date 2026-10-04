@@ -46,6 +46,11 @@ SRC = {
     "read": os.path.join(SS, "Snipaste_2026-06-26_10-05-52.png"),   # 沉浸阅读正文（2864x1520）
 }
 
+# 清晰度档位
+QUALITY = 95      # 内联 JPEG 质量（4:4:4 无色度抽样），偏高减少小字糊化
+SCALE_HI = 3      # 高倍渲染：Banner / 卡片 / 磁贴 / 360，超采样后再缩放，边缘更锐
+SCALE_STD = 2     # 商店 1280x800 截图：源图仅 2864 宽，3 倍(3840)会超过源分辨率反被放大，故保持 2 倍
+
 _uri_cache = {}
 
 
@@ -63,7 +68,7 @@ def uri(path, max_width=2900):
     if im.width > max_width:
         im = im.resize((max_width, round(im.height * max_width / im.width)), Image.LANCZOS)
     buf = io.BytesIO()
-    im.save(buf, "JPEG", quality=92, subsampling=0, optimize=True)
+    im.save(buf, "JPEG", quality=QUALITY, subsampling=0, optimize=True)
     value = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
     _uri_cache[key] = value
     return value
@@ -158,8 +163,8 @@ BANNER_BODY = """
 
 
 def build_banner():
-    html = page(1280, 400, BANNER_BODY.replace("__ICON__", icon_uri()).replace("__READ__", uri(SRC["read"], 1100)), BANNER_CSS)
-    render(html, os.path.join(OUT_GITHUB, "github-banner.png"), 1280, 400)
+    html = page(1280, 400, BANNER_BODY.replace("__ICON__", icon_uri()).replace("__READ__", uri(SRC["read"], 1600)), BANNER_CSS)
+    render(html, os.path.join(OUT_GITHUB, "github-banner.png"), 1280, 400, scale=SCALE_HI)
 
 
 # ------------------------------------------------------- 功能亮点卡片 640x500
@@ -199,8 +204,8 @@ def build_cards():
             '<div class="meta"><div class="badge">%s</div>'
             '<div class="tt">%s<span class="en">%s</span></div></div>'
             '<div class="desc">%s</div></div>'
-        ) % (uri(SRC[key], 1300), badge, title, en, desc)
-        render(page(640, 500, body, CARD_CSS), os.path.join(OUT_GITHUB, name), 640, 500)
+        ) % (uri(SRC[key], 1900), badge, title, en, desc)
+        render(page(640, 500, body, CARD_CSS), os.path.join(OUT_GITHUB, name), 640, 500, scale=SCALE_HI)
 
 
 # ------------------------------------------------------------ 商店宣传磁贴
@@ -275,12 +280,12 @@ LARGE_BODY = """
 
 def build_tiles():
     render(page(440, 280, SMALL_BODY.replace("__ICON__", icon_uri()), SMALL_CSS),
-           os.path.join(OUT_STORE, "promo-440x280.png"), 440, 280, final=(440, 280))
+           os.path.join(OUT_STORE, "promo-440x280.png"), 440, 280, scale=SCALE_HI, final=(440, 280))
     body = (LARGE_BODY.replace("__ICON__", icon_uri())
-            .replace("__S1__", uri(SRC["width"], 900))
-            .replace("__S2__", uri(SRC["immersive"], 900)))
+            .replace("__S1__", uri(SRC["width"], 1300))
+            .replace("__S2__", uri(SRC["immersive"], 1300)))
     render(page(1400, 560, body, LARGE_CSS),
-           os.path.join(OUT_STORE, "promo-1400x560.png"), 1400, 560, final=(1400, 560))
+           os.path.join(OUT_STORE, "promo-1400x560.png"), 1400, 560, scale=SCALE_HI, final=(1400, 560))
 
 
 # ------------------------------------------------- 商店截图（自带标题栏 1280x800）
@@ -315,7 +320,7 @@ def build_store_shots():
             '<div class="body"><img src="%s"></div></div>'
         ) % (caption, uri(SRC[key], 2900))
         render(page(1280, 800, body.replace("__ICON__", icon_uri()), SHOT_CSS),
-               os.path.join(OUT_STORE, name), 1280, 800, final=(1280, 800))
+               os.path.join(OUT_STORE, name), 1280, 800, scale=SCALE_STD, final=(1280, 800))
 
 
 # ------------------------------------------------- 360 商店效果图（560x350）
@@ -344,9 +349,9 @@ def build_360_shots():
         body = (
             '<div class="w"><div class="bar"><img src="__ICON__"><div class="t">%s</div></div>'
             '<div class="body"><img src="%s"></div></div>'
-        ) % (caption, uri(SRC[key], 1300))
+        ) % (caption, uri(SRC[key], 1800))
         render(page(560, 350, body.replace("__ICON__", icon_uri()), SHOT360_CSS),
-               os.path.join(OUT_360, name), 560, 350, final=(560, 350))
+               os.path.join(OUT_360, name), 560, 350, scale=SCALE_HI, final=(560, 350))
 
 
 def main():
