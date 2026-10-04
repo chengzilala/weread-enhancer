@@ -1,6 +1,22 @@
+<img src="screenshots/promo/github-banner.png" alt="微信悦读 · 让微信读书网页版，更好读" width="100%">
+
 # 微信悦读 - 浏览器插件
 
 专为微信读书网页版（weread.qq.com）打造的阅读增强浏览器扩展。
+
+<p>
+  <a href="https://microsoftedge.microsoft.com/addons/detail/%E5%BE%AE%E4%BF%A1%E6%82%A6%E8%AF%BB/nkcckbonpafeclefhlhbencibkaabmgb"><img src="https://img.shields.io/badge/Microsoft%20Edge-立即安装-2F6BFF?logo=microsoftedge&logoColor=white" alt="从 Microsoft Edge 加载项商店安装"></a>
+  <img src="https://img.shields.io/badge/许可-MIT-2F6BFF" alt="MIT License">
+  <img src="https://img.shields.io/badge/隐私-不收集任何数据-2F6BFF" alt="隐私声明">
+</p>
+
+## 界面预览
+
+<p align="center"><img src="screenshots/promo/feature-01-reading-width.png" width="412"> <img src="screenshots/promo/feature-02-focus.png" width="412"></p>
+<p align="center"><img src="screenshots/promo/feature-03-immersive.png" width="412"> <img src="screenshots/promo/feature-04-shortcuts.png" width="412"></p>
+<p align="center"><img src="screenshots/promo/feature-05-diagnostics.png" width="412"></p>
+
+> 以上均为插件真实界面；商店上架用的宣传磁贴与截图见 [screenshots/store](screenshots/store)。
 
 ## 已实现功能
 
@@ -89,9 +105,15 @@
 │
 ├── release/               # 🚀 上线
 │   ├── privacy.md
+│   ├── 360-素材/           #    360 商店上传素材（560×350 效果图 / 图标 / 功能说明）
 │   └── weread-enhancer-v0.15.0.zip
 │
-├── screenshots/           # 📸 截图
+├── screenshots/           # 📸 截图与展示素材
+│   ├── promo/             #    GitHub 展示图：Banner + 功能亮点卡片（promo.py 生成）
+│   └── store/             #    商店素材：440×280 / 1400×560 宣传图 + 带标题栏的 1280×800 截图
+│
+├── promo.py               # 🎨 一键生成上述展示素材（HTML → Chrome 无头截图 → PNG）
+├── pack.py                # 📦 一键打包上架 zip
 │
 ├── usage/                 # 📖 使用指南
 │   ├── Running.md

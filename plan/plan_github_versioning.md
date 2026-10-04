@@ -69,6 +69,8 @@
 - README.md / Running.md
 - session_log.md
 - RPD_需求文档.md（如果希望需求-实现同库追溯）
+- promo.py + screenshots/promo/（仓库首页 Banner 与功能卡片，README 按相对路径引用，必须入库）
+- screenshots/store/（Edge/Chrome 商店上传素材，与展示图同源；360 素材在 release/360-素材/）
 
 ### 不提交（运行产物）
 - 下载或导出的调试日志：weread-debug-*.json
@@ -139,6 +141,8 @@ GitHub Release（网页操作）建议：
 - 标题：v0.1.0
 - 内容：说明已包含屏占比 + 日志系统（最小可用闭环）
 - 附件：打一个可安装 zip（仅包含插件运行所需文件，不包含调试日志）
+- 正文可内嵌展示图（用 raw 链接，把 `<tag>` 换成版本号）：
+  `https://raw.githubusercontent.com/chengzilala/weread-enhancer/<tag>/screenshots/promo/github-banner.png`
 
 ### 7. 后续迭代工作流（模板）
 - 新功能：

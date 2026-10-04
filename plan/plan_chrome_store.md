@@ -37,11 +37,13 @@
 |---|---|---|---|
 | 商店图标 | 128×128 PNG（必需） | `icons/icon-128.png` | ✅ |
 | 扩展图标 | 16 / 48 / 128 | `icons/icon-16/48/128.png` | ✅ |
-| 截图 | 1280×800 或 640×400，1–5 张（至少 1 张必需） | `screenshots/resized/screenshot-01~06.png` | ⚠️ 需确认实际像素是否为 1280×800 / 640×400 |
-| 小宣传图 | 440×280（必需 / 强烈建议） | `screenshots/resized/promo-tile-440x280.png` | ✅ |
-| 大宣传图 Marquee | 1400×560（可选，精选位用） | `screenshots/resized/promo-tile-1400x560.png` | ✅ |
+| 截图 | 1280×800 或 640×400，1–5 张（至少 1 张必需） | `screenshots/store/store-01~05-1280x800.png` | ✅ 已实测 1280×800 |
+| 小宣传图 | 440×280（必需 / 强烈建议） | `screenshots/store/promo-440x280.png` | ✅ |
+| 大宣传图 Marquee | 1400×560（可选，精选位用） | `screenshots/store/promo-1400x560.png` | ✅ |
 
-> ⚠️ 上传前务必确认 `screenshots/resized/` 内截图的实际像素符合 1280×800 或 640×400；不符则需重新裁剪。
+> ℹ️ 上述素材与 Edge 商店**同一套、直接复用**（尺寸要求一致），由 `promo.py` 一键生成：`python3 promo.py`。
+> ℹ️ `screenshots/promo/`（Banner + 功能卡片）只用于 GitHub README，**不上传商店**；360 商店的 560×350 效果图在 `release/360-素材/`，尺寸不同勿混用。
+> ℹ️ 旧素材 `screenshots/resized/` 为早期纯截图版，已被 `screenshots/store/` 取代。
 
 ---
 

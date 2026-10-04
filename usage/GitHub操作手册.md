@@ -49,6 +49,32 @@ git push origin v0.2.0
 
 打完 tag 后，可以去 GitHub 对应 tag 创建 Release，别人就能下载 zip 安装了。
 
+### 打完 tag 后：Release 说明配上展示图
+
+仓库首页和 Release 用的展示图，都由 `promo.py` 一处生成（改文案 / 换截图后重跑即可）：
+
+```bash
+python3 promo.py
+```
+
+| 用在哪 | 文件 | 说明 |
+|---|---|---|
+| 仓库首页顶部横幅 | `screenshots/promo/github-banner.png` | README 第一行已按**相对路径**引用 |
+| 仓库首页「界面预览」 | `screenshots/promo/feature-01~05-*.png` | README 中已排列展示 |
+| GitHub Release 正文 | 同上 | 用 raw 链接内嵌，见下方 |
+| 商店上架素材（不上传 GitHub） | `screenshots/store/`、`release/360-素材/` | 仅本机留存，供 Edge/Chrome/360 后台上传 |
+
+> ⚠️ README 用的是相对路径，**展示图必须一起提交**，否则仓库首页会裂图：
+>
+> ```powershell
+> git add README.md promo.py screenshots/promo screenshots/store
+> git commit -m "docs: 新增展示素材与 README 界面预览"
+> git push
+> ```
+>
+> Release 正文引用图片用 raw 链接（把 `<tag>` 换成版本号）：
+> `https://raw.githubusercontent.com/chengzilala/weread-enhancer/<tag>/screenshots/promo/github-banner.png`
+
 ---
 
 ## 三、出了问题怎么办：回退到指定版本

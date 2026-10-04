@@ -44,7 +44,7 @@
 | 360 账户 | ❓未注册（免注册费；详见 `plan_360_store.md`） |
 | 图标 `icons/`（16/48/128） | ✅ 已备 |
 | 隐私政策 `release/privacy.md` | ✅ 已备，URL：`https://github.com/chengzilala/weread-enhancer/blob/main/release/privacy.md` |
-| 截图 `screenshots/resized/` | ✅ 已有 `screenshot-01~06.png` + `promo-tile-1400x560.png` / `promo-tile-440x280.png`（Edge/Chrome 尺寸） |
+| 截图/宣传图 `screenshots/store/` | ✅ 已就绪：`store-01~05-1280x800.png` + `promo-440x280.png` / `promo-1400x560.png`（Edge/Chrome 尺寸，`promo.py` 生成）；360 用 `release/360-素材/效果图-01~05-560x350.png` |
 | 上架 zip（Edge/Chrome 通用） | ✅ 已打包 `release/weread-enhancer-v0.8.2.zip`（本会话生成；zip 不入库，需重打见下方命令） |
 | Edge 商店中英文案 | ✅ 已校正（`plan_edge_store.md`）：快捷键统一 `空格/D/F/?`、补滚动模式新功能 |
 | 归档文档 | ✅ 三份已建：`plan_edge_store.md` / `plan_chrome_store.md`（暂缓）/ `plan_360_store.md`（新手完整版） |
@@ -103,6 +103,6 @@ python3 -c "import zipfile; files=['manifest.json','content.js','content.css','R
 - **360 与 Chrome/Edge 差异**：360 上传的是**内含 `.crx` 的 ZIP**（非直接传 crx），且图片尺寸独立（效果图 560×350、图标 48×48…），详见 `plan_360_store.md`；**上架前必测 MV3 兼容性**
 - 权限理由 / 审核备注模板见 `plan_edge_store.md` 第四节（可复用）
 - 隐私政策 URL、支持邮箱 `2195542745@qq.com`、分类"生产力/辅助功能"沿用
-- 截图/宣传图用 `screenshots/resized/` 现成的；如尺寸不符各商店要求再调
+- 截图/宣传图已按各商店尺寸备好（Edge/Chrome → `screenshots/store/`；360 → `release/360-素材/`），改文案或换截图后跑 `python3 promo.py` 重新生成
 - **上架完成后**：更新 `version_plan.md` 第 3 节「浏览器上架」进度；若因上架改了代码则按支线流程升 patch + 更新 `plan_github_versioning.md` 归档历史表
 - 未经用户明确要求不 git 提交、不注册账户、不代替用户提交审核（提交动作通常由用户手动完成）

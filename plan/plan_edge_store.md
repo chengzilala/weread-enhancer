@@ -18,7 +18,7 @@
 |------|---------|--------|--------|
 | manifest.json 版本号 | `1.0.0` | 调整为 `0.2.0`（与 Git tag 对齐），首次上架不强求 1.0 | P0 |
 | 插件图标 | 无 | 制作 3 个尺寸：16x16 / 48x48 / 128x128 | P0 |
-| 商店展示图 | 截图文件夹已有 5 张 | 选取并转换为 1280x800 或 640x400 PNG | P1 |
+| 商店展示图 | ✅ 已就绪（`screenshots/store/`） | 直接上传，见步骤 4 | P1 |
 | 隐私政策 | 无 | 撰写简单隐私声明（说明不收集用户数据） | P0 |
 | 代码检查 | 有 debug.log 等调试产物 | 打包前清理，只保留必要文件 | P1 |
 
@@ -121,18 +121,25 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 > - A welcome guide appears on first install/update
 > - Privacy-first: zero dependencies, no data collection, runs only on weread.qq.com
 
-### 步骤 4：制作截图（1-10 张）
+### 步骤 4：准备商店素材（已就绪，由 `promo.py` 生成）
 
-现有截图文件夹：`screenshots/`，已有 5 张。需要：
+改文案 / 换截图后，一条命令即可重新生成全部素材：
 
-1. 选取最佳的 2-3 张
-2. 尺寸调整为 **1280x800** 或 **640x400**
-3. 重命名为英文：`screenshot-01.png`、`screenshot-02.png` ...
+```bash
+python3 promo.py
+```
 
-**截图内容建议**：
-- 截图1：微信读书页面 + 插件设置面板展开（展示屏占比功能）
-- 截图2：100% 屏占比效果（工具栏隐藏）
-- 截图3：鼠标悬停工具栏淡入显示效果
+**上传对照表（一图一岗）**：
+
+| 上传位置 | 文件 | 尺寸 | 画面内容 |
+|---|---|---|---|
+| 截图（1–10 张，必需） | `screenshots/store/store-01-1280x800.png` … `store-05-1280x800.png` | 1280×800 | 品牌蓝标题栏 + 界面：屏占比自由调节 / 沉浸式阅读 / 勿扰模式与主题 / 快捷操作 / 诊断日志 |
+| 小宣传磁贴（必需） | `screenshots/store/promo-440x280.png` | 440×280 | Logo + 名称 + 一句话定位 |
+| 大宣传磁贴（可选，精选位用） | `screenshots/store/promo-1400x560.png` | 1400×560 | 左侧卖点清单 + 右侧双界面预览 |
+| 商店图标 | `icons/icon-128.png` | 128×128 | 已有 |
+
+> ℹ️ GitHub 仓库首页用的 Banner 与功能亮点卡片在 `screenshots/promo/`，**只用于 README 展示，不上传商店**。
+> ⚠️ 360 商店要求的 560×350 效果图在 `release/360-素材/`，尺寸与 Edge/Chrome 不通用，勿混用。
 
 ### 步骤 5：打包 ZIP
 
@@ -248,7 +255,7 @@ The extension is open source: https://github.com/chengzilala/weread-enhancer
 | 4 | 撰写 privacy.md | 已完成（`release/privacy.md`） | ✅ |
 | 5 | 更新 README.md（补充实际功能说明） | 已完成 | ✅ |
 | 6 | 准备中英文商店文案 | 已完成 | ✅ |
-| 7 | 截图整理与尺寸调整 | 已完成（`screenshots/resized/`） | ✅ |
+| 7 | 商店截图与宣传磁贴 | 已完成（`screenshots/store/`，由 `promo.py` 生成） | ✅ |
 | 8 | 重新打包上架 zip | 已完成（现由 `pack.py` 一键打包） | ✅ |
 | 9 | 注册 Partner Center + 上传提交 | 已完成（v0.8.2 已上架） | ✅ |
 
