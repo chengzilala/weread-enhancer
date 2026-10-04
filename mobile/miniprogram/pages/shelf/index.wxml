@@ -1,0 +1,12 @@
+<view class="wre-page">
+  <view class="wre-empty" wx:if="{{!hasKey}}">
+    <view class="wre-empty__text">还没有配置微信读书 API Key</view>
+    <view class="wre-empty__text">配置后即可查看「{{pageTitle}}」</view>
+    <button class="wre-btn" bindtap="goSettings">去配置 Key</button>
+  </view>
+
+  <view class="wre-card" wx:else>
+    <view class="wre-title">{{pageTitle}}</view>
+    <view class="wre-muted">{{devNote}}</view>
+  </view>
+</view>

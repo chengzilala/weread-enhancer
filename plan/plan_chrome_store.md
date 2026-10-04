@@ -57,7 +57,7 @@
 | **分类** | 生产力（Productivity） |
 | **支持语言** | 中文（简体） |
 | **隐私政策 URL** | `https://github.com/chengzilala/weread-enhancer/blob/main/release/privacy.md` |
-| **网站 URL** | `https://github.com/chengzilala/weread-enhancer` |
+| **网站 URL** | `https://wereadapp-32km31c.maozi.io` |
 | **支持邮箱** | 2195542745@qq.com |
 
 > ⚠️ **快捷键已校正**：源代码 `content.js` 的 `handleAllKeyboard` 实测仅 **空格 / D / F / ?**，**无 T（主题）快捷键**。`plan_edge_store.md` 旧文案里的 `T (theme)` 为错误，切勿沿用，否则「描述与实际不符」可能被拒。

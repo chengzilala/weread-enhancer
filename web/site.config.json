@@ -1,6 +1,6 @@
 {
   "siteName": "微信悦读",
-  "siteDescription": "微信悦读是微信读书网页版的阅读增强插件：屏占比调节、自动阅读、阅读统计、笔记增强与官方数据阅读行为报告。这里是它的使用教程与阅读方法论。",
+  "siteDescription": "微信悦读是微信读书网页版的阅读增强插件：屏占比调节、自动阅读、阅读统计、笔记增强与阅读洞察（阅读行为报告）。这里是它的使用教程与阅读方法论。",
   "baseUrl": "https://wereadapp-32km31c.maozi.io",
   "repoUrl": "https://github.com/chengzilala/weread-enhancer",
   "giteeUrl": "https://gitee.com/chengzila/weread-enhancer",
@@ -11,7 +11,9 @@
     { "title": "快速上手", "url": "/start/" },
     { "title": "功能教程", "url": "/guide/" },
     { "title": "进阶技巧", "url": "/tips/" },
+    { "title": "阅读人格", "url": "/persona/" },
     { "title": "知识资产", "url": "/thinking/" },
+    { "title": "图库", "url": "/gallery/" },
     { "title": "常见问题", "url": "/faq/" },
     { "title": "更新日志", "url": "/changelog/" }
   ],
@@ -20,22 +22,25 @@
       "key": "guide",
       "dir": "功能教程",
       "title": "功能教程",
-      "description": "按插件模块分篇，一篇讲清一个功能怎么用、什么时候用。",
-      "intro": "每个功能独立成篇：先讲它解决什么问题，再讲怎么操作，最后讲常见坑。"
+      "description": "按插件模块分篇，一篇讲清一个功能怎么用、什么时候用。"
     },
     {
       "key": "tips",
       "dir": "进阶技巧",
       "title": "进阶技巧",
-      "description": "把多个功能组合起来的用法，直接照抄就能用。",
-      "intro": "单个功能会用之后，把几个功能组合起来，效果往往比单独用更好。"
+      "description": "把多个功能组合起来的用法，直接照抄就能用。"
     },
     {
       "key": "thinking",
       "dir": "知识资产",
       "title": "知识资产",
-      "description": "不依赖插件也能看的阅读方法：怎么读得进去、划线之后怎么办、怎么选书。",
-      "intro": "这一栏和插件无关也能看：讲的是「怎么读」，而不是「怎么用插件」。"
+      "description": "不依赖插件也能看的阅读方法：怎么读得进去、划线之后怎么办、怎么选书。"
+    },
+    {
+      "key": "persona",
+      "dir": "阅读人格",
+      "title": "阅读人格",
+      "description": "不看问卷，从你真正读过的书里推出 4 位人格代码与 16 型「读书人」称号。"
     }
   ],
   "storeUrls": {

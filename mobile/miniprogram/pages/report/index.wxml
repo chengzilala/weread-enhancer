@@ -1,0 +1,112 @@
+<view class="wre-page">
+  <!-- 无 Key 引导 -->
+  <view class="wre-empty" wx:if="{{!hasKey}}">
+    <view class="wre-empty__text">还没有配置微信读书 API Key</view>
+    <view class="wre-empty__text">配置后即可查看你的「阅读行为报告」</view>
+    <button class="wre-btn" bindtap="goSettings">去配置 Key</button>
+  </view>
+
+  <block wx:else>
+    <!-- 周期切换 -->
+    <view class="period">
+      <view
+        wx:for="{{modes}}"
+        wx:key="key"
+        class="period__item {{mode === item.key ? 'period__item--active' : ''}}"
+        data-mode="{{item.key}}"
+        bindtap="switchMode"
+      >{{item.label}}</view>
+    </view>
+
+    <view class="wre-muted cache-hint" wx:if="{{fromCache}}">来自本地缓存（10 分钟内）</view>
+
+    <!-- 加载中 -->
+    <view class="wre-card" wx:if="{{loading}}">
+      <view class="wre-muted">正在读取官方数据…</view>
+    </view>
+
+    <!-- 错误 -->
+    <view class="wre-card" wx:elif="{{error}}">
+      <view class="wre-muted">{{error}}</view>
+      <button class="wre-btn" wx:if="{{!needsKey}}" bindtap="retry">重试</button>
+      <button class="wre-btn" wx:else bindtap="goSettings">去配置 Key</button>
+    </view>
+
+    <!-- 空态 -->
+    <view class="wre-empty" wx:elif="{{emptyRecord}}">
+      <view class="wre-empty__text">暂时没有可统计的阅读数据</view>
+      <view class="wre-empty__text">多读几天，报告会更丰富</view>
+    </view>
+
+    <!-- 报告正文 -->
+    <block wx:else>
+      <!-- 元信息 -->
+      <view class="wre-card meta">
+        <view class="meta__row" wx:for="{{meta}}" wx:key="*this">
+          <text class="meta__k">{{item[0]}}</text>
+          <text class="meta__v">{{item[1]}}</text>
+        </view>
+      </view>
+
+      <!-- 区块渲染 -->
+      <block wx:for="{{blocks}}" wx:key="index" wx:for-item="block">
+        <!-- 标题 -->
+        <view wx:if="{{block.type === 'heading'}}" class="sec-title {{block.level === 3 ? 'sec-title--sub' : ''}}">{{block.text}}</view>
+
+        <!-- 键值表 -->
+        <view wx:elif="{{block.type === 'kv'}}" class="wre-card">
+          <view class="kv__row" wx:for="{{block.rows}}" wx:key="index" wx:for-item="row">
+            <text class="kv__k">{{row[0]}}</text>
+            <text class="kv__v">{{row[1]}}</text>
+          </view>
+        </view>
+
+        <!-- 指标卡片 -->
+        <view wx:elif="{{block.type === 'cards'}}" class="cards">
+          <view class="cards__item" wx:for="{{block.items}}" wx:key="index" wx:for-item="card">
+            <view class="cards__value">{{card.value}}</view>
+            <view class="cards__label">{{card.label}}</view>
+          </view>
+        </view>
+
+        <!-- 表格 -->
+        <view wx:elif="{{block.type === 'table'}}" class="wre-card table-card">
+          <view class="tbl__row tbl__row--head">
+            <text class="tbl__cell" wx:for="{{block.head}}" wx:key="index" wx:for-item="h">{{h}}</text>
+          </view>
+          <view class="tbl__row" wx:for="{{block.rows}}" wx:key="index" wx:for-item="row" wx:for-index="ri">
+            <text class="tbl__cell" wx:for="{{row}}" wx:key="index" wx:for-item="cell">{{cell}}</text>
+            <view class="tbl__bar" wx:if="{{block.bars}}" style="width: {{block.bars[ri]}}%;"></view>
+          </view>
+        </view>
+
+        <!-- 官方概要（标签） -->
+        <view wx:elif="{{block.type === 'chips'}}" class="wre-card chips">
+          <view class="chip" wx:for="{{block.items}}" wx:key="index" wx:for-item="chip">
+            <text class="chip__label">{{chip.label}}</text>
+            <text class="chip__value">{{chip.value}}</text>
+          </view>
+        </view>
+
+        <!-- 段落 -->
+        <view wx:elif="{{block.type === 'paragraph'}}" class="wre-card">
+          <text class="para">{{block.text}}</text>
+        </view>
+
+        <!-- 有序/无序列表 -->
+        <view wx:elif="{{block.type === 'list'}}" class="wre-card list">
+          <view class="list__item" wx:for="{{block.items}}" wx:key="index" wx:for-item="text" wx:for-index="li">
+            <text class="list__mark">{{block.ordered ? (li + 1) + '.' : '·'}}</text>
+            <text class="list__text">{{text}}</text>
+          </view>
+        </view>
+
+        <!-- 提示 -->
+        <view wx:elif="{{block.type === 'note'}}" class="wre-muted note">{{block.text}}</view>
+
+        <!-- 空态 -->
+        <view wx:elif="{{block.type === 'empty'}}" class="wre-muted note">{{block.text}}</view>
+      </block>
+    </block>
+  </block>
+</view>

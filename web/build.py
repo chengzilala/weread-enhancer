@@ -6,6 +6,7 @@
 并产出 dist/api/latest.json 作为插件侧的版本公告源。
 
 - 零第三方依赖：只用 Python 标准库（本机 Python 3.9 即可）
+  - 唯一例外：若本机装有 Pillow，则为图库生成缩略图；没装也能正常构建（退回原图）
 - 单一事实源：版本号读仓库根 manifest.json；更新说明读「更新日志.md」最新一节
 - 不认识的 Obsidian 私有语法不猜、不报错：降级为普通文字并进入告警清单
 
@@ -37,6 +38,14 @@ VERSION = ""
 PAGES = []
 WARNINGS = []
 GENERATED_URLS = set()
+THUMB_AVAILABLE = False
+
+# 图库（图片栏目）约定：图片放 web/assets/img/gallery/，
+# 缩略图由构建生成到 dist/assets/img/gallery/thumbs/（同名 .jpg）
+GALLERY_URL_PREFIX = "/assets/img/gallery/"
+GALLERY_THUMB_DIR = "thumbs"
+GALLERY_THUMB_MAX = 1400
+GALLERY_THUMB_QUALITY = 82
 
 CALLOUT_TITLES = {
     "note": "说明",
@@ -171,7 +180,11 @@ def collect_pages():
             "out_file": out_file,
             "order": meta.get("order") if isinstance(meta.get("order"), int) else 999,
             "description": str(meta.get("description") or ""),
+            "tagline": str(meta.get("tagline") or ""),
+            "heroTitle": str(meta.get("heroTitle") or ""),
+            "hero": str(meta.get("hero") or ""),
             "updatedAt": str(meta.get("updatedAt") or ""),
+            "reveal": False,
             "draft": meta.get("draft") is True,
             "aliases": as_list(meta.get("aliases")),
             "tags": as_list(meta.get("tags")),
@@ -238,11 +251,34 @@ def render_wikilink(target, alias, page):
     return '<a href="%s">%s</a>' % (url, html.escape((alias or target).strip()))
 
 
+def gallery_thumb_url(src):
+    """图库原图 URL -> 缩略图 URL（约定：同名 .jpg）；不在顶层则返回 None"""
+    rel = src[len(GALLERY_URL_PREFIX):]
+    if not rel or "/" in rel:
+        return None
+    return "%s%s/%s.jpg" % (GALLERY_URL_PREFIX, GALLERY_THUMB_DIR, Path(rel).stem)
+
+
+def render_gallery_image(alt, src):
+    """图库图片 -> <a class="wre-gal-link"> 包裹；大图显示缩略图、点击看原图（渐入）"""
+    full = html.escape(src, quote=True)
+    thumb = gallery_thumb_url(src) if THUMB_AVAILABLE else None
+    shown = html.escape(thumb or src, quote=True)
+    text = html.escape(alt, quote=True)
+    return ('<a class="wre-gal-link wre-reveal" href="%s" data-full="%s" title="%s">'
+            '<img src="%s" alt="%s" loading="lazy"></a>') % (
+        full, full, text, shown, text)
+
+
 def render_std_image(alt, src, page):
     """![alt](src)：外链原样保留；相对路径按 attachments/ 解析并复制"""
     if re.match(r"^(https?:|data:|/)", src):
-        return '<img src="%s" alt="%s" loading="lazy">' % (
-            html.escape(src, quote=True), html.escape(alt, quote=True))
+        # 仅图库页把图片包成「缩略图 + 点击看原图」；其他页面（如首页）按普通大图展示
+        if page.get("slug") == "gallery" and src.startswith(GALLERY_URL_PREFIX):
+            return render_gallery_image(alt, src)
+        cls = ' class="wre-reveal"' if page.get("reveal") else ""
+        return '<img%s src="%s" alt="%s" loading="lazy">' % (
+            cls, html.escape(src, quote=True), html.escape(alt, quote=True))
     name = Path(src).name
     src_file = ATTACHMENTS / name
     if src_file.exists():
@@ -346,7 +382,9 @@ def render_markdown(text, page, heading_ids=None):
                 hid = "%s-%d" % (hid, heading_ids[hid])
             else:
                 heading_ids[hid] = 0
-            out.append('<h%d id="%s">%s</h%d>' % (level, hid, inline(text_in, page), level))
+            out.append('<h%d%s id="%s">%s</h%d>' % (
+                level, ' class="wre-reveal"' if page.get("reveal") else "",
+                hid, inline(text_in, page), level))
             i += 1
             continue
 
@@ -420,7 +458,10 @@ def render_markdown(text, page, heading_ids=None):
         while i < n and lines[i].strip() and not is_block_start(lines[i]):
             buf.append(lines[i])
             i += 1
-        out.append("<p>%s</p>" % inline("\n".join(buf), page))
+        inner = inline("\n".join(buf), page)
+        # 首页开启渐入：纯文字段落随滚动现身（含图片的段落由图片自身渐入，避免叠加）
+        cls = ' class="wre-reveal"' if page.get("reveal") and "<img" not in inner else ""
+        out.append("<p%s>%s</p>" % (cls, inner))
 
     return "\n".join(out)
 
@@ -543,14 +584,56 @@ def render_layout(page, content_html, extra_class=""):
 
 
 def article_header(page):
-    meta_bits = []
-    if page.get("updatedAt"):
-        meta_bits.append("更新于 %s" % page["updatedAt"])
-    if VERSION:
-        meta_bits.append("适用插件 v%s" % VERSION)
-    meta = '<p class="doc-meta">%s</p>' % " · ".join(meta_bits) if meta_bits else ""
-    return '<header class="doc-header"><h1>%s</h1>%s</header>' % (
-        inline(page["title"], page), meta)
+    return '<header class="doc-header"><h1>%s</h1></header>' % inline(page["title"], page)
+
+
+# --------------------------------------------------------------------------
+# 首页落地页（大图 · 极简 · 顺滑）——Hero + 功能大图区 + 底部 CTA
+# --------------------------------------------------------------------------
+
+def home_install_button():
+    """首页「安装」按钮：有商店链接则跳商店，否则回退到快速上手"""
+    stores = CONFIG.get("storeUrls") or {}
+    url = stores.get("edge") or "/start/"
+    label = "安装到 Edge" if stores.get("edge") else "安装插件"
+    ext = ' target="_blank" rel="noopener"' if url.startswith("http") else ""
+    return '<a class="home-btn home-btn-primary" href="%s"%s>%s</a>' % (
+        html.escape(url, quote=True), ext, label)
+
+
+def render_home(page):
+    """首页 = Hero（front-matter） + 正文（功能大图区等） + 底部 CTA"""
+    title = page.get("heroTitle") or page["title"]
+    tagline = page.get("tagline") or page.get("description") or ""
+
+    media = ""
+    if page.get("hero"):
+        media = ('<div class="home-hero-media wre-reveal">'
+                 '<img src="%s" alt="%s" decoding="async" fetchpriority="high"></div>') % (
+            html.escape(page["hero"], quote=True), html.escape(title, quote=True))
+
+    hero = (
+        '<section class="home-hero">\n'
+        '  <div class="home-hero-text">\n'
+        '    <h1 class="home-hero-title">%s</h1>\n'
+        '    <p class="home-hero-sub">%s</p>\n'
+        '    <div class="home-actions">%s<a class="home-btn" href="/start/">快速上手</a></div>\n'
+        '  </div>\n'
+        '  %s\n'
+        '</section>' % (inline(title, page), inline(tagline, page),
+                         home_install_button(), media)
+    )
+
+    body = render_markdown(page["body"], page)
+    cta = (
+        '<section class="home-cta wre-reveal">\n'
+        '  <h2>装上，开始读</h2>\n'
+        '  <div class="home-actions">%s<a class="home-btn" href="/start/">快速上手</a></div>\n'
+        '  <p class="home-cta-links"><a href="/changelog/">更新日志</a> · '
+        '<a href="/privacy/">隐私政策</a> · <a href="/gallery/">界面图库</a></p>\n'
+        '</section>' % home_install_button()
+    )
+    return hero + "\n" + body + "\n" + cta
 
 
 # --------------------------------------------------------------------------
@@ -569,12 +652,9 @@ def render_section_index(sec):
             '<a class="card" href="%s"><p class="card-title">%s</p>%s</a>' % (
                 p["url"], html.escape(p["title"]), desc)
         )
-    intro = render_markdown(sec.get("intro", ""), {"rel": "site.config.json", "title": sec["title"]}) if sec.get("intro") else ""
-    header = '<header class="doc-header"><h1>%s</h1><p class="doc-meta">%s</p></header>' % (
-        html.escape(sec["title"]), html.escape(sec["description"]))
-    body = "%s%s\n<ul class=\"card-list\">\n  <li>%s</li>\n</ul>" % (
-        intro, "" if not intro else "", "</li>\n  <li>".join(cards))
-    return header + body
+    # 栏目名已由左侧栏标题展示，正文区不再重复输出 <h1>
+    body = '<ul class="card-list">\n  <li>%s</li>\n</ul>' % "</li>\n  <li>".join(cards)
+    return body
 
 
 def parse_changelog_latest():
@@ -652,6 +732,49 @@ def copy_assets():
             shutil.copy2(item, target)
 
 
+def generate_thumbnails():
+    """为图库原图生成缩略图（需 Pillow；缺失则跳过，页面退回原图，构建照常）"""
+    global THUMB_AVAILABLE
+    src_dir = ASSETS / "img" / "gallery"
+    if not src_dir.exists():
+        return
+    try:
+        from PIL import Image
+    except ImportError:
+        warn("未安装 Pillow，跳过图库缩略图（页面将直接加载原图，体积较大）")
+        return
+
+    out_dir = DIST / "assets" / "img" / "gallery" / GALLERY_THUMB_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
+    count = 0
+    for f in sorted(src_dir.iterdir()):
+        if not f.is_file() or f.name.startswith("."):
+            continue
+        if f.suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp"):
+            continue
+        try:
+            im = Image.open(f)
+            if im.mode in ("RGBA", "LA", "P"):
+                im = im.convert("RGBA")
+                bg = Image.new("RGB", im.size, (255, 255, 255))
+                bg.paste(im, mask=im.split()[-1])
+                im = bg
+            else:
+                im = im.convert("RGB")
+            im.thumbnail((GALLERY_THUMB_MAX, GALLERY_THUMB_MAX), Image.LANCZOS)
+            im.save(out_dir / (f.stem + ".jpg"), "JPEG",
+                    quality=GALLERY_THUMB_QUALITY, optimize=True)
+            count += 1
+        except Exception as e:  # noqa: BLE001 —— 单图失败不应中断构建
+            warn("缩略图生成失败：%s（%s）" % (f.name, e))
+
+    if count:
+        THUMB_AVAILABLE = True
+        print("   🖼 图库缩略图：%d 张 → dist/assets/img/gallery/%s/" % (count, GALLERY_THUMB_DIR))
+    else:
+        warn("图库未生成任何缩略图，页面将直接加载原图")
+
+
 def check_duplicates():
     seen = {}
     for p in PAGES:
@@ -701,11 +824,24 @@ def build():
     LINK_INDEX = build_link_index(all_pages)
     check_duplicates()
 
+    # 资源与图库缩略图（须先于页面渲染：渲染时按缩略图可用性决定引用）
+    copy_assets()
+    generate_thumbnails()
+
     # 1) 文章页
+    # 部分页面名已由顶部导航体现，正文区不再重复输出大标题
+    no_main_title = {"gallery", "faq", "changelog", "start"}
     for p in PAGES:
-        body_html = render_markdown(p["body"], p)
-        content = article_header(p) + body_html
-        html_text = render_layout(p, content, extra_class="has-sidebar" if p["section"] else "")
+        if p["slug"] == "":
+            # 首页：大图落地页（Hero + 功能大图区 + CTA），开启滚动渐入
+            p["reveal"] = True
+            content = render_home(p)
+            extra_class = "home"
+        else:
+            body_html = render_markdown(p["body"], p)
+            content = ("" if p["slug"] in no_main_title else article_header(p)) + body_html
+            extra_class = "has-sidebar" if p["section"] else ""
+        html_text = render_layout(p, content, extra_class=extra_class)
         p["out_file"].parent.mkdir(parents=True, exist_ok=True)
         p["out_file"].write_text(html_text, encoding="utf-8")
         GENERATED_URLS.add(p["url"])
@@ -720,15 +856,14 @@ def build():
             "section": sec,
             "updatedAt": "",
         }
-        content = '<p class="doc-meta">%s</p>' % html.escape(sec["description"]) + render_section_index(sec)
+        content = render_section_index(sec)
         html_text = render_layout(page, content, extra_class="has-sidebar")
         out_file.parent.mkdir(parents=True, exist_ok=True)
         out_file.write_text(html_text, encoding="utf-8")
         GENERATED_URLS.add(url)
         sec["url"] = url
 
-    # 3) 资源、公告、死链检查
-    copy_assets()
+    # 3) 公告、死链检查
     latest = write_latest_json()
     GENERATED_URLS.update(["/privacy/", "/changelog/", "/about/", "/feedback/", "/faq/", "/start/"])
     check_dead_links()

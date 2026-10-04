@@ -1672,7 +1672,7 @@ function handleMenuClick(action) {
       // 笔记面板由 modules/notes.js 自行接管（它已绑定自己的 click），同上。
       break;
     case 'official':
-      // 官方数据面板由 modules/official.js 自行接管（它已绑定自己的 click），同上。
+      // 阅读洞察面板由 modules/official.js 自行接管（它已绑定自己的 click），同上。
       break;
     case 'api-key':
       // API Key 设置面板由 modules/official.js 自行接管（它已绑定自己的 click），同上。

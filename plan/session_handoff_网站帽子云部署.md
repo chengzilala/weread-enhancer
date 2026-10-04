@@ -153,3 +153,28 @@ HTTPS 推送 github.com 走本机代理（127.0.0.1:53893）间歇性 502；`api
 - **若 fetch 报 `unable to update local ref`**：是上次失败留下的僵尸锁，删掉即可：
   `rm -f .git/refs/remotes/origin/site-dist.lock && git fetch origin site-dist`
 - **验证线上内容时用主域名**（见第 1 节），不要用带随机前缀的部署 URL，否则会得到"永远 404"的假象，误判为 CDN 未刷新。
+
+### 7.2 更新网站时的协作注意（2026-10-04 第三轮）
+
+- **网站构建读的是工作区文件**（`web/content/*.md` + 根 `manifest.json`），**不要求先提交**。所以只要内容改好就能发布；不要为了发网站而擅自 `git add` 用户的 content。
+- 若 `manifest.json` 版本处于"开发中未上架"状态（如 v0.17.0 而商店最新包只到 v0.15.2），发布前要意识到：`api/latest.json` 会自动公告该版本，**已安装的插件用户会看到"有新版本"却可能升级不了**。需要用户确认时机。
+- **不要把用户的改动替用户提交**：插件代码 + content + plan/test 往往是一次完整的版本提交（如 v0.17.0），AI 插手拆分提交会破坏原子性。除非用户明确要求。
+- **遇到 `.git/index.lock` / `refs/.../*.lock` 残留**：先用 `pgrep -fl git` 确认无进程，且注意用户可能正开着 Trae（其终端可能在跑 `python3 web/serve.py` 预览）。无法确认时**不要删锁**，只做只读操作（`git status`、`git log` 不受影响），并在回复中告知用户。
+- **验证页面文字时不要直接用管道**：`curl ... | grep 书架` 可能因编码/缓冲返回空，造成"内容没上去"的误判。改为先存入变量再 `printf '%s' "$html" | grep -c '书架'`，或用 `grep -o '<title>[^<]*</title>'` 交叉确认。
+
+### 7.3 2026-10-04 第四次部署：v0.18.0 网站更新 + 版面优化
+
+**背景（本轮网站侧改动）**：
+- 「更新日志」已含 v0.18.0 一节（阅读人格 + 手动触发分析 + 书架/搜书跳转修复），构建版本告警已消除；
+- 版面优化（`web/assets/site.css`）：正文区宽度 `96vw → 80vw`（`--max-width: min(1920px, 80vw)`）；
+- 栏目索引页（功能教程 / 进阶技巧 / 知识资产）：去掉标题前重复的描述段（`web/build.py`），卡片标题 `1em → 1.05em`、描述 `14px → 0.95em`；并修 `.card-list` 被 `.doc ul` 的 `padding-left:22px` 顶开的左错位（改用 `.doc .card-list` 提升优先级）。
+
+**执行**：本地 `python3 web/build.py`（19 页 + 3 栏目索引）→ 更新 `site-dist` 分支 → 帽子云部署（用户操作）。
+
+**结果（2026-10-04 核实）**：
+- `site-dist` HEAD：`3fc4e37 deploy: v0.18.0 网站更新（栏目索引页去描述段 + 样式微调）`
+- 主域名 `https://wereadapp-32km31c.maozi.io` 全站 200；
+- 线上 `/assets/site.css` 已含 `--max-width: min(1920px, 80vw)` 与 `.doc .card-list`；
+- 线上 `/changelog/` 含 v0.18.0。
+
+**待办**：商店后台（Edge/Chrome/360）的「网站 URL」改为配套站点（文档已改，平台侧需用户操作）。

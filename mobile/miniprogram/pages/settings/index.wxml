@@ -1,0 +1,30 @@
+<view class="wre-page">
+  <view class="wre-card">
+    <view class="wre-title">API Key</view>
+    <view class="wre-muted">Key 仅保存在本机；调用时经微信云函数中转访问官方接口，不存储、不记录。</view>
+
+    <view class="settings-status" wx:if="{{hasKey}}">
+      当前已配置：<text class="settings-mask">{{masked}}</text>
+    </view>
+
+    <input
+      class="settings-input"
+      type="text"
+      password="{{true}}"
+      placeholder="粘贴 wrk- 开头的 API Key"
+      value="{{input}}"
+      bindinput="onInput"
+    />
+
+    <button class="wre-btn" loading="{{saving}}" bindtap="onSave">保存并校验</button>
+    <view class="settings-status settings-status--{{statusType}}" wx:if="{{statusText}}">{{statusText}}</view>
+    <button class="wre-btn wre-btn--ghost" wx:if="{{hasKey}}" bindtap="onClear">清除 Key</button>
+  </view>
+
+  <view class="wre-card">
+    <view class="wre-title">说明</view>
+    <view class="settings-help">1. API Key 从微信读书 App「微信读书 Skill」页面复制。</view>
+    <view class="settings-help">2. Key 只存手机本地，卸载小程序或清理微信缓存后会丢失，需要重新填写。</view>
+    <view class="settings-help">3. 清除 Key 后，首页 / 人格 / 报告 / 书架会回到引导状态。</view>
+  </view>
+</view>

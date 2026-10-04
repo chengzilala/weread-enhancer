@@ -154,7 +154,7 @@ def sc_notes(page):
 
 
 def sc_official(page):
-    open_menu(page, "官方数据")
+    open_menu(page, "阅读洞察")
     wait_visible(page, "#wre-official-modal", timeout=15000)
     page.wait_for_timeout(2500)  # 等官方接口回数据
 
@@ -186,11 +186,11 @@ def sc_fullscreen(page):
     page.wait_for_timeout(800)
 
 
-# ---- 官方数据分支：阅读人格 / 分享图 / AI 解读 / 书架 / 发现 ----
+# ---- 阅读洞察分支：阅读人格 / 分享图 / AI 解读 / 书架 / 发现 ----
 
 def _open_official(page):
-    """打开「官方数据」面板并等官方接口回数据。"""
-    open_menu(page, "官方数据")
+    """打开「阅读洞察」面板并等官方接口回数据。"""
+    open_menu(page, "阅读洞察")
     wait_visible(page, "#wre-official-modal", timeout=15000)
     # ⚠️ 面板页签状态会跨次保留（模块级变量），先强制回到「阅读行为报告」，
     #    否则上一个「发现 / 书架」场景会把后面的人格卡 / AI 场景也定在错误页签。
@@ -241,14 +241,14 @@ def sc_ai(page):
 
 
 def sc_shelf(page):
-    """官方数据 · 书架：切到「📚 书架」页签。"""
+    """阅读洞察 · 书架：切到「📚 书架」页签。"""
     _open_official(page)
     page.click('.wre-off-tab[data-wre-off-view="shelf"]')
     page.wait_for_timeout(3500)
 
 
 def sc_discover(page):
-    """官方数据 · 发现：切到「🔍 发现」并搜一本书，展示封面/作者/书评入口。"""
+    """阅读洞察 · 发现：切到「🔍 发现」并搜一本书，展示封面/作者/书评入口。"""
     _open_official(page)
     page.click('.wre-off-tab[data-wre-off-view="discover"]')
     page.wait_for_timeout(800)
@@ -280,14 +280,14 @@ SCENES = [
     ("welcome", "新手引导", sc_welcome),
     ("stats", "阅读统计", sc_stats),
     ("notes", "笔记增强", sc_notes),
-    ("official", "官方数据", sc_official),
+    ("official", "阅读洞察", sc_official),
     ("api-key", "API Key", sc_api_key),
     ("support", "支持与反馈", sc_support),
     ("dnd", "勿扰模式", sc_dnd),
     ("fullscreen", "全屏模式", sc_fullscreen),
-    # —— 官方数据分支（新增）——
-    ("shelf", "官方数据 · 书架", sc_shelf),
-    ("discover", "官方数据 · 发现", sc_discover),
+    # —— 阅读洞察分支（新增）——
+    ("shelf", "阅读洞察 · 书架", sc_shelf),
+    ("discover", "阅读洞察 · 发现", sc_discover),
     ("persona", "阅读人格（读书人版 MBTI）", sc_persona),
     ("persona-share", "阅读人格分享图", sc_persona_share),
     ("ai", "AI 解读", sc_ai),

@@ -1,0 +1,72 @@
+/* 微信悦读 · 移动端全局样式（品牌色与插件 / 官网一致） */
+page {
+  background: #F5F6F8;
+  color: #1F2430;
+  font-size: 28rpx;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, sans-serif;
+}
+
+.wre-page {
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+.wre-card {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(31, 36, 48, 0.04);
+}
+
+.wre-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+}
+
+.wre-muted {
+  color: #8A8F99;
+  font-size: 26rpx;
+  line-height: 1.9;
+}
+
+.wre-big {
+  font-size: 64rpx;
+  font-weight: 700;
+  color: #2F6BFF;
+}
+
+/* 空态 / 引导态 */
+.wre-empty {
+  padding: 140rpx 48rpx;
+  text-align: center;
+}
+
+.wre-empty__text {
+  color: #8A8F99;
+  font-size: 28rpx;
+  line-height: 1.9;
+  margin-bottom: 8rpx;
+}
+
+/* 按钮 */
+.wre-btn {
+  background: #2F6BFF;
+  color: #FFFFFF;
+  border-radius: 14rpx;
+  font-size: 30rpx;
+  line-height: 88rpx;
+  height: 88rpx;
+  margin-top: 24rpx;
+}
+
+.wre-btn::after {
+  border: none;
+}
+
+.wre-btn--ghost {
+  background: #FFFFFF;
+  color: #2F6BFF;
+  border: 1rpx solid #2F6BFF;
+}

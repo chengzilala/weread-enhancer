@@ -1,0 +1,50 @@
+<view class="wre-page">
+  <!-- 无 Key 引导 -->
+  <view class="wre-empty" wx:if="{{!hasKey}}">
+    <view class="wre-empty__text">还没有配置微信读书 API Key</view>
+    <view class="wre-empty__text">配置后即可查看你的阅读数据</view>
+    <button class="wre-btn" bindtap="goSettings">去配置 Key</button>
+  </view>
+
+  <block wx:else>
+    <!-- 周期切换 -->
+    <view class="period">
+      <view
+        wx:for="{{modes}}"
+        wx:key="key"
+        class="period__item {{mode === item.key ? 'period__item--active' : ''}}"
+        data-mode="{{item.key}}"
+        bindtap="switchMode"
+      >{{item.label}}</view>
+    </view>
+
+    <!-- 加载中 -->
+    <view class="wre-card" wx:if="{{loading}}">
+      <view class="wre-muted">加载中…</view>
+    </view>
+
+    <!-- 错误 / 需重新配置 Key -->
+    <view class="wre-card" wx:elif="{{error}}">
+      <view class="wre-muted">{{error}}</view>
+      <button class="wre-btn" wx:if="{{needsKey}}" bindtap="goSettings">去配置 Key</button>
+      <button class="wre-btn wre-btn--ghost" wx:else bindtap="retry">重试</button>
+    </view>
+
+    <!-- 数据 -->
+    <block wx:else>
+      <view class="wre-card" wx:if="{{emptyRecord}}">
+        <view class="wre-muted">该周期暂无阅读记录，换个周期看看，或先去微信读书读一会儿。</view>
+      </view>
+
+      <view class="metrics">
+        <view class="metric" wx:for="{{metrics}}" wx:key="label">
+          <view class="metric__value">{{item.value}}</view>
+          <view class="metric__label">{{item.label}}</view>
+          <view class="metric__hint" wx:if="{{item.hint}}">{{item.hint}}</view>
+        </view>
+      </view>
+
+      <view class="cache-hint wre-muted" wx:if="{{cacheHint}}">{{cacheHint}}</view>
+    </block>
+  </block>
+</view>

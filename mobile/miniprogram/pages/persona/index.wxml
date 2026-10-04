@@ -1,0 +1,126 @@
+<view class="wre-page">
+  <!-- 无 Key 引导 -->
+  <view class="wre-empty" wx:if="{{!hasKey}}">
+    <view class="wre-empty__text">还没有配置微信读书 API Key</view>
+    <view class="wre-empty__text">配置后即可算出你的「阅读人格」</view>
+    <button class="wre-btn" bindtap="goSettings">去配置 Key</button>
+  </view>
+
+  <block wx:else>
+    <!-- 加载中 -->
+    <view class="wre-card" wx:if="{{loading}}">
+      <view class="wre-muted">正在本机计算阅读人格…</view>
+      <view class="wre-muted">首次会拉取笔记最多的几本书的划线原文，稍等片刻</view>
+    </view>
+
+    <!-- Key 失效 -->
+    <view class="wre-empty" wx:elif="{{needsKey}}">
+      <view class="wre-empty__text">{{error}}</view>
+      <button class="wre-btn" bindtap="goSettings">去重新配置</button>
+    </view>
+
+    <!-- 其他错误 -->
+    <view class="wre-card" wx:elif="{{error}}">
+      <view class="wre-muted">{{error}}</view>
+      <button class="wre-btn" bindtap="retry">重试</button>
+    </view>
+
+    <!-- 数据不足：降级引导 -->
+    <view class="wre-card" wx:elif="{{reason === 'data'}}">
+      <view class="wre-title">数据还差一点点</view>
+      <view class="wre-muted">阅读人格需要累计阅读时长与笔记都达到门槛，算出来才靠谱。</view>
+      <view class="progress-row">
+        <text class="progress-k">有效阅读</text>
+        <text class="progress-v">{{progress.hours}} / {{progress.needHours}} 小时</text>
+      </view>
+      <view class="progress-row">
+        <text class="progress-k">笔记（划线 + 想法）</text>
+        <text class="progress-v">{{progress.notes}} / {{progress.needNotes}} 条</text>
+      </view>
+      <view class="wre-muted">继续读、多划几段、写两句想法，再来看看。</view>
+      <button class="wre-btn" bindtap="retry">重新计算</button>
+    </view>
+
+    <!-- 人格结果 -->
+    <block wx:elif="{{persona}}">
+      <!-- 主卡 -->
+      <view class="wre-card hero">
+        <view class="hero__code">{{persona.code}}</view>
+        <view class="hero__name">{{persona.name}}</view>
+        <view class="hero__tagline">{{persona.tagline}}</view>
+        <view class="hero__figure" wx:if="{{persona.figure}}">
+          <text class="hero__figure-name">{{persona.figure.name}}</text>
+          <text class="hero__figure-line">{{persona.figure.line}}</text>
+        </view>
+        <view class="hero__one-liner" wx:if="{{persona.oneLiner}}">{{persona.oneLiner}}</view>
+      </view>
+
+      <!-- 特质绰号 -->
+      <view class="wre-card" wx:if="{{persona.nicknames.length}}">
+        <view class="wre-title">你的三个特质</view>
+        <view class="chips">
+          <view class="chip chip--strong" wx:for="{{persona.nicknames}}" wx:key="*this">{{item}}</view>
+        </view>
+      </view>
+
+      <!-- 四个维度 -->
+      <view class="wre-card">
+        <view class="wre-title">四个维度</view>
+        <view class="dim" wx:for="{{persona.dims}}" wx:key="title">
+          <view class="dim__head">
+            <text class="dim__title">{{item.title}}</text>
+            <text class="dim__side" wx:if="{{item.available}}">{{item.leftLabel}} {{item.pct}}% / {{item.rightLabel}}</text>
+            <text class="dim__side dim__side--muted" wx:else>数据不足</text>
+          </view>
+          <view class="dim__bar" wx:if="{{item.available}}">
+            <view class="dim__fill" style="width: {{item.pct}}%;"></view>
+          </view>
+          <view class="dim__basis">{{item.basis}}</view>
+        </view>
+      </view>
+
+      <!-- 判定依据 -->
+      <view class="wre-card" wx:if="{{persona.evidence.data.length}}">
+        <view class="wre-title">判定依据</view>
+        <view class="list__item" wx:for="{{persona.evidence.data}}" wx:key="*this">
+          <text class="list__mark">·</text>
+          <text class="list__text">{{item}}</text>
+        </view>
+      </view>
+
+      <!-- 原文证据 -->
+      <view class="wre-card" wx:if="{{persona.evidence.quotes.length}}">
+        <view class="wre-title">你说过的原话</view>
+        <view class="quote" wx:for="{{persona.evidence.quotes}}" wx:key="index">
+          <view class="quote__text">{{item.text}}</view>
+          <view class="quote__from" wx:if="{{item.title}}">——《{{item.title}}》</view>
+        </view>
+      </view>
+
+      <!-- 词语分析 -->
+      <view class="wre-card" wx:if="{{persona.words}}">
+        <view class="wre-title">词语分析</view>
+        <view class="wre-muted" wx:if="{{persona.words.catchphrase}}">
+          你的口头禅:{{persona.words.catchphrase.text}}（出现 {{persona.words.catchphrase.count}} 次）
+        </view>
+        <view class="themes" wx:if="{{persona.words.themes.length}}">
+          <view class="theme" wx:for="{{persona.words.themes}}" wx:key="name">
+            <text class="theme__name">{{item.name}}</text>
+            <text class="theme__count">{{item.count}}</text>
+          </view>
+        </view>
+        <view class="emotion" wx:if="{{persona.words.emotion}}">
+          <text class="emotion__item">正向 {{persona.words.emotion.posPct}}%</text>
+          <text class="emotion__item">中性 {{persona.words.emotion.neuPct}}%</text>
+          <text class="emotion__item">负向 {{persona.words.emotion.negPct}}%</text>
+        </view>
+        <view class="chips">
+          <view class="chip" wx:for="{{persona.words.cloud}}" wx:key="word">{{item.word}} · {{item.count}}</view>
+        </view>
+        <view class="wre-muted" wx:if="{{persona.corpusState === 'error'}}">语料获取不完整（{{persona.corpusError}}），词语分析可能偏少。</view>
+      </view>
+
+      <view class="wre-muted statement">本结果由本机按固定规则计算，主打一个「趣味参考」，不构成任何心理或性格测评。</view>
+    </block>
+  </block>
+</view>

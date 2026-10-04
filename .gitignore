@@ -29,6 +29,9 @@ release/360上传包/
 备忘录.md
 inbox/
 
+# 微信开发者工具的本机私有配置（本地编辑器设置，不入库）
+mobile/project.private.config.json
+
 # IDE
 .vscode/
 .idea/

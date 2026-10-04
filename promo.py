@@ -70,7 +70,7 @@ _AUTO_SCENE = {
     "support": "support",
     "welcome": "welcome",
     "fullscreen": "fullscreen",
-    # —— 官方数据分支（新增）——
+    # —— 阅读洞察分支（新增）——
     "shelf": "shelf",
     "discover": "discover",
     "persona": "persona",
@@ -213,7 +213,7 @@ BANNER_BODY = """
     <div class="tag">让微信读书网页版，更好读</div>
     <div class="chips">
       <span class="chip">屏占比调节</span><span class="chip">自动阅读</span><span class="chip">笔记增强</span>
-      <span class="chip">阅读统计</span><span class="chip">官方数据报告</span><span class="chip">AI 阅读人格</span>
+      <span class="chip">阅读统计</span><span class="chip">阅读洞察</span><span class="chip">AI 阅读人格</span>
     </div>
   </div>
   <div class="right"><div class="shot"><img src="__READ__"></div></div>
@@ -257,14 +257,14 @@ CARDS = [
      "前台时长（今日 / 本周 / 本月 / 本书）、书籍进度与最近书目，一键导出 HTML / PDF / Markdown / CSV / JSON。", "stats"),
     ("feature-07-notes.png", "📝", "笔记增强", "NOTES ENHANCER",
      "按章节聚合全部划线与想法，关键词实时搜索，复制 / Markdown / HTML / PDF 一键导出。", "notes"),
-    ("feature-08-official.png", "☁️", "官方数据报告", "OFFICIAL DATA",
+    ("feature-08-official.png", "🪞", "阅读洞察", "READING INSIGHTS",
      "凭 API Key 拉取官方阅读数据，生成本机阅读行为报告，可选 DeepSeek 人格化解读。", "official"),
     ("feature-09-welcome.png", "🎉", "新手引导", "ONBOARDING",
      "首次安装或版本更新自动弹出欢迎面板，几步上手核心玩法。", "welcome"),
     ("feature-10-fullscreen.png", "🖥️", "全屏模式", "FULLSCREEN",
      "F 键一键全屏，保留屏占比与勿扰状态，退出自动恢复原样。", "fullscreen"),
     ("feature-11-menu.png", "🧭", "功能主菜单", "COMMAND MENU",
-     "悬浮球悬停即展开，阅读设置、统计、笔记、官方数据一个入口全搞定。", "menu"),
+     "悬浮球悬停即展开，阅读设置、统计、笔记、阅读洞察一个入口全搞定。", "menu"),
     ("feature-12-support.png", "💗", "支持与反馈", "SUPPORT",
      "内置支持中心，问题反馈与交流入口一步直达。", "support"),
     ("feature-13-api-key.png", "🔑", "API Key 配置", "API KEY",
@@ -354,7 +354,7 @@ LARGE_BODY = """
       <div class="item"><span class="dot">✓</span>屏占比调节：50%–100% 自由掌控阅读宽度</div>
       <div class="item"><span class="dot">✓</span>自动阅读 + 快捷操作：空格开始 / 暂停</div>
       <div class="item"><span class="dot">✓</span>笔记增强：划线想法一键聚合与导出</div>
-      <div class="item"><span class="dot">✓</span>阅读统计 &amp; 官方数据报告：一键导出</div>
+      <div class="item"><span class="dot">✓</span>阅读统计 &amp; 阅读洞察：一键导出</div>
       <div class="item"><span class="dot">✓</span>AI 阅读人格：读书人版 MBTI 与手机分享图</div>
     </div>
   </div>
@@ -400,7 +400,7 @@ STORE_SHOTS = [
     ("store-05-1280x800.png", "诊断日志",       "diag",       (0.135, 0.156, 0.865, 0.828)),
     ("store-06-1280x800.png", "阅读统计与导出", "stats",      (0.155, 0.102, 0.856, 0.747)),
     ("store-07-1280x800.png", "笔记增强",       "notes",      (0.280, 0.291, 0.730, 0.705)),
-    ("store-08-1280x800.png", "官方数据报告",   "official",   (0.279, 0.270, 0.729, 0.684)),
+    ("store-08-1280x800.png", "阅读洞察",     "official",   (0.279, 0.270, 0.729, 0.684)),
     ("store-09-1280x800.png", "功能主菜单",     "menu",       (0.000, 0.047, 0.747, 0.734)),
     ("store-10-1280x800.png", "全屏模式",       "fullscreen", (0.025, 0.005, 0.475, 0.420)),
     ("store-11-1280x800.png", "阅读人格 MBTI",  "persona",    (0.279, 0.385, 0.729, 0.799)),

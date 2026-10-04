@@ -1,0 +1,238 @@
+/* 阅读人格页 */
+
+/* 主卡 */
+.hero {
+  text-align: center;
+}
+
+.hero__code {
+  display: inline-block;
+  background: #2F6BFF;
+  color: #FFFFFF;
+  font-size: 30rpx;
+  font-weight: 700;
+  letter-spacing: 6rpx;
+  padding: 10rpx 28rpx;
+  border-radius: 14rpx;
+}
+
+.hero__name {
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #1F2430;
+  margin: 24rpx 0 12rpx;
+}
+
+.hero__tagline {
+  font-size: 28rpx;
+  color: #4A5060;
+  line-height: 1.7;
+}
+
+.hero__figure {
+  margin-top: 24rpx;
+  padding: 20rpx;
+  background: #F5F7FF;
+  border-radius: 16rpx;
+}
+
+.hero__figure-name {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #2F6BFF;
+}
+
+.hero__figure-line {
+  display: block;
+  font-size: 26rpx;
+  color: #4A5060;
+  margin-top: 8rpx;
+}
+
+.hero__one-liner {
+  margin-top: 24rpx;
+  font-size: 28rpx;
+  color: #2A2F3A;
+  line-height: 1.8;
+}
+
+/* 标签 */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 8rpx;
+}
+
+.chip {
+  background: #F0F4FF;
+  color: #2F6BFF;
+  font-size: 26rpx;
+  border-radius: 12rpx;
+  padding: 10rpx 20rpx;
+  margin: 0 16rpx 16rpx 0;
+}
+
+.chip--strong {
+  background: #2F6BFF;
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+/* 维度 */
+.dim {
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #F0F1F4;
+}
+
+.dim:last-child {
+  border-bottom: none;
+}
+
+.dim__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dim__title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1F2430;
+}
+
+.dim__side {
+  font-size: 24rpx;
+  color: #2F6BFF;
+}
+
+.dim__side--muted {
+  color: #A8ADB8;
+}
+
+.dim__bar {
+  height: 12rpx;
+  background: #EEF1F6;
+  border-radius: 8rpx;
+  margin: 14rpx 0 10rpx;
+  overflow: hidden;
+}
+
+.dim__fill {
+  height: 100%;
+  background: #2F6BFF;
+  border-radius: 8rpx;
+}
+
+.dim__basis {
+  font-size: 24rpx;
+  color: #8A8F99;
+  line-height: 1.6;
+}
+
+/* 列表（判定依据） */
+.list__item {
+  display: flex;
+  padding: 6rpx 0;
+}
+
+.list__mark {
+  color: #2F6BFF;
+  font-size: 26rpx;
+  margin-right: 12rpx;
+  min-width: 24rpx;
+}
+
+.list__text {
+  flex: 1;
+  font-size: 27rpx;
+  line-height: 1.8;
+  color: #2A2F3A;
+}
+
+/* 原文引用 */
+.quote {
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #F0F1F4;
+}
+
+.quote:last-child {
+  border-bottom: none;
+}
+
+.quote__text {
+  font-size: 28rpx;
+  line-height: 1.8;
+  color: #2A2F3A;
+}
+
+.quote__from {
+  font-size: 24rpx;
+  color: #8A8F99;
+  margin-top: 8rpx;
+  text-align: right;
+}
+
+/* 词语分析 */
+.themes {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 16rpx 0;
+}
+
+.theme {
+  display: flex;
+  align-items: center;
+  background: #F5F7FF;
+  border-radius: 12rpx;
+  padding: 10rpx 18rpx;
+  margin: 0 16rpx 16rpx 0;
+}
+
+.theme__name {
+  font-size: 26rpx;
+  color: #1F2430;
+}
+
+.theme__count {
+  font-size: 24rpx;
+  color: #2F6BFF;
+  font-weight: 600;
+  margin-left: 12rpx;
+}
+
+.emotion {
+  display: flex;
+  margin: 8rpx 0 16rpx;
+}
+
+.emotion__item {
+  font-size: 25rpx;
+  color: #4A5060;
+  margin-right: 24rpx;
+}
+
+/* 数据不足进度 */
+.progress-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12rpx 0;
+  border-bottom: 1rpx solid #F0F1F4;
+}
+
+.progress-k {
+  color: #8A8F99;
+  font-size: 27rpx;
+}
+
+.progress-v {
+  color: #1F2430;
+  font-size: 27rpx;
+  font-weight: 600;
+}
+
+/* 声明 */
+.statement {
+  padding: 8rpx 8rpx 24rpx;
+  font-size: 24rpx;
+}

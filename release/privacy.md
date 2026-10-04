@@ -1,6 +1,6 @@
 # Privacy Policy for 微信悦读 (WeRead Enhancer)
 
-**Last updated: 2026-10-01**
+**Last updated: 2026-10-04**
 
 ## Data Collection
 
@@ -38,6 +38,15 @@ The "Official Data" report can optionally upgrade its "Executive Summary" with A
 - When enabled, the extension sends **only** the following to `api.deepseek.com`: a summary of your shelf/cumulative reading/notes/finish-rate/category preferences, annual trend, and a bounded sample of highlight/thought text from the top few most-annotated books (at most 6 samples per book). Your WeRead `wrk-` Key is **never** sent to DeepSeek.
 - If you do not configure a DeepSeek Key, **no request is ever made to `api.deepseek.com`**, and the report falls back to the rule-based summary.
 - You can remove the DeepSeek Key at any time from the "🔑 API Key" menu entry.
+
+## Reading Persona & Share Image — local only
+
+The "Official Data" report includes a "Reading Persona" card (a 4-letter type derived from your own reading behaviour) and a word-frequency analysis, plus an optional vertical "share image" (PNG) you can download or copy.
+
+- The four-dimension judgement, word frequencies, emotion ratios, catchphrases and themes are **computed entirely on your device by fixed rules** — no external library, no random values, and no AI is required. Any AI wording is optional and follows the DeepSeek section above (same bounded input, same opt-in).
+- The share image is **drawn locally with the browser's Canvas 2D API** and saved/copied directly on your machine. It is **never uploaded**.
+- The share image contains **only aggregated statistics you choose to display and the type name** — it embeds **no nickname, no avatar and no account identifier (uid)**. It contains no QR code.
+- This feature adds **no new permissions**; it only reuses the same WeRead official gateway for reading your own notes.
 
 ## Local Storage
 
