@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>隐私政策</title>
+  <meta name="description" content="微信悦读不收集、不上传任何用户数据；设置保存在浏览器本地；唯一对外请求发往微信读书官方网关（及可选的 DeepSeek），且需你主动配置。">
+  <meta property="og:title" content="隐私政策">
+  <meta property="og:description" content="微信悦读不收集、不上传任何用户数据；设置保存在浏览器本地；唯一对外请求发往微信读书官方网关（及可选的 DeepSeek），且需你主动配置。">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="微信悦读">
+  <link rel="icon" href="/assets/img/icon-48.png">
+  <link rel="stylesheet" href="/assets/site.css">
+</head>
+<body class="">
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="brand" href="/">
+        <img class="brand-icon" src="/assets/img/icon-48.png" alt="">
+        <span class="brand-name">微信悦读</span>
+      </a>
+      <button class="nav-toggle" type="button" aria-label="打开导航" aria-expanded="false">☰</button>
+      <nav class="site-nav">
+      <a href="/">首页</a>
+      <a href="/start/">快速上手</a>
+      <a href="/guide/">功能教程</a>
+      <a href="/tips/">进阶技巧</a>
+      <a href="/thinking/">知识资产</a>
+      <a href="/faq/">常见问题</a>
+      <a href="/changelog/">更新日志</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="site-body">
+    
+    <main class="site-main">
+      <article class="doc">
+        <header class="doc-header"><h1>隐私政策</h1><p class="doc-meta">更新于 2026-10-01 · 适用插件 v0.15.1</p></header><div class="callout callout-note"><p class="callout-title">本站与插件</p><div class="callout-body"><p>本站是纯静态页面，不加载任何第三方脚本、不使用 Cookie、不做访问统计。</p></div></div>
+<h2 id="一句话总结">一句话总结</h2>
+<p>插件<strong>不收集、不上传你的任何数据</strong>。设置存在你自己的浏览器里；唯一可能对外发出的请求，是你在「官方数据」里主动配置后，向微信读书官方网关（以及你主动启用 AI 增强后向 DeepSeek）发送的请求。</p>
+<h2 id="设置数据">设置数据</h2>
+<p>屏占比、自动阅读速度、勿扰、全屏等偏好，通过 <code>chrome.storage.local</code> 保存在<strong>你自己的浏览器本地</strong>。换设备不会同步，也不会被任何人读取。</p>
+<h2 id="划线与想法">划线与想法</h2>
+<p>「笔记」功能通过 <code>weread.qq.com</code> 同源接口读取你<strong>自己的</strong>划线与想法，用的是你当前标签页里已有的登录态。</p>
+<ul><li>请求只发往 <code>weread.qq.com</code>，不经过任何第三方</li><li>内容只在内存里短暂缓存，不落盘、不上传</li></ul>
+<h2 id="官方数据可选需你主动配置">官方数据（可选，需你主动配置）</h2>
+<ul><li>需要你粘贴<strong>自己的</strong>微信读书 <code>wrk-</code> Key，仅保存在本地</li><li>请求只发往微信读书官方网关 <code>i.weread.qq.com</code>，请求与报告都不经过插件作者的服务器</li><li>报告在你本机生成；导出只是把文件存到你自己的电脑</li><li>随时可以在「🔑 API Key」里删除 Key</li></ul>
+<h2 id="ai-增强deepseek可选需你主动配置">AI 增强（DeepSeek，可选，需你主动配置）</h2>
+<ul><li>报告的数字仍在你<strong>本机按固定规则算好</strong>，DeepSeek 只负责把已算好的客观数据 + 少量划线/想法原文样本写成自然语言「执行摘要」，它不算数字</li><li>需要你粘贴<strong>自己的</strong> DeepSeek Key（<code>sk-</code> 开头），仅保存在本地</li><li>启用后，仅把「书架 / 累计阅读 / 笔记 / 完读 / 分类偏好 / 年度趋势」等汇总事实，以及「笔记最多几本书」的划线/想法样本（每本最多 6 条）发往 <code>api.deepseek.com</code>；你的微信读书 <code>wrk-</code> Key <strong>绝不会</strong>发给 DeepSeek</li><li>未配置 DeepSeek Key 时，<strong>不会</strong>向 <code>api.deepseek.com</code> 发起任何请求，报告退回规则化摘要</li><li>随时可以在「🔑 API Key」里删除 DeepSeek Key</li></ul>
+<h2 id="权限">权限</h2>
+<table><thead><tr><th>权限</th><th>为什么需要</th></tr></thead><tbody><tr><td><code>storage</code></td><td>保存你的偏好设置</td></tr><tr><td><code>https://i.weread.qq.com/*</code></td><td>仅用于「官方数据」向你自己的官方账号取数</td></tr><tr><td><code>https://api.deepseek.com/*</code></td><td>仅用于你主动启用 AI 增强后，向 DeepSeek 发送汇总事实与原文样本生成文字</td></tr></tbody></table>
+<h2 id="完整权威版本">完整（权威）版本</h2>
+<p>英文完整版隐私政策随仓库发布，以它为准：<a href="https://github.com/chengzilala/weread-enhancer/blob/main/release/privacy.md" target="_blank" rel="noopener">release/privacy.md</a></p>
+<h2 id="相关">相关</h2>
+<ul><li><a href="/about/">关于</a></li><li><a href="/guide/official/">官方数据</a></li></ul>
+      </article>
+      
+    </main>
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+    <nav class="footer-links"><a href="https://microsoftedge.microsoft.com/addons/detail/%E5%BE%AE%E4%BF%A1%E6%82%A6%E8%AF%BB/nkcckbonpafeclefhlhbencibkaabmgb" target="_blank" rel="noopener">Edge 商店</a> <a href="/changelog/">更新日志</a> <a href="/privacy/">隐私政策</a> <a href="https://github.com/chengzilala/weread-enhancer" target="_blank" rel="noopener">GitHub</a></nav>
+    <p class="footer-meta">微信悦读 v0.15.1 · MIT License · © 2026</p>
+  </div>
+  </footer>
+
+  <script src="/assets/site.js" defer></script>
+</body>
+</html>
