@@ -417,6 +417,24 @@
 - **连带修复**：`stats.js` / `notes.js` / `official.js` 的主菜单注入锚点由 `theme-settings` 改为 `read-settings`
 - **文档同步**：`RPD_需求文档.md` 标注取消（3.4 / 4.2 / 9.3 等）；删除 `plan/主题需求梳理.md`；更新 `version_plan.md`、`RPD_网站生态_需求文档.md`、三个商店文案（edge / chrome / 360）、`release/360-素材/功能说明.txt`、六份测试清单；网站删除「主题切换」教程页并清理首页 / 快速上手 / FAQ / 隐私政策 / 沉浸夜读等文章与 `site.config.json`；新增 `web/content/更新日志.md` v0.15.0 一节
 
+**v0.15.1 维护性更新（2026-10-04）**：
+
+> manifest.json 版本号：`0.15.0` → `0.15.1`；Git Tag：`v0.15.1`
+
+- 维护性更新，功能与 v0.15.0 一致
+- 工程：新增 `pack.py` 一键打包脚本（按 manifest 引用自动收集运行文件，避免漏打 `background.js` / `modules/` / `assets/`）
+- 文档：新增 API Key 使用说明教程与网站「帽子云」部署说明；隐私声明移除主题字样
+- 上架：备好 Edge 更新包与 360 首次上架包（含 `.crx` + 功能说明 + 图标 + 效果图）
+
+**v0.15.2 官方数据报告原生图表可视化（2026-10-04）**：
+
+> manifest.json 版本号：`0.15.1` → `0.15.2`；Git Tag：`v0.15.2`
+
+- 「☁️ 官方数据」阅读行为报告新增四类图表（**纯原生 Canvas 绘制、零依赖**）：折线（时长趋势）、横向条形（偏好分类权重）、热力格（24 小时阅读时段）、环形（完读率）
+- 面板预览与导出的 HTML 共用同一套绘制逻辑，导出自包含、双击即可查看
+- 同步：`web/content/更新日志.md`、`release/360-素材/功能说明.txt` 补图表描述
+
+
 ### 还未确认的开发计划
 
 1. 浏览器上架：将主流的浏览器都做，商店上架。
@@ -493,8 +511,8 @@ UI框架       +全部核心模块 +动态感应区   → 最终收敛为       
 
 | 文档/位置 | 版本号 | 说明 |
 |----------|-------|------|
-| manifest.json | `0.15.0` | 当前浏览器实际加载版本（屏占比 + 自动阅读 + 阅读统计 + 笔记增强 + 官方数据阅读行为报告 + 可选 DeepSeek AI 人格化执行摘要 / 人性化人格分析 + 集中 API Key 入口 + 支持与反馈/帮助中心 + 报告对象昵称与累计口径；已移除主题设置） |
+| manifest.json | `0.15.2` | 当前浏览器实际加载版本（屏占比 + 自动阅读 + 阅读统计 + 笔记增强 + 官方数据阅读行为报告（含原生 Canvas 图表）+ 可选 DeepSeek AI 人格化执行摘要 / 人性化人格分析 + 集中 API Key 入口 + 支持与反馈/帮助中心；已移除主题设置） |
 | RPD_需求文档.md | `v0.10` | PRD 迭代版本（功能层面；第 10 章为 v0.11.0 官方数据） |
-| Git Tag | `v0.14.1` | 最新已打的 Tag（提交 `1687175`，2026-10-01；v0.8.2 / v0.8.3 / v0.9.1 / v0.10.0 / v0.12.x / v0.13.x / v0.14.0 未单独打 tag；完整归档见 plan_github_versioning.md） |
-| release zip | `weread-enhancer-v0.14.1.zip` | 最新备好的上传包（95 KB，14 文件；含 manifest / content / background + stats / notes / official 三模块 + 图标） |
+| Git Tag | `v0.15.2` | 最新已打的 Tag（2026-10-04；v0.8.2 / v0.8.3 / v0.9.1 / v0.10.0 / v0.12.x / v0.13.x / v0.14.0 未单独打 tag；完整归档见 plan_github_versioning.md） |
+| release zip | `weread-enhancer-v0.15.2.zip` | 最新备好的上传包（1280 KB，22 文件；含 manifest / content / background + stats / notes / official / support-center / help 模块 + 图标 + 收款码等资源） |
 | version_plan.md | `v1.1` | 本文档独立版本 |
