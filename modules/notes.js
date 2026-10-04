@@ -53,6 +53,7 @@
   let cache = { bookId: null, at: 0, data: null };
   let panelTab = 'highlights';
   let searchQuery = ''; // 笔记搜索关键词（实时过滤划线/想法）
+  let searchComposing = false; // 输入法（IME）组合态标记：组合期间不重绘，避免打断中文输入
   let panelState = { loading: false, error: '', emptyReason: '', needsKey: '', data: null };
 
   // ---------- 通用小工具 ----------
@@ -851,6 +852,21 @@
     if (body) {
       body.addEventListener('click', handlePanelClick);
       body.addEventListener('input', handlePanelInput);
+      // 输入法组合态标记：组合期间不重绘，组合结束后再统一过滤，保证中文可正常输入
+      body.addEventListener('compositionstart', (event) => {
+        if (event.target && event.target.closest && event.target.closest('[data-wre-notes-search]')) {
+          searchComposing = true;
+        }
+      });
+      body.addEventListener('compositionend', (event) => {
+        const target = event.target;
+        if (target && target.closest && target.closest('[data-wre-notes-search]')) {
+          searchComposing = false;
+          applySearch(target.value);
+        } else {
+          searchComposing = false;
+        }
+      });
     }
     root.appendChild(overlay);
     return overlay;
@@ -1053,13 +1069,9 @@
     body.scrollTop = scrollTop;
   }
 
-  // 搜索框实时输入：更新关键词并重绘，重绘后恢复焦点与光标位置（避免每次击键失焦）
-  function handlePanelInput(event) {
-    const input = event.target;
-    if (!input || !input.closest || !input.closest('[data-wre-notes-search]')) {
-      return;
-    }
-    searchQuery = input.value;
+  // 应用搜索关键词并重绘，重绘后恢复焦点与光标位置（避免每次击键失焦）
+  function applySearch(rawValue) {
+    searchQuery = rawValue;
     renderPanel();
     const box = document.querySelector('[data-wre-notes-search]');
     if (box) {
@@ -1071,6 +1083,19 @@
         /* 部分输入框不支持 setSelectionRange，忽略 */
       }
     }
+  }
+
+  // 搜索框实时输入：更新关键词并重绘
+  // 注意：输入法（中文等）组合期间不能重绘——重绘会替换 input 元素、打断组合态，导致中文无法上屏
+  function handlePanelInput(event) {
+    const input = event.target;
+    if (!input || !input.closest || !input.closest('[data-wre-notes-search]')) {
+      return;
+    }
+    if (searchComposing || event.isComposing) {
+      return;
+    }
+    applySearch(input.value);
   }
 
   function handlePanelClick(event) {
@@ -1124,6 +1149,23 @@
 
   function currentData() {
     return panelState.data || (cache.data && cache.bookId === getBookContext().bookId ? cache.data : null);
+  }
+
+  // 复制 / 导出用的数据：处于搜索态时只作用于当前搜索结果，未搜索时等同完整数据
+  function currentFilteredData() {
+    const data = currentData();
+    if (!data || !searchQuery.trim()) {
+      return data;
+    }
+    const flatten = (groups) => groups.reduce((acc, group) => acc.concat(group.items), []);
+    const highlightGroups = filterGroups(data.highlightGroups || []).groups;
+    const thoughtGroups = filterGroups(data.thoughtGroups || []).groups;
+    return Object.assign({}, data, {
+      highlightGroups: highlightGroups,
+      thoughtGroups: thoughtGroups,
+      highlights: flatten(highlightGroups),
+      thoughts: flatten(thoughtGroups)
+    });
   }
 
   function sourceLabel(data) {
@@ -1439,7 +1481,7 @@
   }
 
   async function handleCopyNotes() {
-    const data = currentData();
+    const data = currentFilteredData();
     if (!data) {
       toast('还没有可复制的笔记，先等数据读出来～');
       logNotes('warn', '笔记数据未就绪，忽略复制请求');
@@ -1491,7 +1533,7 @@
   }
 
   function handleExport(format) {
-    const data = currentData();
+    const data = currentFilteredData();
     if (!data) {
       toast('还没有可导出的笔记，先等数据读出来～');
       logNotes('warn', '笔记数据未就绪，忽略导出请求', { format });
