@@ -758,9 +758,9 @@
 
 - [x] 阶段十三-1 底座（先跑通）：`background.js` ＋ `host_permissions` ＋ Key 管理（粘贴/校验/清除）＋ 网关封装（超时 / `errcode` / 降级）
 - [x] 阶段十三-2 报告 V1（先完成）：时长与天数趋势 ＋ 周期切换（周/月/年/累计）＋ 环比（取 `compare`）＋ 面板表格化呈现 ＋ 按「深度画像」式章节组织的报告模型（`buildReportModel`＋Markdown/HTML 双渲染器）＋ 一键导出 Markdown / HTML / PDF
-- [ ] 阶段十三-3 报告 V2·上半（第二步）：接入 `/shelf/sync` 与 `/user/notebooks`，补齐「书架结构 / 笔记行为 / 完读率 / 已读完书目 / 知识脉络」等 V1 附录标注待补的章节 ＋ 时段热力＋ 原生 Canvas 图表
+- [x] 阶段十三-3 报告 V2·上半（第二步）：接入 `/shelf/sync` 与 `/user/notebooks`，补齐「书架结构 / 笔记行为 / 完读率 / 已读完书目 / 知识脉络」等 V1 附录标注待补的章节 ＋ 时段热力＋ 原生 Canvas 图表
   - 已完成（v0.13.2）：接入两接口（`/shelf/sync` 无参；`/user/notebooks` 游标分页 `count+lastSort`、上限 5 页、截断标记）＋ 独立 30 分钟缓存（`wreOfficialOverviewCache`，仅两路都成功才写）＋ `loadReport` 并行拉取、单路失败降级为 `partial` ＋ 落地「2.2 书架结构 / 九、知识脉络 / 十、笔记行为 / 十一、完读率 / 十二、已读完书目」＋ 落地「十三、阅读人格画像」（客观规则化类型归类：完读倾向 / 笔记投入 / 主题聚焦 / 内容形态 / 阅读时段，`buildPersona` 固定阈值，非主观推断）＋ 附录口径与「尚未覆盖的章节」更新
-  - 待办：时段热力、原生 Canvas 图表
+  - 已完成（v0.15.2）：原生 Canvas 图表——自包含 `drawCharts(container)`（零依赖，`devicePixelRatio` 高 DPI 适配），四种图表：折线 `line`（时长趋势，含面积填充/数据点/轴标签抽稀）、横向条形 `hbar`（偏好分类权重）、热力格 `heatmap`（24 小时阅读时段，6 列绿深浅）、环形 `donut`（完读率）；`buildReportModel` 在「2.4 偏好分类 / 3.1 阅读轨迹 / 四、阅读时段分布 / 十一、完读率」四处插入 chart 块，`buildTrendChart` 接入「二、时长分布」；`renderHtmlBlock` 支持 `chart` 类型，`render()` 渲染后调 `drawCharts(body)`；HTML 导出通过 `drawCharts.toString()` 内联进 `buildStandaloneHtml`，面板与导出自包含共用同一套绘制逻辑
 - [ ] 阶段十三-4 报告 V2·下半：笔记行为 ＋ 规律总结/建议文案 ＋ 自包含 HTML 导出
 - [ ] 阶段十三-5 附带能力：书架概览页、笔记/划线导出（官方优先 ＋ 自动回退）、搜书 / 书评 / 推荐（含 `deepLink` 跳转）
   - 已完成：笔记/划线导出「官方优先 + 自动回退」——`modules/notes.js` 已接入官方网关（有 Key 走 `/book/bookmarklist` + `/review/list/mine`，无 Key/失败回退网页同源接口与页面抓取）

@@ -791,6 +791,22 @@
       (hiddenCount > 0 ? '<div class="wre-off-note">已隐藏 ' + hiddenCount + ' 个 0 时长周期</div>' : '');
   }
 
+  function buildTrendChart(data, currentMode) {
+    const buckets = Object.keys(data.readTimes || {}).map((key) => ({
+      ts: Number(key),
+      seconds: Number((data.readTimes || {})[key]) || 0,
+    })).sort((a, b) => a.ts - b.ts);
+    const positive = buckets.filter((item) => item.seconds > 0);
+    if (!positive.length) {
+      return '';
+    }
+    return '<div class="wre-chart" data-kind="line" data-payload="' +
+      escapeHtml(JSON.stringify({
+        labels: positive.map((item) => fmtBucketLabel(item.ts, currentMode)),
+        values: positive.map((item) => item.seconds),
+      })) + '"></div>';
+  }
+
   function buildLongestList(data) {
     const list = Array.isArray(data.readLongest) ? data.readLongest : [];
     if (!list.length) {
@@ -893,6 +909,7 @@
       buildStatChips(data) +
       '<div class="wre-off-section-title">二、时长分布</div>' +
       buildBucketTable(data, mode) +
+      buildTrendChart(data, mode) +
       '<div class="wre-off-section-title">三、读得最多</div>' +
       buildLongestList(data) +
       exportHint +
@@ -1253,6 +1270,7 @@
       return;
     }
     body.innerHTML = buildReportHtml();
+    drawCharts(body);
   }
 
   function renderSettings() {
@@ -1767,6 +1785,14 @@
           (((item.readingTime || 0) / categoryTotal) * 100).toFixed(1) + '%',
         ]),
       });
+      blocks.push({
+        type: 'chart',
+        kind: 'hbar',
+        payload: {
+          labels: categories.map((item) => item.parentCategoryTitle || item.categoryTitle || '未分类'),
+          values: categories.map((item) => item.readingTime || 0),
+        },
+      });
       if (data.preferCategoryWord) {
         blocks.push({ type: 'callout', text: '官方判定：' + data.preferCategoryWord });
       }
@@ -1791,6 +1817,14 @@
           (((item.seconds) / bucketTotal) * 100).toFixed(1) + '%',
         ]),
       });
+      blocks.push({
+        type: 'chart',
+        kind: 'line',
+        payload: {
+          labels: positive.map((item) => fmtBucketLabel(item.ts, currentMode)),
+          values: positive.map((item) => item.seconds),
+        },
+      });
       const hidden = buckets.length - positive.length;
       if (hidden > 0) {
         blocks.push({ type: 'note', text: '已隐藏 ' + hidden + ' 个 0 时长周期。' });
@@ -1810,6 +1844,16 @@
         rows: bands.map((item) => [item.label, fmtDuration(item.seconds), ((item.seconds / bandTotal) * 100).toFixed(1) + '%']),
       });
       const hourly = hourlyReadTime(data);
+      if (hourly.length) {
+        blocks.push({
+          type: 'chart',
+          kind: 'heatmap',
+          payload: {
+            hours: hourly.map((item) => item.hour),
+            values: hourly.map((item) => item.seconds),
+          },
+        });
+      }
       const peakHour = hourly.reduce((acc, item) => (item.seconds > acc.seconds ? item : acc));
       blocks.push({ type: 'note', text: '全天峰值出现在 ' + pad2(peakHour.hour) + ':00 前后，' + fmtDuration(peakHour.seconds) +
         '（占 ' + ((peakHour.seconds / bandTotal) * 100).toFixed(1) + '%）。' });
@@ -1981,6 +2025,11 @@
           { label: '完读率', value: (fin.rate * 100).toFixed(1) + '%' },
           { label: '电子书总数', value: fin.ebooks + ' 本' },
         ]});
+        blocks.push({
+          type: 'chart',
+          kind: 'donut',
+          payload: { finished: fin.finished, reading: fin.reading },
+        });
         blocks.push({ type: 'note', text: '口径：完读率 = 电子书中 finishReading=1 的本数 ÷ 电子书总数；不含专辑/有声书。' });
       }
     }
@@ -2048,6 +2097,228 @@
   }
 
   // ---------- 渲染器 ----------
+
+  // ---------- Canvas 图表（原生 Canvas，零依赖；面板与导出 HTML 共用） ----------
+  // 自包含：不依赖任何闭包变量 / 外部函数，可被 toString() 序列化进导出 HTML。
+  function drawCharts(container) {
+    if (!container || !container.querySelectorAll) {
+      return;
+    }
+    const COLORS = { accent: '#07c160', soft: '#e8f8ef', line: '#e8ebe9', ink: '#1f2328', ink2: '#5b6570' };
+    const nodes = container.querySelectorAll('.wre-chart');
+    if (!nodes.length) {
+      return;
+    }
+
+    function setup(canvas, w, h) {
+      const scale = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.round(w * scale));
+      canvas.height = Math.max(1, Math.round(h * scale));
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      canvas.style.display = 'block';
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      return ctx;
+    }
+
+    function shortDur(sec) {
+      sec = Number(sec) || 0;
+      if (sec >= 3600) {
+        return (sec / 3600).toFixed(sec >= 36000 ? 0 : 1) + 'h';
+      }
+      if (sec >= 60) {
+        return Math.round(sec / 60) + 'm';
+      }
+      return sec + 's';
+    }
+
+    function maxOf(values) {
+      let m = 0;
+      (values || []).forEach((v) => { m = Math.max(m, Number(v) || 0); });
+      return m;
+    }
+
+    function font(size, weight) {
+      return (weight || '') + ' ' + size + 'px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif';
+    }
+
+    function drawLine(canvas, data, w) {
+      const h = 180;
+      const padL = 46, padR = 14, padT = 16, padB = 26;
+      const iw = Math.max(1, w - padL - padR);
+      const ih = h - padT - padB;
+      const values = (data.values || []).map((v) => Number(v) || 0);
+      const labels = data.labels || [];
+      const max = Math.max(1, maxOf(values));
+      const ctx = setup(canvas, w, h);
+      ctx.strokeStyle = COLORS.line;
+      ctx.fillStyle = COLORS.ink2;
+      ctx.font = font(10);
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'right';
+      for (let i = 0; i <= 2; i++) {
+        const y = padT + ih - (ih * i / 2);
+        ctx.beginPath();
+        ctx.moveTo(padL, y);
+        ctx.lineTo(w - padR, y);
+        ctx.stroke();
+        ctx.fillText(shortDur(max * i / 2), padL - 6, y);
+      }
+      const step = values.length > 1 ? iw / (values.length - 1) : iw;
+      const points = values.map((v, idx) => ({ x: padL + step * idx, y: padT + ih - (ih * v / max) }));
+      if (points.length) {
+        ctx.beginPath();
+        ctx.moveTo(padL, padT + ih);
+        points.forEach((p) => ctx.lineTo(p.x, p.y));
+        ctx.lineTo(points[points.length - 1].x, padT + ih);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(7,193,96,.10)';
+        ctx.fill();
+        ctx.beginPath();
+        points.forEach((p, idx) => (idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+        ctx.strokeStyle = COLORS.accent;
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+        points.forEach((p) => {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#fff';
+          ctx.fill();
+          ctx.strokeStyle = COLORS.accent;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        });
+      }
+      ctx.fillStyle = COLORS.ink2;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      const labelStep = Math.max(1, Math.ceil(labels.length / 6));
+      labels.forEach((lb, idx) => {
+        if (idx % labelStep === 0) {
+          ctx.fillText(lb, padL + step * idx, padT + ih + 7);
+        }
+      });
+    }
+
+    function drawHbar(canvas, data, w) {
+      const labels = data.labels || [];
+      const values = (data.values || []).map((v) => Number(v) || 0);
+      const rowH = 30;
+      const padL = 92, padR = 48, padT = 8, padB = 8;
+      const h = padT + padB + rowH * labels.length;
+      const ctx = setup(canvas, w, h);
+      const max = Math.max(1, maxOf(values));
+      const barW = Math.max(1, w - padL - padR);
+      ctx.font = font(12);
+      labels.forEach((lb, idx) => {
+        const y = padT + rowH * idx;
+        const v = values[idx] || 0;
+        const label = String(lb || '').length > 6 ? String(lb).slice(0, 6) + '…' : String(lb || '');
+        ctx.fillStyle = COLORS.ink;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, 0, y + rowH / 2);
+        ctx.fillStyle = COLORS.line;
+        ctx.fillRect(padL, y + 8, barW, 12);
+        const bw = barW * (v / max);
+        if (bw > 0) {
+          ctx.fillStyle = COLORS.accent;
+          ctx.fillRect(padL, y + 8, bw, 12);
+        }
+        ctx.fillStyle = COLORS.ink2;
+        ctx.textAlign = 'left';
+        ctx.fillText(shortDur(v), padL + barW + 8, y + rowH / 2);
+      });
+    }
+
+    function drawHeatmap(canvas, data, w) {
+      const hours = data.hours || [];
+      const values = (data.values || []).map((v) => Number(v) || 0);
+      const cols = 6;
+      const rows = Math.max(1, Math.ceil(hours.length / cols));
+      const cellH = 32;
+      const blockH = 16;
+      const gap = 3;
+      const h = 4 + cellH * rows;
+      const ctx = setup(canvas, w, h);
+      const max = Math.max(1, maxOf(values));
+      const cellW = (w - gap * (cols - 1)) / cols;
+      ctx.font = font(10);
+      hours.forEach((hour, idx) => {
+        const col = idx % cols;
+        const row = Math.floor(idx / cols);
+        const x = col * (cellW + gap);
+        const y = 4 + row * cellH;
+        const v = values[idx] || 0;
+        const alpha = v > 0 ? 0.15 + 0.85 * (v / max) : 0.06;
+        ctx.fillStyle = 'rgba(7,193,96,' + alpha.toFixed(3) + ')';
+        ctx.fillRect(x, y, cellW, blockH);
+        ctx.fillStyle = v > 0 ? '#0a5c30' : COLORS.ink2;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText((hour < 10 ? '0' : '') + hour, x + cellW / 2, y + blockH + 10);
+      });
+    }
+
+    function drawDonut(canvas, data) {
+      const size = 150;
+      const ctx = setup(canvas, size, size);
+      const cx = size / 2;
+      const cy = size / 2;
+      const r = 56;
+      const finished = Number(data.finished) || 0;
+      const reading = Number(data.reading) || 0;
+      const total = finished + reading;
+      ctx.clearRect(0, 0, size, size);
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.strokeStyle = COLORS.soft;
+      ctx.lineWidth = 18;
+      ctx.stroke();
+      if (total > 0) {
+        const ang = (finished / total) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + ang);
+        ctx.strokeStyle = COLORS.accent;
+        ctx.lineWidth = 18;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+      }
+      ctx.fillStyle = COLORS.ink;
+      ctx.font = font(22, '700');
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(total ? Math.round((finished / total) * 100) + '%' : '0%', cx, cy - 6);
+      ctx.fillStyle = COLORS.ink2;
+      ctx.font = font(11);
+      ctx.fillText('完读率', cx, cy + 20);
+    }
+
+    nodes.forEach((node) => {
+      const kind = node.getAttribute('data-kind');
+      const w = node.clientWidth || 560;
+      let payload = {};
+      try {
+        payload = JSON.parse(node.getAttribute('data-payload') || '{}');
+      } catch (err) {
+        payload = {};
+      }
+      const canvas = document.createElement('canvas');
+      canvas.className = 'wre-chart-canvas';
+      node.appendChild(canvas);
+      if (kind === 'line') {
+        drawLine(canvas, payload, w);
+      } else if (kind === 'hbar') {
+        drawHbar(canvas, payload, w);
+      } else if (kind === 'heatmap') {
+        drawHeatmap(canvas, payload, w);
+      } else if (kind === 'donut') {
+        drawDonut(canvas, payload);
+      }
+    });
+  }
 
   function renderMarkdownModel(model) {
     const lines = [];
@@ -2159,6 +2430,10 @@
       }).join('');
       return '<table><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table>';
     }
+    if (block.type === 'chart') {
+      return '<div class="wre-chart" data-kind="' + escapeHtml(block.kind) + '" data-payload="' +
+        escapeHtml(JSON.stringify(block.payload || {})) + '"></div>';
+    }
     return '';
   }
 
@@ -2199,6 +2474,7 @@
       '  </footer>',
       '</div>',
       '<button class="print-btn no-print" id="wre-off-report-print">打印 / 另存为 PDF</button>',
+      '<script>(' + drawCharts.toString() + ')(document.body);</script>',
       '</body>',
       '</html>',
     ].join('\n');
@@ -2312,6 +2588,8 @@
       '.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden}',
       '.bar i{display:block;height:100%;border-radius:4px;background:var(--accent)}',
       '.empty{padding:18px;font-size:13px;color:var(--ink-2);background:#fafbfa;border:1px dashed var(--line);border-radius:10px}',
+      '.wre-chart{margin:14px 0;width:100%;break-inside:avoid}',
+      '.wre-chart-canvas{display:block;max-width:100%}',
       '.foot{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;line-height:1.8;color:var(--ink-2)}',
       '.print-btn{position:fixed;right:24px;bottom:24px;padding:12px 20px;border:0;border-radius:999px;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 8px 20px rgba(7,193,96,.35)}',
       '.print-btn:hover{filter:brightness(1.05)}',

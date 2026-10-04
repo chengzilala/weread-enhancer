@@ -78,8 +78,8 @@
 | **API Key 使用说明** | 两把 Key（`wrk-` 官方 / `sk-` DeepSeek）的获取、配置、校验、清除与隐私口径（见 3.8） | P0 |
 | Obsidian 内容工作流 | vault 约定 + 语法兼容 + 一键发布（含 Obsidian 内触发构建） | P0 |
 | 版本公告接口 | 构建时产出 `dist/api/latest.json`，供插件查询"最新版本" | P0 |
-| 本地预览与部署 | 本地一键预览 + Vercel 静态部署 | P0 |
-| 插件侧联动入口 | 插件菜单新增「📖 帮助中心」，跳转网站并带来源参数 | P1 |
+| 本地预览与部署 | 本地一键预览 + 帽子云静态部署 | P0 |
+| 插件侧联动入口 | 插件菜单新增「📖 帮助中心」，跳转网站首页 | P1 |
 | 插件侧版本提示 | 插件启动拉取 `latest.json`，版本更新时提示（失败静默） | P1 |
 | SEO 与响应式 | title/description/OG、移动端自适应、暗色适配 | P1 |
 
@@ -360,7 +360,7 @@ aliases: [屏占比, 宽度]       # Obsidian 别名，同时用于 [[双链]] �
     ├── site.config.json         # 站点名 / 导航 / 页脚 / 商店链接 / 站点域名
     ├── build.py                 # 🔨 一键构建：md → dist/ + dist/api/latest.json
     ├── serve.py                 # 🖥 本地预览（零依赖）
-    ├── vercel.json              # ☁️ Vercel 部署配置
+    ├── vercel.json              # ☁️ Vercel 海外镜像配置（可选）
     └── dist/                    # 🚫 构建产物，不入库
 ```
 

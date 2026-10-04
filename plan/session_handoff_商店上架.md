@@ -18,11 +18,12 @@
 
 ## 会话定位
 - **性质**：**浏览器扩展商店上架**专项会话（打包 + 商店 Listing + 提交审核 + 归档），**不改功能代码**（除非上架审核要求的必要修正）。
-- **任务范围（2026-07-07 更新优先级）**：
-  1. ⭐ Edge 加载项商店：**更新提交 v0.8.2**（此前已上架过 v0.2.0）
+- **任务范围（2026-10-04 更新优先级）**：
+  1. ⭐ Edge 加载项商店：**更新提交**（此前已上架过 v0.2.0）
   2. ⭐ 360 浏览器扩展：上架（文档见 `plan_360_store.md`）
-  3. ⏸️ Chrome Web Store：**暂缓**（用户决定，因需一次性 $5 注册费；文档 `plan_chrome_store.md` 已就绪，待付费后再上）
-  4. 每个商店**分别建文档归档**（已建：`plan_edge_store.md` / `plan_360_store.md` / `plan_chrome_store.md`）
+  3. ❓ QQ 浏览器：提交渠道待核实（文档见 `plan_qq_store.md`）
+  4. ⏸️ Chrome Web Store：**暂缓，排到最后**（用户决定，因需一次性 $5 注册费；文档 `plan_chrome_store.md` 已就绪，待付费后再上）
+  5. 每个商店**分别建文档归档**（已建：`plan_edge_store.md` / `plan_360_store.md` / `plan_chrome_store.md` / `plan_qq_store.md`）
 - **不做**：新功能开发、v0.9.0 主线、横屏/双栏与全屏入主题（已搁置，见 `version_plan.md` 第 3 节）。
 
 ---
@@ -40,7 +41,7 @@
 | 项 | 状态 |
 |---|---|
 | Edge Partner Center 账户 | 已注册；已提交过 v0.2.0（用户手动操作） |
-| Chrome Web Store 账户 | ⏸️ 暂缓（用户决定暂不付 $5 注册费） |
+| Chrome Web Store 账户 | ⏸️ 暂缓，**排到最后**（用户决定暂不付 $5 注册费） |
 | 360 账户 | ❓未注册（免注册费；详见 `plan_360_store.md`） |
 | 图标 `icons/`（16/48/128） | ✅ 已备 |
 | 隐私政策 `release/privacy.md` | ✅ 已备，URL：`https://github.com/chengzilala/weread-enhancer/blob/main/release/privacy.md` |
@@ -84,7 +85,7 @@ python3 -c "import zipfile; files=['manifest.json','content.js','content.css','R
 2. ✅ 校正商店 Listing 文案（快捷键 `空格/D/F/?`、滚动模式新功能）
 3. ✅ Partner Center 已上传 v0.8.2 并提交审核（**预计约 7 个工作日反馈**）
 
-### B. Chrome Web Store（⏸️ 暂缓，待付 $5 后再做）
+### B. Chrome Web Store（⏸️ 暂缓，**排在所有商店最后**，待付 $5 后再做）
 - 资料已备于 `plan_chrome_store.md`（可复用同一 zip、MV3 通用）；用户决定暂不投入
 
 ### C. 360 浏览器扩展 ⭐当前重点
@@ -93,7 +94,7 @@ python3 -c "import zipfile; files=['manifest.json','content.js','content.css','R
 - 从账号注册起的详细新手步骤见 `plan_360_store.md`
 
 ### D. 归档（每个商店一份文档）✅ 已建
-- `plan_edge_store.md` / `plan_chrome_store.md` / `plan_360_store.md`，各含账户 / 提交版本 / Listing 文案 / 素材 / 审核状态记录（状态待边做边填）
+- `plan_edge_store.md` / `plan_chrome_store.md` / `plan_360_store.md` / `plan_qq_store.md`，各含账户 / 提交版本 / Listing 文案 / 素材 / 审核状态记录（状态待边做边填）
 
 ---
 

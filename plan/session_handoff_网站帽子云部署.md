@@ -21,14 +21,17 @@
 
 ## 1. 线上地址
 
+> **2026-10-04 重大修正**：`tqxch7e9l-…` 不是稳定别名！帽子云的域名规则是——**每个部署都有一个随机前缀的专属 URL（永远指向那次部署的内容）**，而**不带随机前缀的 `https://wereadapp-32km31c.maozi.io` 才是主域名，自动跟随最新一次部署**。此前把 tqxch7e9l 当"稳定别名"是误判（两次部署内容差异太小没暴露），导致第二、三次部署后主地址一直停留在旧版本。baseUrl 已改为主域名（main 提交 `9ff56c9`）。
+
 | 项 | 值 |
 |---|---|
-| 生产域名（稳定别名） | **https://tqxch7e9l-wereadapp-32km31c.maozi.io** |
-| 单次部署 URL 示例 | https://rkni2xpzu-wereadapp-32km31c.maozi.io |
+| **生产主域名（跟随最新部署）** | **https://wereadapp-32km31c.maozi.io** |
+| 部署专属 URL（历史快照，不跟随更新） | 如 https://a62v60vnt-wereadapp-32km31c.maozi.io（v0.15.1 最终版） |
+| ~~旧文档误记的"稳定别名"~~ | ~~https://tqxch7e9l-wereadapp-32km31c.maozi.io~~（实为 8c31749 那次部署的专属 URL，勿再使用/回填） |
 | 账号 | 帽子云用户 `zccc`（手机 176****3974，邮箱未绑定） |
 | 控制台 | https://dash.maoziyun.com/project/3936/app/wereadapp |
-| 验证结果 | 首页 / 栏目页 / 子页面全站 200，国内直连 0.5–0.7s（`--noproxy` 直连实测） |
-| CDN | 域名经 Cloudflare 代理（`cf-cache-status`），静态资源 `cache-control: max-age=1200`，更新后约 20 分钟内全网刷新 |
+| 验证结果（2026-10-04 v0.15.1） | 全站 200，`/guide/api-key/` 已上线，`api/latest.json` 的 changelogUrl 指向主域名 |
+| CDN | Cloudflare 代理，静态资源 `cache-control: max-age=1200`，更新后约 20 分钟内全网刷新 |
 
 注意：域名后缀是 `maozi.io` 而非 `maoziyun.com`；域名由平台自动分配（随机前缀），**无法自选**，且换名重建会换域名。
 
@@ -94,7 +97,13 @@ cp -R web/dist/* . && git add -A && git commit -m "deploy: ..."
 git push origin site-dist-new:site-dist --force   # 若 HTTPS 推送被代理挡，可用 GitHub API（见下）
 git worktree remove --force /tmp/weredeploy
 
-# 3. 帽子云控制台 → wereadapp → 部署 → 选 site-dist → 立即部署
+# 3. 帽子云控制台 → wereadapp → 部署 → 输入 site-dist → 立即部署
+
+   ⚠️ 部署弹窗的「分支」下拉是**空的（"没有选项"）**，不是下拉选择，而是
+   直接在输入框键入 `site-dist` → 选项里出现 `Create "site-dist"` → 点击它
+   →「立即部署」由灰变亮 → 点击。构建约 4–15 秒，完成后点「刷新列表」确认
+   新部署行带「当前版本」标签。部署成功后，主域名立即指向新版本（CDN 缓存
+   最多延迟 20 分钟）。
 ```
 
 HTTPS 推送 github.com 走本机代理（127.0.0.1:53893）间歇性 502；`api.github.com` 通常可达，可用 Git Data API（tree → commit → PATCH refs/heads/site-dist）兜底。注意 tree API 会拒绝路径恰好为 `.git` 的文件（worktree 里的 `.git` 是个普通文件）。
@@ -115,3 +124,32 @@ HTTPS 推送 github.com 走本机代理（127.0.0.1:53893）间歇性 502；`api
 3. **帽子云账号安全**：注册密码较简单（用户自设），建议改强密码；平台完全免费，稳定性未知，重要场景可考虑自定义域名。
 4. **CDN 缓存 20 分钟**：更新部署后 `api/latest.json` 最多延迟 20 分钟刷新（`max-age=1200`）。
 5. 帽子云控制台自动化注意事项（供后续会话复用）：表单按钮可能不在视口内导致点击无效（先 `scrollIntoView` 再用鼠标事件）；「构建设置」的保存存在状态脱钩，改配置请直接删应用重建；应用删除后名字短期仍被占用。
+
+---
+
+## 7. 2026-10-04 更新记录（v0.15.1 文档更新上线 + 主域名修正）
+
+**任务**：用户在 `web/content/` 更新了一批使用说明（API Key 使用说明新增、更新日志 v0.15.1、隐私声明调整等），要求同步上线。
+
+**执行**：
+1. `python3 web/build.py` 本地构建（19 页 + 3 栏目索引，0 告警）；
+2. 用临时目录 `/tmp/wrdeploy` 生成**干净的** site-dist（只含 `web/dist/*` 顶层内容，无 `web/dist/` 重复目录——此前分支混入过重复目录，勿再复现），force push；
+3. 帽子云控制台部署两次：第一次 b3e7f87（暴露了主域名问题），修正 baseUrl 后第二次 1078b07；
+4. main 提交 `9ff56c9`：`web/site.config.json` baseUrl → `https://wereadapp-32km31c.maozi.io`。
+
+**验证**：主域名全站 200，`/guide/api-key/` 200，`api/latest.json` 的 changelogUrl 指向主域名。
+
+**当天发现/踩坑（重要）**：
+- **主域名规则**（见第 1 节修正）：`wereadapp-32km31c.maozi.io` 跟随最新部署；带随机前缀的是部署专属 URL。回填/引用一律用主域名。
+- **部署弹窗分支下拉为空**：需手动输入分支名（见第 4 节第 3 步）。
+- **GitHub 推送间歇超时**（443 连接失败/502）：重试即可，当天 git push 重试 1 次成功。
+- **部署点击后列表不自动刷新**：点「刷新列表」按钮手动刷新，新部署行可能延迟 10–20 秒出现。
+- 更新过程中用户编辑器同时在改 `plan/RPD_网站生态_需求文档.md`（未提交，与网站无关，勿动、勿提交）。
+
+### 7.1 判断"是否已部署"的正确姿势（2026-10-04 二次踩坑）
+
+- **不要用本地 `origin/site-dist` 判断远端状态**：本地 remote-tracking ref 可能是过期的（本次会话因未先 fetch，误以为远端还停在 b899245，白跑了一轮构建+推送）。
+  正确做法：先 `git fetch origin site-dist`，再 `git log --oneline -1 origin/site-dist`。
+- **若 fetch 报 `unable to update local ref`**：是上次失败留下的僵尸锁，删掉即可：
+  `rm -f .git/refs/remotes/origin/site-dist.lock && git fetch origin site-dist`
+- **验证线上内容时用主域名**（见第 1 节），不要用带随机前缀的部署 URL，否则会得到"永远 404"的假象，误判为 CDN 未刷新。

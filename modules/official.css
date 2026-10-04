@@ -348,3 +348,14 @@
   line-height: 1.6;
   color: var(--wre-text);
 }
+
+/* Canvas 图表（原生绘制，面板内显示） */
+.wre-off-overlay .wre-chart {
+  margin: 14px 0;
+  width: 100%;
+}
+
+.wre-off-overlay .wre-chart-canvas {
+  display: block;
+  max-width: 100%;
+}
