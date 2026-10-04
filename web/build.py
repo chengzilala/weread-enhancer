@@ -512,6 +512,8 @@ def render_footer():
     links.append('<a href="/changelog/">更新日志</a>')
     links.append('<a href="/privacy/">隐私政策</a>')
     links.append('<a href="%s" target="_blank" rel="noopener">GitHub</a>' % CONFIG["repoUrl"])
+    if CONFIG.get("giteeUrl"):
+        links.append('<a href="%s" target="_blank" rel="noopener">Gitee</a>' % CONFIG["giteeUrl"])
     return (
         '<div class="footer-inner">\n'
         '    <nav class="footer-links">%s</nav>\n'

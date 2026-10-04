@@ -11,8 +11,11 @@
   --accent-soft: #eaf4ea;
   --code-bg: #f4f5f7;
   --radius: 12px;
-  --max-width: 1080px;
-  --content-width: 720px;
+  /* 布局宽度：随窗口自适应，超宽屏封顶，避免一行过长 */
+  --max-width: min(1360px, 94vw);
+  --content-width: 920px;
+  /* 正文字号：随窗口轻微放大，窄屏不缩小到难读 */
+  --font-base: clamp(16.5px, 0.42vw + 15.3px, 18.5px);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -39,8 +42,8 @@ body {
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
     "Microsoft YaHei", "Segoe UI", Roboto, sans-serif;
-  font-size: 16px;
-  line-height: 1.75;
+  font-size: var(--font-base);
+  line-height: 1.8;
 }
 
 a { color: var(--accent); text-decoration: none; }
@@ -136,17 +139,17 @@ a:hover { text-decoration: underline; }
 .doc { max-width: var(--content-width); }
 
 .doc-header { margin-bottom: 24px; }
-.doc-header h1 { margin: 0 0 8px; font-size: 28px; line-height: 1.35; }
+.doc-header h1 { margin: 0 0 8px; font-size: 1.75em; line-height: 1.35; }
 .doc-meta { margin: 0; font-size: 13px; color: var(--text-soft); }
 
 .doc h2 {
   margin: 36px 0 12px;
   padding-bottom: 6px;
-  font-size: 21px;
+  font-size: 1.32em;
   border-bottom: 1px solid var(--border);
 }
-.doc h3 { margin: 28px 0 8px; font-size: 17px; }
-.doc h4 { margin: 22px 0 8px; font-size: 16px; }
+.doc h3 { margin: 28px 0 8px; font-size: 1.12em; }
+.doc h4 { margin: 22px 0 8px; font-size: 1.02em; }
 
 .doc p { margin: 12px 0; }
 .doc ul, .doc ol { margin: 12px 0; padding-left: 22px; }
@@ -171,7 +174,7 @@ a:hover { text-decoration: underline; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
-.doc pre code { padding: 0; background: none; font-size: 13px; line-height: 1.6; }
+.doc pre code { padding: 0; background: none; font-size: 0.82em; line-height: 1.6; }
 
 .doc img { max-width: 100%; height: auto; border-radius: var(--radius); border: 1px solid var(--border); }
 
@@ -182,7 +185,7 @@ a:hover { text-decoration: underline; }
   border-left: 3px solid var(--border);
 }
 
-.doc table { width: 100%; margin: 16px 0; border-collapse: collapse; font-size: 14px; }
+.doc table { width: 100%; margin: 16px 0; border-collapse: collapse; font-size: 0.9em; }
 .doc th, .doc td { padding: 8px 12px; border: 1px solid var(--border); text-align: left; }
 .doc th { background: var(--bg-soft); font-weight: 600; }
 
@@ -267,5 +270,5 @@ a:hover { text-decoration: underline; }
   .sidebar-list { display: flex; flex-wrap: wrap; gap: 6px; }
   .sidebar-list a { border-left: 0; border: 1px solid var(--border); border-radius: 999px; }
   .sidebar-list a.active { border-color: var(--accent); }
-  .doc-header h1 { font-size: 23px; }
+  .doc-header h1 { font-size: 1.45em; }
 }

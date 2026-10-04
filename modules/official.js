@@ -1606,6 +1606,80 @@
     return tags;
   }
 
+  /**
+   * 阅读规律与建议（规则模板，不引入额外 AI Key）。
+   * 只用报告里已有指标生成「事实句 + 温和建议」，数据不足的条目自动跳过。
+   * 红线：不编造数据、不下绝对化结论、不给健康/医疗类建议。
+   */
+  function buildAdvice(data, currentMode, shelf, notebooks) {
+    const items = [];
+    const scopePrefix = currentMode === 'overall' ? '累计' : modeLabel(currentMode);
+
+    // 1. 时长与节奏
+    if (Number(data.totalReadTime) > 0) {
+      let fact = scopePrefix + '共阅读 ' + fmtDuration(data.totalReadTime) +
+        '，覆盖 ' + (data.readDays || 0) + ' 天';
+      if (data.dayAverageReadTime != null) {
+        fact += '（自然日均 ' + fmtDuration(data.dayAverageReadTime) + '）';
+      }
+      const compare = fmtCompare(data.compare);
+      if (compare !== null) {
+        fact += '，较上一周期' + (data.compare >= 0 ? '增加' : '减少') + ' ' + Math.abs(data.compare * 100).toFixed(1) + '%';
+      }
+      const advice = (data.readDays || 0) > 0
+        ? '保持当前节奏即可；若想再多读一点，优先固定一个每天都能空出来的小时间段，比临时找时间更稳。'
+        : '先从一个每天 10 分钟的小目标开始，比一上来就追求长时间更容易坚持。';
+      items.push(fact + '。建议：' + advice);
+    }
+
+    // 2. 阅读时段（官方仅在「累计」周期返回 preferTime）
+    const hourly = hourlyReadTime(data);
+    if (hourly.length) {
+      const peak = hourly.reduce((acc, item) => (item.seconds > acc.seconds ? item : acc));
+      if (peak.seconds > 0) {
+        items.push('你的阅读集中在 ' + pad2(peak.hour) + ':00 前后（' + fmtDuration(peak.seconds) +
+          '）。建议：把这个时段固定为「读书时间」，到点就打开，省去临时找时间的犹豫。');
+      }
+    }
+
+    // 3. 偏好分类
+    if (data.preferCategoryWord) {
+      items.push('官方判定你的偏好为「' + data.preferCategoryWord +
+        '」。建议：在喜欢的分类里挑一本篇幅短一点的书读完，容易形成正反馈。');
+    }
+
+    // 4. 完读率（需书架数据）
+    if (shelf) {
+      const fin = finishStats(shelf);
+      if (fin.ebooks > 0) {
+        items.push('电子书完读率 ' + (fin.rate * 100).toFixed(0) + '%（读完 ' + fin.finished + ' / ' + fin.ebooks +
+          ' 本）。建议：从「在读」里选一本最想看完的，先把它读完，完读率会自然上升。');
+      }
+    }
+
+    // 5. 笔记投入（需笔记数据）
+    const notes = notebookStats(notebooks);
+    if (notes && notes.totalBookCount > 0 && notes.totalNoteCount > 0) {
+      const avg = notes.totalNoteCount / notes.totalBookCount;
+      const advice = avg >= 1
+        ? '保持「划线后随手写一句想法」的习惯，回看时比单纯的划线更有用。'
+        : '读完一章后试着写一句自己的想法，比只划线更容易记住。';
+      items.push('有笔记的书平均每本约 ' + avg.toFixed(1) + ' 条笔记（共 ' + notes.totalBookCount +
+        ' 本）。建议：' + advice);
+    }
+
+    // 6. 书架规模与读完（需书架数据）
+    if (shelf) {
+      const counts = shelfCounts(shelf);
+      if (counts.books > 0) {
+        items.push('书架现有电子书 ' + counts.books + ' 本，其中读完 ' + counts.finished +
+          ' 本。建议：新书不必急着加，先把手边这本读完，书架更清爽，选书也更省力。');
+      }
+    }
+
+    return items;
+  }
+
   // 读取当前微信读书网页版登录昵称（本机账号）。
   // 优先从 cookie 的 wr_name（微信读书 web 登录态，昵称做了 URL 编码）读取；
   // 再尝试 localStorage 常见字段；均拿不到返回空串，由调用方回退默认文案。
@@ -1991,7 +2065,19 @@
         ['其中 · 划线', notes.noteTotal + ' 条'],
         ['其中 · 书签', notes.bookmarkTotal + ' 条'],
       ]});
-      blocks.push({ type: 'heading', level: 3, text: '10.2 笔记最多的书' });
+      if (notes.totalBookCount > 0 && notes.totalNoteCount > 0) {
+        const avg = notes.totalNoteCount / notes.totalBookCount;
+        const reviewShare = (notes.reviewTotal / notes.totalNoteCount) * 100;
+        const noteShare = (notes.noteTotal / notes.totalNoteCount) * 100;
+        blocks.push({ type: 'heading', level: 3, text: '10.2 笔记密度（衍生指标）' });
+        blocks.push({ type: 'kv', rows: [
+          ['平均每本笔记数', avg.toFixed(1) + ' 条 / 本'],
+          ['想法 / 点评占比', reviewShare.toFixed(0) + '%'],
+          ['划线占比', noteShare.toFixed(0) + '%'],
+        ]});
+        blocks.push({ type: 'note', text: '密度口径：平均每本 = 笔记总条数 ÷ 有笔记的书数（仅统计有笔记的书）；占比分母为笔记总条数。' });
+      }
+      blocks.push({ type: 'heading', level: 3, text: '10.3 笔记最多的书' });
       if (notes.topBooks.length) {
         blocks.push({
           type: 'table',
@@ -2070,6 +2156,14 @@
       blocks.push({ type: 'note', text: '口径：以上类型标签由客观统计指标按固定阈值归类（完读率 / 笔记密度 / 分类集中度 / 有声书占比 / 时段峰值），属客观画像，不构成性格、价值观等主观判断；数据不足的维度自动省略。' + (aiPersona && aiPersona.length ? '更深层的人性化解读见文档开头的「人性化人格分析」。' : '') });
     }
 
+    // 十四、阅读规律与建议（规则模板，只用报告已有指标）
+    const advice = buildAdvice(data, currentMode, shelf, notebooks);
+    if (advice.length) {
+      blocks.push({ type: 'heading', level: 2, text: '十四、阅读规律与建议' });
+      blocks.push({ type: 'list', ordered: true, items: advice });
+      blocks.push({ type: 'note', text: '以上由本报告已有指标按固定规则生成，仅作参考，不构成专业指导；数据不足的条目已自动省略（未接入 AI 时同样生成）。' });
+    }
+
     // 附录：数据说明
     blocks.push({ type: 'heading', level: 2, text: '附录：数据说明' });
     blocks.push({ type: 'list', items: [
@@ -2082,8 +2176,9 @@
       '自然日均：「分母」是自然日，非阅读天数，故数值偏小属正常。',
       '环比：官方仅对当前周期返回 compare，其它周期显示「—」。',
       '书架口径：书架条目 = 电子书 + 专辑/有声书 +（有文章收藏入口时 +1）；文章收藏入口固定计入私密阅读；分类分布按电子书「分类」字段聚合。',
-      '笔记口径：笔记数 = 想法/点评(reviewCount) + 划线(noteCount) + 书签(bookmarkCount)；书签只统计数量、不含内容。',
+      '笔记口径：笔记数 = 想法/点评(reviewCount) + 划线(noteCount) + 书签(bookmarkCount)；书签只统计数量、不含内容；「笔记密度」的平均每本分母为「有笔记的书数」（非书架全部书）。',
       '偏好字段：preferCategory / preferAuthor / preferPublisher / preferCp / preferTime 由官方按各周期可得性返回，缺失即不展示对应小节。',
+      '建议口径：「十四、阅读规律与建议」为固定规则模板（事实句 + 温和建议），只用本报告已有指标，不编造数据、不下绝对化结论、不含健康/医疗类建议；未配置 AI 时同样生成。',
       '分析边界：本报告为基于官方统计与偏好字段的规则化解读；「阅读人格画像」的客观标签为按固定阈值的类型归类，「人性化人格分析」为 DeepSeek AI 参考性解读，均不构成性格、价值观等主观判断或专业鉴定。',
       '分析口径：「一、执行摘要」与「人性化人格分析」固定基于累计（总体）数据（mode=overall），不随上方周期切换变化；正文各章节按所选周期统计。',
       '隐私：报告在浏览器本机生成，数据不上传；API Key 仅保存在本机。',

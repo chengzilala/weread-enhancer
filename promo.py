@@ -59,15 +59,27 @@ _AUTO_SCENE = {
     "shortcut": "shortcuts",
     "diag": "debug",
     "read": "reading",
+    # —— 全功能扩展（新增 8 个场景，覆盖全部面板）——
+    "menu": "menu",
+    "stats": "stats",
+    "notes": "notes",
+    "official": "official",
+    "api-key": "api-key",
+    "support": "support",
+    "welcome": "welcome",
+    "fullscreen": "fullscreen",
 }
 
 
 def _pick_source(key):
     auto = os.path.join(AUTO_DIR, _AUTO_SCENE[key] + ".png")
-    return auto if os.path.exists(auto) else _MANUAL_SRC[key]
+    if os.path.exists(auto):
+        return auto
+    # 新增场景没有手工图，缺失时统一回退到沉浸阅读正文，保证老流程不坏
+    return _MANUAL_SRC.get(key) or _MANUAL_SRC["read"]
 
 
-SRC = {key: _pick_source(key) for key in _MANUAL_SRC}
+SRC = {key: _pick_source(key) for key in _AUTO_SCENE}
 
 # 清晰度档位
 QUALITY = 95      # 内联 JPEG 质量（4:4:4 无色度抽样），偏高减少小字糊化
@@ -232,6 +244,22 @@ CARDS = [
      "空格自动阅读，D 勿扰，F 全屏，? 呼出帮助面板。", "shortcut"),
     ("feature-05-diagnostics.png", "🩺", "诊断日志", "BUILT-IN DIAGNOSTICS",
      "内置统一日志系统，一键导出 JSON，排查问题不靠猜。", "diag"),
+    ("feature-06-stats.png", "📊", "阅读统计", "READING STATS",
+     "前台时长（今日 / 本周 / 本月 / 本书）、书籍进度与最近书目，一键导出 HTML / PDF / Markdown / CSV / JSON。", "stats"),
+    ("feature-07-notes.png", "📝", "笔记增强", "NOTES ENHANCER",
+     "按章节聚合全部划线与想法，关键词实时搜索，复制 / Markdown / HTML / PDF 一键导出。", "notes"),
+    ("feature-08-official.png", "☁️", "官方数据报告", "OFFICIAL DATA",
+     "凭 API Key 拉取官方阅读数据，生成本机阅读行为报告，可选 DeepSeek 人格化解读。", "official"),
+    ("feature-09-welcome.png", "🎉", "新手引导", "ONBOARDING",
+     "首次安装或版本更新自动弹出欢迎面板，几步上手核心玩法。", "welcome"),
+    ("feature-10-fullscreen.png", "🖥️", "全屏模式", "FULLSCREEN",
+     "F 键一键全屏，保留屏占比与勿扰状态，退出自动恢复原样。", "fullscreen"),
+    ("feature-11-menu.png", "🧭", "功能主菜单", "COMMAND MENU",
+     "悬浮球悬停即展开，阅读设置、统计、笔记、官方数据一个入口全搞定。", "menu"),
+    ("feature-12-support.png", "💗", "支持与反馈", "SUPPORT",
+     "内置支持中心，问题反馈与交流入口一步直达。", "support"),
+    ("feature-13-api-key.png", "🔑", "API Key 配置", "API KEY",
+     "集中管理微信读书 wrk- 与 DeepSeek sk- Key，本地保存、不上传。", "api-key"),
 ]
 
 
@@ -346,6 +374,11 @@ STORE_SHOTS = [
     ("store-03-1280x800.png", "勿扰模式与主题", "focus"),
     ("store-04-1280x800.png", "快捷操作", "shortcut"),
     ("store-05-1280x800.png", "诊断日志", "diag"),
+    ("store-06-1280x800.png", "阅读统计与导出", "stats"),
+    ("store-07-1280x800.png", "笔记增强", "notes"),
+    ("store-08-1280x800.png", "官方数据报告", "official"),
+    ("store-09-1280x800.png", "功能主菜单", "menu"),
+    ("store-10-1280x800.png", "全屏模式", "fullscreen"),
 ]
 
 
@@ -381,13 +414,17 @@ SHOTS_360 = [
     ("效果图-05-560x350.png", "诊断日志", "diag", (0.22, 0.216, 0.78, 0.793)),
 ]
 
+# 360 效果图沿用早期手工截图：560x350 太小，其裁剪框是围绕手工图逐张调好的；
+# 自动抓图尺寸/版式不同，若直接套用会错位，故这里单独固定用手工图，保持不变。
+SRC_360 = {key: _MANUAL_SRC[key] for _, _, key, _ in SHOTS_360}
+
 
 def build_360_shots():
     for name, caption, key, box in SHOTS_360:
         body = (
             '<div class="w"><div class="bar"><img src="__ICON__"><div class="t">%s</div></div>'
             '<div class="body"><img src="%s"></div></div>'
-        ) % (caption, uri_crop(SRC[key], box))
+        ) % (caption, uri_crop(SRC_360[key], box))
         render(page(560, 350, body.replace("__ICON__", icon_uri()), SHOT360_CSS),
                os.path.join(OUT_360, name), 560, 350, scale=SCALE_HI, final=(560, 350))
 

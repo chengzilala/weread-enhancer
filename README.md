@@ -135,7 +135,7 @@ python3 web/serve.py    # 本地预览：http://localhost:5173
 ```
 
 - `web/dist/api/latest.json` 的版本号在构建时自动读仓库根 `manifest.json`，是插件「版本提示」的单一事实源
-- 线上地址：https://tqxch7e9l-wereadapp-32km31c.maozi.io（帽子云静态托管，国内可直连）；部署方式见 `plan/session_handoff_网站帽子云部署.md`
+- 线上地址：https://wereadapp-32km31c.maozi.io（帽子云静态托管，国内可直连）；部署方式见 `plan/session_handoff_网站帽子云部署.md`
 
 ## 隐私声明
 

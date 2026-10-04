@@ -1,7 +1,7 @@
 /**
  * 微信悦读 · 帮助中心（v0.14.6）
  *
- * 定位：把插件与配套网站（https://tqxch7e9l-wereadapp-32km31c.maozi.io）打通。
+ * 定位：把插件与配套网站（https://wereadapp-32km31c.maozi.io）打通。
  *   1. 主菜单「关于」分组注入「📖 帮助中心」入口，点击跳转网站首页。
  *   2. 启动时（结果缓存 24 小时）通过后台拉取网站 /api/latest.json，
  *      检测到新版本时在入口旁显示红点。
@@ -12,7 +12,7 @@
 (function () {
   'use strict';
 
-  const SITE_BASE = 'https://tqxch7e9l-wereadapp-32km31c.maozi.io';
+  const SITE_BASE = 'https://wereadapp-32km31c.maozi.io';
   const VERSION_KEY = 'wreHelpVersionCheck';
   const CACHE_MS = 24 * 60 * 60 * 1000;   // 版本检查结果缓存 24 小时
 

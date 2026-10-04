@@ -8,7 +8,7 @@ This extension **does not collect, store, or transmit any personal data or brows
 
 - No analytics, tracking, or advertising code is included.
 - No data is sent to any server other than the domains described below (WeRead's own gateway, and — only if you opt in to the optional AI enhancement — DeepSeek's API).
-- The extension also makes a single, anonymous GET request to its companion website (`tqxch7e9l-wereadapp-32km31c.maozi.io`) to check whether a newer version is available. This request carries no user data or identifiers, is cached locally for 24 hours, and is silently ignored on failure.
+- The extension also makes a single, anonymous GET request to its companion website (`wereadapp-32km31c.maozi.io`) to check whether a newer version is available. This request carries no user data or identifiers, is cached locally for 24 hours, and is silently ignored on failure.
 - No cookies are created or read beyond what the extension needs to function.
 
 ## Reading Notes / Highlights
@@ -50,11 +50,11 @@ The extension requests the following permissions:
 - **storage**: Required to save your reading preferences (and, optionally, your own API Keys) so they persist across page refreshes and browser restarts.
 - **host permission for `https://i.weread.qq.com/*`**: Required only to send your own request to WeRead's official data gateway when you use the optional "Official Data" feature. No other host is accessed.
 - **host permission for `https://api.deepseek.com/*`**: Required only to send the bounded summary/sample described above to DeepSeek when you opt in to the optional AI enhancement. No request is made to this host unless you have configured a DeepSeek Key.
-- **host permission for `https://tqxch7e9l-wereadapp-32km31c.maozi.io/*`**: Required only to read the public version file (`/api/latest.json`) for the version-update hint. No user data is sent to this host.
+- **host permission for `https://wereadapp-32km31c.maozi.io/*`**: Required only to read the public version file (`/api/latest.json`) for the version-update hint. No user data is sent to this host.
 
 ## Scope
 
-This extension only runs on `weread.qq.com` and does not interact with any other websites. The only external domains it can contact are `i.weread.qq.com` (WeRead's own official gateway, for the optional "Official Data" feature), `api.deepseek.com` (DeepSeek's API, for the optional AI enhancement), and `tqxch7e9l-wereadapp-32km31c.maozi.io` (the companion website, for the anonymous version check).
+This extension only runs on `weread.qq.com` and does not interact with any other websites. The only external domains it can contact are `i.weread.qq.com` (WeRead's own official gateway, for the optional "Official Data" feature), `api.deepseek.com` (DeepSeek's API, for the optional AI enhancement), and `wereadapp-32km31c.maozi.io` (the companion website, for the anonymous version check).
 
 ## Contact
 

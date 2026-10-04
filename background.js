@@ -31,7 +31,7 @@ const DEEPSEEK_MODEL = 'deepseek-chat';
 const DEEPSEEK_TIMEOUT_MS = 30000;      // AI 生成较慢，放宽到 30 秒
 
 // 配套网站（帮助中心 / 版本检查）：只读一个公开的静态 JSON，不带任何用户数据。
-const SITE_LATEST_URL = 'https://tqxch7e9l-wereadapp-32km31c.maozi.io/api/latest.json';
+const SITE_LATEST_URL = 'https://wereadapp-32km31c.maozi.io/api/latest.json';
 const HELP_TIMEOUT_MS = 3000;
 
 function maskKey(key) {
