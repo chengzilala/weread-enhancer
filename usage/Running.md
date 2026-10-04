@@ -28,4 +28,4 @@ python3 web/serve.py    # 本地预览：http://localhost:5173
 
 - 文章源在 `web/content/`，可用 Obsidian 直接打开为 vault 编辑
 - `web/dist/api/latest.json` 的版本号构建时自动读根目录 `manifest.json`
-- 部署到 Vercel 时，把项目根目录设为 `web/` 即可静态托管
+- 部署：`python3 web/build.py` 后把 `web/dist/` 产物推到 `site-dist` 分支，由帽子云静态托管（详见 `plan/session_handoff_网站帽子云部署.md`）
