@@ -1,29 +1,46 @@
 <view class="wre-page">
+  <!-- 分享图绘制画布（移出屏幕外，不可见） -->
+  <canvas type="2d" id="shareCanvas" class="share-canvas"></canvas>
+
   <!-- 无 Key 引导 -->
-  <view class="wre-empty" wx:if="{{!hasKey}}">
-    <view class="wre-empty__text">还没有配置微信读书 API Key</view>
-    <view class="wre-empty__text">配置后即可算出你的「阅读人格」</view>
-    <button class="wre-btn" bindtap="goSettings">去配置 Key</button>
-  </view>
+  <wre-state
+    wx:if="{{!hasKey}}"
+    type="nokey"
+    text="还没有配置微信读书 API Key"
+    sub="配置后即可算出你的「阅读人格」"
+    action="去配置 Key"
+    actionType="settings"
+    bind:action="onStateAction"
+  />
 
   <block wx:else>
     <!-- 加载中 -->
-    <view class="wre-card" wx:if="{{loading}}">
-      <view class="wre-muted">正在本机计算阅读人格…</view>
-      <view class="wre-muted">首次会拉取笔记最多的几本书的划线原文，稍等片刻</view>
-    </view>
+    <wre-state
+      wx:if="{{loading}}"
+      type="loading"
+      text="正在本机计算阅读人格…"
+      sub="首次会拉取笔记最多的几本书的划线原文，稍等片刻"
+    />
 
     <!-- Key 失效 -->
-    <view class="wre-empty" wx:elif="{{needsKey}}">
-      <view class="wre-empty__text">{{error}}</view>
-      <button class="wre-btn" bindtap="goSettings">去重新配置</button>
-    </view>
+    <wre-state
+      wx:elif="{{needsKey}}"
+      type="error"
+      text="{{error}}"
+      action="去重新配置"
+      actionType="settings"
+      bind:action="onStateAction"
+    />
 
     <!-- 其他错误 -->
-    <view class="wre-card" wx:elif="{{error}}">
-      <view class="wre-muted">{{error}}</view>
-      <button class="wre-btn" bindtap="retry">重试</button>
-    </view>
+    <wre-state
+      wx:elif="{{error}}"
+      type="error"
+      text="{{error}}"
+      action="重试"
+      actionType="retry"
+      bind:action="onStateAction"
+    />
 
     <!-- 数据不足：降级引导 -->
     <view class="wre-card" wx:elif="{{reason === 'data'}}">
@@ -49,10 +66,32 @@
         <view class="hero__name">{{persona.name}}</view>
         <view class="hero__tagline">{{persona.tagline}}</view>
         <view class="hero__figure" wx:if="{{persona.figure}}">
+          <image class="hero__figure-img" wx:if="{{persona.figureUri}}" src="{{persona.figureUri}}" mode="aspectFit" />
           <text class="hero__figure-name">{{persona.figure.name}}</text>
           <text class="hero__figure-line">{{persona.figure.line}}</text>
         </view>
         <view class="hero__one-liner" wx:if="{{persona.oneLiner}}">{{persona.oneLiner}}</view>
+      </view>
+
+      <!-- 生成竖版分享图 -->
+      <view class="wre-card share-entry">
+        <button class="wre-btn" bindtap="generateShare" loading="{{sharing}}" disabled="{{sharing}}">
+          {{sharing ? '正在生成…' : '生成竖版分享图'}}
+        </button>
+        <view class="wre-muted">生成后可保存到相册，发朋友圈或转发给朋友</view>
+      </view>
+
+      <!-- AI 人格画像（可选，需在「我的」页配置 DeepSeek Key） -->
+      <view class="wre-card ai-card">
+        <view class="wre-title">AI 人格画像</view>
+        <view class="ai-text" wx:if="{{persona.aiText}}">{{persona.aiText}}</view>
+        <view class="wre-muted" wx:else>
+          {{hasDsKey ? '把上面的判定交给 AI，写成一段有温度的人格画像。' : '在「我的」页填写 DeepSeek Key 后，可用 AI 生成一段人格画像。'}}
+        </view>
+        <button class="wre-btn" bindtap="generateAi" loading="{{aiLoading}}" disabled="{{aiLoading}}">
+          {{aiLoading ? '正在生成…' : (persona.aiText ? '重新生成' : '生成 AI 画像')}}
+        </button>
+        <view class="ai-error" wx:if="{{aiError}}">{{aiError}}</view>
       </view>
 
       <!-- 特质绰号 -->
@@ -123,4 +162,15 @@
       <view class="wre-muted statement">本结果由本机按固定规则计算，主打一个「趣味参考」，不构成任何心理或性格测评。</view>
     </block>
   </block>
+
+  <!-- 分享图预览弹层 -->
+  <view class="share-mask" wx:if="{{showShare}}" catchtouchmove="noop">
+    <scroll-view class="share-preview" scroll-y>
+      <image class="share-preview__img" src="{{shareImg}}" mode="widthFix" show-menu-by-longpress="{{true}}" />
+    </scroll-view>
+    <view class="share-actions">
+      <button class="wre-btn" bindtap="saveShare">保存到相册</button>
+      <button class="wre-btn wre-btn--ghost" bindtap="closeShare">关闭</button>
+    </view>
+  </view>
 </view>

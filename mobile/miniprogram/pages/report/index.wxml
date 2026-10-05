@@ -1,10 +1,14 @@
 <view class="wre-page">
   <!-- 无 Key 引导 -->
-  <view class="wre-empty" wx:if="{{!hasKey}}">
-    <view class="wre-empty__text">还没有配置微信读书 API Key</view>
-    <view class="wre-empty__text">配置后即可查看你的「阅读行为报告」</view>
-    <button class="wre-btn" bindtap="goSettings">去配置 Key</button>
-  </view>
+  <wre-state
+    wx:if="{{!hasKey}}"
+    type="nokey"
+    text="还没有配置微信读书 API Key"
+    sub="配置后即可查看你的「阅读行为报告」"
+    action="去配置 Key"
+    actionType="settings"
+    bind:action="onStateAction"
+  />
 
   <block wx:else>
     <!-- 周期切换 -->
@@ -21,22 +25,25 @@
     <view class="wre-muted cache-hint" wx:if="{{fromCache}}">来自本地缓存（10 分钟内）</view>
 
     <!-- 加载中 -->
-    <view class="wre-card" wx:if="{{loading}}">
-      <view class="wre-muted">正在读取官方数据…</view>
-    </view>
+    <wre-state wx:if="{{loading}}" type="loading" text="正在读取官方数据…" />
 
     <!-- 错误 -->
-    <view class="wre-card" wx:elif="{{error}}">
-      <view class="wre-muted">{{error}}</view>
-      <button class="wre-btn" wx:if="{{!needsKey}}" bindtap="retry">重试</button>
-      <button class="wre-btn" wx:else bindtap="goSettings">去配置 Key</button>
-    </view>
+    <wre-state
+      wx:elif="{{error}}"
+      type="error"
+      text="{{error}}"
+      action="{{needsKey ? '去配置 Key' : '重试'}}"
+      actionType="{{needsKey ? 'settings' : 'retry'}}"
+      bind:action="onStateAction"
+    />
 
     <!-- 空态 -->
-    <view class="wre-empty" wx:elif="{{emptyRecord}}">
-      <view class="wre-empty__text">暂时没有可统计的阅读数据</view>
-      <view class="wre-empty__text">多读几天，报告会更丰富</view>
-    </view>
+    <wre-state
+      wx:elif="{{emptyRecord}}"
+      type="empty"
+      text="暂时没有可统计的阅读数据"
+      sub="多读几天，报告会更丰富"
+    />
 
     <!-- 报告正文 -->
     <block wx:else>

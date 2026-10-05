@@ -1,4 +1,28 @@
 <view class="wre-page">
+  <!-- 我的资料（可选）：仅本机 -->
+  <view class="wre-card">
+    <view class="wre-title">我的资料（可选）</view>
+    <view class="wre-muted">只保存在本机，用于本页展示与分享图署名，不上传。</view>
+
+    <view class="profile-row">
+      <button class="profile-avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+        <image wx:if="{{avatarUrl}}" class="profile-avatar" src="{{avatarUrl}}" mode="aspectFill" />
+        <view wx:else class="profile-avatar profile-avatar--empty">头像</view>
+      </button>
+      <input
+        class="profile-nick"
+        type="nickname"
+        placeholder="点击填写昵称"
+        value="{{nickName}}"
+        bindchange="onNickChange"
+        bindblur="onNickChange"
+      />
+    </view>
+
+    <button class="wre-btn wre-btn--ghost" wx:if="{{hasProfile}}" bindtap="onClearProfile">清除资料</button>
+  </view>
+
+  <!-- 微信读书 API Key -->
   <view class="wre-card">
     <view class="wre-title">API Key</view>
     <view class="wre-muted">Key 仅保存在本机；调用时经微信云函数中转访问官方接口，不存储、不记录。</view>
@@ -21,10 +45,42 @@
     <button class="wre-btn wre-btn--ghost" wx:if="{{hasKey}}" bindtap="onClear">清除 Key</button>
   </view>
 
+  <!-- DeepSeek Key（可选） -->
+  <view class="wre-card">
+    <view class="wre-title">DeepSeek Key（可选）</view>
+    <view class="wre-muted">用于在人格页生成「AI 人格画像」。Key 仅存本机，经云函数中转调用 DeepSeek，不记录；不填不影响其它功能。</view>
+
+    <view class="settings-status" wx:if="{{hasDsKey}}">
+      当前已配置：<text class="settings-mask">{{dsMasked}}</text>
+    </view>
+
+    <input
+      class="settings-input"
+      type="text"
+      password="{{true}}"
+      placeholder="粘贴 sk- 开头的 DeepSeek Key"
+      value="{{dsInput}}"
+      bindinput="onDsInput"
+    />
+
+    <button class="wre-btn" loading="{{dsSaving}}" bindtap="onSaveDs">保存</button>
+    <view class="settings-status settings-status--{{dsStatusType}}" wx:if="{{dsStatusText}}">{{dsStatusText}}</view>
+    <button class="wre-btn wre-btn--ghost" wx:if="{{hasDsKey}}" bindtap="onClearDs">清除 DeepSeek Key</button>
+  </view>
+
+  <view class="wre-card">
+    <view class="wre-title">更多</view>
+    <view class="settings-link" bindtap="goNotes">
+      <text class="settings-link__label">笔记概览</text>
+      <text class="settings-link__arrow">›</text>
+    </view>
+  </view>
+
   <view class="wre-card">
     <view class="wre-title">说明</view>
     <view class="settings-help">1. API Key 从微信读书 App「微信读书 Skill」页面复制。</view>
     <view class="settings-help">2. Key 只存手机本地，卸载小程序或清理微信缓存后会丢失，需要重新填写。</view>
     <view class="settings-help">3. 清除 Key 后，首页 / 人格 / 报告 / 书架会回到引导状态。</view>
+    <view class="settings-help">4. 头像昵称可选，仅存本机、不上传；DeepSeek Key 同样仅存本机，用于生成 AI 人格画像。</view>
   </view>
 </view>

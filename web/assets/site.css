@@ -8,6 +8,7 @@
   --text-soft: #6b7280;
   --border: #e6e8ec;
   --accent: #1a8917;
+  --accent-hover: #146c12;
   --accent-soft: #eaf4ea;
   --code-bg: #f4f5f7;
   --radius: 12px;
@@ -27,6 +28,7 @@
     --text-soft: #9aa1ab;
     --border: #2c3138;
     --accent: #5fbf5c;
+    --accent-hover: #74d171;
     --accent-soft: #22301f;
     --code-bg: #23272d;
   }
@@ -325,18 +327,46 @@ a:hover { text-decoration: underline; }
 }
 
 /* ---------- 首页落地页（大图 · 极简 · 顺滑） ---------- */
-/* Hero：主标 + 副标 + 两个按钮 + 主视觉大图 */
-.home-hero { padding: 16px 0 8px; text-align: center; }
+/* 小程序占位按钮：未配置链接时不可点（外形与悬停效果同按钮组，仅光标不回手型） */
+.home-btn.home-btn-soon { cursor: default; color: var(--text-soft); }
+
+/* Hero：主标 + 功能标签 + 结语 + 按钮组 + 主视觉大图（极简高对比：绿色只给按钮） */
+.home-hero {
+  padding: 30px 0 8px;
+  text-align: center;
+}
 .home-hero-title {
-  margin: 0 0 12px;
-  font-size: clamp(1.9em, 3.2vw, 2.6em);
-  line-height: 1.25;
+  margin: 0 0 22px;
+  font-size: clamp(1.9em, 3.4vw, 2.5em);
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  text-wrap: balance;
+  color: var(--text);
+}
+/* 功能标签：一行小圆片，窄屏自动换行也不难看 */
+.home-hero-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin: 0 0 16px;
+}
+.hero-chip {
+  padding: 6px 16px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-soft);
+  color: var(--text-soft);
+  font-size: 0.9em;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 .home-hero-sub {
-  max-width: 42em;
-  margin: 0 auto;
+  margin: 0 0 4px;
   color: var(--text-soft);
-  font-size: 1.08em;
+  font-size: 0.98em;
+  letter-spacing: 0.06em;
 }
 .home-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 22px 0 0; }
 .home-btn {
@@ -347,11 +377,32 @@ a:hover { text-decoration: underline; }
   border: 1px solid var(--border);
   border-radius: 999px;
   font-size: 1em;
-  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease,
+              background-color 220ms ease, color 220ms ease;
 }
-.home-btn:hover { transform: translateY(-1px); border-color: var(--accent); text-decoration: none; }
+/* 悬停：白按钮统一填充主色绿、文字转白；主按钮（安装到 Edge）再加深一档表示按下感 */
+.home-btn:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+}
 .home-btn-primary { color: #fff; background: var(--accent); border-color: var(--accent); }
-.home-btn-primary:hover { box-shadow: 0 8px 20px rgba(26, 137, 23, 0.28); }
+.home-btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  box-shadow: 0 8px 20px rgba(26, 137, 23, 0.28);
+}
+/* 鼠标停在同组其他按钮上时，主按钮（安装到 Edge）退成白色次级态，避免「两个按钮同时高亮」 */
+.home-actions:has(.home-btn:not(.home-btn-primary):hover) .home-btn-primary:not(:hover) {
+  background: var(--bg-card);
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: none;
+}
+/* 内容页里的「商店跳转」按钮组（`:::store`）：左对齐、贴合正文节奏 */
+.store-actions { justify-content: flex-start; margin: 14px 0 6px; }
 .home-hero-media {
   margin: 30px 0 0;
   border: 1px solid var(--border);
@@ -396,23 +447,46 @@ a:hover { text-decoration: underline; }
   border-radius: 12px;
 }
 
-/* 底部 CTA */
-.home-cta {
-  margin: 80px 0 8px;
-  padding: 40px 24px;
+/* 作者的话（「我为什么要做这个」）——页面最顶部的前言：去卡片化、居中、弱化，与 Hero 融为一体 */
+.home .doc .callout {
+  max-width: 42em;
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
   text-align: center;
-  background: var(--bg-soft);
-  border: 1px solid var(--border);
-  border-radius: 20px;
 }
-.home-cta h2 { margin: 0 0 6px; font-size: clamp(1.4em, 2vw, 1.75em); }
-.home-cta .home-actions { margin-top: 20px; }
-.home-cta-links { margin: 16px 0 0; color: var(--text-soft); font-size: 0.95em; }
+.home .doc .callout-title {
+  margin: 0 0 14px;
+  font-size: 1.15em;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-indent: 0.12em;
+  color: var(--text);
+}
+.home .doc .callout-body p {
+  margin: 0 0 8px;
+  color: var(--text-soft);
+  font-size: 0.96em;
+  line-height: 1.95;
+  letter-spacing: 0.02em;
+}
+/* 前言与 Hero 标题之间：一条居中的细线做过渡，避免上下割裂 */
+.home .doc .callout::after {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 1px;
+  margin: 20px auto 0;
+  background: var(--border);
+}
+
+/* 底部 CTA 已并入首屏 Hero 按钮组（见 .home-hero），不再单独渲染 */
 
 @media (max-width: 767px) {
   .home .doc h2 { margin-top: 52px; }
   .home .doc ul { grid-template-columns: 1fr; }
-  .home-cta { margin-top: 56px; padding: 28px 18px; }
 }
 
 /* ---------- 图片灯箱（lightbox，纯 CSS/JS，零依赖） ---------- */

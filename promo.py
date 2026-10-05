@@ -21,7 +21,7 @@ import shutil
 import subprocess
 import tempfile
 
-from PIL import Image
+from PIL import Image, ImageFilter
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -95,7 +95,24 @@ QUALITY = 95      # 内联 JPEG 质量（4:4:4 无色度抽样），偏高减少
 SCALE_HI = 3      # 高倍渲染：Banner / 卡片 / 磁贴，超采样后再缩放，边缘更锐
 STORE_SCALE = 1   # 商店截图：源图已按功能面板裁剪放大，用 1 倍渲染可避免 <img> 先被放大再缩小而发虚
 
+# 图标母版边长：图标源只有 128px，而页面里最大的 logo（大磁贴 78px）×3 倍渲染 = 234 设备像素，
+# 直接用 128 源会被 Chrome 放大发虚；先高质量放大到 LOGO_MASTER 再交给 Chrome 缩小，边缘更实。
+LOGO_MASTER = 384
+
 _uri_cache = {}
+_icon_cache = {}
+
+
+def _icon_scaled(size):
+    """把 128px 图标按 LANCZOS 缩放/放大到 size×size；放大时补一次轻锐化，抵消发虚。"""
+    if size in _icon_cache:
+        return _icon_cache[size]
+    src = Image.open(ICON).convert("RGBA")
+    im = src.resize((size, size), Image.LANCZOS)
+    if size > src.width:  # 仅放大时锐化；缩小时保持原样，避免过冲
+        im = im.filter(ImageFilter.UnsharpMask(radius=1.6, percent=150, threshold=3))
+    _icon_cache[size] = im
+    return im
 
 
 def _encode_uri(im, max_width, key):
@@ -134,8 +151,10 @@ def uri_crop(path, box, max_width=1800):
 
 
 def icon_uri():
-    with open(ICON, "rb") as fh:
-        return "data:image/png;base64," + base64.b64encode(fh.read()).decode()
+    """页面内联用的 logo：用高质量放大后的母版，避免在 3 倍渲染里被 Chrome 放大发虚。"""
+    buf = io.BytesIO()
+    _icon_scaled(LOGO_MASTER).save(buf, "PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
 def page(width, height, body, css=""):
@@ -482,11 +501,11 @@ def build_ms_upload():
         大促销磁贴    1400x560
         屏幕截图      精确 1280x800 或 640x400，最多 6 张
     """
-    # 1) 扩展徽标 300x300（由 128 图标放大；如后续有高清源，替换 icons/icon-128.png 即可）
+    # 1) 扩展徽标 300x300（由 128 图标高质量放大 + 锐化，尽量减少发虚；
+    #    如后续拿到高清源，替换 icons/icon-128.png 后本处自动变清晰）
     d1 = os.path.join(OUT_MS, "1-扩展徽标-300x300")
     os.makedirs(d1, exist_ok=True)
-    Image.open(ICON).convert("RGBA").resize((300, 300), Image.LANCZOS).save(
-        os.path.join(d1, "扩展徽标-300x300.png"))
+    _icon_scaled(300).save(os.path.join(d1, "扩展徽标-300x300.png"))
 
     # 2) 小促销磁贴 440x280
     d2 = os.path.join(OUT_MS, "2-小促销磁贴-440x280")

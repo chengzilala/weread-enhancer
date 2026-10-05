@@ -36,6 +36,13 @@
   border-radius: 16rpx;
 }
 
+.hero__figure-img {
+  display: block;
+  width: 300rpx;
+  height: 300rpx;
+  margin: 0 auto 16rpx;
+}
+
 .hero__figure-name {
   display: block;
   font-size: 30rpx;
@@ -235,4 +242,74 @@
 .statement {
   padding: 8rpx 8rpx 24rpx;
   font-size: 24rpx;
+}
+
+/* 生成分享图入口 */
+.share-entry {
+  text-align: center;
+}
+
+.share-entry .wre-muted {
+  margin-top: 4rpx;
+}
+
+/* AI 人格画像 */
+.ai-card .wre-muted {
+  margin-bottom: 20rpx;
+}
+
+.ai-text {
+  margin-bottom: 24rpx;
+  font-size: 28rpx;
+  line-height: 1.9;
+  color: #2A2F3A;
+  white-space: pre-wrap;
+}
+
+.ai-error {
+  margin-top: 16rpx;
+  font-size: 24rpx;
+  color: #E54545;
+  line-height: 1.6;
+}
+
+/* 离屏绘制画布（尺寸需与 persona-share.js 中的画布缓冲一致：1080×3200） */
+.share-canvas {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 1080px;
+  height: 3200px;
+}
+
+/* 分享图预览弹层 */
+.share-mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  padding: 40rpx 32rpx;
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  background: rgba(15, 18, 24, 0.86);
+}
+
+.share-preview {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
+.share-preview__img {
+  display: block;
+  width: 100%;
+  border-radius: 16rpx;
+}
+
+.share-actions {
+  margin-top: 24rpx;
 }

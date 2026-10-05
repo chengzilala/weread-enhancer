@@ -1,6 +1,7 @@
 const store = require('../../shared/store');
 const { callGateway } = require('../../shared/gateway');
 const { fmtDuration, fmtCompare } = require('../../shared/format');
+const { messageOf, isKeyError } = require('../../shared/errors');
 
 const CACHE_TTL_MS = 30 * 60 * 1000;
 const CACHE_KEY = 'wre_home_cache';
@@ -23,6 +24,7 @@ Page({
     emptyRecord: false,
     metrics: [],
     cacheHint: '',
+    shareTitle: '',
   },
 
   onShow() {
@@ -58,6 +60,22 @@ Page({
     wx.switchTab({ url: '/pages/settings/index' });
   },
 
+  // 通用状态块的动作：settings=去配置 Key，retry=重试
+  onStateAction(e) {
+    if (e.detail.type === 'settings') {
+      this.goSettings();
+    } else {
+      this.retry();
+    }
+  },
+
+  onShareAppMessage() {
+    return {
+      title: this.data.shareTitle || '来「悦读且住」，看看你的阅读数据',
+      path: '/pages/home/index',
+    };
+  },
+
   async load(force) {
     const mode = this.data.mode;
     const key = store.getKey();
@@ -89,10 +107,9 @@ Page({
     wx.stopPullDownRefresh();
 
     if (!res.ok) {
-      const needKey = res.code === 'auth' || res.code === 'nokey';
       this.setData({
-        error: res.error || '读取数据失败',
-        needsKey: needKey,
+        error: messageOf(res, '读取数据失败'),
+        needsKey: isKeyError(res.code),
         metrics: [],
       });
       return;
@@ -121,11 +138,15 @@ Page({
       },
     ];
     const emptyRecord = !(Number(d.totalReadTime) > 0 || Number(d.readDays) > 0);
+    const shareTitle = emptyRecord
+      ? '来「悦读且住」，看看你的阅读数据'
+      : '我已经读了 ' + metrics[0].value + '，你今年读了多久？';
     this.setData({
       metrics,
       emptyRecord,
       error: '',
       cacheHint: fromCache ? '来自本地缓存（30 分钟内）' : '',
+      shareTitle,
     });
   },
 

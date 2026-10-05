@@ -297,6 +297,25 @@ def render_std_link(text, url):
     return '<a href="%s">%s</a>' % (html.escape(url, quote=True), text)
 
 
+def render_store_buttons():
+    """内容页「商店跳转」按钮组（内容里写 `:::store` 指令）：只渲染已配置链接的商店
+
+    商店链接来自 site.config.json 的 storeUrls；都没配则回退到「安装插件」（回快速上手）。
+    """
+    stores = CONFIG.get("storeUrls") or {}
+    items = []
+    for key, label in (("edge", "安装到 Edge"), ("chrome", "安装到 Chrome"), ("360", "安装到 360")):
+        url = stores.get(key)
+        if not url:
+            continue
+        primary = " home-btn-primary" if not items else ""
+        items.append('<a class="home-btn%s" href="%s" target="_blank" rel="noopener">%s</a>' % (
+            primary, html.escape(url, quote=True), label))
+    if not items:
+        items.append('<a class="home-btn home-btn-primary" href="/start/">安装插件</a>')
+    return '<div class="home-actions store-actions">%s</div>' % " ".join(items)
+
+
 def inline(text, page):
     stash = []
 
@@ -337,6 +356,7 @@ def is_block_start(line):
         re.match(r"^(#{1,6})\s+", line)
         or re.match(r"^\s*([-*+]|\d+[.)])\s+", line)
         or line.lstrip().startswith(">")
+        or line.lstrip().startswith(":::")
         or line.lstrip().startswith("```")
         or re.match(r"^\s*(-{3,}|\*{3,}|_{3,})\s*$", line)
         or line.strip().startswith("|")
@@ -356,6 +376,16 @@ def render_markdown(text, page, heading_ids=None):
 
         if not line.strip():
             i += 1
+            continue
+
+        # 商店跳转按钮块：:::store（单行，或 :::store ... ::: 成对）
+        if line.lstrip().startswith(":::"):
+            i += 1
+            while i < n and lines[i].strip() and not lines[i].lstrip().startswith(":::"):
+                i += 1
+            if i < n and lines[i].lstrip().startswith(":::"):
+                i += 1
+            out.append(render_store_buttons())
             continue
 
         # 代码块
@@ -430,11 +460,13 @@ def render_markdown(text, page, heading_ids=None):
                 title = m.group(3).strip() or CALLOUT_TITLES.get(kind, kind)
                 css = kind if kind in CALLOUT_TITLES else "note"
                 body = "\n".join(block[1:]).strip()
-                inner = render_markdown(body, page, heading_ids) if body else ""
+                # 渐入由整块 callout 承担，内部段落不再各自渐入（避免空框先出现）
+                inner = render_markdown(body, dict(page, reveal=False), heading_ids) if body else ""
+                reveal = " wre-reveal" if page.get("reveal") else ""
                 out.append(
-                    '<div class="callout callout-%s"><p class="callout-title">%s</p>'
+                    '<div class="callout callout-%s%s"><p class="callout-title">%s</p>'
                     '<div class="callout-body">%s</div></div>' % (
-                        css, inline(title, page), inner)
+                        css, reveal, inline(title, page), inner)
                 )
             else:
                 out.append("<blockquote>%s</blockquote>" % render_markdown(content, page, heading_ids))
@@ -588,7 +620,7 @@ def article_header(page):
 
 
 # --------------------------------------------------------------------------
-# 首页落地页（大图 · 极简 · 顺滑）——Hero + 功能大图区 + 底部 CTA
+# 首页落地页（大图 · 极简 · 顺滑）——Hero + 功能大图区
 # --------------------------------------------------------------------------
 
 def home_install_button():
@@ -602,7 +634,7 @@ def home_install_button():
 
 
 def render_home(page):
-    """首页 = Hero（front-matter） + 正文（功能大图区等） + 底部 CTA"""
+    """首页 = 作者的话(前言) + Hero（front-matter，含安装等按钮组） + 正文（功能大图区等）"""
     title = page.get("heroTitle") or page["title"]
     tagline = page.get("tagline") or page.get("description") or ""
 
@@ -612,28 +644,50 @@ def render_home(page):
                  '<img src="%s" alt="%s" decoding="async" fetchpriority="high"></div>') % (
             html.escape(page["hero"], quote=True), html.escape(title, quote=True))
 
+    # 微信小程序入口（预留：配置 miniappUrl 后变为可点击，否则为占位按钮）
+    miniapp_url = CONFIG.get("miniappUrl") or ""
+    if miniapp_url:
+        miniapp_btn = '<a class="home-btn" href="%s" target="_blank" rel="noopener">微信小程序</a>' % html.escape(miniapp_url, quote=True)
+    else:
+        miniapp_btn = '<span class="home-btn home-btn-soon">微信小程序</span>'
+
+    # 开源地址（GitHub / Gitee）：与「安装到 Edge」同排、同款按钮
+    src_links = ['<a class="home-btn" href="%s" target="_blank" rel="noopener">GitHub</a>' % html.escape(CONFIG["repoUrl"], quote=True)]
+    if CONFIG.get("giteeUrl"):
+        src_links.append('<a class="home-btn" href="%s" target="_blank" rel="noopener">Gitee</a>' % html.escape(CONFIG["giteeUrl"], quote=True))
+
+    # 副标：拆成「功能标签（chip）+ 一句结语」——tagline 形如「A、B、C——结语」
+    tag_feats, tag_punch = (tagline.split("——", 1) + [""])[:2] if "——" in tagline else (tagline, "")
+    feats = [f.strip() for f in re.split(r"[、,，/]", tag_feats) if f.strip()]
+    chips = "".join('<span class="hero-chip">%s</span>' % inline(f, page) for f in feats)
+    sub_html = ""
+    if chips:
+        sub_html += '    <div class="home-hero-chips">%s</div>\n' % chips
+    if tag_punch.strip():
+        sub_html += '    <p class="home-hero-sub">%s</p>\n' % inline(tag_punch.strip(), page)
+
+    # 正文开头的 callout（作者的话）提到页面最顶部（大标题之前）
+    body_src = page["body"]
+    note_html = ""
+    m = re.match(r"^(?:>[^\n]*\n)+\s*\n?", body_src)
+    if m:
+        note_html = render_markdown(m.group(0), page).strip()
+        body_src = body_src[m.end():]
+
     hero = (
         '<section class="home-hero">\n'
         '  <div class="home-hero-text">\n'
         '    <h1 class="home-hero-title">%s</h1>\n'
-        '    <p class="home-hero-sub">%s</p>\n'
-        '    <div class="home-actions">%s<a class="home-btn" href="/start/">快速上手</a></div>\n'
+        '%s'
+        '    <div class="home-actions">%s<a class="home-btn" href="/start/">快速上手</a>%s%s</div>\n'
         '  </div>\n'
         '  %s\n'
-        '</section>' % (inline(title, page), inline(tagline, page),
-                         home_install_button(), media)
+        '</section>' % (inline(title, page), sub_html,
+                         home_install_button(), miniapp_btn, " ".join(src_links), media)
     )
 
-    body = render_markdown(page["body"], page)
-    cta = (
-        '<section class="home-cta wre-reveal">\n'
-        '  <h2>装上，开始读</h2>\n'
-        '  <div class="home-actions">%s<a class="home-btn" href="/start/">快速上手</a></div>\n'
-        '  <p class="home-cta-links"><a href="/changelog/">更新日志</a> · '
-        '<a href="/privacy/">隐私政策</a> · <a href="/gallery/">界面图库</a></p>\n'
-        '</section>' % home_install_button()
-    )
-    return hero + "\n" + body + "\n" + cta
+    body = render_markdown(body_src, page)
+    return note_html + "\n" + hero + "\n" + body
 
 
 # --------------------------------------------------------------------------

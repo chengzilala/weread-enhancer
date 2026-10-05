@@ -916,7 +916,7 @@ function createUI() {
   }
 
   root.innerHTML = `
-    <div class="wre-fab" id="wre-fab">🤖</div>
+    <div class="wre-fab" id="wre-fab"><svg class="wre-fab-logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M7 9 L12 23 L16 14 L20 23 L25 9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
 
     <div class="wre-panel-container" id="wre-main-menu">
       <div class="wre-menu-group">设置</div>
@@ -1673,6 +1673,9 @@ function handleMenuClick(action) {
       break;
     case 'official':
       // 阅读洞察面板由 modules/official.js 自行接管（它已绑定自己的 click），同上。
+      break;
+    case 'finder':
+      // 找书面板由 modules/finder.js 自行接管（它已绑定自己的 click），同上。
       break;
     case 'api-key':
       // API Key 设置面板由 modules/official.js 自行接管（它已绑定自己的 click），同上。

@@ -92,7 +92,7 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 > - **滚动模式适配**：滚动阅读模式下屏占比自适应，配自绘悬浮滚动条，滚动更顺滑
 > - **阅读统计与导出**：统计前台阅读时长（今日 / 本周 / 本月 / 本书），显示当前书籍进度与最近书目，一键导出 HTML / PDF / Markdown / CSV / JSON
 > - **笔记增强**：一键聚合本书全部划线与想法/批注（按章节分组、可搜索），支持干净复制与 Markdown / 纯文本 / HTML / PDF 导出（需在插件内配置自己的微信读书 API Key）
-> - **阅读洞察（阅读行为报告）**：用你自己的 API Key 拉取官方阅读数据，在本机生成「阅读行为报告」，支持本周 / 本月 / 本年 / 累计切换与导出；可选接入 DeepSeek Key 生成 AI 解读
+> - **阅读洞察（阅读行为报告）**：用你自己的 API Key 拉取官方阅读数据，在本机生成「阅读行为报告」（数据全景 / 阅读轨迹 / 时段分布 / 偏好画像 / 成就勋章 / 笔记行为 / 完读率等）；首屏另有 **「🧬 我的阅读人格」**——本机算出人格代码 + 称号 + 词语分析，并可生成手机版分享图（16 型各配自绘线描插画，随插件内置、运行时不联网）；含 **「📚 书架」「🔍 发现」** 页签（搜书 / 推荐 / 书评 / 相似书 / 书籍详情）；支持本周 / 本月 / 本年 / 累计切换与导出；可选接入 DeepSeek Key 生成 AI 解读
 > - **帮助中心与支持反馈**：一键跳转配套教程网站，内置反馈与打赏入口
 >
 > **贴心之处**：
@@ -102,24 +102,24 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 
 **英文描述（Store Listing English）**：
 
-> WeRead Enhancer is a reading enhancement tool for WeRead (weread.qq.com) that helps you build a more comfortable and focused web reading experience.
+> ⚠️ 更正：旧 listing 里的「主题切换 / T（主题）」为**过时内容**（主题功能已整体取消），务必用下面这版，避免审核判为"描述与功能不符"。
+
+> WeRead Enhancer is a reading enhancement tool for the WeRead web reader (weread.qq.com) that helps you build a more comfortable and focused web reading experience. It runs only on weread.qq.com — zero dependencies, no analytics, no data collection.
 >
 > **Key features**:
-> - **Screen ratio**: freely adjust reading width from 50% to 100% with a slider and preset buttons; saved automatically
-> - **Auto reading**: adjustable speed and direction, start/pause with the spacebar
-> - **Keyboard shortcuts**: Space (auto read), D (do-not-disturb), F (full screen), ? (help panel)
-> - **Do-not-disturb / Full screen**: immersive reading modes that restore automatically on exit
-> - **Floating toolbar**: when the ratio is high or in scroll mode, the native toolbar auto-hides and reappears on hover
-> - **Scroll-mode tuning**: adaptive screen ratio in scroll reading mode with a custom floating scrollbar for smoother scrolling
-> - **Reading stats & export**: track foreground reading time (today / this week / this month / this book), show current book progress and recent books, export to HTML / PDF / Markdown / CSV / JSON
-> - **Notes enhancement**: aggregate all highlights and thoughts of the current book by chapter, searchable, with a clean copy and export to Markdown / text / HTML / PDF (requires your own WeRead API key configured in the extension)
-> - **Official reading report**: pull your own official WeRead data with your API key and generate an on-device reading behavior report (weekly / monthly / yearly / all-time, exportable); optional DeepSeek AI summary with your own key
-> - **Help center & feedback**: one-click link to the companion guide site, with built-in feedback and support entries
+> - **Screen ratio**: freely adjust the reading width from 50% to 100% with a slider and preset buttons; saved automatically.
+> - **Floating toolbar**: when the ratio is high or in scroll mode, the native toolbar auto-hides and fades in on hover of the top/right hot zones; clicks work in both paging and scroll modes.
+> - **Scroll-mode tuning**: adaptive, centered reading width without overflow, plus a custom floating scrollbar (fades in near the right edge, draggable to jump), remembered after refresh.
+> - **Auto reading**: adjustable speed and direction, start/pause with the spacebar.
+> - **Keyboard shortcuts**: Space (auto reading), D (do-not-disturb), F (full screen), ? (help panel).
+> - **Do-not-disturb / Full screen**: immersive reading modes that restore your previous ratios and state on exit.
+> - **Onboarding & settings memory**: a welcome guide on first install/update; all settings restore automatically after a page refresh.
+> - **Reading stats & export**: track foreground reading time (today / this week / this month / this book), show current book progress and your 10 most recent books (clickable), and export to an HTML report / PDF / Markdown / CSV / JSON.
+> - **Notes enhancement**: aggregate all highlights and thoughts/annotations of the current book by chapter, with a built-in search box; one-click clean copy (rich text + clean plain text without Markdown symbols) and export to Markdown / plain text / HTML / PDF; select text on the page for a "copy" bubble with official watermark cleanup. Reading your notes requires configuring your own WeRead API key.
+> - **Reading Insights**: paste your own WeRead "wrk-" API key (in the same "API Key" entry as the optional DeepSeek key) to pull your own official reading data and generate an on-device reading behavior report — timeline, reading-hours distribution, preference profile, most-read books, achievements, note behavior, completion rate and more. The first screen also shows **My Reading Persona**: computed on your device into a readable code, with a main title, trait nicknames, evidence, and word analysis (top words / sentiment / catchphrases / themes / CSS word cloud), plus a shareable portrait image (16 personas, each with a self-drawn line-art illustration of a public-domain cultural figure; bundled with the extension, no network at runtime, no real photos). Switch week / month / year / all-time and export to Markdown / HTML / PDF. Includes **Bookshelf** and **Discover** tabs (book search with multiple scopes and paging, recommendations, public reviews with stars, similar books, and book details / table of contents). Fully on-device and reusable; an optional DeepSeek key upgrades the executive summary to AI-written text while all numbers stay computed locally.
+> - **Diagnostics & help**: a built-in log system exportable to JSON; a Help Center with a silent new-version check (shows a red dot when an update is available).
 >
-> **Nice to know**:
-> - All preferences are saved automatically across page refreshes
-> - A welcome guide appears on first install/update
-> - Privacy-first: zero dependencies, no data collection, runs only on weread.qq.com
+> **Privacy**: runs only on weread.qq.com. Settings are saved locally (storage permission only). No data is collected, transmitted, or shared.
 
 ### 步骤 4：准备商店素材（已就绪，由 `promo.py` 生成）
 
@@ -300,3 +300,120 @@ The extension is open source: https://github.com/chengzilala/weread-enhancer
 | 上次商店版本 | v0.15.0 |
 | 本次要点 | 重新打包提交：排查商店版功能异常（本地版正常、商店版异常），用 `pack.py` 确保包内含 `background.js` / `modules/` / `assets/` 全部运行文件 |
 | 审核状态 | ⏳ **待提交**（用户在 Partner Center 上传 zip 并提交后更新此状态） |
+
+---
+
+## 十、Edge 后台「隐私」页填写文案（v0.19.0 · 可直接复制）
+
+> 用途：Partner Center → 扩展 → **隐私**页，逐字复制下面各框内容即可。
+> 事实依据（以代码为准）：`manifest.json` 权限仅 `storage`；主机权限 3 条——`https://i.weread.qq.com/*`、`https://api.deepseek.com/*`、`https://wereadapp-32km31c.maozi.io/*`；生效域名仅 `weread.qq.com`；全部 JS 随包分发、**无远程代码**。
+> 每框限 1000 字符（英文按字符计，中文按字计，均远低于上限）。
+
+### 10.1 单一用途描述（Single purpose）
+
+**中文（推荐直接粘贴）**
+```
+微信悦读只有一个用途：增强微信读书网页版（weread.qq.com）的阅读体验。
+它在该网站页面内注入自绘的控制面板与阅读辅助功能（屏占比调节、自动阅读、快捷键、勿扰/全屏、阅读统计、笔记聚合、阅读洞察）。
+所有设置仅保存在浏览器本地。
+仅当用户主动点击「笔记」「阅读洞察」时，才使用用户自己填写的微信读书 API Key 读取用户本人的笔记与官方阅读数据；AI 解读为可选，使用用户自己的 DeepSeek Key。
+除此之外不运行、不收集、不追踪任何数据。
+```
+
+**English（备选）**
+```
+WeRead Enhancer has a single purpose: to enhance the reading experience on the WeRead web reader (weread.qq.com). It injects its own control panel and reading aids (screen ratio, auto reading, shortcuts, DND/full-screen, reading stats, notes aggregation, reading insights) into that site's pages only. All settings are stored locally in the browser. Only when the user actively opens Notes/Insights does it use the user's OWN WeRead API key to read the user's OWN notes and official reading data; the AI summary is optional and uses the user's OWN DeepSeek key. It does not run, collect, or track anything else.
+```
+
+### 10.2 权限理由 —— storage
+
+**English（推荐直接粘贴）**
+```
+"storage" is used solely to save the user's own preferences and short-lived caches locally in the browser (chrome.storage.local): screen ratio, auto-read speed and direction, DND/full-screen state, onboarding status, and cached copies of the user's own notes/report. It is never used to collect, transmit, or share data. Nothing leaves the user's device because of this permission, and uninstalling the extension removes it.
+```
+
+**中文（备选）**
+```
+"storage" 仅用于把用户本人的偏好设置与短期缓存保存在浏览器本地（chrome.storage.local）：屏占比、自动阅读速度与方向、勿扰/全屏状态、新手引导状态，以及用户本人笔记/报告的缓存副本。该权限不用于收集、传输或共享任何数据，不会使任何数据离开用户设备；卸载扩展即被清除。
+```
+
+### 10.3 权限理由 —— 主机权限 https://i.weread.qq.com/*
+
+**English（推荐直接粘贴）**
+```
+Used ONLY after the user enters their OWN WeRead API key and actively opens the Notes or Insights panel. The extension's service worker then sends the user's own key to the official WeRead gateway (POST https://i.weread.qq.com/api/agent/gateway) to read the user's OWN highlights, thoughts, shelf and reading data, which are displayed and exported locally. Requests are made only on user action; the data is never sent anywhere else.
+```
+
+**中文（备选）**
+```
+仅在用户填写自己的微信读书 API Key 并主动打开「笔记」或「阅读洞察」面板后使用。扩展的后台脚本会把用户自己的 Key 发往微信读书官方网关（POST https://i.weread.qq.com/api/agent/gateway），读取用户本人的划线、想法、书架与阅读数据，并在本地展示/导出。请求仅在用户操作时发起，数据不会发往其他任何地方。
+```
+
+### 10.4 权限理由 —— 主机权限 https://api.deepseek.com/*
+
+**English（推荐直接粘贴）**
+```
+Optional. Used only when the user enters their OWN DeepSeek API key and clicks "generate AI interpretation". The service worker then calls https://api.deepseek.com to generate human-readable text; only a small sample of the user's own notes is sent for that single purpose. If the user has not added a key or does not click the button, no request is made.
+```
+
+**中文（备选）**
+```
+可选权限。仅在用户填写自己的 DeepSeek API Key 并点击「生成 AI 解读」时使用。后台脚本会调用 https://api.deepseek.com 生成可读文字，仅为此目的发送用户本人笔记的一小段样本。未填 Key 或未点击时，不会发起任何请求。
+```
+
+### 10.5 权限理由 —— 主机权限 https://wereadapp-32km31c.maozi.io/*
+
+**English（推荐直接粘贴）**
+```
+Used only to (1) silently check the companion website's version file (GET /api/latest.json, result cached for 24 hours) so the extension can show a "new version available" hint, and (2) open the companion help/tutorial pages in a new tab when the user clicks the Help entry. No user data is sent in these requests.
+```
+
+**中文（备选）**
+```
+仅用于两件事：(1) 静默检查配套网站的版本文件（GET /api/latest.json，结果缓存 24 小时），以便在入口旁提示「有新版本」；(2) 当用户点击「帮助中心」时，在新标签页打开配套的帮助/教程页面。这些请求不发送任何用户数据。
+```
+
+### 10.6 主机权限理由（后台为「一个合并框」，实测确认）
+
+> ⚠️ 实测：Edge 后台把 `permissions` + `content_scripts` 里所有匹配模式**合并成一条「主机权限理由」**（单框，限 1000 字符），**不是每条一个框**。此时把下面合并版整段粘进去即可（10.3–10.5 供逐条参考/备用）。
+
+**中文（推荐直接粘贴）**
+```
+主机权限仅服务于扩展在微信读书（weread.qq.com）上的单一用途，且仅在用户主动操作时使用：
+1) weread.qq.com（content_scripts）：在微信读书阅读页注入扩展自绘的控制面板与阅读辅助功能。
+2) i.weread.qq.com：当用户填写自己的微信读书 API Key 并打开「笔记/阅读洞察」时，后台脚本调用官方网关（POST /api/agent/gateway）读取用户本人的划线、想法、书架与阅读数据，并在本地展示/导出。
+3) api.deepseek.com：可选；仅在用户填写自己的 DeepSeek Key 并点击 AI 按钮时，用其本人笔记生成可读摘要。
+4) wereadapp-32km31c.maozi.io：仅静默检查版本文件（GET /api/latest.json，缓存 24 小时）与在用户点击时打开配套帮助页。
+不向开发者回传任何数据；无分析、无跟踪、无广告；无远程代码。
+```
+
+**English（备选）**
+```
+Host permissions serve only the extension's single purpose on WeRead (weread.qq.com), and only on user action:
+1) weread.qq.com (content_scripts): inject the extension's own control panel and reading aids into the WeRead reader pages.
+2) i.weread.qq.com: when the user enters their OWN WeRead API key and opens Notes/Insights, the service worker calls the official gateway (POST /api/agent/gateway) to read the user's OWN highlights, thoughts, shelf and reading data, shown/exported locally.
+3) api.deepseek.com: optional; only when the user adds their OWN DeepSeek key and clicks the AI button, to generate a readable summary of their own notes.
+4) wereadapp-32km31c.maozi.io: only a silent version check (GET /api/latest.json, cached 24h) and opening companion Help pages on user click.
+No data is sent to the developer; no analytics, tracking, or ads; no remote code.
+```
+
+### 10.7 其他勾选项
+
+| 问题 | 选择 |
+|---|---|
+| 是否使用远程代码（Remote code） | **否**（全部 JavaScript 随包分发，不在运行时下载/执行远程代码） |
+| 是否收集或传输用户数据 | 设置仅存本地；仅当用户主动使用笔记/洞察时，用**用户自己的 Key** 读取**用户自己的数据**，不向开发者回传 |
+| 是否包含分析/广告/跟踪 | **否** |
+
+### 10.8 可直接粘贴的「给审核团队的备注」（简版）
+
+```
+WeRead Enhancer runs ONLY on weread.qq.com and injects a self-drawn control panel plus reading aids. Permissions are minimal:
+- storage: saves the user's own preferences/caches locally (chrome.storage.local); no data leaves the device.
+- i.weread.qq.com: used only when the user enters their OWN WeRead API key and opens Notes/Insights, to read the user's OWN data via the official gateway; requests are user-initiated only.
+- api.deepseek.com: optional; used only when the user adds their OWN DeepSeek key and clicks the AI button.
+- wereadapp-32km31c.maozi.io: only a silent version check (/api/latest.json) and opening Help pages on user click.
+No remote code, analytics, tracking, or ads. All JavaScript ships inside the package.
+
+How to test: install, open any book on https://weread.qq.com, then use the floating entry (bottom-right) or the panel (top-right) to adjust screen ratio / start auto reading / press "?" for the help panel. Notes and Insights require the user's own WeRead API key.
+```

@@ -1,12 +1,108 @@
 <view class="wre-page">
-  <view class="wre-empty" wx:if="{{!hasKey}}">
-    <view class="wre-empty__text">还没有配置微信读书 API Key</view>
-    <view class="wre-empty__text">配置后即可查看「{{pageTitle}}」</view>
-    <button class="wre-btn" bindtap="goSettings">去配置 Key</button>
-  </view>
+  <!-- 无 Key 引导 -->
+  <wre-state
+    wx:if="{{!hasKey}}"
+    type="nokey"
+    text="还没有配置微信读书 API Key"
+    sub="配置后即可查看你的书架"
+    action="去配置 Key"
+    actionType="settings"
+    bind:action="onStateAction"
+  />
 
-  <view class="wre-card" wx:else>
-    <view class="wre-title">{{pageTitle}}</view>
-    <view class="wre-muted">{{devNote}}</view>
-  </view>
+  <block wx:else>
+    <!-- 加载中 -->
+    <wre-state wx:if="{{loading}}" type="loading" text="正在读取你的书架…" />
+
+    <!-- 错误 / 需重新配置 Key -->
+    <wre-state
+      wx:elif="{{error}}"
+      type="error"
+      text="{{error}}"
+      action="{{needsKey ? '去配置 Key' : '重试'}}"
+      actionType="{{needsKey ? 'settings' : 'retry'}}"
+      bind:action="onStateAction"
+    />
+
+    <block wx:else>
+      <!-- 概览 -->
+      <view class="cards">
+        <view class="card-metric" wx:for="{{cards}}" wx:key="label">
+          <view class="card-metric__value">{{item.value}}</view>
+          <view class="card-metric__label">{{item.label}}</view>
+        </view>
+      </view>
+
+      <!-- 分类分布 -->
+      <view class="wre-card" wx:if="{{categories.length}}">
+        <view class="wre-title">分类分布</view>
+        <view class="chips">
+          <view class="chip" wx:for="{{categories}}" wx:key="name">{{item.name}} · {{item.count}}</view>
+        </view>
+      </view>
+
+      <!-- 电子书 -->
+      <view class="wre-card" wx:if="{{books.length}}">
+        <view class="wre-title">电子书（{{books.length}}）</view>
+        <view
+          class="item"
+          wx:for="{{books}}"
+          wx:key="id"
+          data-title="{{item.title}}"
+          data-author="{{item.author}}"
+          bindtap="copyTitle"
+        >
+          <image class="item__cover" src="{{item.cover}}" mode="aspectFill" lazy-load />
+          <view class="item__main">
+            <view class="item__title">{{item.title}}</view>
+            <view class="item__sub">{{item.author}}{{item.category ? ' · ' + item.category : ''}}</view>
+          </view>
+          <view class="item__tags">
+            <text class="tag tag--done" wx:if="{{item.finished}}">读完</text>
+            <text class="tag" wx:if="{{item.top}}">置顶</text>
+            <text class="tag" wx:if="{{item.secret}}">私密</text>
+          </view>
+        </view>
+        <view class="more wre-muted" wx:if="{{bookMore}}">仅展示最近 100 本，还有 {{bookMore}} 本未显示。</view>
+      </view>
+
+      <!-- 有声书 / 专辑 -->
+      <view class="wre-card" wx:if="{{albums.length}}">
+        <view class="wre-title">有声书 / 专辑（{{albums.length}}）</view>
+        <view
+          class="item"
+          wx:for="{{albums}}"
+          wx:key="id"
+          data-title="{{item.title}}"
+          data-author="{{item.author}}"
+          bindtap="copyTitle"
+        >
+          <image class="item__cover" src="{{item.cover}}" mode="aspectFill" lazy-load />
+          <view class="item__main">
+            <view class="item__title">{{item.title}}</view>
+            <view class="item__sub">{{item.author}}</view>
+          </view>
+          <view class="item__tags">
+            <text class="tag tag--done" wx:if="{{item.finished}}">已听完</text>
+            <text class="tag" wx:if="{{item.top}}">置顶</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 空书架 -->
+      <wre-state
+        wx:if="{{!books.length && !albums.length}}"
+        type="empty"
+        text="书架里暂时没有电子书或专辑"
+      />
+
+      <!-- 文章收藏提示 -->
+      <view class="wre-card" wx:if="{{hasMp}}">
+        <view class="wre-muted">书架另含「文章收藏」入口（不计入上方数量）。</view>
+      </view>
+
+      <view class="more wre-muted" wx:if="{{cacheHint}}">{{cacheHint}}</view>
+      <view class="more wre-muted">点击条目可复制「书名 · 作者」，方便到微信读书 App 中搜索。</view>
+    </block>
+  </block>
 </view>

@@ -4,8 +4,12 @@
     "pages/persona/index",
     "pages/report/index",
     "pages/shelf/index",
-    "pages/settings/index"
+    "pages/settings/index",
+    "pages/notes/index"
   ],
+  "usingComponents": {
+    "wre-state": "/components/wre-state/index"
+  },
   "window": {
     "navigationBarBackgroundColor": "#2F6BFF",
     "navigationBarTitleText": "悦读且住",

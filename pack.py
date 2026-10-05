@@ -54,6 +54,10 @@ def collect_runtime_files(manifest):
         for path in war.get("resources", []):
             add(path)
 
+    # 多语言包（_locales/<语言>/messages.json），manifest 用 __MSG_ 引用
+    for msg in sorted((ROOT / "_locales").glob("*/messages.json")):
+        add(msg.relative_to(ROOT).as_posix())
+
     # 说明文件（存在则附带）
     if (ROOT / "README.md").is_file():
         add("README.md")

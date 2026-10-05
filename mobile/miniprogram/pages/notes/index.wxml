@@ -1,0 +1,65 @@
+<view class="wre-page">
+  <!-- 无 Key 引导 -->
+  <wre-state
+    wx:if="{{!hasKey}}"
+    type="nokey"
+    text="还没有配置微信读书 API Key"
+    sub="配置后即可查看你的笔记概览"
+    action="去配置 Key"
+    actionType="settings"
+    bind:action="onStateAction"
+  />
+
+  <block wx:else>
+    <!-- 加载中 -->
+    <wre-state wx:if="{{loading}}" type="loading" text="正在读取你的笔记…" />
+
+    <!-- 错误 / 需重新配置 Key -->
+    <wre-state
+      wx:elif="{{error}}"
+      type="error"
+      text="{{error}}"
+      action="{{needsKey ? '去配置 Key' : '重试'}}"
+      actionType="{{needsKey ? 'settings' : 'retry'}}"
+      bind:action="onStateAction"
+    />
+
+    <block wx:else>
+      <!-- 概览 -->
+      <view class="cards">
+        <view class="card-metric" wx:for="{{cards}}" wx:key="label">
+          <view class="card-metric__value">{{item.value}}</view>
+          <view class="card-metric__label">{{item.label}}</view>
+        </view>
+      </view>
+
+      <view class="wre-card" wx:if="{{bookmarkTotal}}">
+        <view class="wre-muted">划线与想法之外，另有书签 {{bookmarkTotal}} 条。</view>
+      </view>
+
+      <!-- 笔记最多的书 -->
+      <view class="wre-card" wx:if="{{books.length}}">
+        <view class="wre-title">笔记最多的书</view>
+        <view class="note-item" wx:for="{{books}}" wx:key="bookId">
+          <view class="note-item__title">{{item.title}}</view>
+          <view class="note-item__author" wx:if="{{item.author}}">{{item.author}}</view>
+          <view class="note-item__tags">
+            <text class="tag">划线 {{item.noteCount}}</text>
+            <text class="tag">想法 {{item.reviewCount}}</text>
+            <text class="tag" wx:if="{{item.bookmarkCount}}">书签 {{item.bookmarkCount}}</text>
+          </view>
+        </view>
+      </view>
+
+      <wre-state
+        wx:if="{{!books.length}}"
+        type="empty"
+        text="还没有任何划线或想法"
+        sub="去微信读书划几句、写两句试试"
+      />
+
+      <view class="more wre-muted" wx:if="{{truncated}}">笔记较多，仅统计了最近的部分（最多 500 本）。</view>
+      <view class="more wre-muted" wx:if="{{cacheHint}}">{{cacheHint}}</view>
+    </block>
+  </block>
+</view>

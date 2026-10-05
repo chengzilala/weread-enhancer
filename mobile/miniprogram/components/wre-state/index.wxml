@@ -1,0 +1,22 @@
+<view class="wre-state-root">
+  <!-- 加载中：骨架占位，避免白屏 -->
+  <view class="wre-state" wx:if="{{type === 'loading'}}">
+    <view class="wre-sk">
+      <view class="wre-sk__block wre-sk__block--lg"></view>
+      <view class="wre-sk__row">
+        <view class="wre-sk__block wre-sk__block--half"></view>
+        <view class="wre-sk__block wre-sk__block--half"></view>
+      </view>
+      <view class="wre-sk__block"></view>
+    </view>
+    <view class="wre-state__text" wx:if="{{text}}">{{text}}</view>
+    <view class="wre-state__sub" wx:if="{{sub}}">{{sub}}</view>
+  </view>
+
+  <!-- 空态 / 错误 / 无 Key 引导 -->
+  <view class="wre-state wre-state--plain" wx:else>
+    <view class="wre-state__text" wx:if="{{text}}">{{text}}</view>
+    <view class="wre-state__sub" wx:if="{{sub}}">{{sub}}</view>
+    <button class="wre-btn" wx:if="{{action}}" bindtap="onAction">{{action}}</button>
+  </view>
+</view>

@@ -938,3 +938,377 @@
 - **产出物（文件/链接）**：`plan/RPD_网站生态_需求文档.md`（v0.10）。
 - **待办**：本次**只改需求、不做开发**；改版落地排在**阶段八（P0）**，待用户明确指令。
 - **风险/注意事项**：大图体积（懒加载 + 缩略图优先）；低端机 / 大图下动效卡顿（只动 `transform`/`opacity` + `prefers-reduced-motion` 降级）；首页改版偏离"像文档"定位（限定为例外）；首页大图与插件当前界面脱节（发版即同步、标注适用版本）。
+
+---
+
+## 2026-10-04 会话条目：阶段八落地 · 首页与图库改版（大图 · 极简 · 顺滑）(完成)
+- **目标**：按 RPD v0.10 的 3.9 / 3.11 / 6.8，把首页改为**大图落地页**、图库改为**响应式大图**，并加入滚动渐入动效。
+- **已做**：
+  - 构建端 `web/build.py`：
+    - `collect_pages()` 增 `heroTitle` / `tagline` / `hero` front-matter 字段 + `reveal` 开关。
+    - 新增 `render_home()` + `home_install_button()`：首页 = Hero（主标 + 副标 + 安装/快速上手按钮 + 主视觉大图）+ 正文 + 底部 CTA（安装 / 快速上手 / 更新日志 · 隐私 · 图库）。
+    - `build()` 主循环：`slug == ""` 走 `render_home()`，`body` 加 `.home` 类并开启 `reveal`。
+    - `render_gallery_image()` 加 `wre-reveal`；`render_std_image()` 仅在**图库页**才包成灯箱链接，其他页面（首页）按普通大图输出并可选 `wre-reveal`；标题/纯文字段落按 `reveal` 加渐入类。
+  - 内容 `web/content/首页.md`：重写为极简大图结构——Hero（front-matter）+ 6 个功能大图块（专注与勿扰 / 沉浸阅读 / 阅读统计与导出 / 笔记增强 / 阅读洞察 / 阅读人格，标题 ≤12 字、补充 ≤30 字）+「还能做什么」6 条图标清单 + 知识资产入口。
+  - 样式 `web/assets/site.css`：图库由 3–4 列小网格改为**宽屏两列大图 / <768 单列**（圆角 + 边框 + 悬停微放大 + 阴影抬升）；新增首页落地页样式（Hero / 功能大图区 / 两列 chip 清单 / 底部 CTA）；新增通用滚动渐入 `.wre-reveal`（380ms，`prefers-reduced-motion: no-preference` 下生效）。
+  - 交互 `web/assets/site.js`：新增 `IntersectionObserver` IIFE——进入视口加 `.wre-in` 触发渐入 + 上移；`prefers-reduced-motion` 或不支持 IO 时直接显示。
+  - 模板 `web/templates/layout.html`：head 加 `<noscript>` 兜底，JS 关闭时 `.wre-reveal` 直接显示。
+  - 文档回灌：`plan/RPD_网站生态_需求文档.md` 6.8 五项勾选（首页大图落地页 / 图库响应式大图 / IO 动效 / 懒加载+缩略图 / 三档核验）。
+- **关键结论/决定**：
+  - 首页走**独立渲染路径**（`render_home`）而非纯 Markdown 拼装；正文仍是 Markdown，构建只注入 Hero 与 CTA。
+  - 灯箱只在**图库页**生效（`render_std_image` 按 `slug == "gallery"` 判定），首页大图点击不弹灯箱。
+  - 首页大图用**原图 + `loading="lazy"`**（画质优先）；图库用**缩略图**（体积优先）。
+  - 知识资产入口因**暂无合适配图**，暂为「一句话 + 链接」，已在 6.8 标注后续补图。
+- **产出物（文件/链接）**：
+  - `web/build.py`（render_home / home_install_button / front-matter 字段 / reveal 渲染）
+  - `web/content/首页.md`（大图落地页内容）
+  - `web/assets/site.css`、`web/assets/site.js`（大图布局 + 渐入动效）
+  - `web/templates/layout.html`（noscript 兜底）
+  - 构建结果：`python3 web/build.py` → 页面 25 篇 + 栏目索引 4 个 / 版本 v0.19.0 / 告警 0 条；缩略图 38 张。
+  - 浏览器核验：首页 Hero / 6 大图区 / chip 清单 / CTA 全部就位且渐入正常；图库宽屏两列大图 + 灯箱（Esc / 点背景 / × 关闭）正常；1200px / 700px 两档无横向溢出。
+- **待办**：
+  - 可选：发布到线上（沿用 orphan 分支推 `site-dist`，帽子云部署由用户自理）。
+  - 后续：为首页「知识资产入口」补一张合适配图。
+- **风险/注意事项**：
+  - 图库懒加载图片未预留 `aspect-ratio`，加载完成前高度为 0，存在轻微布局位移（CLS，非阻断）。
+  - 「极速跳转」掠过的元素会停在 `opacity:0`，再次进入视口才现身（IntersectionObserver 正常懒现身行为，非永久卡死）。
+  - 首页大图用原图，单图体积较大，靠 `loading="lazy"` 控制首屏开销。
+
+---
+
+## 2026-10-04 会话条目：首页补「开源地址」与「作者的话」(完成)
+- **目标**：承接阶段八首页改版，按用户两次追加要求——① 首页**最前方**加 GitHub / Gitee 地址；② 把一段「初心 / 作者的话」放首页合适位置、文字可优化。
+- **已做**：
+  - 构建端 `web/build.py`（`render_home()`）：
+    - 新增 `topbar`：`<nav class="home-toplinks">开源地址 · GitHub · Gitee</nav>`，置于 `render_home()` 返回值**最前**（Hero 之前）；链接取自 `CONFIG["repoUrl"]` 与 `CONFIG["giteeUrl"]`（后者有值才输出）。
+    - callout 渲染：整块加 `wre-reveal`，内部改用 `dict(page, reveal=False)` 渲染（避免「空框先出现」再填字的观感）。
+  - 内容 `web/content/首页.md`：末尾（知识资产之后、CTA 之前）追加 callout「我为什么要做这个」——两段：动机（市面无合意工具→自用→同类需求不止我一个）+ 承诺（做**产品**而非工具、长期打磨、**永久免费、无广告**）。
+  - 样式 `web/assets/site.css`：新增 `.home-toplinks`（居中、`·` 分隔、hover 变强调色）；新增 `.home .doc .callout`（限宽 46em 居中、左强调边、标题放大）卡片样式。
+  - 文档回灌 `plan/RPD_网站生态_需求文档.md` 3.11 页面结构：6 条 → **7 条**（第 1 条补「最前方附一行开源地址（GitHub / Gitee）」；新增第 5 条「作者的话」，注明放于知识资产之后、CTA 之前）。
+- **关键结论/决定**：
+  - 开源地址用**独立一行 topbar**（非塞进 Hero），保证「最前方」且不抢主视觉。
+  - 作者的话用 **callout 卡片**承载（与文档风一致），文案由口语化改写为克制两段，加粗「产品」「永久免费、无广告」。
+- **产出物（文件/链接）**：
+  - `web/build.py`（topbar + callout 渐入调整）
+  - `web/content/首页.md`（作者的话 callout）
+  - `web/assets/site.css`（`.home-toplinks` / `.home .doc .callout`）
+  - `plan/RPD_网站生态_需求文档.md`（3.11）
+  - 构建结果：`python3 web/build.py` → 告警 0 条，版本 v0.19.0；浏览器核验（浅色 / 深色）卡片位置与渐入正常、无溢出。
+- **待办**：
+  - 可选：发布到线上（沿用 orphan 分支推 `site-dist`，帽子云部署由用户自理）。
+- **风险/注意事项**：
+  - 无 Gitee 地址时 topbar 只输出 GitHub（条件已处理）。
+  - 核验时曾遇「已存在标签页」缓存旧页（无 callout），硬刷新即好，非代码缺陷。
+
+---
+
+## 2026-10-04 会话条目：首页最顶部预留「微信小程序入口」(完成)
+- **目标**：用户要求在首页**最顶部**加入微信小程序入口——「暂时开发中，先预留」。
+- **已做**：
+  - 配置 `web/site.config.json`：新增 `"miniappUrl": ""`（空 = 未上线占位；填链接即自动变为可点击入口）。
+  - 构建端 `web/build.py`（`render_home()`）：新增 `miniapp` 行，置于 `topbar`（开源地址）**之上**、Hero 之前——即主内容**最顶部**。
+    - 未配置链接：`<nav class="home-miniapp is-soon">微信小程序 + <span>开发中 · 敬请期待</span></nav>`（占位、不可点）。
+    - 配置了 `miniappUrl`：输出可点击 `进入 →` 链接。
+  - 样式 `web/assets/site.css`：新增 `.home-miniapp` 系（居中、`flex-wrap`、灰色标签 + 虚线药丸 `.home-miniapp-status`、`.home-miniapp-link` 强调色）。
+  - 文档回灌 `plan/RPD_网站生态_需求文档.md` 3.11：页面结构由 7 条改为 **8 条**，新增第 1 条「页面最顶部：微信小程序入口（预留）+ 开源地址」，原 Hero 起顺延。
+- **关键结论/决定**：
+  - 入口放在**首页主内容最顶部**（开源地址之上），与「开源地址」同为独立一行、不抢主视觉。
+  - 「预留」用**配置开关**实现：`miniappUrl` 为空即显示「开发中」占位，未来填链接一键启用，无需改模板。
+- **产出物（文件/链接）**：
+  - `web/site.config.json`、`web/build.py`、`web/assets/site.css`、`plan/RPD_网站生态_需求文档.md`
+  - 构建结果：`python3 web/build.py` → 告警 0 条，版本 v0.19.0。
+  - 浏览器核验：入口位于「开源地址」之上、居中、灰色标签 + 虚线药丸；1280px / 390px 两档均无横向溢出、无控制台报错。
+- **待办**：
+  - 小程序上线后：把小程序码/链接填入 `site.config.json` 的 `miniappUrl` 即可启用入口。
+- **风险/注意事项**：
+  - 小程序正式入口形态（链接 or 二维码）未定，当前仅占位文案，后续可能需改为展示小程序码。
+
+---
+
+## 2026-10-04 会话条目：首页「开源地址」改为按钮样式(完成)
+- **目标**：用户要求把首页「开源地址 GitHub · Gitee」的展示优化，**按「安装到 Edge」的样式**（即按钮化）。
+- **已做**：
+  - 构建端 `web/build.py`（`render_home()`）：GitHub / Gitee 由纯文本链接改为 `<a class="home-btn">`（复用首页按钮组件），分隔符 `·` 去掉、改由 flex 间距分隔。
+  - 样式 `web/assets/site.css`：`.home-toplinks` 改为按钮行（`gap: 10px`、居中），移除旧的 `.home-toplinks a` 文本色规则，让 `.home-btn` 样式生效。
+  - 文档回灌 `plan/RPD_网站生态_需求文档.md` 3.11 第 1 条：注明开源地址为「按钮样式，与『安装到 Edge』同款的次级按钮」。
+- **关键结论/决定**：GitHub / Gitee 用**次级按钮**（白底描边胶囊，即「安装到 Edge」同组件的非主色变体），与主 CTA（绿色「安装到 Edge」）形成主次层级，不抢主视觉。
+- **产出物（文件/链接）**：
+  - `web/build.py`、`web/assets/site.css`、`plan/RPD_网站生态_需求文档.md`
+  - 构建结果：`python3 web/build.py` → 告警 0 条，版本 v0.19.0。
+  - 浏览器核验：GitHub / Gitee 为胶囊按钮、padding/圆角与 Edge 按钮一致（白底次级）；行顺序「小程序 → 开源地址 → Hero」正确；无横向溢出、无控制台报错。
+- **待办**：无。
+- **风险/注意事项**：
+  - 初版误用 `.home-btn-sm` 想缩小按钮，但该规则定义在 `.home-btn` 之前被后者覆盖（同优先级后者胜），属无效类；已删除该无效类，直接沿用 `.home-btn` 尺寸，与 Edge 按钮完全一致。
+
+---
+
+## 2026-10-04 会话条目：首页「作者的话」移到顶部(完成)
+- **目标**：用户要求把首页「我为什么要做这个」这段从原来位置**放到顶部**。
+- **已做**：
+  - 内容 `web/content/首页.md`：把 `> [!note] 我为什么要做这个` callout 从正文**末尾（知识资产之后、CTA 之前）**移到正文**最前**（紧接 Hero，位于首个 `## 专注与勿扰` 之前）。
+  - 文档回灌 `plan/RPD_网站生态_需求文档.md` 3.11：页面结构顺序调整——「作者的话」由第 6 条上移为**第 3 条**（紧接 Hero、正文顶部）；功能大图区 / 能力清单 / 知识资产入口顺延为 4 / 5 / 6，末尾 CTA / 页脚不变。
+- **关键结论/决定**：作者的话作为「**前言**」置于 Hero 之后、功能大图区之前，读者第一眼看到主视觉后紧接读到作者动机与「永久免费、无广告」承诺。
+- **产出物（文件/链接）**：
+  - `web/content/首页.md`、`plan/RPD_网站生态_需求文档.md`
+  - 构建结果：`python3 web/build.py` → 告警 0 条，版本 v0.19.0；生成 HTML 顺序核对为「小程序 → 开源地址 → Hero → 作者的话(callout) → 功能大图区…」。
+- **待办**：无。
+- **风险/注意事项**：callout 仍在首屏附近，滚动渐入（IntersectionObserver）在加载即入视口时会立即现身，无异常。
+
+---
+
+## 2026-10-04 会话条目：首页 Hero 文案排版美化(完成)
+- **目标**：用户反馈 Hero 主标「让微信读书网页版更好用」与副标「屏占比、自动阅读…一个插件全搞定」**太素、没有美感**，要求调整样式。
+- **已做**：
+  - 构建端 `web/build.py`（`render_home()`）：副标按「——」拆分为两层——`.home-hero-sub-list`（功能清单）+ `.home-hero-sub-punch`（结语）；无「——」时按整句渲染。
+  - 样式 `web/assets/site.css`：
+    - `.home-hero` 顶部加柔和**绿色光晕**（`radial-gradient(... var(--accent-soft) ...)`，随明暗配色）。
+    - `.home-hero-title`：加大加粗（`clamp(2.1em,4.4vw,3.1em)` / `font-weight:800` / `letter-spacing:-0.015em` / `text-wrap:balance`）+ **青绿渐变字**（`@supports` 包 `background-clip:text`，不支持则退回纯色）。
+    - `.home-hero-sub`：限宽 38em、行高 1.7、字距微调；`.home-hero-sub-punch`：强调色、加粗、略放大、另起一行。
+  - 文档回灌 `plan/RPD_网站生态_需求文档.md` 3.11 第 2 条：补充主标渐变 / 副标分层 / 顶部光晕的视觉要求。
+- **关键结论/决定**：Hero 走「大标题 + 分层副标 + 柔光」的展示型排版，与首页「大图落地页」定位一致；渐变与光晕均用 CSS 变量，明暗两套自动适配。
+- **产出物（文件/链接）**：
+  - `web/build.py`、`web/assets/site.css`、`plan/RPD_网站生态_需求文档.md`
+  - 构建结果：`python3 web/build.py` → 告警 0 条，版本 v0.19.0。
+  - 浏览器核验（浅色 + 深色）：主标 38.8px/800 且 `background-clip:text` 生效、渐变深灰→绿；副标两行分层（灰 + 绿、后者更大更粗）；顶部光晕可见；无横向溢出、无控制台报错。
+- **待办**：无。
+- **风险/注意事项**：渐变字依赖 `background-clip:text`，已用 `@supports` 兜底；副标分层依赖 tagline 含「——」，缺失时自动降级为整句。
+
+---
+
+## 2026-10-04 会话条目：首页小程序占位简化 + 开源地址并入按钮组(完成)
+- **目标**：用户要求——① 小程序行去掉「开发中 · 敬请期待」（没必要）；② 开源地址 GitHub / Gitee 与「安装到 Edge」**放一起**。
+- **已做**：
+  - 构建端 `web/build.py`（`render_home()`）：
+    - 小程序入口：未配置 `miniappUrl` 时只渲染 `<span>微信小程序</span>`，**删除「开发中 · 敬请期待」**占位；配置后仍变为「进入 →」链接。
+    - 开源地址：GitHub / Gitee 按钮并入 Hero 的 `.home-actions`，与「安装到 Edge」「快速上手」**同排同款**；删除独立 `.home-toplinks` 行与「开源地址」标签。
+    - `return` 去掉 `topbar`（`miniapp + hero + body + cta`）。
+  - 样式 `web/assets/site.css`：删除 `.home-miniapp.is-soon` / `.home-miniapp-status` / 整段 `.home-toplinks`（不再使用）。
+  - 文档回灌 `plan/RPD_网站生态_需求文档.md` 3.11：第 1 条去除「开发中」占位；第 2 条按钮组改为「安装 / 快速上手 / GitHub / Gitee，开源地址与安装按钮同排同款」。
+- **关键结论/决定**：开源地址不再单独成行，作为 Hero 按钮组的一员；小程序入口保留在页面最顶部、仅作标签占位（不写「开发中」）。
+- **产出物（文件/链接）**：
+  - `web/build.py`、`web/assets/site.css`、`plan/RPD_网站生态_需求文档.md`
+  - 构建结果：`python3 web/build.py` → 告警 0 条，版本 v0.19.0。
+  - 浏览器核验：页面已无「开发中/敬请期待/开源地址」字样；四按钮同处一行（顶边一致）；GitHub/Gitee 与 Edge 按钮同为药丸形（半径 999px、padding 10/22、高 55px）；无横向溢出、无页面级 JS 报错。
+- **待办**：无。
+- **风险/注意事项**：四按钮在窄屏由 `flex-wrap` 自动换行（未加特殊媒体查询），宽屏保持单行。
+
+---
+
+## 2026-10-04 会话条目：首页 Hero 改「极简高对比」(完成)
+- **目标**：用户再反馈 Hero「太丑」，经提问确认方向——**极简高对比**：标题纯深色加粗、副标**单行灰色纯文字**、绿色只留给按钮。
+- **已做**：
+  - 构建端 `web/build.py`（`render_home()`）：撤掉副标「——」分层逻辑，恢复为整句一行渲染（`inline(tagline, page)`）。
+  - 样式 `web/assets/site.css`：
+    - `.home-hero-title`：**移除青绿渐变字**（删 `@supports`+`background-clip:text`），改**纯深色** `var(--text)`、`font-weight:800` 不变。
+    - `.home-hero`：**移除顶部柔和绿色光晕**（删 `radial-gradient`）。
+    - 删除 `.home-hero-sub-list` / `.home-hero-sub-punch`（不再分层）；`.home-hero-sub` 限宽 40em、单行灰字。
+  - 文档回灌 `plan/RPD_网站生态_需求文档.md` 3.11 第 2 条：视觉要求改为「极简高对比——主标纯深色加大加粗、副标单行灰色、Hero 不加渐变/光晕，绿色只用于按钮」。
+- **关键结论/决定**：首页 Hero 收敛为「黑白灰 + 绿色点缀（仅按钮）」的高对比排版，去掉渐变与光晕等装饰，观感更干净耐看。
+- **产出物（文件/链接）**：
+  - `web/build.py`、`web/assets/site.css`、`plan/RPD_网站生态_需求文档.md`
+  - 构建结果：`python3 web/build.py` → 告警 0 条，版本 v0.19.0。
+  - 浏览器核验：主标 `rgb(35,38,43)` 纯色、`background-clip` 非 text（渐变已失效）；副标单色 `rgb(107,114,128)` 单行（桌面 1280px 实测 1 行，约 <965px 才折行）；`.home-hero` 背景 none（无光晕）；4 按钮配色正确；无横向溢出、无页面级 JS 报错。
+- **待办**：无。
+- **风险/注意事项**：副标整句较长，窄屏会折成两行（正常换行，非缺陷）。
+
+---
+
+## 2026-10-04 会话条目：微信小程序入口并入首页按钮组(完成)
+- **目标**：用户要求「微信小程序 也放一起，跟 github」——把原独立在页面最顶部的小程序入口，并入 Hero 按钮组。
+- **已做**：
+  - 构建端 `web/build.py`（`render_home()`）：
+    - 新增 `miniapp_btn`：`miniappUrl` 有值时渲染为 `<a class="home-btn">微信小程序</a>`，为空时渲染为占位按钮 `<span class="home-btn home-btn-soon">微信小程序</span>`。
+    - Hero 按钮组顺序改为：**安装到 Edge / 快速上手 / 微信小程序 / GitHub / Gitee**（同一行 `.home-actions`）。
+    - 删除页面最顶部的 `.home-miniapp` 导航块，`return` 由 `miniapp + hero + ...` 改为 `hero + ...`。
+  - 样式 `web/assets/site.css`：删除 `.home-miniapp` / `.home-miniapp-name` / `.home-miniapp-link`；新增 `.home-btn-soon`（占位态：`cursor:default` + 文字弱化为 `--text-soft`，hover 不位移）。
+  - 文档回灌 `plan/RPD_网站生态_需求文档.md` 3.11：删除原「页面最顶部小程序入口」条目，页面结构由 8 条并为 7 条；Hero 按钮组加入「微信小程序」，并注明小程序未上线时渲染为占位按钮。
+- **关键结论/决定**：小程序入口不再是独立顶部行，而作为 Hero 按钮组的一员（暂为不可点的占位按钮，`miniappUrl` 一填即变链接）。
+- **产出物（文件/链接）**：
+  - `web/build.py`、`web/assets/site.css`、`plan/RPD_网站生态_需求文档.md`
+  - 构建结果：`python3 web/build.py` → 告警 0 条，版本 v0.19.0。
+- **待办**：小程序上线后，在 `web/site.config.json` 填入 `miniappUrl` 即自动启用点击。
+- **风险/注意事项**：占位按钮（`home-btn-soon`）不可点且颜色略浅，用于提示「暂未上线」。
+
+---
+
+## 2026-10-04 会话条目：首页 Hero 改「功能标签」方案三(完成)
+- **目标**：用户第三次反馈 Hero「还是太丑」。此前逐次微调（渐变→纯色）未收敛，改为**先出方案、再落地**：本地起对比页展示 3 个排版方案，用户选定**方案三 · 标签清单**。
+- **已做**：
+  - 需求确认方式：新建临时对比页 `/tmp/wre-hero-mock/index.html`（3 个 Hero 变体），用 `python3 -m http.server 8921` 预览，用户对比后选定方案三。
+  - 落地 `web/build.py`（`render_home()`）：把 tagline 拆为「功能标签 + 结语」——按「——」切分，前半按 `、,，/` 切词生成 `span.hero-chip`，后半作为结语 `p.home-hero-sub`；无「——」时整句作标签来源、无结语。
+  - 落地 `web/assets/site.css`：新增 `.home-hero-chips`（flex 居中、换行、gap 10px）与 `.hero-chip`（灰底 `--bg-soft`、`--border` 描边、999px 圆角、`--text-soft` 文字、0.9em）；`.home-hero-title` 由 800/大写号收敛为 **700 字重、clamp(1.9em,3.4vw,2.5em)、行高 1.3、字距 .02em**；`.home-hero-sub` 改为结语小字（去 max-width）。
+  - 文档回灌 `plan/RPD_网站生态_需求文档.md` 3.11 第 1 条：Hero 结构由「主标 + 副标」改为「主标 + **功能标签行(chip)** + **一句结语** + 大图 + 按钮组」，并注明主标 700 字重、标签窄屏自动换行。
+  - 清理：删除临时对比页 `/tmp/wre-hero-mock/`，停掉 8921 预览服务。
+- **关键结论/决定**：Hero 走「大标题 + 一排功能小标签 + 一句结语 + 按钮组」；功能词来自 tagline 自动拆分，**改文案只需改 front-matter 的 tagline**，无需改模板。
+- **产出物（文件/链接）**：
+  - `web/build.py`、`web/assets/site.css`、`plan/RPD_网站生态_需求文档.md`
+  - 构建结果：`python3 web/build.py` → 告警 0 条，版本 v0.19.0。
+  - 产物核对：`dist/index.html` 第 45 行为 6 个 `span.hero-chip`（屏占比/自动阅读/阅读统计/笔记导出/阅读洞察/阅读人格），第 46 行为结语「一个插件全搞定」。
+  - 浏览器核验：与预览「方案三」渲染一致；窄屏标签/按钮自动换行、宽屏单行。
+- **待办**：无。
+- **风险/注意事项**：功能标签由 tagline 的「、」自动拆分，若 tagline 写作习惯变化（改用空格/顿号以外的分隔），需同步调整拆分正则。
+
+---
+
+## 2026-10-04 会话条目：作者的话上移到 Hero 内（按钮下、大图前）(完成)
+- **目标**：用户要求「作者的话」**再往上提**；经确认落点为——**按钮组下方、Hero 主视觉大图之前**。
+- **已做**：
+  - 构建端 `web/build.py`（`render_home()`）：用正则 `^(?:>[^\n]*\n)+\s*\n?` 从**正文开头**截出 callout 块，单独渲染为 `note_html`；正文其余部分（`body_src`）照常渲染。Hero 结构插入 `note_html`——位于 `.home-hero-text` 之后、`.home-hero-media` 之前。
+  - 样式 `web/assets/site.css`：`.home .doc .callout` 增加 `text-align: left;`（Hero 容器为居中，避免卡片内文字跟随居中）。
+  - 文档回灌 `plan/RPD_网站生态_需求文档.md` 3.11 第 2 条：作者的话位置由「紧接 Hero，置于正文顶部」改为「**置于 Hero 内——按钮组下方、主视觉大图之前**」。
+- **关键结论/决定**：作者的话仍以 **Markdown callout 为唯一内容源**（写在 `首页.md` 正文开头），渲染时由构建脚本挪进 Hero；内容与排版分离，改文案依旧只改 Markdown。
+- **产出物（文件/链接）**：
+  - `web/build.py`、`web/assets/site.css`、`plan/RPD_网站生态_需求文档.md`
+  - 构建结果：`python3 web/build.py` → 告警 0 条，版本 v0.19.0。
+  - 产物核对：`dist/index.html` 第 42–52 行顺序为 `h1 → chips → sub → 按钮组 → .callout(作者的话) → .home-hero-media(大图)`。
+- **待办**：无。
+- **风险/注意事项**：截取逻辑依赖「callout 位于正文开头且以 `>` 起始」；若日后把 callout 移到正文中间或改成非 callout 写法，需同步调整该正则。
+
+---
+
+## 2026-10-04 会话条目：作者的话移至页面最顶部(完成)
+- **目标**：用户再要求「还是提到最顶部」——作者的话放到**页面最顶部、大标题之前**。
+- **已做**：
+  - 构建端 `web/build.py`（`render_home()`）：`note_html` 从 Hero 内部移到**返回值最前**——`return note_html + "\n" + hero + ...`（此时 callout 是 `article.doc` 的第一个子元素）。
+  - 样式 `web/assets/site.css`：`.home .doc .callout` 外边距由 `28px auto 0` 改为 `margin: 0 auto`（顶部间距交给 `.site-body` 的 `padding-top: 32px`）。
+  - 文档回灌 `plan/RPD_网站生态_需求文档.md` 3.11：页面结构前两条**互换**——第 1 条为「作者的话（最顶部）」、第 2 条为首屏 Hero。
+- **关键结论/决定**：作者的话最终固定在**页面最顶部**（大标题之上，左对齐卡片）；内容仍以 `首页.md` 正文开头的 callout 为唯一来源。
+- **产出物（文件/链接）**：
+  - `web/build.py`、`web/assets/site.css`、`plan/RPD_网站生态_需求文档.md`
+  - 构建结果：`python3 web/build.py` → 告警 0 条，版本 v0.19.0。
+  - 浏览器核验：`article.doc` 前三个子元素为 `callout(作者的话) → section.home-hero → h2#专注与勿扰`；callout `text-align:left`、滚动到顶部时 top=78.5px，未被 sticky 顶栏（高 58.5px）遮挡；无横向溢出、控制台无页面级 JS 报错。
+- **待办**：无。
+- **风险/注意事项**：无新增（沿用 callout 截取正则）。
+
+---
+
+## 2026-10-04 会话条目：作者的话「去卡片化」改成前言 + 文案精简(完成)
+- **目标**：用户反馈作者的话放到最顶部后「样式太割裂」，并要求顺带优化这一块文案。
+- **已做**：
+  - 文案精简 `web/content/首页.md`：`做好之后才发现` → `做完才发现`；`能真正帮到人，也让人有所成长。这是我反复提醒自己的事。我会把它当作长期的事慢慢打磨，并承诺永久免费、无广告。` → `真的帮到人，也让人有所成长。这是我反复提醒自己的事——我会长期打磨它，并承诺永久免费、无广告。`（保留「产品」「永久免费、无广告」加粗）。
+  - 样式 `web/assets/site.css`：`.home .doc .callout` **去卡片化**——`border:0 / background:none / border-radius:0 / padding:0`，改**居中**（`text-align:center`，`max-width:42em`）；`.callout-title` 改小字标签（0.82em、`600` 字重、字距 `0.22em`、深灰）；`.callout-body p` 改浅灰（`--text-soft`、0.96em、行高 1.95）；新增 `.callout::after` **36px 居中细线**做与 Hero 标题的过渡。
+  - 文档回灌 `plan/RPD_网站生态_需求文档.md` 3.11 第 1 条：注明作者的话为「去卡片化前言（小字标签 + 浅灰正文 + 短细线过渡）」。
+- **关键结论/决定**：顶部作者的话不走卡片样式，而作为 Hero 之上的一段「前言」——视觉上从属、不抢主标题。
+- **产出物（文件/链接）**：
+  - `web/content/首页.md`、`web/assets/site.css`、`plan/RPD_网站生态_需求文档.md`
+  - 构建结果：`python3 web/build.py` → 告警 0 条，版本 v0.19.0。
+  - 浏览器核验：`border-width` 全 0、`background-color: rgba(0,0,0,0)`、无阴影；标题 `#23262b`/15.15px/600/字距 3.33px；正文 `#6b7280`/17.74px；`::after` 细线 36×1px、`#e6e8ec`、水平居中，位于前言与 `h1` 之间；无横向溢出、控制台无报错。
+- **待办**：无。
+- **风险/注意事项**：`::after` 细线为纯装饰伪元素，若后续前言需要改为左对齐排版，需同步去掉或调整该细线。
+
+---
+
+## 2026-10-04 会话条目：首页按钮悬停变绿(完成)
+- **目标**：用户要求「鼠标放上去，自动变成绿色」（首页 Hero 按钮组）。
+- **已做**：
+  - 样式 `web/assets/site.css`：`.home-btn:hover` 由「仅描边变绿」改为**填充主色绿 + 文字转白**（`background: var(--accent); color:#fff; border-color: var(--accent)`），并给 `.home-btn` 的 `transition` 增加 `background-color / color` 各 220ms，过渡更顺。
+  - 占位按钮修正：把 `.home-btn-soon` 选择器提升为 `.home-btn.home-btn-soon`（含 `:hover`），提高优先级以覆盖新的 `.home-btn:hover`，确保「微信小程序」占位按钮**悬停不变绿**。
+  - 文档回灌 `plan/RPD_网站生态_需求文档.md` 3.11 第 2 条：补「按钮悬停统一填充主色绿、文字转白；小程序占位按钮不参与悬停变色」。
+- **关键结论/决定**：全站首页按钮（Hero 与底部 CTA）悬停统一变绿；唯一例外是未上线的小程序占位按钮（避免造成「可点击」的误导）。
+- **产出物（文件/链接）**：
+  - `web/assets/site.css`、`plan/RPD_网站生态_需求文档.md`
+  - 构建结果：`python3 web/build.py` → 告警 0 条，版本 v0.19.0。
+  - 浏览器核验（真实 `:hover` 触达 + 等 220ms 过渡结束读数）：快速上手 / GitHub / Gitee 悬停 → bg `rgb(26,137,23)`、color `rgb(255,255,255)`；安装到 Edge 本就绿色，仅多出 `rgba(26,137,23,.28)` 阴影；微信小程序悬停保持 `rgb(255,255,255)` + `rgb(107,114,128)` 不变；移开指针全部回落；无 JS 报错。
+- **待办**：无。
+- **风险/注意事项**：若希望小程序占位按钮也参与悬停变绿，删掉 `.home-btn.home-btn-soon:hover` 规则即可。
+
+---
+
+## 2026-10-04 会话条目：小程序占位按钮放开悬停变绿 + 主按钮悬停加深(完成)
+- **目标**：用户要求「（微信小程序）放开；而且其他绿色了，第一个 edge 自动变色」——即占位按钮也参与悬停变绿，且「安装到 Edge」在悬停时要有可见颜色变化。
+- **已做**：
+  - 样式 `web/assets/site.css`：
+    - 新增变量 `--accent-hover`（亮色主题 `#146c12`、暗色主题 `#74d171`），供「按下感」加深/提亮使用。
+    - 删除 `.home-btn.home-btn-soon:hover` 覆盖规则，占位按钮改由通用 `.home-btn:hover` 接管 → **悬停同样变绿 + 白字**（仅保留 `cursor: default`）。
+    - `.home-btn-primary:hover` 增加 `background/border-color: var(--accent-hover)` → 「安装到 Edge」悬停由 `#1a8917` 变为 `#146c12`，**可见变深**；保留绿色阴影。
+  - 文档回灌 `plan/RPD_网站生态_需求文档.md` 3.11 第 2 条：改为「按钮悬停统一填充主色绿 + 白字；主按钮悬停额外转为更深一档绿；小程序占位按钮同样参与悬停变色」。
+- **关键结论/决定**：首页所有按钮（含小程序占位）悬停统一变绿；主按钮以「更深一档绿 + 阴影」区分主次。
+- **产出物（文件/链接）**：
+  - `web/assets/site.css`、`plan/RPD_网站生态_需求文档.md`
+  - 构建结果：`python3 web/build.py` → 告警 0 条，版本 v0.19.0。
+  - 浏览器核验（真实 `:hover` + 过渡结束读数）：快速上手 / 微信小程序 / GitHub / Gitee 悬停 → bg `rgb(26,137,23)`、白字；安装到 Edge 悬停 → bg `rgb(20,108,18)`（#146c12）；移开指针 5 个按钮全部回落；无 JS 报错。
+- **待办**：无。
+- **风险/注意事项**：小程序占位按钮目前悬停会变绿但点击无跳转（预留态），待 `miniappUrl` 配置后即为真实入口。
+
+---
+
+## 2026-10-04 会话条目：主按钮随同组悬停联动退白(完成)
+- **目标**：用户要求「安装到 edge 这个在鼠标停到其他地方，要自动变成白色」——鼠标移到同组其他按钮上时，主按钮退为白色。
+- **已做**：
+  - 样式 `web/assets/site.css`：新增 `.home-actions:has(.home-btn:not(.home-btn-primary):hover) .home-btn-primary:not(:hover)` —— 同组有「非主按钮」被悬停、且主按钮自身未被悬停时，主按钮改为 `--bg-card` 底 + `--text` 字 + `--border` 描边、去掉阴影。
+  - 文档回灌 `plan/RPD_网站生态_需求文档.md` 3.11 第 2 条：补「鼠标停在同组其他按钮上时主按钮退为白色次级态，避免两个按钮同时高亮」。
+- **关键结论/决定**：一组按钮里同时只保留一个高亮项——鼠标在次级按钮时，主按钮让位变白。
+- **产出物（文件/链接）**：
+  - `web/assets/site.css`、`plan/RPD_网站生态_需求文档.md`
+  - 构建结果：`python3 web/build.py` → 告警 0 条，版本 v0.19.0。
+  - 浏览器核验（真实 `:hover`，读稳定态）：无悬停时 Edge = `rgb(26,137,23)`/白字；悬停快速上手 / 微信小程序 / GitHub / Gitee 时 Edge 均变 `rgb(255,255,255)`/`rgb(35,38,43)`，同时被悬停的兄弟为 `rgb(26,137,23)`；悬停 Edge 自身时为深绿 `rgb(20,108,18)`；无 JS 报错。
+- **待办**：无。
+- **风险/注意事项**：依赖 CSS `:has()`（Chrome 105+/Safari 15.4+/Firefox 121+）；不支持的老浏览器仅表现为「主按钮不联动变白」，不影响其余样式。
+
+---
+
+## 2026-10-05 会话条目：首页「我为什么要做这个」保留作者原文案(完成)
+- **目标**：用户先反馈该段「内容不够合适」，试选 A 极简版后，明确要求「文字内容不要变动，我之前的文字要保留」——**不改写作者文字**，恢复原文案。
+- **已做**：
+  - 内容 `web/content/首页.md`：开头 callout 恢复为作者原文案（标题「我为什么要做这个」+ 两段：动机 + 承诺），**逐字保留作者原话**，不做润色改写。
+  - 文档回灌 `plan/RPD_网站生态_需求文档.md` 3.11 第 1 条：恢复为「我为什么要做这个」，并新增约束「**文字内容由作者自定，不得改写**」。
+  - 样式无改动：`web/assets/site.css` 中 `.home .doc .callout` 的去卡片化前言样式继续适配（居中弱化 + 细线过渡）。
+- **关键结论/决定**：该段文字属于作者自述，**只调样式/位置，不改文字**；后续如需调整仅限排版。
+- **产出物（文件/链接）**：
+  - `web/content/首页.md`、`plan/RPD_网站生态_需求文档.md`
+  - 构建结果：`python3 web/build.py` → 告警 0 条，版本 v0.19.0。
+  - 浏览器核验：`web/dist/index.html` 顶部 callout 标题为「我为什么要做这个」，正文为作者原文两段，居中弱化样式与细线过渡正常，无 JS 报错。
+- **待办**：无。
+- **风险/注意事项**：无。
+
+---
+
+## 2026-10-05 会话条目：移动端阶段 2.5 体验打磨 + 阶段 2.6 P2 延展（A 类 + B 类）(完成)
+- **目标**：先把小程序五页重复的「加载/空态/错误/无 Key」与错误文案收敛成单一来源（A 类）；再按用户全选推进 B 类——B1 头像昵称、B2 静默 openid 云同步、B3 DeepSeek AI 画像（明知会改写「不接大模型 / 不采集 openid」的首版承诺，用户仍选择全做）。
+- **已做**：
+  - **A 类（阶段 2.5）**：新增公共状态组件 `components/wre-state/*`（loading/empty/error/nokey 四态，全局注册于 `app.json`）；新增 `shared/errors.js` 收敛 `code → 文案` 与 Key 判定（五页统一 `messageOf` / `isKeyError`）；云函数加重试与错误码细分（`rate`/5xx）。
+  - **B1**：`shared/store.js` 增 profile 存取；「我的」页新增「我的资料」（`chooseAvatar` + `type="nickname"`，`fs.saveFile` 长期保存）；`shared/persona-share.js` 的 `renderPersonaShare(canvas, persona, profile)` 署名改用昵称。
+  - **B2**：云函数重构为 `event.action` 分流（无 action 仍走网关中转）；新增 `handleSync`（`getWXContext().OPENID` 隔离、只存 persona 视图、400KB 上限、集合自动创建兜底）；新增 `shared/sync.js`；人格页进入先 `syncGet` 秒显、算完静默 `syncPut`，失败不阻断。
+  - **B3**：云函数新增 `handleAi`（转发 DeepSeek，`sk-` 校验、30s 超时、日志仅掩码）；新增 `shared/ai.js`（复刻插件 `AI_READING_PERSONA_PROMPT`，用已算好的四维/证据拼 prompt）；「我的」页新增 DeepSeek Key 卡；人格页新增「生成 AI 画像」卡片（换行保留、同代码不丢 aiText）。
+  - **文档回灌**：`plan/plan_小程序移动端.md`（决策表 3→「已启用」、新增阶段 2.6 表、红线与不做清单同步、超时 20→30s）；`plan/RPD_小程序移动端_需求文档.md`（M8/M9 转「已实现」、新增 M10、§9 决策、§8 风险）；`plan/小程序_发布前准备.md` v1.3（隐私指引改为须声明「昵称头像」「相册仅写入」+ openid/AI 补充说明、自检清单加 `wre_sync`、提审备注改写）；`mobile/README.md`（超时 30s、建集合、shared 模块、说明）；`test/移动端小程序测试清单.md`（10.8/10.9、11.2 改写、新增第十二章 B 类 22 条）。
+- **关键结论/决定**：B2/B3 使对外口径变化——**须在《用户隐私保护指引》如实补充**（openid 上云、头像昵称收集、AI 外发），这是阶段 3.1 的前置；B3 只做「人格画像润色」一处，报告「执行摘要」仍为规则化、未接 AI。
+- **产出物（文件/链接）**：
+  - 新增：`mobile/miniprogram/components/wre-state/{index.js,wxml,wxss,json}`、`mobile/miniprogram/shared/{errors.js,sync.js,ai.js}`
+  - 修改：`mobile/cloudfunctions/wereadProxy/index.js`、`mobile/miniprogram/{app.json,app.wxss}`、五页 `pages/*/index.{js,wxml}`、`pages/persona/index.wxss`、`pages/settings/index.{js,wxml,wxss}`、`mobile/miniprogram/shared/{store.js,persona-share.js}`
+  - 文档：见上「文档回灌」五项 + 本条目
+  - 校验：`GetDiagnostics` 仅剩既有 CommonJS→ES 模块 Hint，无报错
+- **待办**：真机验收（测试清单第十二章）；阶段 3.1 隐私指引按新口径配置；3.3 体验版回归 + 提审。
+- **风险/注意事项**：云函数部署后必须把超时改为 **30 秒**并新建 `wre_sync` 集合（权限「仅创建者可读写」）；B1 隐私接口（chooseAvatar/nickname）与 `saveImageToPhotosAlbum` **未声明则组件/接口被禁用**；云端存的是「人格结果视图」（含划线摘录），如需更保守可后续改为只存统计值。
+
+---
+
+## 2026-10-05 会话条目：首页底部 CTA 卡片留白修复(完成)
+- **目标**：用户反馈首页底部 CTA 卡片（「装上，开始读」）「这里太空了，重新优化下」——卡片顶部有一大块空白。
+- **根因**：
+  - 功能大图区规则 `.home .doc h2 { margin: 76px 0 10px }`（窄屏 `52px`）**优先级高于** `.home-cta h2 { margin: 0 0 6px }`（前者 2 个类 vs 后者 1 个类），导致 CTA 标题被加上 52~76px 上边距，卡片顶部凭空多出一大块空白，上下留白不对称。
+  - 另有 `.doc p { margin: 12px 0 }` 覆盖 `.home-cta-links { margin: 16px 0 0 }`，使末行链接底部多出 12px。
+- **已做**（`web/assets/site.css`，仅样式，不改文字/结构）：
+  - `.home-cta h2` → `.home .doc .home-cta h2`（含 `padding:0;border:0`），压过 `.home .doc h2` 的大上边距。
+  - `.home-cta-links` → `.home .doc .home-cta-links`，压过 `.doc p` 的通用上下边距（底部归零）。
+- **关键结论/决定**：根源是「首页通用标题/段落规则」误伤了 CTA 内的元素，一律用提高选择器优先级的方式在 CTA 局部覆盖，不改动通用规则本身（避免影响功能大图区）。
+- **产出物（文件/链接）**：
+  - `web/assets/site.css`
+  - 构建结果：`python3 web/build.py` → 告警 1 条（既有：manifest v0.19.1 与更新日志 v0.19.0 不一致，与本次无关）。
+  - 浏览器核验（1440px 与 756px 两档）：CTA 标题 `margin-top` = 0px / `margin-bottom` = 6px；上下空白严格对称（1440：41/41px，756：29/29px）；卡片高度 256.77px（1440）、227.41px（756）；无 JS 报错、无横向溢出。
+- **待办**：无。
+- **风险/注意事项**：无。
+
+---
+
+## 2026-10-05 会话条目：首页底部 CTA 二合一（并入首屏 Hero，删除重复）(完成)
+- **目标**：用户指出首页底部 CTA 卡片（「装上，开始读」+ 安装/快速上手 + 链接行）与顶部 Hero 按钮组**重复**，「二合一，放到一起，放到顶部，现在重复了 没必要」。
+- **已做**：
+  - `web/build.py`：`render_home()` 删除整段 `cta` 构造，返回值由 `note_html + hero + body + cta` 改为 `note_html + hero + body`；同步更新函数 docstring 与区块注释（去掉「+ 底部 CTA」）。
+  - `web/assets/site.css`：删除已无用的 `.home-cta` / `.home-cta h2` / `.home-cta-links` 规则及窄屏 `.home-cta { margin-top:56px; padding:28px 18px }`，仅保留一句注释说明「已并入 Hero」。
+  - `plan/RPD_网站生态_需求文档.md`（v0.10）：3.11 删除「底部 CTA」条目并加注「不设底部 CTA」说明；同步更新 1.2 页面表、3.2 首页描述、5.3（渲染步骤）、6.8 阶段八勾选项。
+- **关键结论/决定**：安装 / 快速上手 / 微信小程序 / GitHub / Gitee **只在首屏 Hero 按钮组出现一次**，页尾不再重复第二组；原 CTA 的「更新日志 / 隐私政策」入口页脚已有、「界面图库」在顶部导航已有，故删除不丢入口。
+- **产出物（文件/链接）**：`web/build.py`、`web/assets/site.css`、`plan/RPD_网站生态_需求文档.md`；`python3 web/build.py` 通过（页面 25 篇 + 索引 4 个；告警 1 条为既有版本号不一致，与本次无关）。
+- **待办**：无。
+- **风险/注意事项**：无。
+
+

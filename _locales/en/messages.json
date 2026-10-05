@@ -1,0 +1,10 @@
+{
+  "extensionName": {
+    "message": "WeRead Enhancer",
+    "description": "Extension name (English)"
+  },
+  "extensionDescription": {
+    "message": "WeRead Enhancer: reading width, auto-reading, shortcuts, focus mode, fullscreen, stats, notes export, and reading insights.",
+    "description": "Extension description (English)"
+  }
+}

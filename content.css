@@ -21,20 +21,27 @@
   user-select: none;
 }
 
-/* 浮动图标 */
+/* 浮动图标（品牌 W 标志：白底 + 深灰 W，与插件 UI 一致） */
 .wre-fab {
   width: 44px;
   height: 44px;
-  background-color: var(--wre-icon-bg);
   border-radius: 50%;
+  background-color: var(--wre-icon-bg);
+  border: 1px solid var(--wre-border);
+  color: var(--wre-text);
   box-shadow: var(--wre-shadow);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  border: 1px solid var(--wre-border);
-  font-size: 20px;
+}
+
+.wre-fab-logo {
+  width: 24px;
+  height: 24px;
+  display: block;
+  pointer-events: none;
 }
 
 .wre-fab:hover {

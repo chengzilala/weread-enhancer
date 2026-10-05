@@ -1,6 +1,8 @@
 const store = require('../../shared/store');
 const data = require('../../shared/data');
 const { buildReportBlocks, fmtDateTime } = require('../../shared/report-core');
+const { fmtDuration } = require('../../shared/format');
+const { messageOf, isKeyError } = require('../../shared/errors');
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const CACHE_KEY = 'wre_report_cache';
@@ -24,6 +26,7 @@ Page({
     blocks: [],
     meta: [],
     emptyRecord: false,
+    shareTitle: '',
   },
 
   onShow() {
@@ -57,6 +60,22 @@ Page({
 
   goSettings() {
     wx.switchTab({ url: '/pages/settings/index' });
+  },
+
+  // 通用状态块的动作：settings=去配置 Key，retry=重试
+  onStateAction(e) {
+    if (e.detail.type === 'settings') {
+      this.goSettings();
+    } else {
+      this.retry();
+    }
+  },
+
+  onShareAppMessage() {
+    return {
+      title: this.data.shareTitle || '我的阅读报告，点开看看',
+      path: '/pages/report/index',
+    };
   },
 
   async load(force) {
@@ -97,8 +116,12 @@ Page({
     wx.stopPullDownRefresh();
 
     if (!mainRes.ok) {
-      const needKey = mainRes.code === 'auth' || mainRes.code === 'nokey';
-      this.setData({ error: mainRes.error || '读取数据失败', needsKey: needKey, blocks: [], meta: [] });
+      this.setData({
+        error: messageOf(mainRes, '读取数据失败'),
+        needsKey: isKeyError(mainRes.code),
+        blocks: [],
+        meta: [],
+      });
       return;
     }
 
@@ -120,12 +143,17 @@ Page({
     ];
     const emptyRecord = !(Number(d.totalReadTime) > 0 || Number(d.readDays) > 0) &&
       !(overview && overview.shelf) && !(overview && overview.notebooks);
+    const modeText = this.modeLabel(this.data.mode);
+    const shareTitle = Number(d.totalReadTime) > 0
+      ? '我的' + modeText + '阅读报告：' + fmtDuration(d.totalReadTime) + '，点开看看'
+      : '我的' + modeText + '阅读报告，点开看看';
     this.setData({
       blocks,
       meta,
       emptyRecord,
       error: '',
       fromCache: fromCache,
+      shareTitle,
     });
   },
 

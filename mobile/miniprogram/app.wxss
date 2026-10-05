@@ -37,19 +37,6 @@ page {
   color: #2F6BFF;
 }
 
-/* 空态 / 引导态 */
-.wre-empty {
-  padding: 140rpx 48rpx;
-  text-align: center;
-}
-
-.wre-empty__text {
-  color: #8A8F99;
-  font-size: 28rpx;
-  line-height: 1.9;
-  margin-bottom: 8rpx;
-}
-
 /* 按钮 */
 .wre-btn {
   background: #2F6BFF;

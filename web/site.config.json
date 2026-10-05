@@ -4,6 +4,7 @@
   "baseUrl": "https://wereadapp-32km31c.maozi.io",
   "repoUrl": "https://github.com/chengzilala/weread-enhancer",
   "giteeUrl": "https://gitee.com/chengzila/weread-enhancer",
+  "miniappUrl": "",
   "issuesUrl": "https://github.com/chengzilala/weread-enhancer/issues",
   "minSupportedVersion": "0.9.0",
   "nav": [
