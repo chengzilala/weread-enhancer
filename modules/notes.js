@@ -889,6 +889,7 @@
   }
 
   function closePanel() {
+    stopTts();
     const overlay = document.getElementById('wre-notes-modal');
     if (overlay) {
       overlay.classList.remove('wre-visible');
@@ -903,11 +904,21 @@
   function renderToolbar(data) {
     const highlightCount = data ? data.highlights.length : 0;
     const thoughtCount = data ? data.thoughts.length : 0;
+    const ttsOk = !!ttsApi();
+    const listenActions = data && ttsOk
+      ? '<button class="wre-btn wre-btn-small" data-wre-notes-listen-all title="按当前列表顺序连续朗读">▶ 连续朗读</button>' +
+        '<button class="wre-btn wre-btn-small" data-wre-notes-listen-book title="把本书的划线 / 想法排队朗读">▶ 听全部</button>' +
+        '<button class="wre-btn wre-btn-small" data-wre-notes-listen-thoughts title="只朗读自己写的想法 / 批注">▶ 只听想法</button>'
+      : '';
+    const ttsNote = ttsOk
+      ? (data ? '<div class="wre-notes-note">🔊 朗读在本机合成，不联网、不上传；不提供音频导出。</div>' : '')
+      : '<div class="wre-notes-note">当前浏览器不支持本机语音朗读，「听」相关功能不可用。</div>';
     return '<div class="wre-notes-toolbar">' +
         '<div class="wre-notes-summary">' + (data
           ? '《' + escapeHtml(data.title || '未知书籍') + '》 · 划线 ' + highlightCount + ' 条 · 想法 ' + thoughtCount + ' 条'
           : '正在读取…') + '</div>' +
         '<div class="wre-notes-actions">' +
+          listenActions +
           '<button class="wre-btn wre-btn-small" data-wre-notes-refresh>刷新</button>' +
           '<button class="wre-btn wre-btn-small" data-wre-notes-copy>复制笔记</button>' +
           '<button class="wre-btn wre-btn-small" data-wre-notes-export="markdown">导出 Markdown</button>' +
@@ -915,6 +926,7 @@
           '<button class="wre-btn wre-btn-small" data-wre-notes-export="pdf">导出 PDF</button>' +
           '<button class="wre-btn wre-btn-small" data-wre-notes-export="text">导出纯文本</button>' +
         '</div>' +
+        ttsNote +
       '</div>';
   }
 
@@ -962,20 +974,103 @@
     return { groups: result, matched: matched, active: true };
   }
 
+  // ---------- 语音复习（M14，见 modules/tts.js）----------
+
+  function ttsApi() {
+    const api = typeof window !== 'undefined' ? window.WRETTS : null;
+    return api && api.supported ? api : null;
+  }
+
+  // 从已渲染的条目标签里取朗读文本（只取正文，不含时间 / 按钮）
+  function itemSpeechText(itemEl) {
+    if (!itemEl || !itemEl.querySelectorAll) {
+      return '';
+    }
+    const parts = [];
+    Array.prototype.forEach.call(
+      itemEl.querySelectorAll('.wre-notes-quote, .wre-notes-thought, .wre-notes-text'),
+      (node) => {
+        const text = (node.textContent || '').trim();
+        if (text) {
+          parts.push(text);
+        }
+      }
+    );
+    return parts.join('。');
+  }
+
+  // 从数据条目里取朗读文本（用于「听全部 / 只听想法」这类当前页签之外的内容）
+  function speechTextFromItem(item) {
+    if (!item) {
+      return '';
+    }
+    const parts = [];
+    if (item.kind === 'thought') {
+      if (item.abstract) {
+        parts.push(String(item.abstract).trim());
+      }
+      if (item.text) {
+        parts.push(String(item.text).trim());
+      }
+    } else if (item.text) {
+      parts.push(String(item.text).trim());
+    }
+    return parts.filter(Boolean).join('。');
+  }
+
+  function flattenGroupsToQueue(groups) {
+    const queue = [];
+    (groups || []).forEach((group) => {
+      const items = group && group.items ? group.items : [];
+      items.forEach((item) => {
+        const text = speechTextFromItem(item);
+        if (text) {
+          queue.push({ text: text, element: null });
+        }
+      });
+    });
+    return queue;
+  }
+
+  // 当前列表（含搜索过滤 / 当前页签）的可见条目，按 DOM 顺序
+  function collectVisibleQueue() {
+    const body = document.querySelector('#wre-notes-body');
+    if (!body) {
+      return [];
+    }
+    const queue = [];
+    Array.prototype.forEach.call(body.querySelectorAll('.wre-notes-item'), (el) => {
+      const text = itemSpeechText(el);
+      if (text) {
+        queue.push({ text: text, element: el });
+      }
+    });
+    return queue;
+  }
+
+  function stopTts() {
+    if (typeof window !== 'undefined' && window.WRETTS && typeof window.WRETTS.stop === 'function') {
+      window.WRETTS.stop();
+    }
+  }
+
   function renderGroups(groups, emptyText) {
     if (groups.length === 0) {
       return '<div class="wre-notes-empty">' + emptyText + '</div>';
     }
+    const listenBtn = ttsApi()
+      ? '<button class="wre-notes-listen" data-wre-notes-listen title="朗读这一条（本机朗读，不联网、不上传）">▶</button>'
+      : '';
     return groups.map((group) => {
       const items = group.items.map((item) => {
         if (item.kind === 'thought') {
-          return '<div class="wre-notes-item is-thought">' +
+          return '<div class="wre-notes-item is-thought">' + listenBtn +
               (item.abstract ? '<div class="wre-notes-quote">' + escapeHtml(item.abstract) + '</div>' : '') +
               '<div class="wre-notes-thought">' + escapeHtml(item.text) + '</div>' +
               '<div class="wre-notes-meta">' + escapeHtml(formatDateTime(item.createTime)) + '</div>' +
             '</div>';
         }
-        return '<div class="wre-notes-item">' +
+        return '<div class="wre-notes-item">' + listenBtn +
             '<div class="wre-notes-text">' + escapeHtml(item.text) + '</div>' +
             (item.createTime ? '<div class="wre-notes-meta">' + escapeHtml(formatDateTime(item.createTime)) + '</div>' : '') +
           '</div>';
@@ -1013,6 +1108,8 @@
     if (!body) {
       return;
     }
+    // 列表重绘（切换页签 / 搜索 / 刷新）会让朗读中的条目引用失效，先停止播放
+    stopTts();
     const data = panelState.data || (cache.data && cache.bookId === getBookContext().bookId ? cache.data : null);
 
     if (panelState.needsKey) {
@@ -1099,6 +1196,47 @@
   }
 
   function handlePanelClick(event) {
+    const tts = ttsApi();
+    if (tts) {
+      const listenBtn = event.target.closest('[data-wre-notes-listen]');
+      if (listenBtn) {
+        const itemEl = listenBtn.closest('.wre-notes-item');
+        const text = itemSpeechText(itemEl);
+        if (text) {
+          tts.playOne(text, itemEl);
+        }
+        return;
+      }
+      if (event.target.closest('[data-wre-notes-listen-all]')) {
+        const queue = collectVisibleQueue();
+        if (queue.length) {
+          tts.playList(queue);
+        } else {
+          toast('当前列表没有可朗读的内容');
+        }
+        return;
+      }
+      if (event.target.closest('[data-wre-notes-listen-book]')) {
+        const data = currentData();
+        const queue = data ? flattenGroupsToQueue([].concat(data.highlightGroups || [], data.thoughtGroups || [])) : [];
+        if (queue.length) {
+          tts.playList(queue);
+        } else {
+          toast('这本书还没有可朗读的笔记');
+        }
+        return;
+      }
+      if (event.target.closest('[data-wre-notes-listen-thoughts]')) {
+        const data = currentData();
+        const queue = data ? flattenGroupsToQueue(data.thoughtGroups || []) : [];
+        if (queue.length) {
+          tts.playList(queue);
+        } else {
+          toast('这本书还没有想法/批注');
+        }
+        return;
+      }
+    }
     if (event.target.closest('[data-wre-notes-search-clear]')) {
       searchQuery = '';
       renderPanel();

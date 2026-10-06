@@ -1352,4 +1352,76 @@
 - **待办**：同上一节——3 张 App 截图仍待用户放入 `web/content/attachments/`。
 - **风险/注意事项**：构建仍为 4 条既有告警（3 图缺失 + 版本号不一致）。浏览器核验：提示框 2 条要点 3 个链接均 `target=_blank` + `rel=noopener`；5 步列表与警示框结构正确；`scrollWidth = innerWidth = 756` 无横向溢出；控制台无报错。
 
+---
+
+## 2026-10-06 会话条目：小程序 M12 灵感漫游（深度主题综述）P1 开发完成 (完成)
+- **目标**：按已定稿的 M12（v0.10）开发「灵感漫游」——与 M11 每日卡片分开的独立功能：**每周一篇、多素材编织的主题综述**（六段式），含素材门槛（划线 ≥300 且 想法 ≥100）、铜/银/金分级解锁、每周限流、历史归档 + 随机漫游、竖版分享图。
+- **已做**：
+  - `shared/wander-core.js`（纯函数）：`TIERS`（铜/银/金：weekly 1/2/3、sparks/seeds/words 递增）、`tierOf/tierByKey/nextTier/tierProgress`（门槛与分级进度）、`weekStart/weekKey/weekLabel`（周键=周一日期）、`prepareWander`（选够规模的主题、尽量避开上一期、跨书铺开、划线/想法交替、同文本去重、全部用过→`resetUsed`）、`makeIssue/toView`（组刊与视图，来源含 `kindLabel/open`、火花/种子结构化）。主题打标复用 `daily-core.tagAndGroup`（算法不漂移）。
+  - `shared/wander-data.js`：`fetchCounts`（`/user/notebooks` 各书 `noteCount/reviewCount` 求和估门槛）+ `fetchPool`（复用 M11 `daily-data.fetchPool`）。
+  - `shared/wander-store.js`：本机键 `wre_wander_issues / wre_wander_used / wre_wander_quota / wre_wander_seen`；每周限流（`weekLeft/bumpWeek`）、已用素材、归档（52 期）/收藏/`randomIssue`、入口「新」标（`isNew/markSeen`）。只存本机、不上云。
+  - `shared/wander-ai.js`：六段式 JSON 成文（标题/摘要/正文/外部火花/创作种子）+ 本地降级（未填 Key/失败→本地模板，永不 reject）；**红线**：外部火花只做概念呼应、**不点名具体文献**，UI 标「AI 联想 · 未核实」。
+  - `shared/wander-share.js`：竖版分享图，主色 `#7C5CFF`（区分每日卡片微信绿），2× 高清 + 后备缓冲 ≤4096，含标题/摘要/正文/来源（≤3 条）/品牌署名。
+  - `pages/wander/*`（js/json/wxml/wxss）：六段式展示（正文标 AI生成/本地模板、来源可点开、火花带未核实标、种子 angle+line）；未解锁进度引导、素材不足引导、往期归档列表 + 随机漫游 + 返回本期；分享图弹层。加载/错误态复用 `wre-state`。
+  - 入口与注册：`app.json` 注册 `pages/wander/index`；首页新增紫色「灵感漫游」入口卡（紧随每日卡片，含「新」标）；「我的」新增「灵感漫游 · 往期归档」一行。
+  - `cloudfunctions/wereadProxy/index.js`：`AI_MAX_TOKENS` 900 → 2000（支撑金档约 1000 字正文 + JSON，防截断）。
+- **关键结论/决定**：① M12 = 每周、多素材主题综述；M11 = 每日、单条深读，两者共用取数（`daily-data.fetchPool`）与 AI 通道（云函数 `action:'ai'`），不新增云函数职责。② 周键用周一日期，归档同周仅留最新一期。③ 未达门槛/素材不足/接口失败一律**引导或降级**，不硬出刊。④ 分享图紫色，与 M11 微信绿区分。
+- **产出物（文件/链接）**：`mobile/miniprogram/shared/wander-{core,data,store,ai,share}.js`、`mobile/miniprogram/pages/wander/index.{js,json,wxml,wxss}`、`mobile/miniprogram/app.json`、`mobile/miniprogram/pages/home/index.{js,wxml,wxss}`、`mobile/miniprogram/pages/settings/index.{js,wxml}`、`mobile/cloudfunctions/wereadProxy/index.js`。文档回灌：`plan/RPD_小程序移动端_需求文档.md`（v0.11：M12 状态 + §6 阶段 5 勾选）、`plan/plan_小程序移动端.md`（阶段 5 任务表 + 勾选）、`plan/小程序_发布前准备.md`（§五 隐私指引新增「④ 灵感漫游」+ 自检清单）。`GetDiagnostics` 无报错。
+- **待办**：真机验收（门槛引导、六段式渲染、每周限流、归档/随机漫游、分享图、入口「新」标）；阶段 3 备案通过后提审（隐私指引需含新增「④ 灵感漫游」）。
+- **风险/注意事项**：金档正文较长（约 1000 字），已上调 `AI_MAX_TOKENS=2000` 并保留解析兜底（JSON 解析失败→本地模板）；素材门槛依赖 `/user/notebooks` 的 `noteCount/reviewCount` 估算，若官方字段口径变化会影响门槛判定（失败时走引导）。
+
+---
+
+## 2026-10-06 会话条目：每日卡片 / 灵感漫游改为「必须配 DeepSeek Key」+ 分享图统一主题蓝（阶段 B/C）(完成)
+- **目标**：① 「每日卡片」原在未配 DeepSeek Key 时退回「本地模板」，用户评价本地生成效果很差；二选一后用户选定「**必须配 AI 才能用**」，范围含「每日卡片 + 灵感漫游」；② 分享图内容偏少、配色与小程序不统一（要求统一色调）、「生成数据分享图」按钮文字未上下居中。
+- **已做**：
+  - 阶段 C（必须配 AI）：`pages/daily/index.js`、`pages/wander/index.js`（onShow / onPullDownRefresh / generate 三处加 DeepSeek Key 前置拦截；AI 失败**不退回本地模板**——有内容页内提示、无内容整页报错 + 重试，且不消耗次数）；`pages/daily/index.wxml`、`pages/wander/index.wxml` 新增 `!hasDsKey` 引导态；`shared/daily-generate.js`（首页弹窗入口加 `nokey_ds` 与 AI 失败提前返回）；`pages/home/index.js`（`maybeDailyPopup(hasKey && !!store.getDeepSeekKey())`）；删除三页 wxml 的「本地模板」徽标 / 提示分支及对应 wxss（`.note__badge--local` / `.note__hint`），分享图徽标固定为「AI 生成」；`pages/settings/index.{wxml,js}` 说明 DeepSeek Key 不再标「可选」；`daily-ai.js` / `wander-ai.js` / `daily-core.js` / `wander-core.js` / `ai.js` 注释同步。
+  - 阶段 B（分享图）：5 张竖版分享图主色由微信绿改**主题蓝 `#2F6BFF`**（浅底 `#F0F4FF`），**灵感漫游保留紫 `#7C5CFF`**；`home/report/shelf/daily/persona-share.js` 增补板块、条目上限与「一句数据总结」；`app.wxss` 的 `.wre-btn` 改 flex 居中（修「生成数据分享图」文字未上下居中）。
+- **关键结论/决定**：每日卡片 / 灵感漫游的价值即 AI 解读，本地模板不对外展示；DeepSeek Key 为**使用前置**（未配 → 页面引导、不生成内容）。首页自动弹窗走 `daily-generate.js` 独立入口，已同步收紧，避免未配 Key 仍弹本地卡。
+- **产出物（文件/链接）**：`mobile/miniprogram/pages/{daily,wander,home,settings}/*`、`shared/daily-{ai,generate,share,core}.js`、`shared/wander-{ai,share,core}.js`、`shared/{home,report,shelf,persona}-share.js`、`app.wxss`；文档回灌：`plan/RPD_小程序移动端_需求文档.md`（M11/M12 + §6）、`plan/plan_小程序移动端.md`（4.4 / 4.6 / 4.9 / 5.5 / 5.6 / 5.9 + 里程碑 + AI 边界）、`mobile/README.md`、`plan/小程序_发布前准备.md`（§二 定性 + §五 ③④）、`test/移动端小程序测试清单.md`（13.x 改写 + 新增第十四章 M12）。`GetDiagnostics` 无报错。
+- **待办**：真机验收阶段 A（关联准确 / 说明共情）、阶段 B（分享图配色与内容、按钮居中）、阶段 C（未配 Key 引导、AI 失败不降级）；阶段 3 备案通过后提审。阶段 B / C 改动**未提交**。
+- **风险/注意事项**：未配 DeepSeek Key 时每日卡片 / 灵感漫游**完全不可用**（产品取舍，不做本地降级）；若旧卡片数据带 `ai:false`，UI / 分享图仍按「AI 生成」展示（次日自然消失）。
+
+---
+
+## 2026-10-06 会话条目：小程序 M13 管理员运营看板 + 插件匿名使用统计 (完成代码，待部署/真机验证)
+- **目标**：按已定稿的 M13 开发——① 同一个小程序、不另做、不设角色体系，用 openid 白名单识别「你」，只对管理员多显示一块「📊 运营看板」，其余用户**服务端不下发**（非前端隐藏）；② 看板三块数据：A 小程序使用量（今日去重人数 / 次数 / 新增 / 累计）、B 插件使用量（今日活跃 / 累计活跃 / 版本分布）、C 我的阅读数据（复用 M2 / M4）；③ 打开时懒生成 / 拉取，不依赖真推送；④ 插件侧新增**匿名使用统计**（默认开启 + 首次启动明示 + 设置内一键关闭），红线由「零上传」改为「除匿名使用统计外零上传」。
+- **已做**：
+  - 云函数 `wereadProxy/index.js`：新增 `OPS_COLLECTION='wre_ops_daily'` / `OPS_RETENTION_DAYS=90` / `ADMIN_OPENIDS`（读环境变量）；`cstDate`（UTC+8 日期）、`cleanToken`（只留 `[0-9a-zA-Z._-]`）、`bumpDaily`（update→inc(1)，不存在则 set，集合不存在则 createCollection）、`aggregate`（按 uid 汇总：今日去重人数 / 次数 / 新增 / 累计 / 版本分布 / truncated）、`cleanupOld`（删 90 天前）；4 个 handler：`handleOpsPing`（openid+天去重记小程序活跃）、`handleOpsWhoami`（只回 `{ok,admin}`）、`handleOpsAdmin`（非白名单回 `code:'forbidden'`，不下发数字）、`handleOpsReport`（白名单字段入库）；HTTP 入口 `handleHttp`（`POST /report` 且 `action=opsReport`→200，`OPTIONS`→204，未知 action→400）+ CORS 头；`exports.main` 新增 HTTP 入口判断与 4 个 action 分支。
+  - 小程序侧：`shared/ops.js`（`ping/whoami/fetchAdmin` 封装，通用 `call()` 走 `wx.cloud.callFunction`）；`app.js` `onLaunch` 末尾 `ops.ping().catch(()=>{})`（打开即上报、失败静默）；新页面 `pages/admin/*`（A/B/C 三块卡片 + 版本分布列表 + 下拉刷新，加载 / 无权限 / 错误态复用 `wre-state`，C 块复用 `data.fetchReadData` + `fetchOverview` + `notebookStats` + `fmtDuration`）；`app.json` 注册 `pages/admin/index`；`settings` 页 `onShow` 调 `ops.whoami()` 置 `isAdmin`，仅管理员在「更多」下显示「📊 运营看板」入口（`goAdmin`）。
+  - 插件侧：`modules/telemetry.js`（IIFE 挂 `window.WRETelemetry`；`TELEMETRY_ENDPOINT` 留空即不上报；`reportActive` 每天至多一次、`telemetryEnabled===false` 跳过、`crypto.randomUUID` 生成匿名标识、`Content-Type: text/plain` 简单请求免预检、网络失败不记「已报」；`schedule` 延迟 3 秒上报不抢加载）；`content.js`（`WRE_DEFAULT_STATE` 加 `telemetryEnabled:true`、「📖 阅读设置」加「📊 匿名使用统计」开关 + `updateTelemetryUI()`、欢迎弹窗加说明段、`init()` 中 `createUI()` 后调 `WRETelemetry.schedule(WRE_STATE)`）；`manifest.json`（`version` 0.20.1→**0.23.0**、`host_permissions` 加 `https://*.tcloudbase.com/*`、`content_scripts` 在 `help.js` 后加 `modules/telemetry.js`）。
+  - 文档与合规同步：`release/privacy.md`（数据收集段 + 新增 Anonymous Usage Statistics 章节 + 权限表 + 保留 90 天）、`plan/RPD_需求文档.md`、`plan/RPD_小程序移动端_需求文档.md`、`plan/plan_小程序移动端.md`（新增阶段 6 任务表）、`plan/小程序_发布前准备.md`（v1.4：自检清单 + §5.2 新增「⑤ 使用量统计」）、`test/移动端小程序测试清单.md`（新增第十五章 M13 五组 21 条）、`mobile/README.md`（§7 运营看板 4 步配置）、仓库根 `README.md`、网站 `web/content/隐私政策.md`、`web/content/关于.md`、`web/content/更新日志.md`（v0.23.0 条目）。
+- **关键结论/决定**：① 看板权限用**服务端不下发**（`opsAdmin` 校验 openid 白名单），而非前端隐藏，满足「接口层取不到」。② 统计去重策略：文档 ID = `kind_日期_uid`，每天每 uid 至多一条 → 条数即去重人数，`opens` 用 `command.inc(1)` 累加。③ 插件上报走云开发 **HTTP 访问服务**（简单请求 + CORS 头，可读回执），上报内容白名单最小化：随机匿名标识 + 版本号 + 日期（服务端记）+ 事件名。④ 红线变更：项目红线由「零上传」→「除匿名使用统计外零上传」，四处文案（插件隐私政策 / 主文档 / 小程序文档 / 网站）已统一。
+- **产出物（文件/链接）**：`mobile/cloudfunctions/wereadProxy/index.js`、`mobile/miniprogram/shared/ops.js`、`mobile/miniprogram/pages/admin/index.{js,json,wxml,wxss}`、`mobile/miniprogram/pages/settings/index.{js,wxml}`、`mobile/miniprogram/app.{js,json}`、`modules/telemetry.js`、`content.js`、`manifest.json`；文档：`release/privacy.md`、`plan/RPD_需求文档.md`、`plan/RPD_小程序移动端_需求文档.md`、`plan/plan_小程序移动端.md`、`plan/小程序_发布前准备.md`、`test/移动端小程序测试清单.md`、`mobile/README.md`、`README.md`、`web/content/{隐私政策,关于,更新日志}.md`。`GetDiagnostics` 无报错。
+- **待办（部署 / 真机，非本次可代做）**：① 建云数据库集合 `wre_ops_daily`；② 云函数配环境变量 `ADMIN_OPENIDS`（填你自己的 openid）；③ 云开发控制台开启「HTTP 访问服务」并把 `/report` 绑到 `wereadProxy`；④ 重新部署 `wereadProxy`；⑤ 把 HTTP 访问服务地址填进 `modules/telemetry.js` 的 `TELEMETRY_ENDPOINT`；⑥ 按 `test/移动端小程序测试清单.md` 第十五章真机回归。
+- **风险/注意事项**：`TELEMETRY_ENDPOINT` 留空＝**完全不上报**（静默跳过），这是本次交付的默认状态，需手动填才生效；插件 manifest 版本已到 `0.23.0` 但**尚未提交 / 打包 / 上架**；小程序《用户隐私保护指引》需在后台同步勾选 / 补充「⑤ 使用量统计」，否则可能影响审核。
+
+---
+
+## 2026-10-06 会话条目：小程序分享图清晰度（去掉 2× 硬上限 → 最大倍率导出） (完成代码，待真机验证)
+- **目标**：用户反馈「小程序生成的分享图不清楚」。定位根因并彻底提升清晰度；澄清后确定方案为**「不动版式，只拉满倍率」**（保持 1080 版式比例，在 iOS 画布 4096 上限内取最大导出倍率）。
+- **已做**：
+  - 6 个共享绘制层 `mobile/miniprogram/shared/{home,report,shelf,daily,wander,persona}-share.js`：导出倍率由 `const scale = Math.min(2, MAX_SIDE / W, MAX_SIDE / logicalH);` 改为 `const scale = Math.min(MAX_SIDE / W, MAX_SIDE / logicalH);`（去掉硬编码 2× 上限），并同步头部与函数上方注释（「2× 高清重绘」→「最大倍率高清重绘（保证后备缓冲任一边 ≤4096）」）。
+  - 6 个页面导出层 `mobile/miniprogram/pages/{home,report,shelf,daily,wander,persona}/index.js`：`canvasToTemp` 的 `wx.canvasToTempFilePath` 新增 `fileType: 'png'`，避免默认 JPEG 有损压缩再掉清晰度。
+  - 文档回灌：`plan/plan_小程序移动端.md`（表格 / 2.4b / 4.6 / 5.7 的「2×」→「最大倍率」）、`plan/RPD_小程序移动端_需求文档.md`（第 129 / 417 行）、`test/移动端小程序测试清单.md`（8.13 改为「按最大倍率高清导出，宽度约为 1080 的 1.3–3.8 倍」）。`GetDiagnostics` 无报错。
+- **关键结论/决定**：分享图清晰度＝导出倍率；原代码 `Math.min(2, ...)` 把短图也压到 2×（2160px）。去掉后受 `MAX_SIDE/logicalH` 约束，**短图**（logicalH < 2048）最高可达 `4096/1080≈3.79×`（≈4100px 宽）；**长图**（logicalH ≥ 2048，如 report/home/shelf）仍被 `MAXH=3200` 逻辑高上限压到约 1.28–1.99×——这是用户选择「不动版式」的必然取舍，长图若要更清晰须加宽画布（已否掉的方案）。
+- **产出物（文件/链接）**：`mobile/miniprogram/shared/{home,report,shelf,daily,wander,persona}-share.js`、`mobile/miniprogram/pages/{home,report,shelf,daily,wander,persona}/index.js`；文档：`plan/plan_小程序移动端.md`、`plan/RPD_小程序移动端_需求文档.md`、`test/移动端小程序测试清单.md`。
+- **待办**：真机验证清晰度（生成分享图后放大看文字 / 线描是否清晰不糊），重点看短图（每日卡片 / 灵感漫游 / 人格）是否明显变清晰；本次改动**未提交**。
+- **风险/注意事项**：① 长图提升有限（受高度上限约束），如需长图也显著变清晰需另议「加宽画布」方案；② 高倍率下后备缓冲更大，低端机绘制 / 导出耗时略增，若发现生成变慢或内存告警需评估下调倍率；③ `fileType:'png'` 使导出文件体积大于 JPEG，保存相册路径需真机确认无异常。
+
+---
+
+## 2026-10-06 会话条目：插件 M14 语音复习（听自己的笔记）落地 v0.24.0 (完成代码，待真机验证)
+- **目标**：按插件主文档第 14 章开发「语音复习」——把**用户自己的**划线 / 想法用**浏览器内置 TTS** 读出来，用于通勤 / 走路 / 闭眼等不方便看的场景复习。范围 A＋B 档（去 C）：A 档＝单条划线 / 自己的想法 / 连续朗读；B 档＝听全部 / 只听想法。入口不新增主菜单，在「📝 笔记」就地加「▶ 听」。
+- **已做**：
+  - 新增 `modules/tts.js`（IIFE 挂 `window.WRETTS`）：`supported` / `playOne(text, el)` / `playList([{text, element}])` / `togglePause` / `stop` / `next` / `prev`；语音从 `speechSynthesis.getVoices()` 优先挑本机 `zh-CN`（拿不到退默认并提示）；**文本按句分段**（≤80 字 / 段）逐段朗读，规避 Chrome 长句被截断；`start`/`jumpTo` 用 `runToken` + 30ms 延迟规避 `cancel→speak` 竞态；切后台（`visibilitychange`）/ `pagehide` 立即停止；弹窗底部自建控制条（上一条 / 暂停·继续 / 下一条 / 第 N 共 M 条 / 停止 + 「本机朗读 · 不联网、不上传」）；日志沿用统一 `log()`，前缀 `[TTS]`。
+  - 新增 `modules/tts.css`：条目右上「▶ 听」圆钮（`.wre-notes-listen`）、朗读中条目左边框高亮（`.is-tts-active`）、底部控制条（`.wre-tts-bar`）；仅补充 `#wre-notes-modal .wre-modal-body { flex:1 1 auto; min-height:0 }` 让控制条稳定贴底。
+  - 接入 `modules/notes.js`（**不改**原有取数 / 搜索 / 导出）：`renderToolbar` 增「▶ 连续朗读 / ▶ 听全部 / ▶ 只听想法」+ 本机朗读提示（不支持时改为「当前浏览器不支持…」）；`renderGroups` 每条划线 / 想法挂「▶ 听」；新增辅助 `ttsApi` / `itemSpeechText` / `speechTextFromItem` / `flattenGroupsToQueue` / `collectVisibleQueue` / `stopTts`；`handlePanelClick` 增四处分支（连续朗读＝当前列表含搜索过滤、听全部＝本书划线+想法、只听想法＝仅想法，空则 Toast）；`closePanel` 与 `renderPanel`（切 Tab / 搜索 / 刷新重绘前）调 `stopTts()`。
+  - `manifest.json`：`version` 0.23.0 → **0.24.0**；`content_scripts.css` 加 `modules/tts.css`、`js` 在 `notes.js` **之前**加 `modules/tts.js`（保证 `window.WRETTS` 先就绪）；**不新增任何权限 / 主机**。
+  - 文档与清单：`plan/RPD_需求文档.md`（第 14 章状态改「已实现（v0.24.0）」+ 14.6 四项打勾 + 实现落点 + 新增变更记录行；2.1 总览表由「储备 · 规划」改「已实现」）、`README.md`（新增功能项 + 结构里登记 `tts.js/tts.css` 与测试清单）、新增 `test/语音复习测试清单.md`（八组：入口 / 单条 / 连续+控制条 / B 档 / 搜索联动 / 停止边界 / 降级文案 / 回归）。
+- **关键结论/决定**：① 技术只用 **Web Speech API**，零依赖 / 零成本 / 不联网 / **不新增权限**（manifest 无改动权限）；② 朗读范围 A＋B，**不做** C 档（人格播报 / 报告摘要朗读）；③ 入口就地加在「📝 笔记」，**不新增主菜单 / 独立页**；④ 音频本机合成、**不上传、不提供分享 / 导出**（划线属书中原文），文案只用「朗读 / 听」；⑤ 列表重绘（切 Tab / 搜索）先停播——DOM 条目引用会失效，避免读到错位内容。
+- **产出物（文件/链接）**：`modules/tts.js`、`modules/tts.css`、`modules/notes.js`、`manifest.json`；文档：`plan/RPD_需求文档.md`、`README.md`、`test/语音复习测试清单.md`。本地用 `python3` 校验 `manifest.json` 合法（版本 0.24.0、js 顺序正确）；`GetDiagnostics` 无报错（本机无 node，未跑 `node --check`）。
+- **待办**：真机 / 浏览器验收 `test/语音复习测试清单.md` 八组（重点：中文语音是否可用、长划线不被截断、切后台 / 关面板即停、快捷键不被抢）；本次改动**未提交**。
+- **风险/注意事项**：① 浏览器若无可用的中文语音（`getVoices()` 为空），朗读会走默认语音、发音可能生硬——已做提示但不报错；② Chrome 已知「长文本 / 切页面」节流问题，已用「分段朗读 + 失焦即停」缓解，**不做后台常驻播放**；③ `speechSynthesis` 在部分环境首次调用需用户手势，本实现均由按钮点击触发，符合要求；④ 朗读声音由系统语音提供，不同操作系统音色不同属预期。
+
 

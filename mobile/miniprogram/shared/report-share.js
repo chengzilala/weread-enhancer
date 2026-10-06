@@ -1,14 +1,15 @@
 // 阅读报告 · 竖版分享图（小程序 Canvas 2D 版）
 //
 // 复用与 persona-share.js / daily-share.js 同一套平台适配：
-//   1) 逻辑宽 1080、高度上限 3200；导出时按 2× 高清重绘（且保证后备缓冲任一边 ≤4096，
-//      iOS Canvas 2D 后备缓冲超过 4096 会报错）；
+//   1) 逻辑宽 1080、高度上限 3200；导出时按最大倍率高清重绘（在保证后备缓冲任一边 ≤4096
+//      的前提下尽可能放大，iOS Canvas 2D 后备缓冲超过 4096 会报错）；
 //   2) 纯本机绘制、零依赖、不联网。
 //
-// 说明：分享图只挑报告里的关键信息（核心指标 + 一个亮点 + 读得最多 Top3 + 笔记概览）
-// 做成一页竖版卡片，不搬运整份报告；数据口径与报告页一致（复用 report-core 纯函数）。
+// 说明：分享图挑报告里的关键信息（核心指标 + 一个亮点 + 偏好分类 Top5 + 时段分布 +
+// 读得最多 Top5 + 笔记概览 + 完读率 + 一句总结）做成一页竖版卡片，不搬运整份报告；
+// 数据口径与报告页一致（复用 report-core 纯函数）。
 
-const { metricCards, reportBuckets, fmtBucketLabel, notebookStats } = require('./report-core');
+const { metricCards, reportBuckets, fmtBucketLabel, notebookStats, timeBands, finishStats, barPercents } = require('./report-core');
 const { fmtDuration } = require('./format');
 
 const W = 1080;         // 逻辑宽
@@ -19,8 +20,8 @@ const MAX_SIDE = 4096;  // Canvas 2D 后备缓冲任一边的上限
 
 const INK = '#1F2430';
 const INK2 = '#4A5060';
-const ACCENT = '#07C160';       // 微信绿，与网页/插件版分享图保持一致
-const ACCENT_SOFT = '#E8F8EF';
+const ACCENT = '#2F6BFF';       // 小程序主色（蓝），与页面 / 导航保持一致
+const ACCENT_SOFT = '#F0F4FF';
 const LINE = '#E8EBF0';
 const MUTED = '#A8ADB8';
 const FONT = 'sans-serif';
@@ -63,6 +64,47 @@ function wrapText(ctx, text, maxWidth) {
     lines.push(line);
   }
   return lines.length ? lines : [''];
+}
+
+// 一行「名称 + 右侧数值 + 进度条」，返回下一行的 y（与首页分享图同一套画法）
+function drawBarRow(ctx, y, name, valueText, barPct) {
+  ctx.fillStyle = INK;
+  ctx.font = '500 30px ' + FONT;
+  ctx.fillText(name, PAD, y + 24);
+  ctx.fillStyle = MUTED;
+  ctx.font = '400 24px ' + FONT;
+  const vw = ctx.measureText(valueText).width;
+  ctx.fillText(valueText, W - PAD - vw, y + 24);
+  y += 44;
+  roundRect(ctx, PAD, y, MAXW, 16, 8);
+  ctx.fillStyle = LINE;
+  ctx.fill();
+  if (barPct > 0) {
+    roundRect(ctx, PAD, y, Math.max(8, Math.round(MAXW * (barPct / 100))), 16, 8);
+    ctx.fillStyle = ACCENT;
+    ctx.fill();
+  }
+  y += 16 + 24;
+  return y;
+}
+
+/** 偏好分类 TopN（口径同报告页 2.4：按阅读时长降序） */
+function reportCategories(data, limit) {
+  const cats = Array.isArray(data && data.preferCategory) ? data.preferCategory : [];
+  if (!cats.length) {
+    return [];
+  }
+  const total = cats.reduce((acc, item) => acc + (Number(item.readingTime) || 0), 0) || 1;
+  const sorted = cats.slice()
+    .sort((a, b) => (Number(b.readingTime) || 0) - (Number(a.readingTime) || 0))
+    .slice(0, limit || 5);
+  const percents = barPercents(sorted.map((item) => item.readingTime));
+  return sorted.map((item, index) => ({
+    name: item.parentCategoryTitle || item.categoryTitle || '未分类',
+    time: fmtDuration(item.readingTime),
+    pct: Math.round(((Number(item.readingTime) || 0) / total) * 100) + '%',
+    bar: percents[index],
+  }));
 }
 
 // 在给定的 2d 上下文上按逻辑坐标绘制一遍（scale 为高清倍率），返回内容实际高度（逻辑像素）
@@ -152,8 +194,8 @@ function paintReport(ctx, payload, profile, scale) {
     y += boxH + 40;
   }
 
-  // 读得最多 Top3
-  const longest = Array.isArray(d.readLongest) ? d.readLongest.slice(0, 3) : [];
+  // 读得最多 Top5
+  const longest = Array.isArray(d.readLongest) ? d.readLongest.slice(0, 5) : [];
   if (longest.length) {
     lineDraw('读得最多', 36, INK, '700');
     y += 10;
@@ -173,13 +215,86 @@ function paintReport(ctx, payload, profile, scale) {
     y += 12;
   }
 
+  // 偏好分类 Top5（分享图多展示几条，减少留白）
+  const cats = reportCategories(d, 5);
+  if (cats.length) {
+    lineDraw('偏好分类 Top' + cats.length, 36, INK, '700');
+    y += 8;
+    cats.forEach((item) => {
+      y = drawBarRow(ctx, y, item.name, item.time + ' · ' + item.pct, item.bar);
+    });
+    y += 12;
+  }
+
+  // 阅读时段分布（官方仅「累计」周期返回 preferTime）
+  const bands = timeBands(d);
+  const bandPositive = bands.filter((item) => item.seconds > 0);
+  if (bandPositive.length) {
+    const bandTotal = bandPositive.reduce((acc, item) => acc + item.seconds, 0) || 1;
+    const percents = barPercents(bandPositive.map((item) => item.seconds));
+    lineDraw('阅读时段分布', 36, INK, '700');
+    y += 8;
+    bandPositive.slice(0, 6).forEach((item, index) => {
+      const pct = Math.round((item.seconds / bandTotal) * 100) + '%';
+      y = drawBarRow(ctx, y, item.label, fmtDuration(item.seconds) + ' · ' + pct, percents[index]);
+    });
+    y += 12;
+  }
+
   // 笔记概览（有笔记才展示）
   const notes = notebookStats(payload.overview ? payload.overview.notebooks : null);
   if (notes && (notes.totalNoteCount > 0 || notes.totalBookCount > 0)) {
     lineDraw('笔记', 36, INK, '700');
     y += 10;
     lineDraw('共 ' + notes.totalNoteCount + ' 条，来自 ' + notes.totalBookCount + ' 本书', 28, INK2, '400', MAXW);
+    lineDraw('想法/点评 ' + notes.reviewTotal + ' · 划线 ' + notes.noteTotal + ' · 书签 ' + notes.bookmarkTotal, 26, MUTED, '400', MAXW);
     y += 8;
+  }
+
+  // 完读率（有书架数据才展示）
+  const shelf = payload.overview ? payload.overview.shelf : null;
+  if (shelf) {
+    const fin = finishStats(shelf);
+    if (fin.ebooks > 0) {
+      lineDraw('完读率', 36, INK, '700');
+      y += 10;
+      lineDraw((fin.rate * 100).toFixed(0) + '%（读完 ' + fin.finished + ' / ' + fin.ebooks + ' 本，在读 ' + fin.reading + ' 本）', 28, INK2, '400', MAXW);
+      y += 16;
+    }
+  }
+
+  // 一句话总结（按数据规则拼写，不联网、不用 AI）
+  const summaryBits = [];
+  if (hero.value) {
+    summaryBits.push('本周期共阅读 ' + hero.value);
+  }
+  if (cats.length) {
+    summaryBits.push('最偏爱「' + cats[0].name + '」');
+  }
+  if (longest.length) {
+    const top = longest[0];
+    const topBook = top.book || {};
+    const topAlbum = top.albumInfo || {};
+    summaryBits.push('读得最多的是《' + (topBook.title || topAlbum.name || '未命名') + '》');
+  }
+  if (notes && notes.totalNoteCount > 0) {
+    summaryBits.push('留下 ' + notes.totalNoteCount + ' 条笔记');
+  }
+  if (summaryBits.length) {
+    const text = summaryBits.join('，') + '。';
+    ctx.font = '500 30px ' + FONT;
+    const lines = wrapText(ctx, text, MAXW - 44);
+    const boxH = 32 * 2 + lines.length * Math.round(30 * 1.5);
+    roundRect(ctx, PAD, y, MAXW, boxH, 24);
+    ctx.fillStyle = ACCENT_SOFT;
+    ctx.fill();
+    let ty = y + 32;
+    ctx.fillStyle = INK;
+    lines.forEach((ln) => {
+      ctx.fillText(ln, PAD + 22, ty + Math.round(30 * 0.82));
+      ty += Math.round(30 * 1.5);
+    });
+    y += boxH + 40;
   }
 
   // 品牌署名
@@ -195,14 +310,16 @@ function paintReport(ctx, payload, profile, scale) {
   return finalH;
 }
 
-// 在传入的 canvas 节点上绘制竖版分享图（两遍绘制：先测高，再按 2× 高清重绘）。
+// 在传入的 canvas 节点上绘制竖版分享图（两遍绘制：先测高，再按最大倍率高清重绘）。
 // 返回 { width, height }（画布缓冲像素 = 导出后图片的像素尺寸）。
 function renderReportShare(canvas, payload, profile) {
   canvas.width = W;
   canvas.height = MAXH;
   const logicalH = paintReport(canvas.getContext('2d'), payload, profile, 1);
 
-  const scale = Math.min(2, MAX_SIDE / W, MAX_SIDE / logicalH);
+  // 高清倍率：在「任一边 ≤ MAX_SIDE（iOS 4096）」前提下取最大倍率
+  // （原先额外压了 2× 上限，是清晰度不足的主因）
+  const scale = Math.min(MAX_SIDE / W, MAX_SIDE / logicalH);
   if (scale <= 1.05) {
     return { width: W, height: Math.round(logicalH) };
   }

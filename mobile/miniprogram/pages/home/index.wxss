@@ -396,6 +396,34 @@
   margin-left: 16rpx;
 }
 
+/* 灵感漫游入口（紫色，区别于每日卡片的微信绿） */
+.wander-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #7C5CFF 0%, #9C86FF 100%);
+  border-radius: 20rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 8rpx 24rpx rgba(124, 92, 255, 0.25);
+}
+
+.wander-entry__name-row {
+  display: flex;
+  align-items: center;
+}
+
+.wander-entry__badge {
+  margin-left: 12rpx;
+  background: #FFFFFF;
+  color: #7C5CFF;
+  font-size: 20rpx;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 999rpx;
+  padding: 6rpx 12rpx;
+}
+
 /* 每日卡片弹窗（每天首次打开自动弹出，可点遮罩 / × / 关闭） */
 .daily-mask {
   position: fixed;
@@ -543,10 +571,6 @@
   border-radius: 999rpx;
   padding: 4rpx 18rpx;
   margin-bottom: 14rpx;
-}
-
-.note__badge--local {
-  background: #8A8F99;
 }
 
 .note__text {

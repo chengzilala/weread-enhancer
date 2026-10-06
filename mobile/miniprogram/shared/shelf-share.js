@@ -1,14 +1,14 @@
 // 书架 · 竖版分享图（小程序 Canvas 2D 版）
 //
 // 复用与 persona-share.js / report-share.js 同一套平台适配：
-//   1) 逻辑宽 1080、高度上限 3200；导出时按 2× 高清重绘（保证后备缓冲任一边 ≤4096，
-//      iOS Canvas 2D 后备缓冲超过 4096 会报错）；
+//   1) 逻辑宽 1080、高度上限 3200；导出时按最大倍率高清重绘（在保证后备缓冲任一边 ≤4096
+//      的前提下尽可能放大，iOS Canvas 2D 后备缓冲超过 4096 会报错）；
 //   2) 纯本机绘制、零依赖、不联网。
 //
-// 说明：数据口径与书架页一致 —— 复用 report-core 的 shelfCounts / shelfCategories，
-// 只挑关键信息（概览四项 + 分类分布 + 最近在读）做成一页竖版卡片。
+// 说明：数据口径与书架页一致 —— 复用 report-core 的 shelfCounts / shelfCategories / finishStats，
+// 只挑关键信息（概览四项 + 分类分布 + 最近在读 + 完读率 + 一句总结）做成一页竖版卡片。
 
-const { shelfCounts, shelfCategories } = require('./report-core');
+const { shelfCounts, shelfCategories, finishStats } = require('./report-core');
 
 const W = 1080;         // 逻辑宽
 const PAD = 72;
@@ -18,15 +18,15 @@ const MAX_SIDE = 4096;  // Canvas 2D 后备缓冲任一边的上限
 
 const INK = '#1F2430';
 const INK2 = '#4A5060';
-const ACCENT = '#07C160';       // 微信绿，与网页/插件版分享图保持一致
-const ACCENT_SOFT = '#E8F8EF';
+const ACCENT = '#2F6BFF';       // 小程序主色（蓝），与页面 / 导航保持一致
+const ACCENT_SOFT = '#F0F4FF';
 const LINE = '#E8EBF0';
 const MUTED = '#A8ADB8';
 const FONT = 'sans-serif';
 
 const BRAND = '悦读且住';
 const BRAND_SUB = '基于我的微信读书数据生成';
-const RECENT_MAX = 6;   // 最近在读最多展示本数
+const RECENT_MAX = 12;   // 最近在读最多展示本数（分享图多列几本，减少留白）
 
 // 圆角矩形路径（不依赖 ctx.roundRect 的平台支持）
 function roundRect(ctx, x, y, w, h, r) {
@@ -129,14 +129,14 @@ function paintShelf(ctx, payload, profile, scale) {
     y = boxTop + boxH + 40;
   }
 
-  // 分类分布（chips，最多 8 个）
+  // 分类分布（chips，最多 15 个 / 与报告页分类上限一致）
   if (cats.length) {
     lineDraw('分类分布', 36, INK, '700');
     y += 14;
     const chipH = 56;
     const gap = 16;
     let x = PAD;
-    cats.slice(0, 8).forEach((item) => {
+    cats.forEach((item) => {
       const text = item.name + ' · ' + item.count;
       ctx.font = '500 26px ' + FONT;
       const w = ctx.measureText(text).width + 40;
@@ -177,6 +177,46 @@ function paintShelf(ctx, payload, profile, scale) {
     y += 12;
   }
 
+  // 完读率（有电子书才展示）
+  const fin = finishStats(shelf);
+  if (fin.ebooks > 0) {
+    lineDraw('完读率', 36, INK, '700');
+    y += 10;
+    lineDraw((fin.rate * 100).toFixed(0) + '%（读完 ' + fin.finished + ' / ' + fin.ebooks + ' 本，在读 ' + fin.reading + ' 本）', 28, INK2, '400', MAXW);
+    y += 16;
+  }
+
+  // 一句话总结（按数据规则拼写，不联网、不用 AI）
+  const summaryBits = [];
+  if (counts.books > 0) {
+    summaryBits.push('书架共 ' + counts.books + ' 本电子书');
+  }
+  if (fin.ebooks > 0) {
+    summaryBits.push('已读完 ' + fin.finished + ' 本');
+  }
+  if (cats.length) {
+    summaryBits.push('最多的是「' + cats[0].name + '」共 ' + cats[0].count + ' 本');
+  }
+  if (books.length) {
+    summaryBits.push('最近在读《' + (books[0].title || '未命名') + '》');
+  }
+  if (summaryBits.length) {
+    const text = summaryBits.join('，') + '。';
+    ctx.font = '500 30px ' + FONT;
+    const lines = wrapText(ctx, text, MAXW - 44);
+    const boxH = 32 * 2 + lines.length * Math.round(30 * 1.5);
+    roundRect(ctx, PAD, y, MAXW, boxH, 24);
+    ctx.fillStyle = ACCENT_SOFT;
+    ctx.fill();
+    let ty = y + 32;
+    ctx.fillStyle = INK;
+    lines.forEach((ln) => {
+      ctx.fillText(ln, PAD + 22, ty + Math.round(30 * 0.82));
+      ty += Math.round(30 * 1.5);
+    });
+    y += boxH + 40;
+  }
+
   // 品牌署名
   ctx.fillStyle = LINE;
   ctx.fillRect(PAD, y, MAXW, 1);
@@ -190,14 +230,16 @@ function paintShelf(ctx, payload, profile, scale) {
   return finalH;
 }
 
-// 在传入的 canvas 节点上绘制竖版分享图（两遍绘制：先测高，再按 2× 高清重绘）。
+// 在传入的 canvas 节点上绘制竖版分享图（两遍绘制：先测高，再按最大倍率高清重绘）。
 // 返回 { width, height }（画布缓冲像素 = 导出后图片的像素尺寸）。
 function renderShelfShare(canvas, payload, profile) {
   canvas.width = W;
   canvas.height = MAXH;
   const logicalH = paintShelf(canvas.getContext('2d'), payload, profile, 1);
 
-  const scale = Math.min(2, MAX_SIDE / W, MAX_SIDE / logicalH);
+  // 高清倍率：在「任一边 ≤ MAX_SIDE（iOS 4096）」前提下取最大倍率
+  // （原先额外压了 2× 上限，是清晰度不足的主因）
+  const scale = Math.min(MAX_SIDE / W, MAX_SIDE / logicalH);
   if (scale <= 1.05) {
     return { width: W, height: Math.round(logicalH) };
   }

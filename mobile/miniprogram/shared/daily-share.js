@@ -1,12 +1,12 @@
 // 每日卡片回顾 · 竖版分享图（小程序 Canvas 2D 版）
 //
 // 复用与 persona-share.js 同一套平台适配：
-//   1) 逻辑宽 1080、高度上限 3200；导出时按 2× 高清重绘（且保证后备缓冲任一边 ≤4096，
-//      iOS Canvas 2D 后备缓冲超过 4096 会报错）；
+//   1) 逻辑宽 1080、高度上限 3200；导出时按最大倍率高清重绘（在保证后备缓冲任一边 ≤4096
+//      的前提下尽可能放大，iOS Canvas 2D 后备缓冲超过 4096 会报错）；
 //   2) 纯本机绘制、零依赖、不联网。
 //
 // 说明：分享图含划线 / 想法原文，仅在用户主动点击「生成分享图」时于本机绘制；
-// 页面上会标注来源（书名）与「AI 生成 / 本地模板」，不改动任何原始文字。
+// 页面上会标注来源（书名）与「AI 生成」，不改动任何原始文字。
 
 const W = 1080;         // 逻辑宽
 const PAD = 72;
@@ -16,8 +16,8 @@ const MAX_SIDE = 4096;  // Canvas 2D 后备缓冲任一边的上限
 
 const INK = '#1F2430';
 const INK2 = '#4A5060';
-const ACCENT = '#07C160';       // 微信绿，与网页/插件版分享图保持一致
-const ACCENT_SOFT = '#E8F8EF';
+const ACCENT = '#2F6BFF';       // 小程序主色（蓝），与页面 / 导航保持一致
+const ACCENT_SOFT = '#F0F4FF';
 const LINE = '#E8EBF0';
 const FONT = 'sans-serif';
 
@@ -93,6 +93,30 @@ function paintCard(ctx, card, profile, scale) {
   lineDraw(card.title, 56, INK, '700', MAXW);
   y += 20;
 
+  // 主题标签（有则展示，减少上半部分留白）
+  const themes = Array.isArray(card.themes) ? card.themes : [];
+  if (themes.length) {
+    const chipH = 52;
+    const chipGap = 16;
+    let x = PAD;
+    themes.forEach((text) => {
+      ctx.font = '500 26px ' + FONT;
+      const w = ctx.measureText(text).width + 40;
+      if (x + w > W - PAD) {
+        x = PAD;
+        y += chipH + chipGap;
+      }
+      roundRect(ctx, x, y, w, chipH, chipH / 2);
+      ctx.fillStyle = ACCENT_SOFT;
+      ctx.fill();
+      ctx.fillStyle = ACCENT;
+      ctx.font = '500 26px ' + FONT;
+      ctx.fillText(text, x + 20, y + chipH / 2 + 9);
+      x += w + chipGap;
+    });
+    y += chipH + 20;
+  }
+
   // 分隔线
   ctx.fillStyle = LINE;
   ctx.fillRect(PAD, y, MAXW, 1);
@@ -119,35 +143,39 @@ function paintCard(ctx, card, profile, scale) {
   }
   y += 40;
 
-  // 说明（AI 生成 / 本地模板）
-  const badgeText = card.ai ? 'AI 生成' : '本地模板';
-  ctx.font = '600 26px ' + FONT;
-  const badgeW = ctx.measureText(badgeText).width + 40;
-  const badgeH = 54;
-  roundRect(ctx, PAD, y, badgeW, badgeH, badgeH / 2);
-  ctx.fillStyle = card.ai ? ACCENT : '#8A8F99';
-  ctx.fill();
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillText(badgeText, PAD + 20, y + badgeH / 2 + 9);
-  y += badgeH + 26;
+  // 说明：仅当卡片带文案时才绘制。M15 关闭 AI 后，本地规则排版卡片没有 note，整块跳过。
+  if (card.note) {
+    if (card.ai) {
+      const badgeText = '内容由 AI 生成';
+      ctx.font = '600 26px ' + FONT;
+      const badgeW = ctx.measureText(badgeText).width + 40;
+      const badgeH = 54;
+      roundRect(ctx, PAD, y, badgeW, badgeH, badgeH / 2);
+      ctx.fillStyle = ACCENT;
+      ctx.fill();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText(badgeText, PAD + 20, y + badgeH / 2 + 9);
+      y += badgeH + 26;
+    }
 
-  // 说明正文（放在浅底卡片里）
-  ctx.font = '400 34px ' + FONT;
-  const noteLines = wrapText(ctx, card.note || '', MAXW - notePadH * 2);
-  const noteH = noteLines.length * Math.round(34 * 1.55) + notePadV * 2;
-  roundRect(ctx, PAD, y, MAXW, noteH, 24);
-  ctx.fillStyle = '#F7F8FA';
-  ctx.fill();
-  {
-    let ty = y + notePadV;
-    ctx.fillStyle = INK;
+    // 说明正文（放在浅底卡片里）
     ctx.font = '400 34px ' + FONT;
-    noteLines.forEach((ln) => {
-      ctx.fillText(ln, PAD + notePadH, ty + Math.round(34 * 0.82));
-      ty += Math.round(34 * 1.55);
-    });
+    const noteLines = wrapText(ctx, card.note || '', MAXW - notePadH * 2);
+    const noteH = noteLines.length * Math.round(34 * 1.55) + notePadV * 2;
+    roundRect(ctx, PAD, y, MAXW, noteH, 24);
+    ctx.fillStyle = '#F7F8FA';
+    ctx.fill();
+    {
+      let ty = y + notePadV;
+      ctx.fillStyle = INK;
+      ctx.font = '400 34px ' + FONT;
+      noteLines.forEach((ln) => {
+        ctx.fillText(ln, PAD + notePadH, ty + Math.round(34 * 0.82));
+        ty += Math.round(34 * 1.55);
+      });
+    }
+    y += noteH + 46;
   }
-  y += noteH + 46;
 
   // 关联的旧划线
   const related = card.related || [];
@@ -181,14 +209,16 @@ function paintCard(ctx, card, profile, scale) {
   return finalH;
 }
 
-// 在传入的 canvas 节点上绘制竖版分享图（两遍绘制：先测高，再按 2× 高清重绘）。
+// 在传入的 canvas 节点上绘制竖版分享图（两遍绘制：先测高，再按最大倍率高清重绘）。
 // 返回 { width, height }（画布缓冲像素 = 导出后图片的像素尺寸）。
 function renderDailyShare(canvas, card, profile) {
   canvas.width = W;
   canvas.height = MAXH;
   const logicalH = paintCard(canvas.getContext('2d'), card, profile, 1);
 
-  const scale = Math.min(2, MAX_SIDE / W, MAX_SIDE / logicalH);
+  // 高清倍率：在「任一边 ≤ MAX_SIDE（iOS 4096）」前提下取最大倍率
+  // （原先额外压了 2× 上限，是清晰度不足的主因）
+  const scale = Math.min(MAX_SIDE / W, MAX_SIDE / logicalH);
   if (scale <= 1.05) {
     return { width: W, height: Math.round(logicalH) };
   }

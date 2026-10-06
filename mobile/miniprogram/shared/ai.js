@@ -3,12 +3,12 @@
  *
  * 只做「润色 / 串联」，不改变本机已算好的事实。
  * Key 由用户自填，只存本机；经云函数 wereadProxy（action:'ai'）转发，不落库、日志仅掩码。
- * 未配置 Key 时返回 { ok:false, code:'nokey' }，由调用方（页面）引导填写或降级本地模板。
+ * 未配置 Key 时返回 { ok:false, code:'nokey' }，由调用方（页面）引导填写。
  *
  * 人格画像提示词与浏览器插件 modules/official.js 的 AI_READING_PERSONA_PROMPT 保持一致。
  * 每日卡片的提示词 / 解析 / 降级见 daily-ai.js。
  */
-const { PROXY_FUNCTION } = require('../config');
+const { PROXY_FUNCTION, AI_ENABLED } = require('../config');
 const store = require('./store');
 
 const SYSTEM_PROMPT = '你是一位克制、有洞察的阅读分析师。' +
@@ -47,6 +47,11 @@ function buildPrompt(persona) {
 /** 底层：把对话交给云函数转发 DeepSeek（Key 由用户自填、只存本机）。永不 reject。 */
 function callAI(messages) {
   return new Promise((resolve) => {
+    // M15 合规开关：关闭时小程序内不产生任何 AI 生成内容（此分支只作兜底，页面已不再调用）
+    if (!AI_ENABLED) {
+      resolve({ ok: false, code: 'disabled', error: '当前版本不提供该能力' });
+      return;
+    }
     const key = store.getDeepSeekKey();
     if (!key) {
       resolve({ ok: false, code: 'nokey', error: '尚未配置 DeepSeek API Key' });

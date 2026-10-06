@@ -1,4 +1,5 @@
 const store = require('../../shared/store');
+const { AI_ENABLED } = require('../../config');
 const core = require('../../shared/daily-core');
 const db = require('../../shared/daily-store');
 const dailyData = require('../../shared/daily-data');
@@ -9,7 +10,6 @@ const { messageOf, isKeyError } = require('../../shared/errors');
 Page({
   data: {
     hasKey: false,
-    hasDsKey: false,
     loading: false,
     generating: false,
     error: '',
@@ -28,7 +28,7 @@ Page({
 
   onShow() {
     const hasKey = !!store.getKey();
-    this.setData({ hasKey, hasDsKey: !!store.getDeepSeekKey(), regenLeft: db.regenLeft() });
+    this.setData({ hasKey, regenLeft: db.regenLeft() });
     if (!hasKey) {
       return;
     }
@@ -58,7 +58,7 @@ Page({
     this.generate(false);
   },
 
-  // 组卡：拉素材池 → 抽签选材 → AI 成文（未配 Key → 本地模板）
+  // 组卡：拉素材池 → 抽签选材 → 排版（M15 关闭 AI 时走纯本地规则排版）
   async generate(isRegen) {
     const key = store.getKey();
     if (!key) {
@@ -66,6 +66,12 @@ Page({
       return;
     }
     if (this.data.generating) {
+      return;
+    }
+    if (AI_ENABLED && !store.getDeepSeekKey()) {
+      // 仅 AI 开启时才需要 DeepSeek Key；M15 关闭后不受此限制
+      this.setData({ generating: false, loading: false });
+      wx.stopPullDownRefresh();
       return;
     }
     if (isRegen && db.regenLeft() <= 0) {
@@ -117,11 +123,31 @@ Page({
       db.resetUsed();
     }
 
-    // AI 成文：未配 Key 或调用失败都退化为本地模板卡片（失败不阻断）
-    const text = await generateDailyText(material);
-    const aiError = (!text.ai && text.code && text.code !== 'nokey')
-      ? messageOf(text, 'AI 生成失败，已改用本地模板')
-      : '';
+    // 文案：AI 开启时走 AI 成文；M15 关闭时走纯本地规则排版（无 note、无解读）
+    let text;
+    if (AI_ENABLED) {
+      text = await generateDailyText(material);
+      if (!text.ai) {
+        const code = text.code || '';
+        const msg = messageOf(text, '生成失败，请重试');
+        if (this.data.card) {
+          this.setData({ generating: false, loading: false, aiError: msg });
+        } else {
+          this.setData({
+            generating: false,
+            loading: false,
+            reason: '',
+            aiError: '',
+            error: msg,
+            needsKey: code === 'nokey' || code === 'ai_auth',
+          });
+        }
+        wx.stopPullDownRefresh();
+        return;
+      }
+    } else {
+      text = { ai: false, title: core.localTitle(material), note: '' };
+    }
 
     const card = core.makeCard(material, text);
     db.saveCard(card);
@@ -133,7 +159,7 @@ Page({
       loading: false,
       error: '',
       reason: '',
-      aiError: aiError,
+      aiError: '',
       card: core.toView(card),
       regenLeft: left,
     });
@@ -243,6 +269,7 @@ Page({
         canvas: canvas,
         x: 0,
         y: 0,
+        fileType: 'png',
         destWidth: size.width,
         destHeight: size.height,
         success: (res) => resolve(res.tempFilePath),

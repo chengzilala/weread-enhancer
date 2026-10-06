@@ -27,6 +27,7 @@ const FALLBACK = {
   check: '校验失败，请稍后重试',
   ai_auth: 'DeepSeek Key 无效或已失效，请重新填写',
   ai_pay: 'DeepSeek 账户余额不足',
+  disabled: '当前版本不提供该能力',
   noopenid: '未取到用户标识，无法同步',
   sync: '云同步失败，请稍后重试',
   toobig: '数据过大，未同步',

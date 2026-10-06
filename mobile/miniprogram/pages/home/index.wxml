@@ -23,6 +23,18 @@
       <view class="daily-entry__arrow">›</view>
     </view>
 
+    <!-- 灵感漫游入口 -->
+    <view class="wander-entry" bindtap="goWander">
+      <view class="daily-entry__main">
+        <view class="wander-entry__name-row">
+          <text class="daily-entry__name">灵感漫游</text>
+          <text class="wander-entry__badge" wx:if="{{wanderNew}}">新</text>
+        </view>
+        <view class="daily-entry__sub">每周一次，把同主题的划线编织成一篇综述</view>
+      </view>
+      <view class="daily-entry__arrow">›</view>
+    </view>
+
     <!-- 周期切换 -->
     <view class="period">
       <view
@@ -194,7 +206,7 @@
           </view>
 
           <view class="note">
-            <view class="note__badge {{dailyCard.ai ? '' : 'note__badge--local'}}">{{dailyCard.ai ? 'AI 生成' : '本地模板'}}</view>
+            <view class="note__badge">AI 生成</view>
             <view class="note__text">{{dailyCard.note}}</view>
           </view>
 

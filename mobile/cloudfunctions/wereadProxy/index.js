@@ -6,25 +6,50 @@
  *   浏览器 / 小程序端都无法直连。云函数出网不受小程序 request 合法域名白名单限制，
  *   因此由本函数代发请求（与浏览器插件 background.js 的定位一致）。
  *
- * 三个职责（按 event.action 分流，无 action 时走默认的网关中转）：
+ * 职责（按 event.action 分流，无 action 时走默认的网关中转）：
  *   1. 默认（无 action）      —— 微信读书官方网关中转；
  *   2. action: 'ai'           —— 转发 DeepSeek（B3，Key 由用户自填，我方不内置）；
- *   3. action: 'syncGet/Put'  —— 阅读人格结果云同步（B2，按 openid 隔离）。
+ *                               **M15 已关闭**（小程序内彻底去 AI），仅 H5 侧保留；
+ *   3. action: 'syncGet/Put'  —— 阅读人格结果云同步（B2，按 openid 隔离）；
+ *   4. action: 'opsPing'      —— 小程序使用量上报（M13，按天去重 openid）；
+ *   5. action: 'opsReport'    —— 插件匿名统计上报（M13，HTTP 访问服务，无 openid）；
+ *   6. action: 'opsWhoami'    —— 判断当前调用者是否管理员（M13，只回布尔）；
+ *   7. action: 'opsAdmin'     —— 管理员看板数据（M13，非白名单一律不下发）。
+ *
+ * H5（纯网页 App）走 HTTP 访问服务，`handleHttp` 额外支持：
+ *   - action: 'relay'         —— 用托管 Key 走官方网关中转（{deviceId, apiName, params}）；
+ *   - action: 'ai'            —— 用托管 DeepSeek Key 转发（{deviceId, messages}）；
+ *   - action: 'keySave'       —— Key 加密托管（{deviceId, apiKey?, aiKey?}，集合 wre_users）；
+ *   - action: 'keyGet'        —— 只回「是否已配置 + 掩码」（{deviceId}）；
+ *   - action: 'keyClear'      —— 清除托管 Key（{deviceId}）；
+ *   - action: 'syncGet/Put'   —— 人格结果按 deviceId 云同步。
  *
  * 红线：
- *   1. 不持久化、不记录任何用户的 Key（日志只允许出现掩码）。
- *   2. 云同步只存「本机算出的人格结果」，按 openid 隔离；不存 Key、不存官方接口原始数据。
+ *   1. 不持久化、不记录任何用户的 Key（日志只允许出现掩码）；
+ *      H5 的 Key 托管为**用户明示同意**后的加密存储（集合 wre_users，应用层 AES-256-GCM），可一键清除。
+ *   2. 云同步只存「本机算出的人格结果」，按 openid / deviceId 隔离；不存 Key、不存官方接口原始数据。
+ *   3. 运营统计（M13）只存「聚合计数 + 随机匿名标识 / openid 去重键」，绝不存阅读数据 / Key / 书目 / 笔记 / IP。
  *
  * 部署提醒（重要）：
  *   ① 上传部署后，请在「云开发控制台 → 云函数 → wereadProxy → 配置」把「超时时间」
  *      改为 30 秒（默认只有 3 秒；AI 转发最长用 30 秒，网关中转用 10 秒）。
  *   ② 首次使用云同步（B2）前，请在「云开发控制台 → 数据库」新建集合 `wre_sync`，
  *      权限选「仅创建者可读写」。（函数也会尝试自动创建，但手动建更稳妥。）
+ *   ③ M13 运营看板：在「云开发控制台 → 数据库」新建集合 `wre_ops_daily`
+ *      （权限选「仅管理端可读写」）；在「云函数 → wereadProxy → 配置 → 环境变量」新增
+ *      `ADMIN_OPENIDS`（值＝你自己的 openid，多个用英文逗号分隔），否则看板对任何人都不下发；
+ *      插件匿名统计走「云开发控制台 → HTTP 访问服务」，为 `/report` 路径绑定本函数
+ *      （前端以 text/plain 简单请求上报，无需预检）。
+ *   ④ H5：新建集合 `wre_users`（权限选「仅管理端可读写」，用于 Key 加密托管）；在环境变量新增
+ *      `KEY_SECRET`（任意足够长的随机串，用于应用层加密，**一旦设置不要更改**，否则已托管 Key 无法解密）
+ *      与 `H5_ORIGINS`（允许跨域的 H5 站点地址，多个用英文逗号分隔；不配则退回 `*`）；
+ *      在「HTTP 访问服务」为 H5 另绑一个路径（如 `/h5`）到本函数，把该地址填进 `h5/src/config.js`。
  */
 'use strict';
 
 const cloud = require('wx-server-sdk');
 const https = require('https');
+const crypto = require('crypto');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
@@ -38,11 +63,36 @@ const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
 const DEEPSEEK_MODEL = 'deepseek-chat';
 const AI_TIMEOUT_MS = 30000;
 const AI_MAX_MESSAGES = 8;
-const AI_MAX_TOKENS = 900;
+// 输出上限：人格画像（短）+ 每日卡片（短）+ 灵感漫游（金档正文约 1000 字，
+// 加摘要 / 外部火花 / 创作种子的 JSON 结构，留足余量防截断导致 JSON 解析失败）
+const AI_MAX_TOKENS = 2000;
 
 // 云同步（B2）：按 openid 隔离，只存人格结果，不存 Key、不存原始接口数据
 const SYNC_COLLECTION = 'wre_sync';
 const SYNC_MAX_BYTES = 400 * 1024;
+
+// 运营统计（M13）：只存「聚合计数 + 去重键」，保留 90 天，到期只留计数
+const OPS_COLLECTION = 'wre_ops_daily';
+const OPS_RETENTION_DAYS = 90;
+const OPS_SCAN_LIMIT = 1000; // 单次聚合最多扫描的文档数（个人量级足够）
+// 管理员 openid 白名单：在云函数「配置 → 环境变量」里设置 ADMIN_OPENIDS（英文逗号分隔）；
+// 未配置时任何人都拿不到看板数据（不是前端隐藏，是服务端不下发）。
+const ADMIN_OPENIDS = String(process.env.ADMIN_OPENIDS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+// H5（纯网页 App）：Key 加密托管 + 无登录匿名身份
+//   - wre_users：按 deviceId 托管用户 Key，权限＝仅管理端可读写；
+//   - KEY_SECRET：应用层加密密钥（云函数「配置 → 环境变量」设置），未配置则托管功能不可用；
+//   - H5_ORIGINS：允许跨域访问本站的域名白名单（英文逗号分隔）；未配置时退回 `*`（便于本地开发）。
+const USERS_COLLECTION = 'wre_users';
+const KEY_SECRET = String(process.env.KEY_SECRET || '');
+const H5_ORIGINS = String(process.env.H5_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+const DEVICE_MIN_LEN = 16;   // 前端生成的随机 deviceId 至少 16 位（建议 32 位十六进制）
 
 function maskKey(key) {
   if (typeof key !== 'string' || !key) {
@@ -301,13 +351,463 @@ async function handleSync(event) {
   return { ok: true, updatedAt: payload.updatedAt };
 }
 
+// ---------- M13：运营统计（小程序使用量 / 插件匿名使用量 / 管理员看板） ----------
+
+/** 中国时区（UTC+8）的 YYYY-MM-DD */
+function cstDate(ts) {
+  return new Date((ts || Date.now()) + 8 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+/** 只保留白名单字符，避免任何内容穿透进库 */
+function cleanToken(value, maxLen) {
+  return String(value || '').replace(/[^0-9a-zA-Z._-]/g, '').slice(0, maxLen || 64);
+}
+
+/** 某类统计当天 +1：文档不存在则创建（首次记为 firstDate） */
+async function bumpDaily(kind, uid, extra) {
+  const db = cloud.database();
+  const coll = db.collection(OPS_COLLECTION);
+  const _ = db.command;
+  const now = Date.now();
+  const date = cstDate(now);
+  const docId = kind + '_' + date + '_' + uid;
+  const patch = Object.assign({ kind: kind, date: date, uid: uid, lastAt: now }, extra || {});
+  try {
+    await coll.doc(docId).update({ data: Object.assign({}, patch, { opens: _.inc(1) }) });
+    return true;
+  } catch (err) {
+    const fresh = Object.assign({}, patch, { opens: 1, firstDate: date, firstAt: now });
+    try {
+      await coll.doc(docId).set({ data: fresh });
+      return true;
+    } catch (err2) {
+      try {
+        await db.createCollection(OPS_COLLECTION);
+        await coll.doc(docId).set({ data: fresh });
+        return true;
+      } catch (err3) {
+        return false;
+      }
+    }
+  }
+}
+
+/** 聚合某类统计：今日去重人数 / 今日次数 / 今日新增 / 累计人数 / 版本分布 */
+async function aggregate(kind, today) {
+  const db = cloud.database();
+  const coll = db.collection(OPS_COLLECTION);
+
+  const todayRes = await coll.where({ kind: kind, date: today }).limit(OPS_SCAN_LIMIT).get().catch(() => null);
+  const todayDocs = (todayRes && todayRes.data) || [];
+  const todayUsers = todayDocs.length; // 每天每 uid 至多一条文档 → 条数即去重人数
+  const todayOpens = todayDocs.reduce((acc, d) => acc + (Number(d.opens) || 0), 0);
+
+  const allRes = await coll.where({ kind: kind }).limit(OPS_SCAN_LIMIT).get().catch(() => null);
+  const allDocs = (allRes && allRes.data) || [];
+  const users = {};
+  allDocs.forEach((d) => {
+    if (!d || !d.uid) {
+      return;
+    }
+    const cur = users[d.uid] || { firstDate: d.date, lastDate: d.date, version: d.version || '' };
+    if (d.date < cur.firstDate) {
+      cur.firstDate = d.date;
+    }
+    if (d.date >= cur.lastDate) {
+      cur.lastDate = d.date;
+      if (d.version) {
+        cur.version = d.version;
+      }
+    }
+    users[d.uid] = cur;
+  });
+
+  const uids = Object.keys(users);
+  const newUsers = uids.filter((u) => users[u].firstDate === today).length;
+  const versionMap = {};
+  uids.forEach((u) => {
+    const v = users[u].version || '未知';
+    versionMap[v] = (versionMap[v] || 0) + 1;
+  });
+  const versions = Object.keys(versionMap)
+    .map((v) => ({ version: v, count: versionMap[v] }))
+    .sort((a, b) => b.count - a.count);
+
+  return {
+    date: today,
+    todayUsers: todayUsers,
+    todayOpens: todayOpens,
+    newUsers: newUsers,
+    totalUsers: uids.length,
+    versions: versions,
+    truncated: allDocs.length >= OPS_SCAN_LIMIT,
+  };
+}
+
+/** 清理超期数据（保留 90 天）；由看板顺手触发，失败不阻断 */
+function cleanupOld() {
+  const db = cloud.database();
+  const _ = db.command;
+  const cutoff = cstDate(Date.now() - OPS_RETENTION_DAYS * 24 * 3600 * 1000);
+  return db.collection(OPS_COLLECTION).where({ date: _.lt(cutoff) }).remove().catch(() => null);
+}
+
+/** 小程序使用量：每次打开记一次（按 openid + 天去重） */
+async function handleOpsPing() {
+  const ctx = cloud.getWXContext();
+  const openid = ctx && ctx.OPENID;
+  if (!openid) {
+    return { ok: false, code: 'noopenid', error: '未取到用户标识（需已开通云开发）' };
+  }
+  const ok = await bumpDaily('mp', cleanToken(openid, 64), null);
+  return ok ? { ok: true } : { ok: false, code: 'ops', error: '统计写入失败' };
+}
+
+/** 判断当前调用者是否管理员（只回布尔，不泄露白名单） */
+async function handleOpsWhoami() {
+  const ctx = cloud.getWXContext();
+  const openid = ctx && ctx.OPENID;
+  const admin = !!openid && ADMIN_OPENIDS.indexOf(openid) >= 0;
+  return { ok: true, admin: admin };
+}
+
+/** 管理员看板：非白名单一律 code=forbidden，服务端不下发任何数据 */
+async function handleOpsAdmin() {
+  const ctx = cloud.getWXContext();
+  const openid = ctx && ctx.OPENID;
+  if (!openid || ADMIN_OPENIDS.indexOf(openid) < 0) {
+    return { ok: false, code: 'forbidden', error: '无权限' };
+  }
+  const today = cstDate(Date.now());
+  const mp = await aggregate('mp', today);
+  const plugin = await aggregate('plugin', today);
+  cleanupOld(); // 不 await：清理是顺手动作，不阻塞看板返回
+  return { ok: true, generatedAt: Date.now(), mp: mp, plugin: plugin };
+}
+
+/** 插件匿名统计：仅白名单字段入库，写失败静默（不影响插件使用） */
+async function handleOpsReport(payload) {
+  const body = payload && typeof payload === 'object' ? payload : {};
+  const anonId = cleanToken(body.anonId, 64);
+  if (anonId.length < 8) {
+    return { ok: false, code: 'param', error: '缺少匿名标识' };
+  }
+  const version = cleanToken(body.version, 24);
+  const event = cleanToken(body.event, 24) || 'active';
+  const ok = await bumpDaily('plugin', anonId, { version: version, event: event });
+  return ok ? { ok: true } : { ok: false, code: 'ops', error: '统计写入失败' };
+}
+
+// ---------- H5：Key 加密托管（按 deviceId）+ 云同步 ----------
+
+/** deviceId：只保留白名单字符并限制长度（非用户信息，浏览器随机生成） */
+function cleanDeviceId(value) {
+  return String(value || '').replace(/[^0-9a-zA-Z_-]/g, '').slice(0, 64);
+}
+
+function validDeviceId(id) {
+  return typeof id === 'string' && id.length >= DEVICE_MIN_LEN;
+}
+
+/** 32 字节派生密钥（对 KEY_SECRET 做 SHA-256；secret 本身不入库、不写日志） */
+function deriveSecret() {
+  return crypto.createHash('sha256').update(KEY_SECRET, 'utf8').digest();
+}
+
+/** 应用层加密：v1:<iv b64>:<tag b64>:<密文 b64>（AES-256-GCM） */
+function encryptSecret(plain) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', deriveSecret(), iv);
+  const ct = Buffer.concat([cipher.update(String(plain), 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return ['v1', iv.toString('base64'), tag.toString('base64'), ct.toString('base64')].join(':');
+}
+
+/** 解密（失败一律返回空串，绝不抛错穿透） */
+function decryptSecret(enc) {
+  const parts = String(enc || '').split(':');
+  if (parts.length !== 4 || parts[0] !== 'v1') {
+    return '';
+  }
+  try {
+    const iv = Buffer.from(parts[1], 'base64');
+    const tag = Buffer.from(parts[2], 'base64');
+    const ct = Buffer.from(parts[3], 'base64');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', deriveSecret(), iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(ct), decipher.final()]).toString('utf8');
+  } catch (err) {
+    return '';
+  }
+}
+
+/** 读取某 deviceId 的托管文档（不存在按「未配置」处理） */
+async function readUserDoc(deviceId) {
+  const db = cloud.database();
+  try {
+    const r = await db.collection(USERS_COLLECTION).doc(deviceId).get();
+    return r && r.data ? r.data : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+/** 取托管 Key（明文，仅在内存中使用，绝不回传浏览器 / 写日志） */
+async function getHostedKey(deviceId, field) {
+  if (!KEY_SECRET) {
+    return { ok: false, code: 'nosecret', error: '服务端未配置密钥托管环境变量，暂不可用' };
+  }
+  if (!validDeviceId(deviceId)) {
+    return { ok: false, code: 'nodevice', error: '缺少或非法的设备标识' };
+  }
+  const doc = await readUserDoc(deviceId);
+  const enc = doc && doc[field];
+  if (!enc) {
+    return { ok: false, code: 'nokey', error: '尚未配置 API Key，请先在「我的」里填写' };
+  }
+  const plain = decryptSecret(enc);
+  if (!plain) {
+    return { ok: false, code: 'nokey', error: '托管 Key 读取失败，请重新填写' };
+  }
+  return { ok: true, key: plain };
+}
+
+/** keySave：写入 / 更新托管 Key（wrk- 微信读书 Key、sk- DeepSeek Key 可单独更新） */
+async function handleKeySave(body) {
+  const deviceId = cleanDeviceId(body && body.deviceId);
+  if (!validDeviceId(deviceId)) {
+    return { ok: false, code: 'nodevice', error: '缺少或非法的设备标识' };
+  }
+  if (!KEY_SECRET) {
+    return { ok: false, code: 'nosecret', error: '服务端未配置密钥托管环境变量，暂不可用' };
+  }
+  const apiKey = String((body && body.apiKey) || '').trim();
+  const aiKey = String((body && body.aiKey) || '').trim();
+  if (!apiKey && !aiKey) {
+    return { ok: false, code: 'param', error: '缺少要保存的 Key' };
+  }
+  if (apiKey && apiKey.indexOf('wrk-') !== 0) {
+    return { ok: false, code: 'param', error: '微信读书 Key 格式不对（应以 wrk- 开头）' };
+  }
+  if (aiKey && aiKey.indexOf('sk-') !== 0) {
+    return { ok: false, code: 'param', error: 'DeepSeek Key 格式不对（应以 sk- 开头）' };
+  }
+
+  const db = cloud.database();
+  const coll = db.collection(USERS_COLLECTION);
+  const doc = (await readUserDoc(deviceId)) || {};
+  const now = Date.now();
+  const patch = {
+    updatedAt: now,
+    createdAt: doc.createdAt || now,
+  };
+  if (apiKey) {
+    patch.enc = encryptSecret(apiKey);
+    patch.masked = maskKey(apiKey);
+  }
+  if (aiKey) {
+    patch.aiEnc = encryptSecret(aiKey);
+    patch.aiMasked = maskKey(aiKey);
+  }
+
+  try {
+    await coll.doc(deviceId).set({ data: Object.assign({}, doc, patch) });
+  } catch (err) {
+    try {
+      await db.createCollection(USERS_COLLECTION);
+      await coll.doc(deviceId).set({ data: Object.assign({}, doc, patch) });
+    } catch (err2) {
+      return { ok: false, code: 'save', error: 'Key 保存失败：' + ((err2 && err.errMsg) || '未知错误') };
+    }
+  }
+  console.log('[wereadProxy] keySave', { device: deviceId.slice(0, 6) + '…', key: patch.masked || patch.aiMasked || '(空)' });
+  return { ok: true, hasKey: !!patch.enc || !!doc.enc, masked: patch.masked || doc.masked || '', hasAiKey: !!patch.aiEnc || !!doc.aiEnc, aiMasked: patch.aiMasked || doc.aiMasked || '' };
+}
+
+/** keyGet：只回「是否已配置 + 掩码」，绝不回明文 */
+async function handleKeyGet(body) {
+  const deviceId = cleanDeviceId(body && body.deviceId);
+  if (!validDeviceId(deviceId)) {
+    return { ok: false, code: 'nodevice', error: '缺少或非法的设备标识' };
+  }
+  const doc = await readUserDoc(deviceId);
+  return {
+    ok: true,
+    hasKey: !!(doc && doc.enc),
+    masked: (doc && doc.masked) || '',
+    hasAiKey: !!(doc && doc.aiEnc),
+    aiMasked: (doc && doc.aiMasked) || '',
+  };
+}
+
+/** keyClear：删除该 deviceId 的托管文档 */
+async function handleKeyClear(body) {
+  const deviceId = cleanDeviceId(body && body.deviceId);
+  if (!validDeviceId(deviceId)) {
+    return { ok: false, code: 'nodevice', error: '缺少或非法的设备标识' };
+  }
+  try {
+    const db = cloud.database();
+    await db.collection(USERS_COLLECTION).doc(deviceId).remove();
+  } catch (err) {
+    // 文档本来就不存在也算成功
+  }
+  return { ok: true };
+}
+
+/** H5 relay：用托管 Key 走官方网关中转（响应不含明文 Key） */
+async function handleH5Relay(body) {
+  const got = await getHostedKey(body && body.deviceId, 'enc');
+  if (!got.ok) {
+    return got;
+  }
+  return await relayGateway({ apiName: body && body.apiName, params: (body && body.params) || {}, apiKey: got.key });
+}
+
+/** H5 ai：用托管 DeepSeek Key 转发 */
+async function handleH5Ai(body) {
+  const got = await getHostedKey(body && body.deviceId, 'aiEnc');
+  if (!got.ok) {
+    return { ok: false, code: got.code === 'nokey' ? 'ai_nokey' : got.code, error: got.error };
+  }
+  return await handleAi({ apiKey: got.key, messages: body && body.messages });
+}
+
+/** H5 云同步：按 deviceId 隔离，只存人格结果（与小程序 wre_sync 同一集合） */
+async function handleH5Sync(body) {
+  const deviceId = cleanDeviceId(body && body.deviceId);
+  if (!validDeviceId(deviceId)) {
+    return { ok: false, code: 'nodevice', error: '缺少或非法的设备标识' };
+  }
+  const action = body && body.action;
+  const db = cloud.database();
+  const coll = db.collection(SYNC_COLLECTION);
+
+  if (action === 'syncGet') {
+    try {
+      const r = await coll.doc(deviceId).get();
+      return { ok: true, data: (r.data && r.data.persona) || null, updatedAt: (r.data && r.data.updatedAt) || 0 };
+    } catch (err) {
+      return { ok: true, data: null, updatedAt: 0 };
+    }
+  }
+
+  const persona = body && body.persona;
+  if (!persona || typeof persona !== 'object') {
+    return { ok: false, code: 'param', error: '缺少待同步数据' };
+  }
+  const payload = { persona: persona, updatedAt: Date.now() };
+  if (JSON.stringify(payload).length > SYNC_MAX_BYTES) {
+    return { ok: false, code: 'toobig', error: '数据过大，未同步' };
+  }
+  try {
+    await coll.doc(deviceId).set({ data: payload });
+  } catch (err) {
+    try {
+      await db.createCollection(SYNC_COLLECTION);
+      await coll.doc(deviceId).set({ data: payload });
+    } catch (err2) {
+      return { ok: false, code: 'sync', error: '同步写入失败：' + ((err2 && err2.errMsg) || '未知错误') };
+    }
+  }
+  return { ok: true, updatedAt: payload.updatedAt };
+}
+
+// HTTP 访问服务响应头（插件以 text/plain 简单请求上报，无需预检；H5 以 application/json + 预检）
+function buildCorsHeaders(origin) {
+  const headers = {
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Content-Type': 'application/json; charset=utf-8',
+    Vary: 'Origin',
+  };
+  if (H5_ORIGINS.length) {
+    // 配了白名单：只回显被允许的来源（未命中则不下发 ACAO，浏览器会拦截）
+    if (origin && H5_ORIGINS.indexOf(origin) >= 0) {
+      headers['Access-Control-Allow-Origin'] = origin;
+    }
+  } else {
+    headers['Access-Control-Allow-Origin'] = '*';
+  }
+  return headers;
+}
+
+function httpReply(statusCode, obj, origin) {
+  return { statusCode: statusCode, headers: buildCorsHeaders(origin), body: JSON.stringify(obj) };
+}
+
+/**
+ * HTTP 入口：
+ *   - opsReport：插件匿名统计（简单请求，兼容原有行为）；
+ *   - relay / ai / keySave / keyGet / keyClear / syncGet / syncPut：H5 使用（JSON + 预检）。
+ */
+async function handleHttp(event) {
+  const method = String((event && event.httpMethod) || 'POST').toUpperCase();
+  const rawHeaders = (event && event.headers) || {};
+  const origin = String(rawHeaders.origin || rawHeaders.Origin || '');
+  if (method === 'OPTIONS') {
+    return { statusCode: 204, headers: buildCorsHeaders(origin), body: '' };
+  }
+  let body = event && event.body;
+  if (typeof body === 'string') {
+    try {
+      body = JSON.parse(body || '{}');
+    } catch (err) {
+      body = {};
+    }
+  }
+  const action = (body && body.action) || 'opsReport';
+
+  if (action === 'opsReport') {
+    const result = await handleOpsReport(body);
+    return httpReply(result.ok ? 200 : 400, result, origin);
+  }
+  if (action === 'keySave') {
+    return httpReply(200, await handleKeySave(body), origin);
+  }
+  if (action === 'keyGet') {
+    return httpReply(200, await handleKeyGet(body), origin);
+  }
+  if (action === 'keyClear') {
+    return httpReply(200, await handleKeyClear(body), origin);
+  }
+  if (action === 'relay') {
+    return httpReply(200, await handleH5Relay(body), origin);
+  }
+  if (action === 'ai') {
+    return httpReply(200, await handleH5Ai(body), origin);
+  }
+  if (action === 'syncGet' || action === 'syncPut') {
+    return httpReply(200, await handleH5Sync(body), origin);
+  }
+  return httpReply(400, { ok: false, code: 'action', error: '未知的 HTTP 操作' }, origin);
+}
+
 exports.main = async (event) => {
+  // HTTP 访问服务（插件匿名上报）：event 形如 { httpMethod, body, ... }
+  if (event && (event.httpMethod || event.requestContext)) {
+    return await handleHttp(event);
+  }
   const action = event && event.action;
   if (action === 'ai') {
-    return await handleAi(event);
+    // M15 合规整改：小程序内彻底去 AI（个人主体不可含深度合成技术类目），
+    // 此处硬阻断 AI 通道；handleAi 函数体保留不删，日后转企业主体可重新放开。
+    return { ok: false, code: 'disabled', error: '当前版本不提供该能力' };
   }
   if (action === 'syncGet' || action === 'syncPut') {
     return await handleSync(event);
+  }
+  if (action === 'opsPing') {
+    return await handleOpsPing();
+  }
+  if (action === 'opsWhoami') {
+    return await handleOpsWhoami();
+  }
+  if (action === 'opsAdmin') {
+    return await handleOpsAdmin();
+  }
+  if (action === 'opsReport') {
+    return await handleOpsReport(event);
   }
   return await relayGateway(event);
 };

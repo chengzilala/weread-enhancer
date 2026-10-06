@@ -4,7 +4,7 @@
  * 定位：把「素材池」变成一篇卡片的原料——随机抽一条主划线、按主题召回同主题旧划线、组装卡片对象。
  * 只做纯计算：不联网、不读写本机存储、不写日志。
  *   - 持久化见 daily-store.js（卡片历史 / 已用素材 / 限流）；
- *   - AI 成文与本地降级见 daily-ai.js；
+ *   - AI 成文见 daily-ai.js；
  *   - 素材池构建见 daily-data.js。
  *
  * 主题标签复用 persona-core 的 PERSONA_THEMES（规则 + 关键词，首版不做 embedding）。
@@ -227,9 +227,23 @@ function prepareMaterial(pool, usedMap) {
 // ---- 组卡 ----
 
 /**
+ * 本地规则标题（M15 去 AI 后使用）：不生成任何解读 / 共情文案，
+ * 只按素材事实给一句中性的「重读」标题（命中主题时点出主题）。
+ */
+function localTitle(material) {
+  const main = (material && material.main) || {};
+  const theme = (material && material.themes && material.themes[0]) || '';
+  const isNote = main.kind === 'review';
+  if (theme) {
+    return '重读一段关于「' + theme + '」的' + (isNote ? '想法' : '划线');
+  }
+  return '今天，重读一段' + (isNote ? '想法' : '划线');
+}
+
+/**
  * 组装卡片对象（不落盘，由调用方 saveCard）。
  * @param {object} material prepareMaterial 的结果
- * @param {object} text { ai, title, note }（由 daily-ai.generateDailyText 提供，含本地降级文案）
+ * @param {object} text { ai, title, note }（AI 成文见 daily-ai.js；M15 关闭后由页面传本地规则标题）
  */
 function makeCard(material, text) {
   const now = Date.now();
@@ -293,5 +307,6 @@ module.exports = {
   tagAndGroup,
   prepareMaterial,
   makeCard,
+  localTitle,
   toView,
 };

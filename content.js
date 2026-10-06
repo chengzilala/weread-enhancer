@@ -14,6 +14,8 @@ const WRE_DEFAULT_STATE = {
     speed: 50,
     direction: 'down',
   },
+  // M13：匿名使用统计（默认开启，可一键关闭；见 modules/telemetry.js）
+  telemetryEnabled: true,
 };
 const WRE_MAX_LOGS = 200;
 
@@ -974,6 +976,15 @@ function createUI() {
             </div>
             <div class="wre-setting-tip">快捷键：空格 开始/暂停 | 按 ? 查看全部快捷键</div>
           </div>
+
+          <div class="wre-setting-item">
+            <label class="wre-setting-label">📊 匿名使用统计</label>
+            <div class="wre-setting-control" style="justify-content: space-between; align-items: center;">
+              <span style="font-size: 12px; color: var(--wre-text); flex: 1; margin-right: 12px;">仅上报「随机匿名标识 + 版本号 + 日期 + 事件名」，不含阅读数据 / 账号 / Key。</span>
+              <button class="wre-btn wre-btn-small" id="wre-telemetry-toggle">${WRE_STATE.telemetryEnabled === false ? '已关闭' : '已开启'}</button>
+            </div>
+            <div class="wre-setting-tip">默认开启，可随时关闭；关闭后立即停止上报。数据保留 90 天，到期只留聚合计数。</div>
+          </div>
         </div>
       </div>
     </div>
@@ -1063,6 +1074,9 @@ function createUI() {
               <tr><td><span class="wre-shortcut-key">?</span></td><td>显示全部快捷键</td></tr>
             </tbody>
           </table>
+          <p style="font-size:12px;color:var(--wre-text);margin:12px 0 0;line-height:1.6;">
+            本插件默认开启<b>匿名使用统计</b>：仅上报「随机匿名标识 + 版本号 + 日期 + 事件名」，不含阅读数据 / 账号 / Key，可在「阅读设置」内一键关闭。
+          </p>
           <div class="wre-shortcuts-footer">更多功能请点击左下角悬浮图标 → 查看菜单</div>
         </div>
       </div>
@@ -1305,6 +1319,15 @@ function updateAutoReadUI() {
     }
   } catch (err) {
     log('error', 'updateAutoReadUI 失败', { error: String(err) });
+  }
+}
+
+/** M13：同步「匿名使用统计」开关按钮文案 */
+function updateTelemetryUI() {
+  if (!wreRoot) return;
+  const btn = wreRoot.querySelector('#wre-telemetry-toggle');
+  if (btn) {
+    btn.textContent = WRE_STATE.telemetryEnabled === false ? '已关闭' : '已开启';
   }
 }
 
@@ -1627,6 +1650,18 @@ function bindEvents(root) {
       await saveState();
     });
   }
+
+  // M13：匿名使用统计开关（默认开启；关闭后不再上报）
+  const telemetryToggle = root.querySelector('#wre-telemetry-toggle');
+  if (telemetryToggle) {
+    telemetryToggle.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      WRE_STATE.telemetryEnabled = WRE_STATE.telemetryEnabled === false;
+      updateTelemetryUI();
+      await saveState();
+      log('info', '匿名使用统计开关已切换', { enabled: WRE_STATE.telemetryEnabled });
+    });
+  }
 }
 
 function handleMenuClick(action) {
@@ -1658,6 +1693,7 @@ function handleMenuClick(action) {
           value.textContent = `${WRE_STATE.screenRatio}%`;
         }
         updateAutoReadUI();
+        updateTelemetryUI();
       }
       log('warn', '已恢复默认设置', applied);
       break;
@@ -1742,6 +1778,11 @@ async function init() {
   registerRuntimeErrorHooks();
   createUI();
   const t2 = performance.now();
+
+  // M13：匿名使用统计（默认开启，可关闭；延迟上报，不抢加载）
+  if (window.WRETelemetry && typeof window.WRETelemetry.schedule === 'function') {
+    window.WRETelemetry.schedule(WRE_STATE);
+  }
 
   // 新手引导：首次安装或版本更新时弹出欢迎面板（版本号已随 loadState 读取）
   const currentVersion = chrome.runtime.getManifest().version;

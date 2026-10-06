@@ -1,0 +1,84 @@
+/* 运营看板（M13）：刷新条 + 统计卡 + 版本分布 */
+
+.admin-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8rpx 20rpx;
+}
+
+.admin-bar__text {
+  font-size: 24rpx;
+  color: #8A8F99;
+}
+
+.admin-bar__action {
+  font-size: 26rpx;
+  color: #2F6BFF;
+}
+
+.cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  margin-top: 16rpx;
+}
+
+.card-metric {
+  width: 48%;
+  box-sizing: border-box;
+  background: #F7F9FF;
+  border-radius: 20rpx;
+  padding: 28rpx 20rpx;
+  margin-bottom: 24rpx;
+  text-align: center;
+}
+
+.card-metric__value {
+  font-size: 38rpx;
+  font-weight: 700;
+  color: #2F6BFF;
+}
+
+.card-metric__label {
+  font-size: 24rpx;
+  color: #8A8F99;
+  margin-top: 8rpx;
+}
+
+.versions {
+  margin-top: 8rpx;
+}
+
+.versions__title {
+  font-size: 26rpx;
+  color: #1F2430;
+  margin-bottom: 8rpx;
+}
+
+.versions__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #F0F1F4;
+}
+
+.versions__row:last-child {
+  border-bottom: none;
+}
+
+.versions__ver {
+  font-size: 28rpx;
+  color: #1F2430;
+}
+
+.versions__count {
+  font-size: 28rpx;
+  color: #2F6BFF;
+  font-weight: 600;
+}
+
+.admin-foot {
+  padding: 0 8rpx 24rpx;
+}

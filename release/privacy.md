@@ -1,13 +1,13 @@
 # Privacy Policy for 微信悦读 (WeRead Enhancer)
 
-**Last updated: 2026-10-04**
+**Last updated: 2026-10-06**
 
 ## Data Collection
 
-This extension **does not collect, store, or transmit any personal data or browsing information to its author or any third party**.
+This extension does **not collect, store, or transmit any personal data or browsing information to its author or any third party** — with a single, narrowly-scoped exception: an **anonymous usage counter** that is **on by default and can be turned off** (see "Anonymous Usage Statistics" below).
 
-- No analytics, tracking, or advertising code is included.
-- No data is sent to any server other than the domains described below (WeRead's own gateway, and — only if you opt in to the optional AI enhancement — DeepSeek's API).
+- No analytics, tracking, or advertising SDKs are included. The anonymous usage counter is **self-built** (our own function + database) and carries **no third-party code**.
+- No data is sent to any server other than the domains described below (WeRead's own gateway, our own anonymous-counter endpoint, and — only if you opt in to the optional AI enhancement — DeepSeek's API).
 - The extension also makes a single, anonymous GET request to its companion website (`wereadapp-32km31c.maozi.io`) to check whether a newer version is available. This request carries no user data or identifiers, is cached locally for 24 hours, and is silently ignored on failure.
 - No cookies are created or read beyond what the extension needs to function.
 
@@ -48,9 +48,19 @@ The "Official Data" report includes a "Reading Persona" card (a 4-letter type de
 - The share image contains **only aggregated statistics you choose to display and the type name** — it embeds **no nickname, no avatar and no account identifier (uid)**. It contains no QR code.
 - This feature adds **no new permissions**; it only reuses the same WeRead official gateway for reading your own notes.
 
+## Anonymous Usage Statistics — default on, one-click off
+
+To understand whether the extension is being used at all, the extension sends **at most one** anonymous "active" event per day to our own self-built endpoint (a WeRead-Enhancer cloud function). It is **enabled by default** and announced on first run; you can **turn it off at any time** in the extension's "阅读设置" (Reading Settings) panel — once off, no further reports are sent.
+
+- The payload contains **only**: ① a **random, locally-generated anonymous identifier** (a pure random UUID, created once on your device, containing no personal information); ② the extension **version number**; and ③ the **event name** (`active`). The date is recorded server-side; nothing else is sent.
+- **Strictly never sent**: reading data or statistics, your `wrk-` key, your AI (DeepSeek) key, your book list, any highlight/thought text, your IP address, browser fingerprints, or your WeRead account.
+- The server stores **only per-day aggregate counts plus the random anonymous identifier**, in a dedicated collection, with a **90-day retention** (expired entries are purged; only aggregate counts remain).
+- No third-party analytics or advertising SDK is involved.
+- Turning it off: open the extension menu → "阅读设置" → "📊 匿名使用统计" → toggle to off.
+
 ## Local Storage
 
-The extension uses `chrome.storage.local` solely for saving user preferences (such as screen ratio, auto-read speed, do-not-disturb, and full-screen settings) and, if you opt in, your own WeRead API Key, your own DeepSeek API Key, and a short-lived report cache. It also stores the 24-hour cached result of the version check described above. All data is stored locally in your browser and is only accessible to you. This data is never transmitted anywhere except the WeRead official gateway and (only if you opt in to the AI enhancement) DeepSeek's API as described above.
+The extension uses `chrome.storage.local` solely for saving user preferences (such as screen ratio, auto-read speed, do-not-disturb, and full-screen settings) and, if you opt in, your own WeRead API Key, your own DeepSeek API Key, and a short-lived report cache. It also stores the 24-hour cached result of the version check described above, and — for the anonymous usage counter — a locally-generated random anonymous identifier and the date of the last report. All data is stored locally in your browser and is only accessible to you. This data is never transmitted anywhere except the WeRead official gateway, our anonymous-counter endpoint, and (only if you opt in to the AI enhancement) DeepSeek's API, as described above.
 
 ## Permissions
 
@@ -60,10 +70,11 @@ The extension requests the following permissions:
 - **host permission for `https://i.weread.qq.com/*`**: Required only to send your own request to WeRead's official data gateway when you use the optional "Official Data" feature. No other host is accessed.
 - **host permission for `https://api.deepseek.com/*`**: Required only to send the bounded summary/sample described above to DeepSeek when you opt in to the optional AI enhancement. No request is made to this host unless you have configured a DeepSeek Key.
 - **host permission for `https://wereadapp-32km31c.maozi.io/*`**: Required only to read the public version file (`/api/latest.json`) for the version-update hint. No user data is sent to this host.
+- **host permission for `https://*.tcloudbase.com/*`**: Required only to send the anonymous "active" event described above to our self-built counter endpoint (a WeRead-Enhancer cloud function). If you turn the anonymous usage counter off, no request is ever made to this host.
 
 ## Scope
 
-This extension only runs on `weread.qq.com` and does not interact with any other websites. The only external domains it can contact are `i.weread.qq.com` (WeRead's own official gateway, for the optional "Official Data" feature), `api.deepseek.com` (DeepSeek's API, for the optional AI enhancement), and `wereadapp-32km31c.maozi.io` (the companion website, for the anonymous version check).
+This extension only runs on `weread.qq.com` and does not interact with any other websites. The only external domains it can contact are `i.weread.qq.com` (WeRead's own official gateway, for the optional "Official Data" feature), `api.deepseek.com` (DeepSeek's API, for the optional AI enhancement), `wereadapp-32km31c.maozi.io` (the companion website, for the anonymous version check), and `*.tcloudbase.com` (our own anonymous-usage-counter endpoint; no request is made if you turn the counter off).
 
 ## Contact
 

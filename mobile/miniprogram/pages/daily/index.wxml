@@ -69,13 +69,6 @@
           <view class="quote__from">——《{{card.quote.title}}》{{card.quote.author ? ' · ' + card.quote.author : ''}}</view>
         </view>
 
-        <!-- 说明（AI 生成 / 本地模板） -->
-        <view class="note">
-          <view class="note__badge {{card.ai ? '' : 'note__badge--local'}}">{{card.ai ? 'AI 生成' : '本地模板'}}</view>
-          <view class="note__text">{{card.note}}</view>
-          <view class="note__hint" wx:if="{{!card.ai}}">本地模板只负责排版、不做解读。在「我的 → 设置」里填好 DeepSeek Key，再点「重新生成」，这里会换成对这段话的解读与关联分析。</view>
-        </view>
-
         <!-- 关联的旧划线（可点开展开） -->
         <view class="related" wx:if="{{card.related.length}}">
           <view class="related__title">关联的旧划线</view>
@@ -115,7 +108,7 @@
         </view>
       </view>
 
-      <view class="wre-muted statement">划线 / 想法原文仅用于在本机生成卡片；填写 DeepSeek Key 后，会随本次请求发往 DeepSeek 以完成串联，不落库。卡片只存本机，不上云。</view>
+      <view class="wre-muted statement">卡片只排布你自己的划线原文、出处，以及按主题规则召回的同主题旧划线；全部在本机排版，只存本机、不上云。</view>
     </block>
   </block>
 

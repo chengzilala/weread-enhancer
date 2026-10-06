@@ -1,0 +1,104 @@
+<view class="wre-page">
+  <!-- 加载中 -->
+  <wre-state wx:if="{{loading}}" type="loading" text="正在读取运营数据…" />
+
+  <!-- 无权限（服务端下发拦截，非前端隐藏） -->
+  <wre-state
+    wx:elif="{{forbidden}}"
+    type="empty"
+    text="无权限"
+    sub="该页面仅管理员可见"
+  />
+
+  <!-- 错误 -->
+  <wre-state
+    wx:elif="{{error}}"
+    type="error"
+    text="{{error}}"
+    action="重试"
+    actionType="retry"
+    bind:action="onStateAction"
+  />
+
+  <block wx:else>
+    <view class="admin-bar">
+      <text class="admin-bar__text">打开即刷新{{generatedText ? ' · 更新于 ' + generatedText : ''}}</text>
+      <text class="admin-bar__action" bindtap="load">刷新</text>
+    </view>
+
+    <!-- A. 小程序使用量 -->
+    <view class="wre-card">
+      <view class="wre-title">A · 小程序使用量</view>
+      <view class="wre-muted">按 openid + 天去重，只存聚合计数。</view>
+      <view class="cards" wx:if="{{mp}}">
+        <view class="card-metric">
+          <view class="card-metric__value">{{mp.todayUsers}}</view>
+          <view class="card-metric__label">今日打开人数</view>
+        </view>
+        <view class="card-metric">
+          <view class="card-metric__value">{{mp.todayOpens}}</view>
+          <view class="card-metric__label">今日打开次数</view>
+        </view>
+        <view class="card-metric">
+          <view class="card-metric__value">{{mp.newUsers}}</view>
+          <view class="card-metric__label">今日新增</view>
+        </view>
+        <view class="card-metric">
+          <view class="card-metric__value">{{mp.totalUsers}}</view>
+          <view class="card-metric__label">累计用户</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- B. 插件使用量 -->
+    <view class="wre-card">
+      <view class="wre-title">B · 插件使用量</view>
+      <view class="wre-muted">插件匿名上报（随机匿名标识 + 版本号 + 日期 + 事件名），不含任何阅读数据。</view>
+      <view class="cards" wx:if="{{plugin}}">
+        <view class="card-metric">
+          <view class="card-metric__value">{{plugin.todayActive}}</view>
+          <view class="card-metric__label">今日活跃</view>
+        </view>
+        <view class="card-metric">
+          <view class="card-metric__value">{{plugin.totalActive}}</view>
+          <view class="card-metric__label">累计活跃</view>
+        </view>
+      </view>
+      <view class="versions" wx:if="{{plugin && plugin.versions.length}}">
+        <view class="versions__title">版本分布</view>
+        <view class="versions__row" wx:for="{{plugin.versions}}" wx:key="version">
+          <text class="versions__ver">v{{item.version || '未知'}}</text>
+          <text class="versions__count">{{item.count}}</text>
+        </view>
+      </view>
+      <view class="wre-muted" wx:if="{{plugin && !plugin.versions.length}}">暂无插件上报数据。</view>
+    </view>
+
+    <!-- C. 我的阅读数据 -->
+    <view class="wre-card">
+      <view class="wre-title">C · 我的阅读数据</view>
+      <view class="wre-muted">复用本机已有的取数逻辑，不新增接口、不额外上传。</view>
+      <view class="cards" wx:if="{{mine}}">
+        <view class="card-metric">
+          <view class="card-metric__value">{{mine.totalTime}}</view>
+          <view class="card-metric__label">累计阅读时长</view>
+        </view>
+        <view class="card-metric">
+          <view class="card-metric__value">{{mine.readDays}}</view>
+          <view class="card-metric__label">阅读天数</view>
+        </view>
+        <view class="card-metric">
+          <view class="card-metric__value">{{mine.shelfCount}}</view>
+          <view class="card-metric__label">书架书数</view>
+        </view>
+        <view class="card-metric">
+          <view class="card-metric__value">{{mine.noteTotal}}</view>
+          <view class="card-metric__label">笔记总数</view>
+        </view>
+      </view>
+      <view class="wre-muted" wx:if="{{mineError}}">{{mineError}}</view>
+    </view>
+
+    <view class="wre-muted admin-foot">统计仅保留 90 天；到期只留聚合计数。</view>
+  </block>
+</view>

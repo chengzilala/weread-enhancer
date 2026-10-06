@@ -1,0 +1,105 @@
+/* 微信悦读 · 语音复习模块样式（M14 · v0.24.0）
+   仅作用于「📝 笔记」面板内的「▶ 听」按钮与底部播放控制条，复用 content.css 的 --wre-* 变量。 */
+
+/* ---------- 条目级「▶ 听」按钮 ---------- */
+
+#wre-notes-modal .wre-notes-item {
+  position: relative;
+  padding-right: 36px;
+}
+
+#wre-notes-modal .wre-notes-listen {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--wre-border);
+  border-radius: 50%;
+  background: var(--wre-bg);
+  color: var(--wre-text);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: opacity 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+#wre-notes-modal .wre-notes-item:hover .wre-notes-listen,
+#wre-notes-modal .wre-notes-listen:focus {
+  opacity: 1;
+}
+
+#wre-notes-modal .wre-notes-listen:hover {
+  border-color: var(--wre-primary);
+  color: var(--wre-primary);
+}
+
+#wre-notes-modal .wre-notes-item.is-tts-active {
+  border-left-color: var(--wre-primary);
+}
+
+/* ---------- 底部播放控制条 ---------- */
+
+/* 让笔记正文区可伸缩，控制条才能稳定贴在弹窗底部 */
+#wre-notes-modal .wre-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+#wre-notes-modal .wre-tts-bar {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--wre-border);
+  background: var(--wre-hover-bg);
+}
+
+#wre-notes-modal .wre-tts-bar.wre-visible {
+  display: flex;
+}
+
+#wre-notes-modal .wre-tts-btn {
+  padding: 4px 8px;
+  border: 1px solid var(--wre-border);
+  border-radius: var(--wre-border-radius);
+  background: var(--wre-bg);
+  color: var(--wre-text);
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+#wre-notes-modal .wre-tts-btn:hover {
+  border-color: var(--wre-primary);
+  color: var(--wre-primary);
+}
+
+#wre-notes-modal .wre-tts-count {
+  font-size: 12px;
+  color: var(--wre-text);
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+#wre-notes-modal .wre-tts-hint {
+  flex: 1 1 auto;
+  font-size: 11px;
+  color: var(--wre-text);
+  opacity: 0.5;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#wre-notes-modal .wre-tts-stop {
+  margin-left: auto;
+}

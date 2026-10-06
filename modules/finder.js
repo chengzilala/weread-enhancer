@@ -1096,7 +1096,7 @@
     '</li>';
   }
 
-  function buildListHtml(total) {
+  function buildListHtml() {
     const items = applyFilters();
     if (!items.length) {
       if (contentState.running) {
@@ -1118,7 +1118,7 @@
     const more = items.length > shown
       ? '<div class="wre-find-more"><button type="button" class="wre-btn wre-btn-small" data-wre-find-more="1">显示更多（还有 ' + (items.length - shown) + ' 本）</button></div>'
       : '';
-    return '<div class="wre-find-section-title">书架（' + total + '）</div>' +
+    return '<div class="wre-find-section-title">书架（' + items.length + '）</div>' +
       '<ul class="wre-find-list">' + list + '</ul>' + more;
   }
 
@@ -1135,7 +1135,7 @@
     if (notesState === 'error') {
       html += '<div class="wre-find-note">⚠️ 笔记数本次未取到，相关筛选可能不准；可点「刷新书架」重试。</div>';
     }
-    return html + buildListHtml(shelfItems().length);
+    return html + buildListHtml();
   }
 
   function buildToolbarAreaHtml() {

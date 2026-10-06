@@ -7,6 +7,7 @@ const { shelfCounts, notebookStats, modeLabel, fmtDateTime } = require('../../sh
 const { renderHomeShare } = require('../../shared/home-share');
 const { ensureTodayCard } = require('../../shared/daily-generate');
 const { MATERIAL_MIN, dateKey } = require('../../shared/daily-core');
+const wanderStore = require('../../shared/wander-store');
 const { messageOf, isKeyError } = require('../../shared/errors');
 
 const CACHE_TTL_MS = 30 * 60 * 1000;
@@ -53,16 +54,19 @@ Page({
     dailyCount: 0,
     dailyNeed: MATERIAL_MIN,
     dailyError: '',
+    // 灵感漫游：本周有「新一期」且未看过 → 入口挂「新」标
+    wanderNew: false,
   },
 
   onShow() {
     const hasKey = !!store.getKey();
-    this.setData({ hasKey });
+    this.setData({ hasKey, wanderNew: wanderStore.isNew() });
     if (hasKey) {
       this.load(false);
       this.loadOverview(false);
     }
-    this.maybeDailyPopup(hasKey);
+    // 每日卡片靠 AI 解读：没配 DeepSeek Key 就不自动弹（仍然可从入口卡片进页面看引导）
+    this.maybeDailyPopup(hasKey && !!store.getDeepSeekKey());
   },
 
   onPullDownRefresh() {
@@ -112,6 +116,10 @@ Page({
       this.setData({ showDaily: false });
     }
     wx.navigateTo({ url: '/pages/daily/index' });
+  },
+
+  goWander() {
+    wx.navigateTo({ url: '/pages/wander/index' });
   },
 
   // ---- 每日卡片：每天首次打开自动弹窗 ----
@@ -234,6 +242,7 @@ Page({
         canvas: canvas,
         x: 0,
         y: 0,
+        fileType: 'png',
         destWidth: size.width,
         destHeight: size.height,
         success: (res) => resolve(res.tempFilePath),

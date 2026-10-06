@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "运营看板",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "wre-state": "/components/wre-state/index"
+  }
+}

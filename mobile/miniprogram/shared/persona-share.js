@@ -1,8 +1,8 @@
 // 阅读人格 · 竖版分享图（小程序 Canvas 2D 版）
 // 移植自插件 modules/official.js 的 buildPersonaShareCanvas，做了两处平台适配：
 //   1) 画布尺寸：Canvas 2D 后备缓冲（canvas.width / canvas.height）在 iOS 上超过 4096 会报错。
-//      故逻辑宽 1080、高度上限 3200；导出时按 2× 目标（且保证缓冲任一边 ≤4096）高清重绘，
-//      得到约 2× 分辨率的清晰图（见 renderPersonaShare 的两遍绘制）。
+//      故逻辑宽 1080、高度上限 3200；导出时按最大倍率（在保证缓冲任一边 ≤4096 的前提下尽可能
+//      放大）高清重绘，得到尽可能高分辨率的清晰图（见 renderPersonaShare 的两遍绘制）。
 //   2) 人物线描：小程序 canvas 对 SVG 的支持不可靠，这里用一个极小的 SVG 子集渲染器，
 //      把 persona-figure.js 的线描矢量直接画到 canvas 上（零依赖、不联网）。
 // 说明：纯本机计算、可复算、不含随机。
@@ -17,8 +17,8 @@ const MAX_SIDE = 4096;  // Canvas 2D 后备缓冲任一边的上限（iOS 超过
 
 const INK = '#1F2430';
 const INK2 = '#4A5060';
-const ACCENT = '#07C160';       // 微信绿，与网页/插件版分享图保持一致
-const ACCENT_SOFT = '#E8F8EF';
+const ACCENT = '#2F6BFF';       // 小程序主色（蓝），与页面 / 导航保持一致
+const ACCENT_SOFT = '#F0F4FF';
 const LINE = '#E8EBF0';
 const FONT = 'sans-serif';
 
@@ -304,9 +304,9 @@ function paintShare(ctx, persona, profile, scale) {
   if (words) {
     lineDraw('词语亮点', 36, INK, '700');
     y += 10;
-    const top3 = (words.top || []).slice(0, 3);
-    if (top3.length) {
-      lineDraw('高频词：' + top3.map((item) => item.word + ' ×' + item.count).join('　'), 30, INK, '400', MAXW);
+    const topWords = (words.top || []).slice(0, 5);
+    if (topWords.length) {
+      lineDraw('高频词：' + topWords.map((item) => item.word + ' ×' + item.count).join('　'), 30, INK, '400', MAXW);
       y += 6;
     }
     if (words.catchphrase) {
@@ -329,34 +329,40 @@ function paintShare(ctx, persona, profile, scale) {
   if (evidenceData.length) {
     lineDraw('数据证据', 36, INK, '700');
     y += 12;
-    const items = evidenceData.slice(0, 4);
+    const items = evidenceData.slice(0, 6);
     const gap = 20;
-    const boxW = Math.floor((MAXW - gap * (items.length - 1)) / items.length);
-    const boxTop = y;
     const padV = 22;
     const padH = 20;
-    const heights = [];
-    items.forEach((text) => {
-      ctx.font = '500 26px ' + FONT;
-      const lines = wrapText(ctx, text, boxW - padH * 2);
-      heights.push(padV * 2 + lines.length * Math.round(26 * 1.42));
-    });
-    const boxH = Math.max.apply(null, heights);
-    items.forEach((text, index) => {
-      const bx = PAD + index * (boxW + gap);
-      roundRect(ctx, bx, boxTop, boxW, boxH, 20);
-      ctx.fillStyle = ACCENT_SOFT;
-      ctx.fill();
-      ctx.fillStyle = INK;
-      ctx.font = '500 26px ' + FONT;
-      const lines = wrapText(ctx, text, boxW - padH * 2);
-      let ty = boxTop + padV;
-      lines.forEach((ln) => {
-        ctx.fillText(ln, bx + padH, ty + Math.round(26 * 0.82));
-        ty += Math.round(26 * 1.42);
+    // 4 条以内单行铺满；5~6 条改 3 列两行，避免每格过窄
+    const perRow = items.length > 4 ? 3 : items.length;
+    const boxW = Math.floor((MAXW - gap * (perRow - 1)) / perRow);
+    let rowTop = y;
+    for (let i = 0; i < items.length; i += perRow) {
+      const rowItems = items.slice(i, i + perRow);
+      const heights = [];
+      rowItems.forEach((text) => {
+        ctx.font = '500 26px ' + FONT;
+        const lines = wrapText(ctx, text, boxW - padH * 2);
+        heights.push(padV * 2 + lines.length * Math.round(26 * 1.42));
       });
-    });
-    y = boxTop + boxH + 40;
+      const boxH = Math.max.apply(null, heights);
+      rowItems.forEach((text, index) => {
+        const bx = PAD + index * (boxW + gap);
+        roundRect(ctx, bx, rowTop, boxW, boxH, 20);
+        ctx.fillStyle = ACCENT_SOFT;
+        ctx.fill();
+        ctx.fillStyle = INK;
+        ctx.font = '500 26px ' + FONT;
+        const lines = wrapText(ctx, text, boxW - padH * 2);
+        let ty = rowTop + padV;
+        lines.forEach((ln) => {
+          ctx.fillText(ln, bx + padH, ty + Math.round(26 * 0.82));
+          ty += Math.round(26 * 1.42);
+        });
+      });
+      rowTop += boxH + gap;
+    }
+    y = rowTop - gap + 40;
   }
 
   // 品牌署名
@@ -374,8 +380,8 @@ function paintShare(ctx, persona, profile, scale) {
 
 // 在传入的 canvas 节点上绘制竖版分享图。
 // 两遍绘制：第一遍按逻辑尺寸（1080 宽）画一遍测出内容实际高度；
-// 第二遍按高清倍率（目标 2×，同时保证后备缓冲任一边 ≤ 4096）放大缓冲后重绘，
-// 从而得到约 2× 分辨率的清晰图。
+// 第二遍按最大高清倍率（保证后备缓冲任一边 ≤ 4096）放大缓冲后重绘，
+// 从而在 iOS 上限内得到最高分辨率的清晰图。
 // 返回 { width, height }（画布缓冲像素 = 导出后图片的像素尺寸）。
 function renderPersonaShare(canvas, persona, profile) {
   // 第一遍：逻辑尺寸，测内容高度
@@ -383,8 +389,9 @@ function renderPersonaShare(canvas, persona, profile) {
   canvas.height = MAXH;
   const logicalH = paintShare(canvas.getContext('2d'), persona, profile, 1);
 
-  // 高清倍率：目标 2×，且后备缓冲宽高都不超过上限
-  const scale = Math.min(2, MAX_SIDE / W, MAX_SIDE / logicalH);
+  // 高清倍率：在「任一边 ≤ MAX_SIDE（iOS 4096）」前提下取最大倍率
+  // （原先额外压了 2× 上限，是清晰度不足的主因）
+  const scale = Math.min(MAX_SIDE / W, MAX_SIDE / logicalH);
   if (scale <= 1.05) {
     return { width: W, height: Math.round(logicalH) };
   }

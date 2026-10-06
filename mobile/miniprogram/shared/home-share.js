@@ -1,14 +1,22 @@
 // 首页 · 竖版分享图（小程序 Canvas 2D 版）
 //
 // 复用与 persona-share.js / report-share.js 同一套平台适配：
-//   1) 逻辑宽 1080、高度上限 3200；导出时按 2× 高清重绘（保证后备缓冲任一边 ≤4096，
-//      iOS Canvas 2D 后备缓冲超过 4096 会报错）；
+//   1) 逻辑宽 1080、高度上限 3200；导出时按最大倍率高清重绘（在保证后备缓冲任一边 ≤4096
+//      的前提下尽可能放大，iOS Canvas 2D 后备缓冲超过 4096 会报错）；
 //   2) 纯本机绘制、零依赖、不联网。
 //
-// 说明：数据口径与首页一致 —— 直接复用 home-core 的纯函数（hero / metrics /
-// categories / timeBands / longest），不另写一套统计。
+// 说明：数据口径与首页一致 —— 直接复用 home-core 的纯函数（hero / metrics / trend /
+// categories / timeBands / longest），不另写一套统计。分享图会比页面多列几条
+// （分类 / 时段 / 读得最多各取前 5）并补一句规则总结，让版面更饱满。
 
-const { buildHero, buildMetrics, buildCategories, buildTimeBands, buildLongest } = require('./home-core');
+const {
+  buildHero,
+  buildMetrics,
+  buildTrend,
+  buildCategories,
+  buildTimeBands,
+  buildLongest,
+} = require('./home-core');
 
 const W = 1080;         // 逻辑宽
 const PAD = 72;
@@ -18,8 +26,9 @@ const MAX_SIDE = 4096;  // Canvas 2D 后备缓冲任一边的上限
 
 const INK = '#1F2430';
 const INK2 = '#4A5060';
-const ACCENT = '#07C160';       // 微信绿，与网页/插件版分享图保持一致
-const ACCENT_SOFT = '#E8F8EF';
+const ACCENT = '#2F6BFF';       // 小程序主色（蓝），与页面 / 导航保持一致
+const ACCENT_SOFT = '#F0F4FF';
+const ACCENT_LIGHT = '#C9D8FF'; // 次级柱色（与首页趋势图一致）
 const LINE = '#E8EBF0';
 const MUTED = '#A8ADB8';
 const FONT = 'sans-serif';
@@ -169,10 +178,34 @@ function paintHome(ctx, payload, profile, scale) {
     y += boxH + 40;
   }
 
-  // 偏好分类 Top3
-  const cats = buildCategories(d);
+  // 趋势（迷你柱状图，与首页一致）
+  const trend = buildTrend(d, payload.mode);
+  if (trend && trend.bars.length) {
+    lineDraw(trend.title, 36, INK, '700');
+    y += 16;
+    const chartH = 180;
+    const chartTop = y;
+    const n = trend.bars.length;
+    const gap = n > 20 ? 4 : 8;
+    const bw = Math.max(4, Math.floor((MAXW - gap * (n - 1)) / n));
+    trend.bars.forEach((bar, index) => {
+      const bh = Math.max(6, Math.round(chartH * (bar.h / 100)));
+      roundRect(ctx, PAD + index * (bw + gap), chartTop + chartH - bh, bw, bh, Math.min(6, Math.floor(bw / 2)));
+      ctx.fillStyle = bar.active ? ACCENT : ACCENT_LIGHT;
+      ctx.fill();
+    });
+    y = chartTop + chartH + 28;
+    if (trend.peak) {
+      const hiddenNote = trend.hidden > 0 ? '（仅展示最近 ' + n + ' 期）' : '';
+      lineDraw('峰值：' + trend.peak.label + ' · ' + trend.peak.time + hiddenNote, 24, MUTED, '400', MAXW);
+    }
+    y += 26;
+  }
+
+  // 偏好分类 Top5（分享图多展示几条，减少留白）
+  const cats = buildCategories(d, 5);
   if (cats.length) {
-    lineDraw('偏好分类 Top3', 36, INK, '700');
+    lineDraw('偏好分类 Top' + cats.length, 36, INK, '700');
     y += 8;
     cats.forEach((item) => {
       y = drawBarRow(ctx, y, item.name, item.time + ' · ' + item.pct, item.bar);
@@ -185,7 +218,7 @@ function paintHome(ctx, payload, profile, scale) {
   if (bands) {
     lineDraw('阅读时段分布', 36, INK, '700');
     y += 8;
-    bands.rows.slice(0, 4).forEach((item) => {
+    bands.rows.slice(0, 6).forEach((item) => {
       y = drawBarRow(ctx, y, item.label, item.time + ' · ' + item.pct, item.bar);
     });
     if (bands.peak) {
@@ -195,8 +228,8 @@ function paintHome(ctx, payload, profile, scale) {
     y += 12;
   }
 
-  // 读得最多 Top3
-  const longest = buildLongest(d);
+  // 读得最多 Top5
+  const longest = buildLongest(d, 5);
   if (longest.length) {
     lineDraw('读得最多', 36, INK, '700');
     y += 10;
@@ -212,6 +245,37 @@ function paintHome(ctx, payload, profile, scale) {
     y += 12;
   }
 
+  // 一句话总结（按数据规则拼写，不联网、不用 AI）
+  const summaryBits = [];
+  if (hero.value) {
+    summaryBits.push('这个周期你一共阅读 ' + hero.value);
+  }
+  if (cats.length) {
+    summaryBits.push('最常读的是「' + cats[0].name + '」');
+  }
+  if (bands && bands.peak) {
+    summaryBits.push('阅读高峰在 ' + bands.peak);
+  }
+  if (longest.length) {
+    summaryBits.push('花时间最多的是《' + longest[0].title + '》');
+  }
+  if (summaryBits.length) {
+    const text = summaryBits.join('，') + '。';
+    ctx.font = '500 30px ' + FONT;
+    const lines = wrapText(ctx, text, MAXW - 44);
+    const boxH = 32 * 2 + lines.length * Math.round(30 * 1.5);
+    roundRect(ctx, PAD, y, MAXW, boxH, 24);
+    ctx.fillStyle = ACCENT_SOFT;
+    ctx.fill();
+    let ty = y + 32;
+    ctx.fillStyle = INK;
+    lines.forEach((ln) => {
+      ctx.fillText(ln, PAD + 22, ty + Math.round(30 * 0.82));
+      ty += Math.round(30 * 1.5);
+    });
+    y += boxH + 40;
+  }
+
   // 品牌署名
   ctx.fillStyle = LINE;
   ctx.fillRect(PAD, y, MAXW, 1);
@@ -225,14 +289,16 @@ function paintHome(ctx, payload, profile, scale) {
   return finalH;
 }
 
-// 在传入的 canvas 节点上绘制竖版分享图（两遍绘制：先测高，再按 2× 高清重绘）。
+// 在传入的 canvas 节点上绘制竖版分享图（两遍绘制：先测高，再按最大倍率高清重绘）。
 // 返回 { width, height }（画布缓冲像素 = 导出后图片的像素尺寸）。
 function renderHomeShare(canvas, payload, profile) {
   canvas.width = W;
   canvas.height = MAXH;
   const logicalH = paintHome(canvas.getContext('2d'), payload, profile, 1);
 
-  const scale = Math.min(2, MAX_SIDE / W, MAX_SIDE / logicalH);
+  // 高清倍率：在「任一边 ≤ MAX_SIDE（iOS 4096）」前提下取最大倍率
+  // （原先额外压了 2× 上限，是清晰度不足的主因）
+  const scale = Math.min(MAX_SIDE / W, MAX_SIDE / logicalH);
   if (scale <= 1.05) {
     return { width: W, height: Math.round(logicalH) };
   }

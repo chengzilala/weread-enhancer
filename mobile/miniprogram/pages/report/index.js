@@ -119,6 +119,7 @@ Page({
         canvas: canvas,
         x: 0,
         y: 0,
+        fileType: 'png',
         destWidth: size.width,
         destHeight: size.height,
         success: (res) => resolve(res.tempFilePath),

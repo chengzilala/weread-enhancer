@@ -88,15 +88,15 @@ function buildMetrics(data) {
   return list.filter((item) => !!item.value);
 }
 
-/** 偏好分类 Top3（preferCategory，按阅读时长降序） */
-function buildCategories(data) {
+/** 偏好分类 TopN（preferCategory，按阅读时长降序；limit 默认 3，分享图可传更大值） */
+function buildCategories(data, limit) {
   const cats = Array.isArray(data && data.preferCategory) ? data.preferCategory : [];
   if (!cats.length) {
     return [];
   }
   const total = cats.reduce((acc, item) => acc + (Number(item.readingTime) || 0), 0) || 1;
   const sorted = cats.slice().sort((a, b) => (Number(b.readingTime) || 0) - (Number(a.readingTime) || 0));
-  const top = sorted.slice(0, 3);
+  const top = sorted.slice(0, limit || 3);
   const percents = barPercents(top.map((item) => item.readingTime));
   return top.map((item, index) => ({
     name: item.parentCategoryTitle || item.categoryTitle || '未分类',
@@ -137,10 +137,10 @@ function buildTimeBands(data) {
   return { rows: rows, peak: peak };
 }
 
-/** 读得最多 Top3（readLongest） */
-function buildLongest(data) {
+/** 读得最多 TopN（readLongest；limit 默认 3，分享图可传更大值） */
+function buildLongest(data, limit) {
   const list = Array.isArray(data && data.readLongest) ? data.readLongest : [];
-  return list.slice(0, 3).map((item, index) => {
+  return list.slice(0, limit || 3).map((item, index) => {
     const book = item.book || {};
     const album = item.albumInfo || {};
     return {

@@ -39,11 +39,14 @@ page {
 
 /* 按钮 */
 .wre-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: #2F6BFF;
   color: #FFFFFF;
   border-radius: 14rpx;
   font-size: 30rpx;
-  line-height: 88rpx;
+  line-height: 1;
   height: 88rpx;
   margin-top: 24rpx;
 }

@@ -6,7 +6,9 @@
     "pages/shelf/index",
     "pages/settings/index",
     "pages/notes/index",
-    "pages/daily/index"
+    "pages/daily/index",
+    "pages/wander/index",
+    "pages/admin/index"
   ],
   "usingComponents": {
     "wre-state": "/components/wre-state/index"

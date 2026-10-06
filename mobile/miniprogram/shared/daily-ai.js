@@ -1,9 +1,11 @@
 /**
- * 每日卡片回顾（M11）· AI 成文 + 本地降级
+ * 每日卡片回顾（M11）· AI 成文（DeepSeek Key 为使用前置）
  *
  * 复用云函数 action:'ai' 通道（见 ai.js 的 callAI），把「主划线 + 同主题旧划线」写成一篇小回顾
  * （引用由页面直接展示，这里只产出 标题 + 说明；说明在页面上标注「AI 生成」）。
- * 未填 DeepSeek Key / 调用失败 → 本地模板（只排版、不串联），永不 reject、不阻塞主流程。
+ * 策略：每日卡片以 AI 解读为核心 —— **未配 DeepSeek Key 由页面层拦截、不生成卡片**；
+ * AI 调用失败也不再退回本地模板（页面提示错误 + 重试）。本地兜底文案只作为解析失败时的占位标题，
+ * 不对外展示。本函数永不 reject。
  * Key 由用户自填、只存本机；素材原文随本次请求经云函数转发 DeepSeek，不落库、日志仅掩码。
  */
 const { callAI } = require('./ai');
@@ -69,9 +71,8 @@ function parseText(text) {
 }
 
 /**
- * 本地模板（无 Key / 失败降级）：只排版、不冒充解读。
- * 不写「互相照亮」这类空话，也不用半吊子的推理假装共情——只把素材摆清楚，
- * 把解释留给用户自己（并在页面上提示「配好 Key 可换成 AI 的解读」）。
+ * 占位标题 / 说明：解析失败时兜底，不再用于「无 Key 降级」展示（页面已拦截未配 Key）。
+ * 只摆清素材事实，不写「互相照亮」这类空话，也不假装解读。
  */
 function localText(material) {
   const main = (material && material.main) || {};
@@ -93,7 +94,7 @@ function localText(material) {
 
 /**
  * 生成卡片文案：主入口，永不 reject。
- * @returns {object} { ai, title, note, code?, error? }（ai=false 表示已降级为本地模板）
+ * @returns {object} { ai, title, note, code?, error? }（ai=false 表示调用 / 解析失败，由页面提示错误与重试）
  */
 async function generateDailyText(material) {
   const fallback = localText(material);

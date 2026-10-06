@@ -1,5 +1,6 @@
 const store = require('../../shared/store');
 const { verifyKey } = require('../../shared/gateway');
+const ops = require('../../shared/ops');
 const { CLOUD_ENV, PROXY_FUNCTION } = require('../../config');
 
 Page({
@@ -21,13 +22,16 @@ Page({
     nickName: '',
     hasProfile: false,
 
-    // DeepSeek Key（可选）
+    // DeepSeek Key（每日卡片 / 灵感漫游 / AI 人格画像需要）
     dsInput: '',
     dsMasked: '',
     hasDsKey: false,
     dsSaving: false,
     dsStatusText: '',
     dsStatusType: '',
+
+    // 管理员看板入口（M13）：由云函数判定，仅你的账号显示
+    isAdmin: false,
   },
 
   onShow() {
@@ -51,6 +55,8 @@ Page({
       showParams: false,
       params: this.buildParams(key, dsKey, profile),
     });
+    // 管理员判断：失败静默（非管理员 / 云函数未部署时都不显示入口）
+    ops.whoami().then((isAdmin) => this.setData({ isAdmin: !!isAdmin })).catch(() => {});
   },
 
   // 参数详情：只列本机可见的配置项，绝不显示 Key 明文（只给掩码）
@@ -183,6 +189,14 @@ Page({
 
   goNotes() {
     wx.navigateTo({ url: '/pages/notes/index' });
+  },
+
+  goWander() {
+    wx.navigateTo({ url: '/pages/wander/index' });
+  },
+
+  goAdmin() {
+    wx.navigateTo({ url: '/pages/admin/index' });
   },
 
   setStatus(type, text) {
