@@ -110,3 +110,66 @@
   text-align: center;
   margin-top: 16rpx;
 }
+
+/* 生成竖版分享图入口 */
+.share-entry {
+  text-align: center;
+}
+
+.share-entry .wre-muted {
+  margin-top: 4rpx;
+}
+
+/* 离屏绘制画布（尺寸需与 shelf-share.js 中的画布缓冲一致：1080×3200） */
+.share-canvas {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 1080px;
+  height: 3200px;
+}
+
+/* 分享图预览弹层 */
+.share-mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  padding: 40rpx 32rpx;
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  background: rgba(15, 18, 24, 0.86);
+}
+
+.share-preview {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
+.share-preview__img {
+  display: block;
+  width: 100%;
+  border-radius: 16rpx;
+}
+
+.share-actions {
+  display: flex;
+  margin-top: 24rpx;
+}
+
+.share-actions .wre-btn {
+  flex: 1;
+  margin-top: 0;
+  margin-right: 16rpx;
+  font-size: 28rpx;
+  padding: 0 8rpx;
+}
+
+.share-actions .wre-btn:last-child {
+  margin-right: 0;
+}

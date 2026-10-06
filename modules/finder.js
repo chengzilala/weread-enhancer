@@ -25,6 +25,8 @@
   const NOTES_PAGE_SIZE = 100;
   const TAG_MAX_LEN = 20;
   const PAGE_SIZE = 150;                          // 列表分页渲染步长
+  const CONTENT_CONCURRENCY = 4;                  // 正文检索并发数（书架可能数百本，串行太慢）
+  const CONTENT_RENDER_EVERY = 10;                // 每检索多少本重绘一次（降低重绘频率防卡顿）
 
   // ---------- 状态 ----------
 
@@ -763,23 +765,38 @@
     renderDynamic();
     logFinder('info', '开始划线/想法正文检索', { keyword: kw, books: candidates.length });
 
-    for (let i = 0; i < candidates.length; i += 1) {
-      // 关键词或开关变化 → 立刻停止，避免白拉数据
-      if (!contentState.running || normalize(ui.keyword) !== kw || !ui.withContent) {
-        contentState.running = false;
-        renderDynamic();
-        return;
-      }
-      const item = candidates[i];
-      try {
-        const content = await getBookContent(item.key);
-        const hit = findContentHit(content, kw);
-        if (hit) {
-          contentState.matched[item.key] = hit;
+    let cursor = 0;
+    const aborted = () => !contentState.running || normalize(ui.keyword) !== kw || !ui.withContent;
+    const worker = async () => {
+      for (;;) {
+        if (aborted()) {
+          return;
         }
-      } catch (e) { /* 单本失败跳过 */ }
-      contentState.done = i + 1;
+        const idx = cursor;
+        cursor += 1;
+        if (idx >= candidates.length) {
+          return;
+        }
+        const item = candidates[idx];
+        try {
+          const content = await getBookContent(item.key);
+          const hit = findContentHit(content, kw);
+          if (hit) {
+            contentState.matched[item.key] = hit;
+          }
+        } catch (e) { /* 单本失败跳过 */ }
+        contentState.done += 1;
+        if (contentState.done % CONTENT_RENDER_EVERY === 0 || contentState.done === candidates.length) {
+          renderDynamic();
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(CONTENT_CONCURRENCY, candidates.length) }, worker));
+
+    if (aborted()) {
+      contentState.running = false;
       renderDynamic();
+      return;
     }
     contentState.running = false;
     message = contentState.done
@@ -959,8 +976,8 @@
     return '<div class="wre-find-toolbar">' +
       '<div class="wre-find-count">' + countText + progress + '</div>' +
       '<div class="wre-find-actions">' +
-        '<button type="button" class="wre-find-chip' + (contentOn ? ' is-active' : '') + '" data-wre-find-content="1">含划线/想法</button>' +
-        (contentOn && ui.keyword.trim()
+        '<button type="button" class="wre-find-chip' + (contentOn ? ' is-active' : '') + '" data-wre-find-content="1">含划线/想法正文</button>' +
+        (ui.keyword.trim()
           ? '<button type="button" class="wre-btn wre-btn-small" data-wre-find-run-content="1"' + (running ? ' disabled' : '') + '>' + (running ? '检索中…' : '搜索正文') + '</button>'
           : '') +
         (running ? '<button type="button" class="wre-btn wre-btn-small" data-wre-find-stop-content="1">停止</button>' : '') +
@@ -1082,8 +1099,18 @@
   function buildListHtml(total) {
     const items = applyFilters();
     if (!items.length) {
+      if (contentState.running) {
+        return '<div class="wre-find-empty">正在检索划线 / 想法…（' + contentState.done + ' / ' + contentState.total + '）<br>命中会实时出现在这里，可随时点「停止」。</div>';
+      }
       if (!ui.keyword && !ui.tags.length && ui.status === 'all' && ui.notes === 'all' && ui.recent === 'all') {
         return '<div class="wre-find-empty">书架里没有可显示的书。</div>';
+      }
+      const kw = ui.keyword.trim();
+      if (kw && !ui.withContent) {
+        return '<div class="wre-find-empty">没有符合条件的书。' +
+          '<div style="margin-top:10px">想搜「' + escapeHtml(kw) + '」在你<strong>划线 / 想法</strong>里的内容？' +
+          '<div style="margin-top:10px"><button type="button" class="wre-btn wre-btn-small" data-wre-find-run-content="1">🔍 在划线/想法里搜「' + escapeHtml(kw) + '」</button></div>' +
+          '<div class="wre-find-note" style="margin-top:8px">会在你所有「有笔记的书」里逐本查找，稍等片刻（可随时停止）。</div></div></div>';
       }
       return '<div class="wre-find-empty">没有符合条件的书。<br>试试放宽筛选，或清空搜索词。</div>';
     }
@@ -1397,6 +1424,10 @@
       return;
     }
     if (target.closest('[data-wre-find-run-content]')) {
+      // 一键开始：自动打开「含划线/想法正文」开关再检索，避免两步操作被漏掉
+      if (!ui.withContent) {
+        ui.withContent = true;
+      }
       runContentSearch();
       return;
     }

@@ -104,14 +104,13 @@ Page({
     });
   },
 
+  // 把画布按「整块缓冲」导出：size.width/height 已是高清绘制后的缓冲像素
   canvasToTemp(canvas, size) {
     return new Promise((resolve, reject) => {
       wx.canvasToTempFilePath({
         canvas: canvas,
         x: 0,
         y: 0,
-        width: size.width,
-        height: size.height,
         destWidth: size.width,
         destHeight: size.height,
         success: (res) => resolve(res.tempFilePath),
@@ -122,6 +121,27 @@ Page({
 
   closeShare() {
     this.setData({ showShare: false });
+  },
+
+  // 一键转发分享图给微信好友（无需先保存到相册）
+  shareImage() {
+    const filePath = this.data.shareImg;
+    if (!filePath) {
+      return;
+    }
+    if (typeof wx.showShareImageMenu !== 'function') {
+      wx.showToast({ title: '当前微信版本不支持，请长按图片转发', icon: 'none' });
+      return;
+    }
+    wx.showShareImageMenu({
+      path: filePath,
+      fail: (err) => {
+        const msg = (err && err.errMsg) || '';
+        if (msg.indexOf('cancel') < 0) {
+          wx.showToast({ title: '转发失败，请长按图片转发', icon: 'none' });
+        }
+      },
+    });
   },
 
   saveShare() {
@@ -279,13 +299,24 @@ Page({
       return null;
     }
     const dimsView = persona.dims.map((dim) => ({
+      key: dim.key,
       title: dim.title,
       available: dim.available,
+      leftLetter: dim.left.letter,
+      rightLetter: dim.right.letter,
       leftLabel: dim.left.label,
       rightLabel: dim.right.label,
       side: dim.side,
       pct: dim.leftPct,
       basis: dim.basis,
+    }));
+    // 人格代码释义：把四位字母逐个展开为「字母 + 对应的一端」
+    const codeItems = persona.dims.map((dim) => ({
+      key: dim.key,
+      letter: dim.available ? dim.side : '–',
+      label: dim.available
+        ? (dim.side === dim.left.letter ? dim.left.label : dim.right.label)
+        : '待补全',
     }));
     const words = persona.words;
     const wordsView = words ? {
@@ -302,6 +333,7 @@ Page({
       name: persona.name,
       tagline: persona.tagline,
       code: persona.code,
+      codeItems: codeItems,
       full: persona.full,
       figure: persona.figure,
       figureUri: personaFigureDataUri(persona.code),

@@ -301,6 +301,9 @@ The extension is open source: https://github.com/chengzilala/weread-enhancer
 | 本次要点 | 重新打包提交：排查商店版功能异常（本地版正常、商店版异常），用 `pack.py` 确保包内含 `background.js` / `modules/` / `assets/` 全部运行文件 |
 | 审核状态 | ⏳ **待提交**（用户在 Partner Center 上传 zip 并提交后更新此状态） |
 
+### ⏭️ 下一步（更新至最新版）
+> 截至 2026-10-06，代码最新版为 **v0.20.1**（较商店已上架 v0.15.0 落后 5 个小版本）。建议直接用 `python3 pack.py` 生成最新包，在 Partner Center **一次性提交更新**（无需逐版追），本次要点：阅读人格（读书人版）/ 书架 / 发现页签、本地找书、中英双语。
+
 ---
 
 ## 十、Edge 后台「隐私」页填写文案（v0.19.0 · 可直接复制）

@@ -1311,4 +1311,45 @@
 - **待办**：无。
 - **风险/注意事项**：无。
 
+---
+
+## 2026-10-05 会话条目：小程序分享图高清化 + 一键转发微信(完成)
+- **目标**：用户反馈「生成竖版分享图，图片清晰度不够，提升；另外，除了保存相册，还可以直接一键在微信中转发给其他人」。
+- **已做**：
+  - `mobile/miniprogram/shared/persona-share.js`：拆出 `paintShare(ctx, persona, profile, scale)`（在给定上下文按逻辑坐标绘制并返回内容高度）；`renderPersonaShare` 改为**两遍绘制**——第一遍按逻辑宽 1080 测内容高度，第二遍按倍率 `min(2, 4096/1080, 4096/内容高)` 放大后备缓冲后重绘，返回缓冲像素尺寸（即导出图片像素）。保证缓冲任一边 ≤ 4096（iOS 上限）。
+  - `mobile/miniprogram/pages/persona/index.js`：`canvasToTemp` 改为按「整块缓冲」导出（去掉 width/height 裁剪参数，`destWidth/destHeight` = 缓冲像素）；新增 `shareImage()`，调 `wx.showShareImageMenu({ path })` 一键转发图片给好友，旧版微信不支持时给可读提示。
+  - `mobile/miniprogram/pages/persona/index.wxml`：分享弹层动作区新增「转发给朋友」主按钮（保存到相册降为次按钮）；入口文案改为「生成后可一键转发给微信好友，或保存到相册」。
+  - `mobile/miniprogram/pages/persona/index.wxss`：更新离屏画布注释（缓冲尺寸由 js 按高清倍率设置，不再固定对应）。
+- **关键结论/决定**：一键转发用官方 `wx.showShareImageMenu`（基础库 2.14.3+，本地/临时路径即可，无需先存相册）；清晰度靠「放大后备缓冲 + 按倍率 ctx.scale 重绘」实现，倍率受 iOS 4096 上限约束（成品宽度约为 1080 的 1.3–2 倍）。
+- **产出物（文件/链接）**：`mobile/miniprogram/shared/persona-share.js`、`mobile/miniprogram/pages/persona/index.{js,wxml,wxss}`；文档回灌：`plan/RPD_小程序移动端_需求文档.md`（M5 与 §9 决策 2）、`test/移动端小程序测试清单.md`（八. 新增 8.13–8.15）。`GetDiagnostics` 无报错。
+- **待办**：真机验收（测试清单八. 8.13–8.15 + 第十二章）；阶段 3 隐私指引 / 体验版回归 / 提审。
+- **风险/注意事项**：`showShareImageMenu` 只在较新基础库可用（已做能力判断兜底）；高清导出后图片像素变大、体积略增，导出失败已由 `canvasToTemp` 兜底 toast。
+
+---
+
+## 2026-10-05 会话条目：快速上手页「方式 A」加入商店跳转按钮（新增 `:::store` 指令）(完成)
+- **目标**：用户要求「快速上手 → 方式 A：从商店安装」一节「加入商店跳转」（点按钮直达商店），并顺带把《API Key 使用说明》的「二、怎么获取」按 App 截图更新（已改文案、图片待用户放入）。
+- **已做**：
+  - `web/build.py`：新增 `render_store_buttons()`——按 `site.config.json` 的 `storeUrls` 渲染「安装到 Edge / Chrome / 360」按钮组（首个为主按钮，未配置的商店不显示，全未配置则回退「安装插件」）；在 `render_markdown()` 增加 `:::store` 块指令处理（单行或成对皆可），并在 `is_block_start()` 登记 `:::`；样式复用 `.home-actions` / `.home-btn`。
+  - `web/assets/site.css`：新增 `.store-actions { justify-content: flex-start; margin: 14px 0 6px; }`（内容页里左对齐、贴合正文）。
+  - `web/content/快速上手.md`：方式 A 的「商店状态」提示框下方加 `:::store`，实现按钮一键跳商店；`updatedAt` 改 2026-10-05。
+  - `web/content/功能教程/API Key 使用说明.md`：二、怎么获取——按 App 截图改为「我 → 设置 → 微信读书 Skill → 快速配置②获取 API Key → 复制 Key」，并预留 3 张图引用；`updatedAt` 改 2026-10-05。
+  - `plan/RPD_网站生态_需求文档.md`：语法支持清单新增 `:::store` 一行；1.2 页面表 `/start/` 描述补「方式 A 商店一键安装（`:::store` 按钮）」。
+- **关键结论/决定**：内容页要放「商店跳转」时用 `:::store` 指令，商店链接的唯一事实源仍是 `site.config.json` 的 `storeUrls`（改链接只改配置，不动正文）。
+- **产出物（文件/链接）**：`web/build.py`、`web/assets/site.css`、`web/content/快速上手.md`、`web/content/功能教程/API Key 使用说明.md`、`plan/RPD_网站生态_需求文档.md`。构建通过（页面 25 篇 + 索引 4 个）。
+- **待办**：用户把 3 张 App 截图另存到 `web/content/attachments/`（文件名：`微信读书Skill入口.png`、`微信读书Skill快速配置.png`、`微信读书Skill获取Key.png`）后，重新构建即生效。
+- **风险/注意事项**：构建现有 4 条告警——3 条为上述待放入的图片缺失、1 条为版本号（manifest v0.20.0 vs 更新日志 v0.19.0）不一致，均与本次无关。浏览器核验：`/start/` 按钮 href 指向 Edge 商店、`target=_blank`、悬停转深绿（主按钮本就绿底白字，悬停加深）、无横向溢出、无 JS 报错。
+
+---
+
+## 2026-10-05 会话条目：快速上手页「方式 B」补下载地址 + 新手排错说明 (完成)
+- **目标**：用户反馈「方式 B 开发者模式加载」缺下载入口——没有文件无从加载；要求补 GitHub / Gitee 地址，并针对新手写清楚。
+- **已做**：
+  - `web/content/快速上手.md`：方式 B 拆成三段——① 前置 `[!tip]`「第一步：先下载插件文件」（Gitee 推荐：仓库主页 →「克隆/下载」→「下载 ZIP」；GitHub：仓库主页 → Code → Download ZIP，另给 GitHub 直链 ZIP）；② 5 步有序列表（解压 → `edge://extensions/` → 开「开发人员模式」→「加载解压缩的扩展」选**文件夹本身** → 打开 weread.qq.com 看悬浮球）；③ `[!warning]`「卡住了看这里」3 条（找不到加载按钮 / 提示找不到 `manifest.json` / 如何更新到最新版）。
+  - `plan/RPD_网站生态_需求文档.md`：1.2 页面表 `/start/` 描述补「方式 B 先给 GitHub·Gitee 下载地址与 5 步新手说明 + 常见卡点警示」。
+- **关键结论/决定**：**Gitee 的归档直链（`/repository/archive/main.zip`）对匿名请求返回 `reject by [gitee]`（HTTP 400）**，不适合作为给新手的直链；改用「进仓库主页 → 点下载 ZIP」的 UI 路径，更稳。GitHub 直链（`/archive/refs/heads/main.zip`）实测 200 + `application/zip`，保留。
+- **产出物（文件/链接）**：`web/content/快速上手.md`、`plan/RPD_网站生态_需求文档.md`。构建通过。
+- **待办**：同上一节——3 张 App 截图仍待用户放入 `web/content/attachments/`。
+- **风险/注意事项**：构建仍为 4 条既有告警（3 图缺失 + 版本号不一致）。浏览器核验：提示框 2 条要点 3 个链接均 `target=_blank` + `rel=noopener`；5 步列表与警示框结构正确；`scrollWidth = innerWidth = 756` 无横向溢出；控制台无报错。
+
 

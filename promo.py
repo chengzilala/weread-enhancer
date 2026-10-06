@@ -115,11 +115,16 @@ def _icon_scaled(size):
     return im
 
 
-def _encode_uri(im, max_width, key):
+def _encode_uri(im, max_width, key, upscale=False):
     if key in _uri_cache:
         return _uri_cache[key]
     if im.width > max_width:
         im = im.resize((max_width, round(im.height * max_width / im.width)), Image.LANCZOS)
+    elif upscale and im.width < max_width:
+        # 源图不够宽、但页面显示尺寸又大于源分辨率时：先用高质量放大补齐 + 轻锐化，
+        # 交给 Chrome 缩小；比让浏览器临时放大更实（同 _icon_scaled 思路）。
+        im = im.resize((max_width, round(im.height * max_width / im.width)), Image.LANCZOS)
+        im = im.filter(ImageFilter.UnsharpMask(radius=1.4, percent=120, threshold=2))
     buf = io.BytesIO()
     im.save(buf, "JPEG", quality=QUALITY, subsampling=0, optimize=True)
     value = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
@@ -127,17 +132,18 @@ def _encode_uri(im, max_width, key):
     return value
 
 
-def uri(path, max_width=2900):
+def uri(path, max_width=2900, upscale=False):
     """把图片转成内联 data URI。
 
     ⚠️ max_width 必须 ≥ 该图在页面中的「设备像素宽度」（CSS 宽度 × 渲染倍率），
        否则 <img> 的 object-fit:cover 会把它二次放大，出图就会发虚。
+       源图本身不够宽时，传 upscale=True 让 PIL 先高质量补齐，别让 Chrome 放大。
     统一用 JPEG 4:4:4（无色度抽样），避免截图里的小字被色度压缩糊掉。
     """
-    return _encode_uri(Image.open(path).convert("RGB"), max_width, (path, max_width))
+    return _encode_uri(Image.open(path).convert("RGB"), max_width, (path, max_width), upscale)
 
 
-def uri_crop(path, box, max_width=1800):
+def uri_crop(path, box, max_width=1800, upscale=False):
     """按比例框裁剪后转 data URI（box=(l, t, r, b)，取值 0~1）。
 
     用于 360 商店效果图：560x350 太小，整页缩进去文字必然糊，
@@ -147,7 +153,7 @@ def uri_crop(path, box, max_width=1800):
     W, H = im.size
     l, t, r, b = box
     im = im.crop((int(l * W), int(t * H), int(r * W), int(b * H)))
-    return _encode_uri(im, max_width, (path, box, max_width))
+    return _encode_uri(im, max_width, (path, box, max_width), upscale)
 
 
 def icon_uri():
@@ -169,8 +175,12 @@ def page(width, height, body, css=""):
     )
 
 
-def render(html, out_path, width, height, scale=2, final=None):
-    """用 Chrome 无头渲染 HTML 并截图；final 为最终目标尺寸（None 表示保留 scale 倍图）。"""
+def render(html, out_path, width, height, scale=2, final=None, sharpen=0):
+    """用 Chrome 无头渲染 HTML 并截图；final 为最终目标尺寸（None 表示保留 scale 倍图）。
+
+    sharpen>0 时在降回 final 尺寸后再做一次轻锐化（UnsharpMask percent=sharpen），
+    抵消缩放带来的轻微发虚——这是纯文字版式提升清晰度最有效的一步。
+    """
     tmp = tempfile.mkdtemp(prefix="wre-promo-")
     try:
         html_path = os.path.join(tmp, "a.html")
@@ -191,6 +201,8 @@ def render(html, out_path, width, height, scale=2, final=None):
         im = Image.open(shot_path).convert("RGB")
         if final:
             im = im.resize(final, Image.LANCZOS)
+            if sharpen:
+                im = im.filter(ImageFilter.UnsharpMask(radius=1.1, percent=sharpen, threshold=2))
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
         im.save(out_path)
         print("  ✓ %-46s %dx%d" % (os.path.relpath(out_path, ROOT), im.size[0], im.size[1]))
@@ -312,6 +324,87 @@ def build_cards():
             '<div class="desc">%s</div></div>'
         ) % (uri(SRC[key], 1900), badge, title, en, desc)
         render(page(640, 500, body, CARD_CSS), os.path.join(OUT_GITHUB, name), 640, 500, scale=SCALE_HI)
+
+
+# ------------------------------------------- 朋友圈 / 群聊分享图 1080x1440 (4:5)
+
+# 一张竖版「一图流」：品牌 → 主界面（阅读人格）→ 8 条核心亮点 → 安装入口。
+# 4:5 在朋友圈单图与群聊预览里都不被裁切；底部不放二维码，只写商店名与官网（用户选定的口径）。
+
+SHARE_CSS = """
+.share{width:100%;height:100%;display:flex;flex-direction:column;background:#EEF3FF}
+.head{flex:0 0 300px;position:relative;overflow:hidden;padding:0 56px;display:flex;flex-direction:column;justify-content:center;
+      background:linear-gradient(120deg,#08235E 0%,#1E52D6 45%,#2F6BFF 78%,#6FA8FF 100%)}
+.head:before{content:"";position:absolute;width:560px;height:560px;border-radius:50%;top:-280px;right:-150px;
+      background:radial-gradient(circle,rgba(255,255,255,.22),rgba(255,255,255,0) 68%)}
+.brand{position:relative;z-index:2;display:flex;align-items:center;gap:22px}
+.brand img{width:86px;height:86px;border-radius:22px;box-shadow:0 12px 28px rgba(0,0,0,.30)}
+.name{font-size:50px;font-weight:800;color:#fff;letter-spacing:3px;line-height:1.02}
+.en{font-size:14px;color:#BBD3FF;letter-spacing:5px;margin-top:7px}
+.tag{position:relative;z-index:2;margin-top:20px;font-size:26px;font-weight:700;color:#EAF1FF;letter-spacing:1px}
+.chips{position:relative;z-index:2;margin-top:16px;display:flex;flex-wrap:wrap;gap:9px}
+.chip{font-size:14px;color:#fff;padding:6px 13px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3)}
+.mid{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;gap:20px;padding:24px 56px 0}
+.shot{flex:0 0 460px;width:800px;border-radius:20px;overflow:hidden;background:#fff;border:1px solid #D3E0FF;
+      box-shadow:0 18px 42px rgba(30,80,200,.20)}
+.shot img{width:100%;height:100%;object-fit:cover;object-position:center}
+.feats{flex:1 1 auto;width:100%;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:14px}
+.feat{display:flex;align-items:center;gap:15px;padding:12px 18px;border-radius:16px;background:#fff;border:1px solid #DDE7FF;
+      box-shadow:0 6px 16px rgba(30,80,200,.07)}
+.feat .b{flex:0 0 48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:25px;
+      background:linear-gradient(140deg,#2F6BFF,#5B9BFF);box-shadow:0 8px 16px rgba(47,107,255,.28)}
+.feat .t{font-size:22px;font-weight:800;color:#12203A;letter-spacing:.5px}
+.feat .d{font-size:14px;color:#5A6E93;margin-top:3px;line-height:1.3}
+.foot{flex:0 0 116px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;
+      background:linear-gradient(100deg,#0C2C74 0%,#1E52D6 55%,#2F6BFF 100%)}
+.foot .row{display:flex;align-items:center;gap:12px;font-size:21px;font-weight:700;color:#fff;letter-spacing:.5px}
+.foot .k{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.42);border-radius:10px;padding:4px 13px;font-size:19px}
+.foot .meta{font-size:16px;color:#D6E4FF;letter-spacing:.5px}
+"""
+
+SHARE_FEATS = [
+    ("📐", "屏占比调节", "50%–100% 自由调节阅读区宽度"),
+    ("📖", "沉浸阅读", "工具栏浮动悬停，滚动自适应"),
+    ("⌨️", "快捷操作", "空格自动阅读，D 勿扰，F 全屏"),
+    ("🌙", "勿扰 + 全屏", "隐藏干扰元素，明 / 暗双主题"),
+    ("📊", "阅读统计导出", "时长 · 进度，一键导出 5 种格式"),
+    ("📝", "笔记增强", "划线想法聚合，搜索 + 导出"),
+    ("🪞", "阅读洞察", "用官方数据生成本机阅读报告"),
+    ("🧬", "阅读人格 MBTI", "从你读过的书算出人格代码"),
+]
+
+SHARE_CHIPS = ["本地找书", "新手引导", "诊断日志", "帮助中心", "隐私安全 · 不收集数据"]
+
+# 主图取「阅读人格」面板（最抓眼、且本身就是为朋友圈分享做的功能）；
+# 取景框避开顶部工具条，完整框住人格卡（比例贴合 800×460 取景框）。
+SHARE_HERO_BOX = (0.245, 0.50, 0.756, 0.97)
+
+
+def build_share():
+    feats = "".join(
+        '<div class="feat"><div class="b">%s</div><div><div class="t">%s</div><div class="d">%s</div></div></div>' % f
+        for f in SHARE_FEATS)
+    chips = "".join('<span class="chip">%s</span>' % c for c in SHARE_CHIPS)
+    body = (
+        '<div class="share">'
+        '<div class="head"><div class="brand"><img src="__ICON__">'
+        '<div><div class="name">微信悦读</div><div class="en">WEREAD ENHANCER</div></div></div>'
+        '<div class="tag">让微信读书网页版，更好读</div>'
+        '<div class="chips">%s</div></div>'
+        '<div class="mid"><div class="shot"><img src="__SHOT__"></div>'
+        '<div class="feats">%s</div></div>'
+        '<div class="foot">'
+        '<div class="row">Edge 商店搜索 <span class="k">微信悦读</span> 即可安装</div>'
+        '<div class="meta">官网 wereadapp-32km31c.maozi.io · MIT 开源 · 不收集任何数据</div>'
+        '</div></div>'
+    ) % (chips, feats)
+    body = (body.replace("__ICON__", icon_uri())
+                # 主图取景框裁剪源约 1470px 宽，而 800 CSS × 3 倍渲染 = 2400 设备像素，
+                # 交给 Chrome 放大必糊；先 PIL 高质量放大到 2400 再交给 Chrome（upscale=True）。
+                .replace("__SHOT__", uri_crop(SRC["persona"], SHARE_HERO_BOX, max_width=2400, upscale=True)))
+    # 分享图以文字版式为主：3 倍超采样 + 降回后轻锐化，清晰度最佳。
+    render(page(1080, 1440, body, SHARE_CSS),
+           os.path.join(OUT_GITHUB, "share-1080x1440.png"), 1080, 1440, scale=3, final=(1080, 1440), sharpen=110)
 
 
 # ------------------------------------------------------------ 商店宣传磁贴
@@ -532,6 +625,8 @@ def main():
     print("GitHub 展示图 → screenshots/promo/")
     build_banner()
     build_cards()
+    print("朋友圈 / 群聊分享图 → screenshots/promo/share-1080x1440.png")
+    build_share()
     print("Edge / Chrome 商店素材 → screenshots/store/")
     build_tiles()
     build_store_shots()

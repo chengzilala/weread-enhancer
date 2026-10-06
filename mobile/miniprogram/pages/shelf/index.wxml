@@ -1,4 +1,7 @@
 <view class="wre-page">
+  <!-- 分享图绘制画布（移出屏幕外，不可见） -->
+  <canvas type="2d" id="shareCanvas" class="share-canvas"></canvas>
+
   <!-- 无 Key 引导 -->
   <wre-state
     wx:if="{{!hasKey}}"
@@ -31,6 +34,14 @@
           <view class="card-metric__value">{{item.value}}</view>
           <view class="card-metric__label">{{item.label}}</view>
         </view>
+      </view>
+
+      <!-- 生成竖版分享图 -->
+      <view class="wre-card share-entry" wx:if="{{books.length || albums.length}}">
+        <button class="wre-btn" bindtap="generateShare" loading="{{sharing}}" disabled="{{sharing}}">
+          {{sharing ? '正在生成…' : '生成书架分享图'}}
+        </button>
+        <view class="wre-muted">生成后可一键转发给微信好友，或保存到相册</view>
       </view>
 
       <!-- 分类分布 -->
@@ -105,4 +116,16 @@
       <view class="more wre-muted">点击条目可复制「书名 · 作者」，方便到微信读书 App 中搜索。</view>
     </block>
   </block>
+
+  <!-- 分享图预览弹层 -->
+  <view class="share-mask" wx:if="{{showShare}}" catchtouchmove="noop">
+    <scroll-view class="share-preview" scroll-y>
+      <image class="share-preview__img" src="{{shareImg}}" mode="widthFix" show-menu-by-longpress="{{true}}" />
+    </scroll-view>
+    <view class="share-actions">
+      <button class="wre-btn" bindtap="shareImage">转发给朋友</button>
+      <button class="wre-btn wre-btn--ghost" bindtap="saveShare">保存到相册</button>
+      <button class="wre-btn wre-btn--ghost" bindtap="closeShare">关闭</button>
+    </view>
+  </view>
 </view>

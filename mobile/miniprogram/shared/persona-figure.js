@@ -1,6 +1,8 @@
 // 阅读人格 · 代表人物线描插画（移植自插件 modules/official.js）
 // 说明：小程序 <image> 支持 SVG，这里把 SVG 转成 base64 Data URI 直接渲染。
-// 图片无法继承 currentColor，故墨色/点缀色取固定值（跟随小程序主题：墨色 #1F2430、点缀 #2F6BFF）。
+// 图片无法继承 currentColor，故墨色/点缀色取固定值。
+// 墨色固定 #1F2430；点缀色默认 #2F6BFF（跟随小程序页面主题），
+// 生成分享图时传入微信绿 #07C160，以与网页/插件版分享图保持一致。
 
 const INK = '#1F2430';       // 线描墨色
 const ACCENT = '#2F6BFF';    // 品牌点缀色
@@ -114,8 +116,8 @@ const FIGURE_PARTS = {
   },
 };
 
-// 生成某型的线描插画 SVG 字符串（颜色已按小程序主题固化）
-function personaFigureSvg(code) {
+// 生成某型的线描插画 SVG 字符串；accent 可选，缺省用页面主题蓝
+function personaFigureSvg(code, accent) {
   const part = FIGURE_PARTS[code];
   if (!part) {
     return '';
@@ -123,7 +125,7 @@ function personaFigureSvg(code) {
   const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" fill="none" stroke-linecap="round" stroke-linejoin="round">' +
     FIGURE_FRAME + (part.back || '') + FIGURE_HEAD + (part.front || '') +
     '</svg>';
-  return svg.replace(/__INK__/g, INK).replace(/__ACCENT__/g, ACCENT);
+  return svg.replace(/__INK__/g, INK).replace(/__ACCENT__/g, accent || ACCENT);
 }
 
 // ASCII base64（小程序无 btoa；SVG 内容均为 ASCII，直接按字节编码）

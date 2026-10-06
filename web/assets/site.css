@@ -144,6 +144,9 @@ a:hover { text-decoration: underline; }
 .doc-header { margin-bottom: 24px; }
 .doc-header h1 { margin: 0 0 8px; font-size: 1.75em; line-height: 1.35; }
 
+/* 无大标题的页面（如更新日志）：正文首元素不留大上边距，避免顶部出现空白 */
+.doc > :first-child { margin-top: 0; }
+
 .doc h2 {
   margin: 36px 0 12px;
   padding-bottom: 6px;

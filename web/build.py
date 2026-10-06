@@ -7,7 +7,8 @@
 
 - 零第三方依赖：只用 Python 标准库（本机 Python 3.9 即可）
   - 唯一例外：若本机装有 Pillow，则为图库生成缩略图；没装也能正常构建（退回原图）
-- 单一事实源：版本号读仓库根 manifest.json；更新说明读「更新日志.md」最新一节
+- 单一事实源：版本号只有一处——仓库根 manifest.json（页脚、dist/api/latest.json 都用它）；
+  更新说明（日期 + 一句话）读「更新日志.md」最新一节，不与 manifest.json 做一致性校验
 - 不认识的 Obsidian 私有语法不猜、不报错：降级为普通文字并进入告警清单
 
 用法：
@@ -712,7 +713,11 @@ def render_section_index(sec):
 
 
 def parse_changelog_latest():
-    """从「更新日志.md」取最新一节：版本号 / 日期 / 一句说明"""
+    """从「更新日志.md」取最新一节：日期 / 一句说明
+
+    版本号不在这里取——全站版本号只有一个事实源，就是仓库根 manifest.json
+    （页脚、dist/api/latest.json 都用它），所以不做「更新日志 vs manifest」的一致性校验。
+    """
     page = next((p for p in PAGES if p["slug"] == "changelog"), None)
     fallback = (VERSION, date.today().isoformat(), "")
     if not page:
@@ -720,15 +725,13 @@ def parse_changelog_latest():
         return fallback
 
     lines = page["body"].split("\n")
-    version, released, notice = "", "", ""
+    released, notice = "", ""
     for i, line in enumerate(lines):
         m = re.match(r"^##\s+(.*)$", line.strip())
         if not m:
             continue
         head = m.group(1)
-        vm = re.search(r"v?(\d+\.\d+\.\d+)", head)
         dm = re.search(r"(\d{4}-\d{2}-\d{2})", head)
-        version = vm.group(1) if vm else ""
         released = dm.group(1) if dm else ""
         for follow in lines[i + 1:]:
             if follow.strip().startswith("#"):
@@ -739,9 +742,6 @@ def parse_changelog_latest():
                 break
         break
 
-    if version and version != VERSION:
-        warn("更新日志最新一节是 v%s，与 manifest.json 的 v%s 不一致（以 manifest.json 为准）"
-             % (version, VERSION))
     return (VERSION, released or page["updatedAt"] or fallback[1], notice)
 
 

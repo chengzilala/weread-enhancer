@@ -5,7 +5,8 @@
     "pages/report/index",
     "pages/shelf/index",
     "pages/settings/index",
-    "pages/notes/index"
+    "pages/notes/index",
+    "pages/daily/index"
   ],
   "usingComponents": {
     "wre-state": "/components/wre-state/index"

@@ -151,6 +151,15 @@ async function fetchOverview(apiKey, force) {
   return { ok: true, fromCache: false, shelf: shelf, notebooks: notebooks };
 }
 
+// ---- 书架 + 笔记概览：只读本机缓存，绝不发请求（供首页懒加载 B 档）----
+function peekOverview() {
+  const cached = readCache(OVERVIEW_CACHE_KEY);
+  if (cached && (Date.now() - (cached.at || 0)) < OVERVIEW_TTL_MS) {
+    return { ok: true, fromCache: true, shelf: cached.shelf || null, notebooks: cached.notebooks || null };
+  }
+  return { ok: false, code: 'nocache', error: '暂无本地缓存' };
+}
+
 // ---- 单本书划线原文 ----
 async function fetchBookMarks(bookId, apiKey) {
   const marks = [];
@@ -219,6 +228,7 @@ async function fetchCorpus(notebooks, apiKey, force) {
       const marks = pair[0];
       const reviews = pair[1];
       books.push({
+        bookId: bookId,
         title: (book && book.title) || '未命名',
         author: (book && book.author) || '',
         marks: marks,
@@ -256,6 +266,7 @@ module.exports = {
   fetchReadData,
   fetchNotebooks,
   fetchOverview,
+  peekOverview,
   fetchBookMarks,
   fetchBookReviewItems,
   fetchCorpus,

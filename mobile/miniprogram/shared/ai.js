@@ -1,11 +1,12 @@
 /**
- * DeepSeek AI 人格画像（B3）
+ * DeepSeek AI 通道（底层 callAI）— B3 人格画像 / M11 每日卡片共用
  *
- * 只做「润色」：把本机已算好的四维判定与证据交给 DeepSeek，写成一段有温度的人格化画像。
+ * 只做「润色 / 串联」，不改变本机已算好的事实。
  * Key 由用户自填，只存本机；经云函数 wereadProxy（action:'ai'）转发，不落库、日志仅掩码。
- * 未配置 Key 时返回 { ok:false, code:'nokey' }，由页面引导去「我的」页填写。
+ * 未配置 Key 时返回 { ok:false, code:'nokey' }，由调用方（页面）引导填写或降级本地模板。
  *
- * 提示词与浏览器插件 modules/official.js 的 AI_READING_PERSONA_PROMPT 保持一致。
+ * 人格画像提示词与浏览器插件 modules/official.js 的 AI_READING_PERSONA_PROMPT 保持一致。
+ * 每日卡片的提示词 / 解析 / 降级见 daily-ai.js。
  */
 const { PROXY_FUNCTION } = require('../config');
 const store = require('./store');
@@ -43,26 +44,18 @@ function buildPrompt(persona) {
   return prompt;
 }
 
-/** 生成 AI 人格画像：主入口，永不 reject */
-function generatePersonaPortrait(persona) {
+/** 底层：把对话交给云函数转发 DeepSeek（Key 由用户自填、只存本机）。永不 reject。 */
+function callAI(messages) {
   return new Promise((resolve) => {
     const key = store.getDeepSeekKey();
     if (!key) {
       resolve({ ok: false, code: 'nokey', error: '尚未配置 DeepSeek API Key' });
       return;
     }
-    if (!persona || !persona.code) {
-      resolve({ ok: false, code: 'param', error: '缺少人格结果' });
-      return;
-    }
     if (!wx.cloud || typeof wx.cloud.callFunction !== 'function') {
       resolve({ ok: false, code: 'cloud', error: '当前环境不支持云开发' });
       return;
     }
-    const messages = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: buildPrompt(persona) },
-    ];
     wx.cloud
       .callFunction({ name: PROXY_FUNCTION, data: { action: 'ai', apiKey: key, messages: messages } })
       .then((res) => {
@@ -79,4 +72,15 @@ function generatePersonaPortrait(persona) {
   });
 }
 
-module.exports = { generatePersonaPortrait };
+/** 生成 AI 人格画像：主入口，永不 reject */
+async function generatePersonaPortrait(persona) {
+  if (!persona || !persona.code) {
+    return { ok: false, code: 'param', error: '缺少人格结果' };
+  }
+  return await callAI([
+    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'user', content: buildPrompt(persona) },
+  ]);
+}
+
+module.exports = { generatePersonaPortrait, callAI };

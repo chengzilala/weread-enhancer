@@ -1,7 +1,7 @@
 // 阅读人格 · 竖版分享图（小程序 Canvas 2D 版）
 // 移植自插件 modules/official.js 的 buildPersonaShareCanvas，做了两处平台适配：
 //   1) 画布尺寸：Canvas 2D 后备缓冲（canvas.width / canvas.height）在 iOS 上超过 4096 会报错。
-//      故逻辑宽 1080、高度上限 3200；导出时按 dpr（≤2、且保证缓冲任一边 ≤4096）高清重绘，
+//      故逻辑宽 1080、高度上限 3200；导出时按 2× 目标（且保证缓冲任一边 ≤4096）高清重绘，
 //      得到约 2× 分辨率的清晰图（见 renderPersonaShare 的两遍绘制）。
 //   2) 人物线描：小程序 canvas 对 SVG 的支持不可靠，这里用一个极小的 SVG 子集渲染器，
 //      把 persona-figure.js 的线描矢量直接画到 canvas 上（零依赖、不联网）。
@@ -13,11 +13,12 @@ const W = 1080;         // 逻辑宽（与插件同一套坐标）
 const PAD = 72;
 const MAXW = W - PAD * 2;
 const MAXH = 3200;      // 高度上限（缓冲高度 = MAXH，安全低于 4096）
+const MAX_SIDE = 4096;  // Canvas 2D 后备缓冲任一边的上限（iOS 超过会报错）
 
 const INK = '#1F2430';
 const INK2 = '#4A5060';
-const ACCENT = '#2F6BFF';
-const ACCENT_SOFT = '#F0F4FF';
+const ACCENT = '#07C160';       // 微信绿，与网页/插件版分享图保持一致
+const ACCENT_SOFT = '#E8F8EF';
 const LINE = '#E8EBF0';
 const FONT = 'sans-serif';
 
@@ -166,18 +167,15 @@ function drawFigureSvg(ctx, svg, x, y, size) {
 
 // ---------- 主入口 ----------
 
-// 在传入的 canvas 节点上绘制竖版分享图，返回 { width, height }（画布像素，用于导出裁剪）
+// 在给定的 2d 上下文上按逻辑坐标绘制一遍（scale 为高清倍率），返回内容实际高度（逻辑像素）
 // profile 可选（本机资料 { nickName }）：有昵称时署名改为「昵称 · 基于微信读书数据生成」
-function renderPersonaShare(canvas, persona, profile) {
+function paintShare(ctx, persona, profile, scale) {
   const brandSub = profile && profile.nickName
     ? profile.nickName + ' · 基于微信读书数据生成'
     : BRAND_SUB;
-  const cw = W;
-  const ch = MAXH;
-  canvas.width = cw;
-  canvas.height = ch;
 
-  const ctx = canvas.getContext('2d');
+  ctx.save();
+  ctx.scale(scale, scale);
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, MAXH);
@@ -206,6 +204,12 @@ function renderPersonaShare(canvas, persona, profile) {
   y += 10;
   lineDraw(persona.code, 120, ACCENT, '800', leftMaxW);
   y += 6;
+  // 人格代码释义：让收到图的人也看得懂四位字母
+  const codeItems = persona.codeItems || [];
+  if (codeItems.length) {
+    lineDraw(codeItems.map((item) => item.letter + ' ' + item.label).join(' · '), 30, INK2, '400', leftMaxW);
+    y += 4;
+  }
   lineDraw(persona.name, 54, INK, '700', leftMaxW);
   y += 8;
   lineDraw(persona.tagline, 30, INK2, '400', leftMaxW);
@@ -217,7 +221,7 @@ function renderPersonaShare(canvas, persona, profile) {
     ctx.arc(figX + D / 2, figTop + D / 2, D * 0.46, 0, Math.PI * 2);
     ctx.fillStyle = ACCENT_SOFT;
     ctx.fill();
-    drawFigureSvg(ctx, personaFigureSvg(persona.code), figX, figTop, D);
+    drawFigureSvg(ctx, personaFigureSvg(persona.code, ACCENT), figX, figTop, D);
     ctx.fillStyle = INK;
     ctx.font = '700 40px ' + FONT;
     const nameW = ctx.measureText(figure.name).width;
@@ -364,7 +368,34 @@ function renderPersonaShare(canvas, persona, profile) {
   lineDraw(brandSub, 24, INK2, '400');
 
   const finalH = Math.min(y + PAD - 20, MAXH);
-  return { width: cw, height: Math.round(finalH) };
+  ctx.restore();
+  return finalH;
+}
+
+// 在传入的 canvas 节点上绘制竖版分享图。
+// 两遍绘制：第一遍按逻辑尺寸（1080 宽）画一遍测出内容实际高度；
+// 第二遍按高清倍率（目标 2×，同时保证后备缓冲任一边 ≤ 4096）放大缓冲后重绘，
+// 从而得到约 2× 分辨率的清晰图。
+// 返回 { width, height }（画布缓冲像素 = 导出后图片的像素尺寸）。
+function renderPersonaShare(canvas, persona, profile) {
+  // 第一遍：逻辑尺寸，测内容高度
+  canvas.width = W;
+  canvas.height = MAXH;
+  const logicalH = paintShare(canvas.getContext('2d'), persona, profile, 1);
+
+  // 高清倍率：目标 2×，且后备缓冲宽高都不超过上限
+  const scale = Math.min(2, MAX_SIDE / W, MAX_SIDE / logicalH);
+  if (scale <= 1.05) {
+    return { width: W, height: Math.round(logicalH) };
+  }
+
+  // 第二遍：放大后备缓冲后重绘（末尾多留 2px，防止最后一行被裁）
+  const bw = Math.round(W * scale);
+  const bh = Math.min(Math.round(logicalH * scale) + 2, MAX_SIDE);
+  canvas.width = bw;
+  canvas.height = bh;
+  paintShare(canvas.getContext('2d'), persona, profile, scale);
+  return { width: bw, height: bh };
 }
 
 module.exports = { renderPersonaShare };

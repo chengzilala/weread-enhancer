@@ -1,4 +1,7 @@
 <view class="wre-page">
+  <!-- 分享图绘制画布（移出屏幕外，不可见） -->
+  <canvas type="2d" id="shareCanvas" class="share-canvas"></canvas>
+
   <!-- 无 Key 引导 -->
   <wre-state
     wx:if="{{!hasKey}}"
@@ -11,6 +14,15 @@
   />
 
   <block wx:else>
+    <!-- 每日卡片入口（置顶） -->
+    <view class="daily-entry" bindtap="goDaily">
+      <view class="daily-entry__main">
+        <view class="daily-entry__name">每日卡片</view>
+        <view class="daily-entry__sub">用你的历史划线，重读一段</view>
+      </view>
+      <view class="daily-entry__arrow">›</view>
+    </view>
+
     <!-- 周期切换 -->
     <view class="period">
       <view
@@ -44,6 +56,30 @@
         sub="换个周期看看，或先去微信读书读一会儿"
       />
 
+      <!-- Hero 主卡：大字总时长 + 环比 + 官方判定语 -->
+      <view class="hero" wx:if="{{!emptyRecord}}">
+        <view class="hero__label">{{hero.label}}</view>
+        <view class="hero__value">{{hero.value}}</view>
+        <view class="hero__compare" wx:if="{{hero.hasCompare}}">
+          <text class="hero__arrow hero__arrow--{{hero.dir}}">{{hero.dir === 'up' ? '↑' : '↓'}}</text>
+          <text class="hero__pct hero__pct--{{hero.dir}}">{{hero.compareAbs}}</text>
+          <text class="hero__cmp-label">较上期</text>
+        </view>
+        <view class="hero__word" wx:if="{{hero.word}}">官方判定：{{hero.word}}</view>
+      </view>
+
+      <!-- 迷你趋势图 -->
+      <view class="wre-card" wx:if="{{trend}}">
+        <view class="wre-title">{{trend.title}}</view>
+        <view class="trend">
+          <view class="trend__col" wx:for="{{trend.bars}}" wx:key="index">
+            <view class="trend__bar {{item.active ? 'trend__bar--on' : ''}}" style="height: {{item.h}}%;"></view>
+          </view>
+        </view>
+        <view class="trend__peak" wx:if="{{trend.peak}}">峰值：{{trend.peak.label}} · {{trend.peak.time}}</view>
+      </view>
+
+      <!-- 核心指标（官方未提供该周期数据的项已在前端过滤，不占位显示） -->
       <view class="metrics">
         <view class="metric" wx:for="{{metrics}}" wx:key="label">
           <view class="metric__value">{{item.value}}</view>
@@ -52,7 +88,142 @@
         </view>
       </view>
 
+      <!-- 偏好分类 Top3 -->
+      <view class="wre-card" wx:if="{{categories.length}}">
+        <view class="wre-title">偏好分类 Top3</view>
+        <view class="rank" wx:for="{{categories}}" wx:key="name" wx:for-item="c">
+          <view class="rank__head">
+            <text class="rank__name">{{c.name}}</text>
+            <text class="rank__val">{{c.time}} · {{c.pct}}</text>
+          </view>
+          <view class="rank__bar"><view class="rank__fill" style="width: {{c.bar}}%;"></view></view>
+        </view>
+      </view>
+
+      <!-- 阅读时段分布（仅「累计」周期有数据） -->
+      <view class="wre-card" wx:if="{{timeBands}}">
+        <view class="wre-title">阅读时段分布</view>
+        <view class="rank" wx:for="{{timeBands.rows}}" wx:key="label" wx:for-item="b">
+          <view class="rank__head">
+            <text class="rank__name">{{b.label}}</text>
+            <text class="rank__val">{{b.time}} · {{b.pct}}</text>
+          </view>
+          <view class="rank__bar"><view class="rank__fill" style="width: {{b.bar}}%;"></view></view>
+        </view>
+        <view class="trend__peak" wx:if="{{timeBands.peak}}">峰值时段：{{timeBands.peak}}</view>
+      </view>
+
+      <!-- 读得最多 Top3 -->
+      <view class="wre-card" wx:if="{{longest.length}}">
+        <view class="wre-title">读得最多</view>
+        <view class="book" wx:for="{{longest}}" wx:key="index" wx:for-item="b">
+          <text class="book__rank book__rank--{{b.rank}}">{{b.rank}}</text>
+          <view class="book__main">
+            <view class="book__title">{{b.title}}</view>
+            <view class="book__author" wx:if="{{b.author}}">{{b.author}}</view>
+          </view>
+          <text class="book__time">{{b.time}}</text>
+        </view>
+      </view>
+
+      <!-- 入口卡：书架 / 笔记 / 阅读人格 -->
+      <view class="entries">
+        <view class="entry" bindtap="goShelf">
+          <view class="entry__name">书架</view>
+          <view class="entry__sub">{{overview ? overview.shelfText : '去看看'}}</view>
+        </view>
+        <view class="entry" bindtap="goNotes">
+          <view class="entry__name">笔记</view>
+          <view class="entry__sub">{{overview ? overview.noteText : '去看看'}}</view>
+        </view>
+        <view class="entry" bindtap="goPersona">
+          <view class="entry__name">阅读人格</view>
+          <view class="entry__sub">{{personaBadge || '测测你的'}}</view>
+        </view>
+      </view>
+
+      <view class="report-link" bindtap="goReport">查看完整报告 →</view>
+
+      <!-- 生成竖版分享图 -->
+      <view class="wre-card share-entry" wx:if="{{!emptyRecord}}">
+        <button class="wre-btn" bindtap="generateShare" loading="{{sharing}}" disabled="{{sharing}}">
+          {{sharing ? '正在生成…' : '生成数据分享图'}}
+        </button>
+        <view class="wre-muted">生成后可一键转发给微信好友，或保存到相册</view>
+      </view>
+
       <view class="cache-hint wre-muted" wx:if="{{cacheHint}}">{{cacheHint}}</view>
     </block>
   </block>
+
+  <!-- 每日卡片弹窗（每天首次打开自动弹出，可关闭） -->
+  <view class="daily-mask" wx:if="{{showDaily}}" catchtouchmove="noop" bindtap="closeDaily">
+    <view class="daily-modal" catchtap="noop">
+      <view class="daily-modal__head">
+        <text class="daily-modal__title">每日卡片</text>
+        <text class="daily-modal__close" bindtap="closeDaily">×</text>
+      </view>
+
+      <scroll-view class="daily-modal__body" scroll-y>
+        <wre-state
+          wx:if="{{dailyLoading}}"
+          type="loading"
+          text="正在挑选今天的划线…"
+          sub="首次会拉取笔记最多的几本书的划线原文，稍等片刻"
+        />
+
+        <view wx:elif="{{dailyError}}" class="daily-modal__msg">
+          <view class="daily-modal__err">{{dailyError}}</view>
+          <button class="wre-btn" bindtap="dailyRetry">重试</button>
+        </view>
+
+        <view wx:elif="{{dailyReason === 'material'}}" class="daily-modal__msg">
+          <view class="wre-muted">每日卡片只从你自己的历史划线 / 想法里取材，暂时还不够（{{dailyCount}} / {{dailyNeed}} 条）。去微信读书多划几段、写几句想法，再来看看。</view>
+        </view>
+
+        <block wx:elif="{{dailyCard}}">
+          <view class="card__date">{{dailyCard.dateLabel}} · 每日卡片</view>
+          <view class="card__title">{{dailyCard.title}}</view>
+          <view class="card__themes" wx:if="{{dailyCard.themes.length}}">
+            <text class="card__theme" wx:for="{{dailyCard.themes}}" wx:key="*this">{{item}}</text>
+          </view>
+
+          <view class="quote">
+            <view class="quote__text">{{dailyCard.quote.text}}</view>
+            <view class="quote__from">——《{{dailyCard.quote.title}}》{{dailyCard.quote.author ? ' · ' + dailyCard.quote.author : ''}}</view>
+          </view>
+
+          <view class="note">
+            <view class="note__badge {{dailyCard.ai ? '' : 'note__badge--local'}}">{{dailyCard.ai ? 'AI 生成' : '本地模板'}}</view>
+            <view class="note__text">{{dailyCard.note}}</view>
+          </view>
+
+          <view class="related" wx:if="{{dailyCard.related.length}}">
+            <view class="related__title">关联的旧划线</view>
+            <view class="related__item" wx:for="{{dailyCard.related}}" wx:key="index" data-index="{{index}}" bindtap="toggleDailyRelated">
+              <view class="related__text {{item.open ? '' : 'related__text--clamp'}}">{{item.text}}</view>
+              <view class="related__from">——《{{item.title}}》{{item.author ? ' · ' + item.author : ''}}</view>
+            </view>
+          </view>
+        </block>
+      </scroll-view>
+
+      <view class="daily-modal__foot">
+        <button class="wre-btn wre-btn--ghost" bindtap="closeDaily">关闭</button>
+        <button class="wre-btn wre-btn--ghost" bindtap="goDaily">打开每日卡片页</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 分享图预览弹层 -->
+  <view class="share-mask" wx:if="{{showShare}}" catchtouchmove="noop">
+    <scroll-view class="share-preview" scroll-y>
+      <image class="share-preview__img" src="{{shareImg}}" mode="widthFix" show-menu-by-longpress="{{true}}" />
+    </scroll-view>
+    <view class="share-actions">
+      <button class="wre-btn" bindtap="shareImage">转发给朋友</button>
+      <button class="wre-btn wre-btn--ghost" bindtap="saveShare">保存到相册</button>
+      <button class="wre-btn wre-btn--ghost" bindtap="closeShare">关闭</button>
+    </view>
+  </view>
 </view>

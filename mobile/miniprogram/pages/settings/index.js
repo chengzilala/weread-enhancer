@@ -1,5 +1,6 @@
 const store = require('../../shared/store');
 const { verifyKey } = require('../../shared/gateway');
+const { CLOUD_ENV, PROXY_FUNCTION } = require('../../config');
 
 Page({
   data: {
@@ -10,6 +11,10 @@ Page({
     saving: false,
     statusText: '',
     statusType: '', // ok | error
+
+    // 参数详情（默认收起，点「参数详情」展开）
+    showParams: false,
+    params: [],
 
     // 本机资料（头像 / 昵称）
     avatarUrl: '',
@@ -43,7 +48,26 @@ Page({
       dsInput: '',
       dsStatusText: '',
       dsStatusType: '',
+      showParams: false,
+      params: this.buildParams(key, dsKey, profile),
     });
+  },
+
+  // 参数详情：只列本机可见的配置项，绝不显示 Key 明文（只给掩码）
+  buildParams(key, dsKey, profile) {
+    const nick = profile.nickName || (profile.avatarUrl ? '已设置头像' : '');
+    return [
+      { label: '微信读书 Key', value: key ? store.maskKey(key) : '未配置' },
+      { label: 'DeepSeek Key', value: dsKey ? store.maskKey(dsKey) : '未配置' },
+      { label: '头像昵称', value: nick || '未设置' },
+      { label: '云开发环境', value: CLOUD_ENV || '（默认环境）' },
+      { label: '云函数', value: PROXY_FUNCTION },
+      { label: '网关地址', value: 'i.weread.qq.com（经云函数中转）' },
+    ];
+  },
+
+  toggleParams() {
+    this.setData({ showParams: !this.data.showParams });
   },
 
   // ---- 本机资料 ----

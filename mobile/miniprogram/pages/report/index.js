@@ -2,6 +2,7 @@ const store = require('../../shared/store');
 const data = require('../../shared/data');
 const { buildReportBlocks, fmtDateTime } = require('../../shared/report-core');
 const { fmtDuration } = require('../../shared/format');
+const { renderReportShare } = require('../../shared/report-share');
 const { messageOf, isKeyError } = require('../../shared/errors');
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
@@ -27,6 +28,9 @@ Page({
     meta: [],
     emptyRecord: false,
     shareTitle: '',
+    sharing: false,
+    shareImg: '',
+    showShare: false,
   },
 
   onShow() {
@@ -77,6 +81,108 @@ Page({
       path: '/pages/report/index',
     };
   },
+
+  // 生成竖版分享图：本机 canvas 绘制 → 导出临时图片 → 弹层预览
+  async generateShare() {
+    if (!this.sharePayload || this.data.sharing) {
+      return;
+    }
+    this.setData({ sharing: true });
+    try {
+      const canvas = await this.getShareCanvas();
+      const size = renderReportShare(canvas, this.sharePayload, store.getProfile());
+      const tempFilePath = await this.canvasToTemp(canvas, size);
+      this.setData({ sharing: false, shareImg: tempFilePath, showShare: true });
+    } catch (err) {
+      this.setData({ sharing: false });
+      wx.showToast({ title: (err && err.message) || '生成失败，请重试', icon: 'none' });
+    }
+  },
+
+  getShareCanvas() {
+    return new Promise((resolve, reject) => {
+      wx.createSelectorQuery().in(this).select('#shareCanvas').fields({ node: true, size: true }).exec((res) => {
+        const node = res && res[0] && res[0].node;
+        if (node) {
+          resolve(node);
+        } else {
+          reject(new Error('画布未就绪，请重试'));
+        }
+      });
+    });
+  },
+
+  // 把画布按「整块缓冲」导出：size.width/height 已是高清绘制后的缓冲像素
+  canvasToTemp(canvas, size) {
+    return new Promise((resolve, reject) => {
+      wx.canvasToTempFilePath({
+        canvas: canvas,
+        x: 0,
+        y: 0,
+        destWidth: size.width,
+        destHeight: size.height,
+        success: (res) => resolve(res.tempFilePath),
+        fail: () => reject(new Error('图片导出失败，请重试')),
+      }, this);
+    });
+  },
+
+  closeShare() {
+    this.setData({ showShare: false });
+  },
+
+  // 一键转发分享图给微信好友（无需先保存到相册）
+  shareImage() {
+    const filePath = this.data.shareImg;
+    if (!filePath) {
+      return;
+    }
+    if (typeof wx.showShareImageMenu !== 'function') {
+      wx.showToast({ title: '当前微信版本不支持，请长按图片转发', icon: 'none' });
+      return;
+    }
+    wx.showShareImageMenu({
+      path: filePath,
+      fail: (err) => {
+        const msg = (err && err.errMsg) || '';
+        if (msg.indexOf('cancel') < 0) {
+          wx.showToast({ title: '转发失败，请长按图片转发', icon: 'none' });
+        }
+      },
+    });
+  },
+
+  saveShare() {
+    const filePath = this.data.shareImg;
+    if (!filePath) {
+      return;
+    }
+    wx.saveImageToPhotosAlbum({
+      filePath: filePath,
+      success: () => {
+        wx.showToast({ title: '已保存到相册', icon: 'success' });
+      },
+      fail: (err) => {
+        const msg = (err && err.errMsg) || '';
+        if (msg.indexOf('auth deny') >= 0 || msg.indexOf('authorize') >= 0 || msg.indexOf('auth denied') >= 0) {
+          wx.showModal({
+            title: '需要相册权限',
+            content: '请在设置中允许「保存到相册」后重试',
+            confirmText: '去设置',
+            success: (r) => {
+              if (r.confirm) {
+                wx.openSetting();
+              }
+            },
+          });
+        } else if (msg.indexOf('cancel') < 0) {
+          wx.showToast({ title: '保存失败，请重试', icon: 'none' });
+        }
+      },
+    });
+  },
+
+  noop() {},
 
   async load(force) {
     const mode = this.data.mode;
@@ -147,6 +253,14 @@ Page({
     const shareTitle = Number(d.totalReadTime) > 0
       ? '我的' + modeText + '阅读报告：' + fmtDuration(d.totalReadTime) + '，点开看看'
       : '我的' + modeText + '阅读报告，点开看看';
+    // 分享图所需数据挂在实例上（不经 setData，避免大对象序列化开销）
+    this.sharePayload = {
+      data: d,
+      overview: overview || null,
+      mode: this.data.mode,
+      modeLabel: modeText,
+      generatedAt: fmtDateTime(Date.now()),
+    };
     this.setData({
       blocks,
       meta,

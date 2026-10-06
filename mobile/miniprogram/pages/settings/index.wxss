@@ -95,3 +95,75 @@
   border-radius: 12rpx;
   font-size: 28rpx;
 }
+
+/* 保存 / 清除 一行 */
+.settings-actions {
+  display: flex;
+  margin-top: 24rpx;
+}
+
+.settings-actions .wre-btn {
+  flex: 1;
+  margin-top: 0;
+  margin-right: 16rpx;
+  font-size: 28rpx;
+  padding: 0 8rpx;
+}
+
+.settings-actions .wre-btn:last-child {
+  margin-right: 0;
+}
+
+/* 参数详情（默认收起，点标题展开） */
+.settings-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-toggle__label {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #1F2430;
+}
+
+.settings-toggle__action {
+  font-size: 26rpx;
+  color: #2F6BFF;
+}
+
+.params {
+  margin-top: 20rpx;
+  border-top: 1rpx solid #F0F1F4;
+}
+
+.params__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #F5F6F8;
+}
+
+.params__row:last-child {
+  border-bottom: none;
+}
+
+.params__label {
+  flex-shrink: 0;
+  margin-right: 24rpx;
+  font-size: 26rpx;
+  color: #8A8F99;
+}
+
+.params__value {
+  flex: 1;
+  text-align: right;
+  font-size: 26rpx;
+  color: #1F2430;
+  word-break: break-all;
+}
+
+.params__note {
+  margin-top: 16rpx;
+}

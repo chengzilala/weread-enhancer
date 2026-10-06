@@ -1,0 +1,133 @@
+<view class="wre-page">
+  <!-- 分享图绘制画布（移出屏幕外，不可见） -->
+  <canvas type="2d" id="shareCanvas" class="share-canvas"></canvas>
+
+  <!-- 无 Key 引导 -->
+  <wre-state
+    wx:if="{{!hasKey}}"
+    type="nokey"
+    text="还没有配置微信读书 API Key"
+    sub="配置后即可用你的历史划线生成每日卡片"
+    action="去配置 Key"
+    actionType="settings"
+    bind:action="onStateAction"
+  />
+
+  <block wx:else>
+    <!-- 加载中 -->
+    <wre-state
+      wx:if="{{loading}}"
+      type="loading"
+      text="正在挑选今天的划线…"
+      sub="首次会拉取笔记最多的几本书的划线原文，稍等片刻"
+    />
+
+    <!-- Key 失效 -->
+    <wre-state
+      wx:elif="{{needsKey}}"
+      type="error"
+      text="{{error}}"
+      action="去重新配置"
+      actionType="settings"
+      bind:action="onStateAction"
+    />
+
+    <!-- 其他错误 -->
+    <wre-state
+      wx:elif="{{error}}"
+      type="error"
+      text="{{error}}"
+      action="重试"
+      actionType="retry"
+      bind:action="onStateAction"
+    />
+
+    <!-- 素材不足：引导 -->
+    <view class="wre-card" wx:elif="{{reason === 'material'}}">
+      <view class="wre-title">素材还差一点点</view>
+      <view class="wre-muted">每日卡片只从你自己的历史划线 / 想法里取材，暂时还不够。</view>
+      <view class="progress-row">
+        <text class="progress-k">可用素材</text>
+        <text class="progress-v">{{count}} / {{need}} 条</text>
+      </view>
+      <view class="wre-muted">去微信读书多划几段、写几句想法，再来看看。</view>
+      <button class="wre-btn" bindtap="retry">重新检查</button>
+    </view>
+
+    <!-- 今日卡片 -->
+    <block wx:elif="{{card}}">
+      <view class="wre-card card">
+        <view class="card__date">{{card.dateLabel}} · 每日卡片</view>
+        <view class="card__title">{{card.title}}</view>
+        <view class="card__themes" wx:if="{{card.themes.length}}">
+          <text class="card__theme" wx:for="{{card.themes}}" wx:key="*this">{{item}}</text>
+        </view>
+
+        <!-- 引用（划线原文 + 出处） -->
+        <view class="quote">
+          <view class="quote__text">{{card.quote.text}}</view>
+          <view class="quote__from">——《{{card.quote.title}}》{{card.quote.author ? ' · ' + card.quote.author : ''}}</view>
+        </view>
+
+        <!-- 说明（AI 生成 / 本地模板） -->
+        <view class="note">
+          <view class="note__badge {{card.ai ? '' : 'note__badge--local'}}">{{card.ai ? 'AI 生成' : '本地模板'}}</view>
+          <view class="note__text">{{card.note}}</view>
+          <view class="note__hint" wx:if="{{!card.ai}}">本地模板只负责排版、不做解读。在「我的 → 设置」里填好 DeepSeek Key，再点「重新生成」，这里会换成对这段话的解读与关联分析。</view>
+        </view>
+
+        <!-- 关联的旧划线（可点开展开） -->
+        <view class="related" wx:if="{{card.related.length}}">
+          <view class="related__title">关联的旧划线</view>
+          <view class="related__item" wx:for="{{card.related}}" wx:key="index" data-index="{{index}}" bindtap="toggleRelated">
+            <view class="related__text {{item.open ? '' : 'related__text--clamp'}}">{{item.text}}</view>
+            <view class="related__from">——《{{item.title}}》{{item.author ? ' · ' + item.author : ''}}</view>
+          </view>
+        </view>
+
+        <view class="ai-error" wx:if="{{aiError}}">{{aiError}}</view>
+      </view>
+
+      <!-- 操作 -->
+      <view class="wre-card actions">
+        <button class="wre-btn" bindtap="regenerate" loading="{{generating}}" disabled="{{generating}}">
+          {{generating ? '正在重新生成…' : '重新生成'}}
+        </button>
+        <view class="wre-muted">今日还可重新生成 {{regenLeft}} 次</view>
+        <view class="actions-row">
+          <button class="wre-btn wre-btn--ghost" bindtap="toggleStar">{{card.starred ? '取消收藏' : '收藏这张卡片'}}</button>
+          <button class="wre-btn wre-btn--ghost" bindtap="generateShare" loading="{{sharing}}" disabled="{{sharing}}">
+            {{sharing ? '正在生成…' : '生成分享图'}}
+          </button>
+        </view>
+      </view>
+
+      <!-- 往期回看 -->
+      <view class="wre-card" wx:if="{{history.length}}">
+        <view class="wre-title">往期回看</view>
+        <view class="history__item" wx:for="{{history}}" wx:key="id">
+          <view class="history__head">
+            <text class="history__date">{{item.dateLabel}}</text>
+            <text class="history__star" wx:if="{{item.starred}}">★ 收藏</text>
+          </view>
+          <view class="history__title">{{item.title}}</view>
+          <view class="history__quote">{{item.quote}}</view>
+        </view>
+      </view>
+
+      <view class="wre-muted statement">划线 / 想法原文仅用于在本机生成卡片；填写 DeepSeek Key 后，会随本次请求发往 DeepSeek 以完成串联，不落库。卡片只存本机，不上云。</view>
+    </block>
+  </block>
+
+  <!-- 分享图预览弹层 -->
+  <view class="share-mask" wx:if="{{showShare}}" catchtouchmove="noop">
+    <scroll-view class="share-preview" scroll-y>
+      <image class="share-preview__img" src="{{shareImg}}" mode="widthFix" show-menu-by-longpress="{{true}}" />
+    </scroll-view>
+    <view class="share-actions">
+      <button class="wre-btn" bindtap="shareImage">转发给朋友</button>
+      <button class="wre-btn wre-btn--ghost" bindtap="saveShare">保存到相册</button>
+      <button class="wre-btn wre-btn--ghost" bindtap="closeShare">关闭</button>
+    </view>
+  </view>
+</view>
