@@ -65,8 +65,8 @@ Page({
       this.load(false);
       this.loadOverview(false);
     }
-    // 每日卡片靠 AI 解读：没配 DeepSeek Key 就不自动弹（仍然可从入口卡片进页面看引导）
-    this.maybeDailyPopup(hasKey && !!store.getDeepSeekKey());
+    // 每日卡片为纯本地排版（M15 去 AI），配好 API Key 即可自动弹
+    this.maybeDailyPopup(hasKey);
   },
 
   onPullDownRefresh() {

@@ -450,6 +450,11 @@
   overflow: hidden;
 }
 
+/* 有卡片内容时用「确定高度」而非 max-height：让内部 scroll-view flex:1 拿到确定高度，内容超高可正常上下滚动 */
+.daily-modal--filled {
+  height: 84%;
+}
+
 .daily-modal__head {
   display: flex;
   align-items: center;

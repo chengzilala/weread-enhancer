@@ -47,30 +47,7 @@
     <view class="settings-status settings-status--{{statusType}}" wx:if="{{statusText}}">{{statusText}}</view>
   </view>
 
-  <!-- DeepSeek Key（每日卡片 / 灵感漫游 / AI 人格画像需要） -->
-  <view class="wre-card">
-    <view class="wre-title">DeepSeek Key</view>
-    <view class="wre-muted">「每日卡片」「灵感漫游」与「AI 人格画像」都靠它把 AI 接进来，未填写时这三处不可用（只做排版、不做解读）。Key 仅存本机，经云函数中转调用 DeepSeek，不记录。</view>
-
-    <view class="settings-status" wx:if="{{hasDsKey}}">
-      当前已配置：<text class="settings-mask">{{dsMasked}}</text>
-    </view>
-
-    <input
-      class="settings-input"
-      type="text"
-      password="{{true}}"
-      placeholder="粘贴 sk- 开头的 DeepSeek Key"
-      value="{{dsInput}}"
-      bindinput="onDsInput"
-    />
-
-    <view class="settings-actions">
-      <button class="wre-btn" loading="{{dsSaving}}" bindtap="onSaveDs">保存</button>
-      <button class="wre-btn wre-btn--ghost" wx:if="{{hasDsKey}}" bindtap="onClearDs">清除 Key</button>
-    </view>
-    <view class="settings-status settings-status--{{dsStatusType}}" wx:if="{{dsStatusText}}">{{dsStatusText}}</view>
-  </view>
+  <!-- M15 合规下线：原 Key 输入区块已移除 -->
 
   <view class="wre-card">
     <view class="wre-title">更多</view>
@@ -107,6 +84,7 @@
     <view class="settings-help">1. API Key 从微信读书 App「微信读书 Skill」页面复制。</view>
     <view class="settings-help">2. Key 只存手机本地，卸载小程序或清理微信缓存后会丢失，需要重新填写。</view>
     <view class="settings-help">3. 清除 Key 后，首页 / 人格 / 报告 / 书架会回到引导状态。</view>
-    <view class="settings-help">4. 头像昵称可选，仅存本机、不上传；DeepSeek Key 同样仅存本机，用于每日卡片 / 灵感漫游 / AI 人格画像。</view>
+    <view class="settings-help">4. 头像昵称可选，仅存本机、不上传。</view>
+    <view class="settings-help">5. 阅读报告、阅读人格、每日卡片、灵感漫游均为本机按固定规则计算与整理，结果只保存在本机（阅读人格可选择存到云端用于换机找回）。</view>
   </view>
 </view>

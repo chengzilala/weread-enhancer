@@ -30,7 +30,7 @@
           <text class="daily-entry__name">灵感漫游</text>
           <text class="wander-entry__badge" wx:if="{{wanderNew}}">新</text>
         </view>
-        <view class="daily-entry__sub">每周一次，把同主题的划线编织成一篇综述</view>
+        <view class="daily-entry__sub">每周一次，把同主题的划线归档成一组笔记</view>
       </view>
       <view class="daily-entry__arrow">›</view>
     </view>
@@ -170,7 +170,7 @@
 
   <!-- 每日卡片弹窗（每天首次打开自动弹出，可关闭） -->
   <view class="daily-mask" wx:if="{{showDaily}}" catchtouchmove="noop" bindtap="closeDaily">
-    <view class="daily-modal" catchtap="noop">
+    <view class="daily-modal {{dailyCard ? 'daily-modal--filled' : ''}}" catchtap="noop">
       <view class="daily-modal__head">
         <text class="daily-modal__title">每日卡片</text>
         <text class="daily-modal__close" bindtap="closeDaily">×</text>
@@ -205,8 +205,7 @@
             <view class="quote__from">——《{{dailyCard.quote.title}}》{{dailyCard.quote.author ? ' · ' + dailyCard.quote.author : ''}}</view>
           </view>
 
-          <view class="note">
-            <view class="note__badge">AI 生成</view>
+          <view class="note" wx:if="{{dailyCard.note}}">
             <view class="note__text">{{dailyCard.note}}</view>
           </view>
 

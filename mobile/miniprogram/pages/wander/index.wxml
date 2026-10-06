@@ -58,10 +58,10 @@
           <text class="card__tier" wx:if="{{issue.tierName}}" bindtap="openRules">{{issue.tierName}} 档 · 规则说明 ›</text>
         </view>
 
-        <!-- 摘要（AI 开启时才有；M15 关闭后不展示） -->
+        <!-- 摘要（本机规则排版；无摘要数据时不展示） -->
         <view class="summary" wx:if="{{issue.summary}}">{{issue.summary}}</view>
 
-        <!-- 正文（AI 开启时才有；下划线 = 你自己的划线 / 想法原文） -->
+        <!-- 正文（下划线 = 你自己的划线 / 想法原文） -->
         <view class="note" wx:if="{{issue.body}}">
           <view class="note__text">
             <text wx:for="{{issue.bodySegs}}" wx:key="i" class="{{item.mine ? 'note__mine' : ''}}">{{item.text}}</text>
@@ -84,7 +84,7 @@
       <!-- 操作 -->
       <view class="wre-card actions">
         <button class="wre-btn" bindtap="regenerate" loading="{{generating}}" disabled="{{generating}}">
-          {{generating ? '正在重新编织…' : '重新生成'}}
+          {{generating ? '正在重新排版…' : '重新生成'}}
         </button>
         <view class="actions-note">
           <text class="wre-muted">本周还可生成 {{weekLeft}} 次</text>

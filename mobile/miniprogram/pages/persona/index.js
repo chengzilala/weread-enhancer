@@ -1,6 +1,7 @@
 const store = require('../../shared/store');
 const data = require('../../shared/data');
 const sync = require('../../shared/sync');
+const { AI_ENABLED } = require('../../config');
 const { generatePersonaPortrait } = require('../../shared/ai');
 const { getReadingPersona } = require('../../shared/persona-core');
 const { personaFigureDataUri } = require('../../shared/persona-figure');
@@ -10,7 +11,6 @@ const { messageOf, isKeyError } = require('../../shared/errors');
 Page({
   data: {
     hasKey: false,
-    hasDsKey: false,
     loading: false,
     error: '',
     needsKey: false,
@@ -26,7 +26,7 @@ Page({
 
   async onShow() {
     const hasKey = !!store.getKey();
-    this.setData({ hasKey, hasDsKey: !!store.getDeepSeekKey() });
+    this.setData({ hasKey });
     if (!hasKey) {
       return;
     }
@@ -265,7 +265,11 @@ Page({
   },
 
   // 生成 AI 人格画像（DeepSeek）：需先在「我的」页配置 Key
+  // M15 合规下线：开关关闭时直接返回（UI 入口已移除，此处兜底防误调）
   async generateAi() {
+    if (!AI_ENABLED) {
+      return;
+    }
     const persona = this.data.persona;
     if (!persona || this.data.aiLoading) {
       return;

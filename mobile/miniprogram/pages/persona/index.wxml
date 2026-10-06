@@ -88,18 +88,7 @@
         <view class="wre-muted">生成后可一键转发给微信好友，或保存到相册</view>
       </view>
 
-      <!-- AI 人格画像（可选，需在「我的」页配置 DeepSeek Key） -->
-      <view class="wre-card ai-card">
-        <view class="wre-title">AI 人格画像</view>
-        <view class="ai-text" wx:if="{{persona.aiText}}">{{persona.aiText}}</view>
-        <view class="wre-muted" wx:else>
-          {{hasDsKey ? '把上面的判定交给 AI，写成一段有温度的人格画像。' : '在「我的」页填写 DeepSeek Key 后，可用 AI 生成一段人格画像。'}}
-        </view>
-        <button class="wre-btn" bindtap="generateAi" loading="{{aiLoading}}" disabled="{{aiLoading}}">
-          {{aiLoading ? '正在生成…' : (persona.aiText ? '重新生成' : '生成 AI 画像')}}
-        </button>
-        <view class="ai-error" wx:if="{{aiError}}">{{aiError}}</view>
-      </view>
+      <!-- M15 合规下线：原「人格画像」卡片已移除 -->
 
       <!-- 特质绰号 -->
       <view class="wre-card" wx:if="{{persona.nicknames.length}}">
