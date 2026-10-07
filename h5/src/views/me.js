@@ -89,7 +89,7 @@ function paint(body) {
 
     '<div class="wre-card">' +
     '  <div class="wre-card__title">运营看板</div>' +
-    '  <div class="wre-muted">凭运营口令查看小程序 / 插件 / H5 的匿名使用量汇总，仅运营人员需要。</div>' +
+    '  <div class="wre-muted">查看小程序 / 插件 / H5 的匿名使用量汇总。已按账户码自动识别管理员，无需口令；仅运营人员需要。</div>' +
     '  <button class="wre-btn wre-btn--ghost" data-action="open-admin">打开运营看板</button>' +
     '</div>' +
 

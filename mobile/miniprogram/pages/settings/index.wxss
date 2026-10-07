@@ -43,6 +43,20 @@
   color: #1F2430;
 }
 
+/* 运营入口：标题 + 说明两行，箭头右侧对齐 */
+.settings-link__main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  margin-right: 16rpx;
+}
+
+.settings-link__desc {
+  margin-top: 6rpx;
+  font-size: 24rpx;
+  color: #8A8F99;
+}
+
 .settings-link__arrow {
   color: #C0C4CC;
   font-size: 36rpx;

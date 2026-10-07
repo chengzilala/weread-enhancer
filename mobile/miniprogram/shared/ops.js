@@ -3,7 +3,8 @@
  *
  * 全部走云函数 wereadProxy：
  *   - ping()      ：打开小程序时上报一次使用量（云函数按 openid + 天去重，不传任何阅读数据）
- *   - whoami()    ：问服务端「我是不是管理员」（只回布尔，前端据此决定是否显示入口）
+ *   - whoami()    ：问服务端「我是不是管理员」并取回自己的 openid（只回布尔 + 自己的 openid）；
+ *                   前端据此决定是否显示入口，并可自助复制 openid 去配置管理员白名单
  *   - fetchAdmin():取看板数据（非白名单时服务端返回 code=forbidden，前端拿不到任何数字）
  *
  * 说明：看板的「我的阅读数据」（C 块）不走这里，由页面复用本机已有的取数逻辑。
@@ -38,10 +39,13 @@ function ping() {
   return call({ action: 'opsPing' });
 }
 
-/** 当前用户是否管理员 */
+/** 当前用户是否管理员 + 自己的 openid（openid 只用于自助配置白名单，仅自己可见） */
 async function whoami() {
   const res = await call({ action: 'opsWhoami' });
-  return !!(res && res.ok && res.admin);
+  return {
+    admin: !!(res && res.ok && res.admin),
+    openid: (res && res.ok && res.openid) || '',
+  };
 }
 
 /** 取管理员看板数据（A 小程序 / B 插件；C 由页面本地复用） */

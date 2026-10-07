@@ -1522,4 +1522,46 @@
 - **待办**：小程序重新编译预览、H5 刷新页面复验；按 `test/移动端小程序测试清单.md` 5.9~5.12 走查。
 - **风险/注意事项**：① 版本号沿用当前开发版 `0.26.0`（上个已归档 Tag 为 v0.25.0），本次未再递增；② 本次改动**未提交**（待用户确认后按 `git-sync` / `pack-publish` 处理）。
 
+## 2026-10-07 会话条目：H5 报告/人格版式优化 + 「我的账户」页 + 官网与 H5 统一账户体系 (代码已完成，浏览器已核验；待重新部署云函数 / 待发布)
+- **目标**：① 优化 H5 阅读报告展示格式并补齐阅读人格人物插画；② 新增账户信息页（能存 Key、有登录信息）；③ 明确并落地「**网站 + H5 是同一套账户信息、同一个登录系统**」。
+- **已做**：
+  - **报告版式 + 人物插画**：`h5/src/core/persona-figure.js`（从 `mobile/miniprogram/shared/persona-figure.js` 逐字移植，CJS→ESM、手写 base64→浏览器原生 `btoa`），`views/persona.js` 主卡渲染 16 型线描人物插画；`h5/assets/app.css` 重排报告内部版式（章节标题加蓝竖条 / 子标题转灰标签 / 指标卡加边框 / 键值行对齐基线），并新增宽屏（≥560px）整 App 收成 480px 居中。
+  - **H5「我的账户」页**：`views/me.js` 整页重写（身份头 / 已连接状态 / 跨设备登录 / 昵称托管 / 清除云端 Key / 退出登录）；`assets/app.js` 让 `me` 路由**不设 Key 门槛**、Key 拦截页加「已有账户码？用它登录」；`src/api.js` 新增 `profileSave`；`store.js` 注释与语义更新（`resetDeviceId` 退出登录一并清昵称）。
+  - **云端**：`wereadProxy` 新增 `handleProfileSave`（昵称托管，不需 `KEY_SECRET`）；`handleKeyGet` 增回昵称；延续 `delete base._id` 修复；**`handleKeyClear` 改为「只清 Key、保留昵称」**（原实现 `remove()` 整档会连昵称一起删）。
+  - **网站 + H5 统一账户（本次核心）**：
+    - `h5/src/store.js` 存储键统一为 `wre_account_id / _endpoint / _mask / _profile`，并加旧 `wre_h5_*` **一次性自动迁移**（登录态不丢）。
+    - 新增 `web/assets/account.js`（官网 `/account/` 页脚本），**直接 `import` `/app/src/` 的 `store / api / ui` 模块** —— 两端同一份账户实现；`web/assets/site.css` 加账户页样式。
+    - `web/build.py` 新增 `render_account_page()` 生成 `dist/account/index.html`、页脚加「我的账户」；`web/site.config.json` 顶部导航加「我的账户」。
+- **关键结论/决定**：
+  - **同一套账户的机制**：官网在 `/`、网页版在 `/app/` → 同域名同 origin → **同一个 localStorage**；只要两端共用同一组存储键与同一份账户模块，登录态**天然互通，无需任何同步**。
+  - **单一实现优于双份复制**：官网账户页不另写一套客户端，而是复用 `/app/src/`，避免两套逻辑漂移；方向是「官网依赖 h5 模块」，h5 不反向依赖官网，仍可独立构建。
+  - **网关地址仍以 `h5/src/config.js` 的 `ENDPOINT` 为单源**（不在 `site.config.json` 再存一份，避免两处对齐）；网站账户页经复用的 `store.js` 自动读到同一地址。
+  - **「清除 Key」与「退出登录」语义分开**：前者清云端 Key（保留昵称），后者清本机账户码/掩码/昵称（云端账户仍在，凭账户码可再登录）。
+- **产出物（文件/链接）**：
+  - 新增：`h5/src/core/persona-figure.js`、`web/assets/account.js`。
+  - 修改：`h5/src/{store,api}.js`、`h5/src/views/{me,persona,wander,daily}.js`、`h5/src/core/wander-ai.js`、`h5/assets/{app.js,app.css}`、`h5/README.md`、`web/build.py`、`web/site.config.json`、`web/assets/site.css`、`web/content/隐私政策.md`、`mobile/cloudfunctions/wereadProxy/index.js`、`plan/RPD_H5移动端_需求文档.md`、`plan/RPD_网站生态_需求文档.md`、`plan/session_handoff_网站帽子云部署.md`。
+- **验证**：`python3 web/build.py` → 25 页 + 4 栏目索引、**0 告警**、`dist/account/index.html` 与 `/app/src/store.js`（含新键）就位；本地 `python3 -m http.server 8931` 浏览器核验 `/account/`：**console 零 error**，五区块齐全，Key 展开/收起、账户码「显示完整」、复制 toast 均生效，首页导航与页脚「我的账户」入口可跳转。
+- **待办**：
+  - **重新上传部署云函数 `wereadProxy`**（含 `profileSave`、`handleKeyClear` 改动），否则「保存昵称」不可用、清除 Key 行为仍为旧版。
+  - 发布上线：重建 `site-dist` 分支 → 帽子云控制台部署 → 线上 `/account/` 与 `/app/`。
+  - 真机验收：账户码跨设备登录、昵称托管、清除 Key 后昵称保留。
+- **风险/注意事项**：① 官网 `/account/` 运行时依赖 `/app/src/` 存在（构建总会一起拷，风险低）；② 云函数改动**必须重新部署**才生效；③ 本次改动**未提交**（待用户确认后按 `git-sync` / `pack-publish` 处理）。
+
+## 2026-10-08 会话条目：书架「官方分组」三端落地（代码已完成，待真机核验）
+- **目标**：把微信读书官方书架自带的「分组」（`/shelf/sync` 的 `archive`）接进插件 / H5 / 小程序，做**只读**的「按官方分组分类」展示 + 筛选，不动任何原有书架功能。
+- **已做**：
+  - **数据层（三端同口径）**：插件 `modules/finder.js`、H5 `h5/src/data.js`、小程序 `mobile/miniprogram/shared/data.js` 的 `slimShelf()` 各增加一步——读 `data.archive`，把每个分组的 `name` **反查挂回**对应 `books[].groups` / `albums[].groups`（去重、保持官方顺序），并返回 `groups: [{ name, bookIds, albumIds, count }]`；无名分组跳过；`archive` 缺失则 `groups: []`（旧缓存自然兼容，不强制清缓存）。
+  - **插件 UI**：`modules/finder.js` 找书面板新增「官方分组」多选 chips（OR 命中、可「清除已选」）、书卡展示灰色「官方分组」胶囊（无 ×）、关键词命中范围纳入分组名、`hasActiveFilter` 计入分组；`modules/finder.css` 加中性灰 chip / 胶囊样式（与绿色本机标签区分）。
+  - **H5 UI**：`h5/src/views/shelf.js` 在原有区块后新增「按官方分组」卡（每组前 12 本 + 「还有 X 本」，空组不渲染，末尾「未分组」）；`h5/assets/app.css` 加分区样式。
+  - **小程序 UI**：`pages/shelf/index.js` 生成 `groups` / `ungrouped` 数据（每组上限 12 本）；`index.wxml` 渲染分组卡；`index.wxss` 加样式。
+- **关键结论/决定**：
+  - **只读**：官方分组由官方规则决定、网关无写接口，三端一律不提供增删改入口（书卡胶囊无 ×）。
+  - **与「标签」并存**：官方分组用**中性灰**、插件本机标签用**主题绿**，UI 上明确区分，互不覆盖。
+  - **`archive` 是「反着存」的**：不是每本书写自己属于哪组，而是每组列着有哪些书，故必须反查挂载。
+  - **自检留痕**：按 RPD R1/R2，插件 `slimShelf()` 记 `[finder] 官方分组解析` 日志（groups / archiveBookIds / matchedBooks / archiveAlbumIds / matchedAlbums），用于真机确认 `archive` 的 id 与 `books[].bookId` / `albums[].albumId` 是否同空间。
+- **产出物（文件）**：修改 `modules/finder.js`、`modules/finder.css`、`h5/src/data.js`、`h5/src/views/shelf.js`、`h5/assets/app.css`、`mobile/miniprogram/shared/data.js`、`mobile/miniprogram/pages/shelf/index.{js,wxml,wxss}`、`plan/RPD_书架官方分组_需求文档.md`（v0.1 → v0.2）。
+- **验证**：`GetDiagnostics` 全量无 error；grep 静态断言确认三端挂载点 / 渲染点 / 事件绑定均在位；`node --check` 因本机无 node 未执行。**未**跑浏览器 / 真机（按「验证从简」，视觉与 id 口径留待真机）。
+- **待办**：真机核验——① 插件调试日志看 `官方分组解析` 的 `matchedBooks` 是否≈`archiveBookIds`（R1/R2）；② H5 刷新页面看「按官方分组」区块与数量；③ 小程序重新编译预览看分组卡。
+- **风险/注意事项**：① 若 R1/R2 的 id 口径对不上，会退化为「所有书都进『未分组』」，需按 RPD §5 改用 `deepLink` 哈希或书名兜底；② 本次改动**未提交**（待用户确认后按 `git-sync` / `pack-publish` 处理）。
+
 

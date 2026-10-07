@@ -13,9 +13,10 @@
  *   3. action: 'syncGet/Put'  —— 阅读人格结果云同步（B2，按 openid 隔离）；
  *   4. action: 'opsPing'      —— 小程序使用量上报（M13，按天去重 openid）；
  *   5. action: 'opsReport'    —— 插件匿名统计上报（M13，HTTP 访问服务，无 openid）；
- *   6. action: 'opsWhoami'    —— 判断当前调用者是否管理员（M13，只回布尔）；
+ *   6. action: 'opsWhoami'    —— 判断当前调用者是否管理员，并回传自己的 openid（M13，用于自助配置白名单）；
  *   7. action: 'opsAdmin'     —— 管理员看板数据（M13，非白名单一律不下发）。
  *   8. action: 'pbGet/pbPut'  —— 我的纸书云端备份（按 openid 隔离，只存纸书档案，不含 Key）。
+ *   9. action: 'imgScan'      —— 我的纸书拍照识码（M2，云调用 img.scanQRCode 识别图片里的条码）。
  *
  * H5（纯网页 App）走 HTTP 访问服务，`handleHttp` 额外支持：
  *   - action: 'relay'         —— 用托管 Key 走官方网关中转（{deviceId, apiName, params}）；
@@ -26,7 +27,7 @@
  *   - action: 'profileSave'   —— 保存昵称（{deviceId, nickName}，非敏感，随账户走）；
  *   - action: 'syncGet/Put'   —— 人格结果按 deviceId 云同步；
  *   - action: 'opsPing'       —— H5 匿名使用量（{deviceId, version}，按 deviceId + 天去重）；
- *   - action: 'opsAdmin'      —— H5 运营看板（{token}，口令校验通过才下发）。
+ *   - action: 'opsAdmin'      —— H5 运营看板（{deviceId}，账户码白名单内才下发）。
  *
  * 红线：
  *   1. 不持久化、不记录任何用户的 Key（日志只允许出现掩码）；
@@ -44,14 +45,17 @@
  *   ③ M13 运营看板：在「云开发控制台 → 数据库」新建集合 `wre_ops_daily`
  *      （权限选「仅管理端可读写」）；在「云函数 → wereadProxy → 配置 → 环境变量」新增
  *      `ADMIN_OPENIDS`（值＝你自己的 openid，多个用英文逗号分隔），否则看板对任何人都不下发；
+ *      自己的 openid 可在小程序「设置 → 参数详情」里点「复制 openid」获取；
  *      插件匿名统计走「云开发控制台 → HTTP 访问服务」，为 `/report` 路径绑定本函数
  *      （前端以 text/plain 简单请求上报，无需预检）。
  *   ④ H5：新建集合 `wre_users`（权限选「仅管理端可读写」，用于 Key 加密托管）；在环境变量新增
  *      `KEY_SECRET`（任意足够长的随机串，用于应用层加密，**一旦设置不要更改**，否则已托管 Key 无法解密）
  *      与 `H5_ORIGINS`（允许跨域的 H5 站点地址，多个用英文逗号分隔；不配则退回 `*`）；
- *      可选：`ADMIN_TOKEN`（H5 运营看板口令，不配则 H5 看板关闭）；
+ *      可选：`ADMIN_DEVICE_IDS`（H5 运营看板的管理员账户码白名单，英文逗号分隔；不配则 H5 看板关闭）；
  *      在「HTTP 网关 → 域名及路由」为 H5 添加路由（路径如 `/h5`，关联本函数；跨域设置保持关闭由本函数处理），
  *      把该地址填进 `h5/src/config.js`。
+ *   ⑤ 「我的纸书 → 拍照识码」（M2）走云调用 `img.scanQRCode`，权限已在同目录 `config.json` 声明（随函数一起上传）；
+ *      真机使用需在小程序后台《用户隐私保护指引》勾选「摄像头」「相册（仅写入）」。
  */
 'use strict';
 
@@ -99,8 +103,13 @@ const ADMIN_OPENIDS = String(process.env.ADMIN_OPENIDS || '')
 //   - H5_ORIGINS：允许跨域访问本站的域名白名单（英文逗号分隔）；未配置时退回 `*`（便于本地开发）。
 const USERS_COLLECTION = 'wre_users';
 const KEY_SECRET = String(process.env.KEY_SECRET || '');
-// H5 运营看板口令（H14）：H5 无 openid，改用「口令 + 服务端校验」；未配置则 H5 看板一律关闭
-const ADMIN_TOKEN = String(process.env.ADMIN_TOKEN || '');
+// H5 运营看板管理员账户码白名单（H14）：H5 无 openid，改用「账户码（deviceId）白名单」认人，
+// 免输入任何口令。在云函数「配置 → 环境变量」新增 ADMIN_DEVICE_IDS（英文逗号分隔，
+// 值即你在 H5「我的账户」页复制的账户码）；未配置则 H5 看板一律关闭。
+const ADMIN_DEVICE_IDS = String(process.env.ADMIN_DEVICE_IDS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
 const H5_ORIGINS = String(process.env.H5_ORIGINS || '')
   .split(',')
   .map((s) => s.trim())
@@ -410,6 +419,82 @@ async function handlePaperbook(event) {
   return { ok: true, updatedAt: payload.updatedAt, count: books.length };
 }
 
+// ---------- 我的纸书：拍照识码（M2，云调用 img.scanQRCode） ----------
+
+const IMG_SCAN_MAX_BYTES = 2 * 1024 * 1024; // 官方限制：图片须小于 2M
+
+/** 按扩展名猜 contentType（云调用媒体参数需要） */
+function imgContentType(fileID) {
+  const ext = String(fileID || '').split('.').pop().toLowerCase();
+  if (ext === 'png') {
+    return 'image/png';
+  }
+  if (ext === 'webp') {
+    return 'image/webp';
+  }
+  if (ext === 'gif') {
+    return 'image/gif';
+  }
+  return 'image/jpeg';
+}
+
+/** 兼容不同字段命名，抽出识别到的码列表 */
+function pickCodeResults(res) {
+  const list = (res && (res.code_results || res.codeResults || res.resultList || res.result_list)) || [];
+  return Array.isArray(list) ? list : [];
+}
+
+/**
+ * imgScan：把云存储里的图片交给官方云调用识别条码 → 回传识别到的码。
+ * 红线：只做「识别条码」，不做 OCR 正文、不落库；图片识别后由前端删除。
+ */
+async function handleImgScan(event) {
+  const fileID = String((event && event.fileID) || '').trim();
+  if (!fileID) {
+    return { ok: false, code: 'param', error: '缺少图片' };
+  }
+
+  let buffer = null;
+  try {
+    const file = await cloud.downloadFile({ fileID: fileID });
+    buffer = file && file.fileContent;
+  } catch (err) {
+    return { ok: false, code: 'download', error: '图片下载失败，请重试' };
+  }
+  if (!buffer || !buffer.length) {
+    return { ok: false, code: 'download', error: '图片内容为空' };
+  }
+  if (buffer.length > IMG_SCAN_MAX_BYTES) {
+    return { ok: false, code: 'toobig', error: '图片超过 2M，请靠近些重拍或压缩后再试' };
+  }
+
+  let res = null;
+  try {
+    res = await cloud.openapi.img.scanQRCode({
+      img: { contentType: imgContentType(fileID), value: buffer },
+    });
+  } catch (err) {
+    const msg = (err && (err.errMsg || err.message)) || '未知错误';
+    return { ok: false, code: 'scan', error: '识别失败：' + msg };
+  }
+
+  const rawCode = res && res.errCode !== undefined ? res.errCode : res && res.errcode;
+  if (Number(rawCode)) {
+    return { ok: false, code: 'scan', error: (res && (res.errMsg || res.errmsg)) || '识别失败' };
+  }
+
+  const codes = pickCodeResults(res)
+    .map((c) => ({
+      type: String((c && (c.type_name || c.typeName || c.type)) || ''),
+      data: String((c && c.data) || ''),
+    }))
+    .filter((c) => !!c.data);
+  const isbn = (codes.filter((c) => /^\d{13}$/.test(c.data))[0] || {}).data || '';
+
+  console.log('[wereadProxy] imgScan', { codes: codes.length, isbn: isbn ? 'hit' : 'none' });
+  return { ok: true, isbn: isbn, codes: codes };
+}
+
 // ---------- M13：运营统计（小程序使用量 / 插件匿名使用量 / 管理员看板） ----------
 
 /** 中国时区（UTC+8）的 YYYY-MM-DD */
@@ -522,12 +607,12 @@ async function handleOpsPing() {
   return ok ? { ok: true } : { ok: false, code: 'ops', error: '统计写入失败' };
 }
 
-/** 判断当前调用者是否管理员（只回布尔，不泄露白名单） */
+/** 判断当前调用者是否管理员（只回布尔），并回传其「自己的 openid」以便自助配置白名单（只回自己，不泄露他人） */
 async function handleOpsWhoami() {
   const ctx = cloud.getWXContext();
-  const openid = ctx && ctx.OPENID;
+  const openid = (ctx && ctx.OPENID) || '';
   const admin = !!openid && ADMIN_OPENIDS.indexOf(openid) >= 0;
-  return { ok: true, admin: admin };
+  return { ok: true, admin: admin, openid: openid };
 }
 
 /** 管理员看板：非白名单一律 code=forbidden，服务端不下发任何数据 */
@@ -835,14 +920,14 @@ async function handleH5OpsPing(body) {
   return ok ? { ok: true } : { ok: false, code: 'ops', error: '统计写入失败' };
 }
 
-/** H5 运营看板（H14）：口令校验通过才下发；未配 ADMIN_TOKEN 一律关闭 */
+/** H5 运营看板（H14）：账户码（deviceId）在白名单内才下发；未配 ADMIN_DEVICE_IDS 一律关闭 */
 async function handleH5OpsAdmin(body) {
-  if (!ADMIN_TOKEN) {
-    return { ok: false, code: 'forbidden', error: '看板未开启（缺少 ADMIN_TOKEN）' };
+  if (!ADMIN_DEVICE_IDS.length) {
+    return { ok: false, code: 'forbidden', error: '看板未开启（缺少 ADMIN_DEVICE_IDS）' };
   }
-  const token = String((body && body.token) || '').slice(0, 256);
-  if (!token || token !== ADMIN_TOKEN) {
-    return { ok: false, code: 'forbidden', error: '口令不正确' };
+  const deviceId = cleanDeviceId(body && body.deviceId);
+  if (!validDeviceId(deviceId) || ADMIN_DEVICE_IDS.indexOf(deviceId) < 0) {
+    return { ok: false, code: 'forbidden', error: '当前账户码不在管理员白名单' };
   }
   const today = cstDate(Date.now());
   const mp = await aggregate('mp', today);
@@ -947,6 +1032,9 @@ exports.main = async (event) => {
   }
   if (action === 'pbGet' || action === 'pbPut') {
     return await handlePaperbook(event);
+  }
+  if (action === 'imgScan') {
+    return await handleImgScan(event);
   }
   if (action === 'opsPing') {
     return await handleOpsPing();

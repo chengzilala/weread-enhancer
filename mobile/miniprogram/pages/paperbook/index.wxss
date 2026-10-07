@@ -191,6 +191,39 @@
   font-size: 28rpx;
 }
 
+/* 微信读书笔记 */
+.pb-notes {
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid #F0F1F4;
+}
+
+.pb-note-line {
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.pb-note-sub {
+  font-size: 24rpx;
+  color: #8A8F99;
+  margin-top: 6rpx;
+}
+
+.pb-note-item {
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid #F5F6F8;
+}
+
+.pb-note-item:last-child {
+  border-bottom: none;
+}
+
+.pb-note-text {
+  font-size: 28rpx;
+  line-height: 1.6;
+  color: #2B2F36;
+}
+
 /* 底部 */
 .pb-foot {
   margin-top: 8rpx;

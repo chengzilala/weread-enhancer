@@ -5,6 +5,7 @@ const { renderShelfShare } = require('../../shared/shelf-share');
 const { messageOf, isKeyError } = require('../../shared/errors');
 
 const SHELF_MAX = 100; // 单次最多渲染的条目数，防超长列表卡顿
+const GROUP_MAX = 12;  // 官方分组视图：每组最多渲染的条目数
 
 function sortTopThenTime(list, timeField) {
   return list.slice().sort((a, b) => {
@@ -14,6 +15,52 @@ function sortTopThenTime(list, timeField) {
     }
     return (Number(b[timeField]) || 0) - (Number(a[timeField]) || 0);
   });
+}
+
+// 合并书 + 专辑为统一条目（供官方分组渲染）
+function shelfItemList(shelf) {
+  const books = (shelf.books || []).map((b) => ({
+    id: b.bookId,
+    title: b.title || '未命名',
+    author: b.author || '',
+    cover: b.cover || '',
+    groups: Array.isArray(b.groups) ? b.groups : [],
+  }));
+  const albums = (shelf.albums || []).map((a) => ({
+    id: a.albumId,
+    title: a.name || '未命名',
+    author: a.authorName || '',
+    cover: a.cover || '',
+    groups: Array.isArray(a.groups) ? a.groups : [],
+  }));
+  return books.concat(albums);
+}
+
+// 按官方分组分区：按 archive 原顺序逐组取前 GROUP_MAX 本，末尾追加「未分组」
+function buildGroups(shelf) {
+  const groups = Array.isArray(shelf.groups) ? shelf.groups : [];
+  if (!groups.length) {
+    return { groups: [], ungrouped: null };
+  }
+  const items = shelfItemList(shelf);
+  const out = [];
+  groups.forEach((g) => {
+    const inGroup = items.filter((it) => it.groups.indexOf(g.name) >= 0);
+    if (!inGroup.length) {
+      return;   // 组内为空则整组不渲染
+    }
+    out.push({
+      name: g.name,
+      count: inGroup.length,
+      items: inGroup.slice(0, GROUP_MAX),
+      more: Math.max(0, inGroup.length - GROUP_MAX),
+    });
+  });
+  const rest = items.filter((it) => !it.groups.length);
+  const ungrouped = rest.length
+    ? { count: rest.length, items: rest.slice(0, GROUP_MAX), more: Math.max(0, rest.length - GROUP_MAX) }
+    : null;
+  return { groups: out, ungrouped: ungrouped };
 }
 
 Page({
@@ -27,6 +74,8 @@ Page({
     categories: [],
     books: [],
     albums: [],
+    groups: [],
+    ungrouped: null,
     hasMp: false,
     bookMore: 0,
     sharing: false,
@@ -212,11 +261,13 @@ Page({
         books: [],
         albums: [],
         categories: [],
+        groups: [],
+        ungrouped: null,
       });
       return;
     }
     if (!res.shelf) {
-      this.setData({ error: '书架数据暂时取不到，请稍后重试', needsKey: false, cards: [], books: [], albums: [], categories: [] });
+      this.setData({ error: '书架数据暂时取不到，请稍后重试', needsKey: false, cards: [], books: [], albums: [], categories: [], groups: [], ungrouped: null });
       return;
     }
     this.render(res.shelf, res.fromCache);
@@ -224,6 +275,7 @@ Page({
 
   render(shelf, fromCache) {
     const counts = shelfCounts(shelf);
+    const grouped = buildGroups(shelf);   // 官方分组分区（只读，来自 archive）
     // 分享图所需数据挂在实例上（不经 setData，避免大对象序列化开销）
     this.shareShelf = shelf;
     this.sharePayload = { shelf: shelf, generatedAt: fmtDateTime(Date.now()) };
@@ -263,6 +315,8 @@ Page({
       categories: cats,
       books,
       albums,
+      groups: grouped.groups,
+      ungrouped: grouped.ungrouped,
       hasMp: !!shelf.hasMp,
       bookMore: Math.max(0, sortedBooks.length - SHELF_MAX),
       error: '',

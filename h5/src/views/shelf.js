@@ -105,10 +105,82 @@ function bodyHtml(shelf, notebooks, fromCache) {
     );
   }
 
+  // 按官方分组（新增区块，不改动上方概览 / 最近 20 本 / 专辑）
+  if (shelf) {
+    const block = groupsHtml(shelf);
+    if (block) {
+      parts.push(block);
+    }
+  }
+
   if (!parts.length) {
     parts.push('<div class="wre-card"><div class="wre-muted">暂无书架数据。</div></div>');
   }
   return parts.join('');
+}
+
+/** 合并书 + 专辑为统一条目（供分组渲染） */
+function shelfItemList(shelf) {
+  const books = (shelf.books || []).map((b) => ({
+    title: b.title,
+    author: b.author,
+    cover: b.cover,
+    groups: Array.isArray(b.groups) ? b.groups : [],
+  }));
+  const albums = (shelf.albums || []).map((a) => ({
+    title: a.name,
+    author: a.authorName,
+    cover: a.cover,
+    groups: Array.isArray(a.groups) ? a.groups : [],
+  }));
+  return books.concat(albums);
+}
+
+/** 按官方分组分区：按 archive 原顺序逐组渲染，末尾追加「未分组」 */
+function groupsHtml(shelf) {
+  const groups = Array.isArray(shelf.groups) ? shelf.groups : [];
+  const items = shelfItemList(shelf);
+  if (!groups.length) {
+    return '';
+  }
+  const parts = ['<div class="wre-card"><div class="wre-card__title">按官方分组</div>'];
+  let rendered = false;
+  groups.forEach((g) => {
+    const inGroup = items.filter((it) => it.groups.indexOf(g.name) >= 0);
+    if (!inGroup.length) {
+      return;   // 组内为空则整组不渲染
+    }
+    rendered = true;
+    parts.push(groupSectionHtml(g.name, inGroup));
+  });
+  const ungrouped = items.filter((it) => !it.groups.length);
+  if (ungrouped.length) {
+    rendered = true;
+    parts.push(groupSectionHtml('未分组', ungrouped));
+  }
+  if (!rendered) {
+    return '';
+  }
+  parts.push('<div class="wre-hint">官方分组为只读数据，来自你的微信读书官方书架。</div>');
+  parts.push('</div>');
+  return parts.join('');
+}
+
+function groupSectionHtml(name, list) {
+  const MAX = 12;
+  const shown = list.slice(0, MAX);
+  const more = list.length - shown.length;
+  return '<div class="wre-group">' +
+    '<div class="wre-group__head"><span class="wre-group__name">' + esc(name) + '</span>' +
+    '<span class="wre-group__count">' + list.length + ' 本</span></div>' +
+    shown.map((it) =>
+      '<div class="wre-book">' +
+      (it.cover ? '<img class="wre-book__cover" loading="lazy" src="' + esc(it.cover) + '" alt="">' : '<div class="wre-book__cover wre-book__cover--ph"></div>') +
+      '<div class="wre-book__meta"><div class="wre-book__title">' + esc(it.title || '未命名') + '</div>' +
+      '<div class="wre-hint">' + esc(it.author || '') + '</div></div>' +
+      '</div>').join('') +
+    (more > 0 ? '<div class="wre-hint">还有 ' + more + ' 本未显示</div>' : '') +
+    '</div>';
 }
 
 function item(label, value) {

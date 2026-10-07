@@ -472,6 +472,7 @@ aliases: [屏占比, 宽度]       # Obsidian 别名，同时用于 [[双链]] �
     ├── assets/
     │   ├── site.css
     │   ├── site.js
+    │   ├── account.js           # 「我的账户」页脚本（import /app/src/ 的 store/api/ui，与网页版同一套账户）
     │   └── img/
     ├── templates/
     │   └── layout.html          # 站点骨架（顶栏 / 侧栏 / 页脚）

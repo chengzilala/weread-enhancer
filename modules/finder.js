@@ -52,6 +52,7 @@
   const ui = {
     keyword: '',
     tags: [],                 // 已选标签（多选）
+    groups: [],               // 已选官方分组（多选，只读，来自 /shelf/sync 的 archive）
     tagMode: 'and',           // and | or
     status: 'all',            // all | reading | finished | never
     notes: 'all',             // all | has | none
@@ -495,6 +496,7 @@
       finishReading: Number(item.finishReading) === 1 ? 1 : 0,
       isTop: Number(item.isTop) === 1 ? 1 : 0,
       secret: Number(item.secret) === 1 ? 1 : 0,
+      groups: [],
     }));
     const albums = (Array.isArray(data.albums) ? data.albums : []).map((item) => {
       const info = item.albumInfo || {};
@@ -511,11 +513,65 @@
         secret: Number(extra.secret) === 1 ? 1 : 0,
         readUpdateTime: extra.lectureReadUpdateTime || 0,
         isAlbum: true,
+        groups: [],
       };
+    });
+    // 官方分组（archive）：反查挂载——archive 是「每组列着有哪些书」，需把组名挂回条目
+    const bookIndex = {};
+    const albumIndex = {};
+    books.forEach((b) => { if (b.bookId) { bookIndex[b.bookId] = b; } });
+    albums.forEach((a) => { if (a.bookId) { albumIndex[a.bookId] = a; } });
+    const archive = Array.isArray(data.archive) ? data.archive : [];
+    const groups = [];
+    let archiveBookIds = 0;
+    let matchedBooks = 0;
+    let archiveAlbumIds = 0;
+    let matchedAlbums = 0;
+    archive.forEach((entry) => {
+      if (!entry || typeof entry !== 'object') {
+        return;
+      }
+      const name = String(entry.name || '').trim();
+      if (!name) {
+        return;   // 无名分组跳过，不产生空组
+      }
+      const bookIds = Array.isArray(entry.bookIds) ? entry.bookIds : [];
+      const albumIds = Array.isArray(entry.albumIds) ? entry.albumIds : [];
+      bookIds.forEach((id) => {
+        archiveBookIds += 1;
+        const target = bookIndex[String(id)];
+        if (target && target.groups.indexOf(name) < 0) {
+          target.groups.push(name);
+          matchedBooks += 1;
+        }
+      });
+      albumIds.forEach((id) => {
+        archiveAlbumIds += 1;
+        const target = albumIndex[String(id)];
+        if (target && target.groups.indexOf(name) < 0) {
+          target.groups.push(name);
+          matchedAlbums += 1;
+        }
+      });
+      groups.push({
+        name: name,
+        bookIds: bookIds.slice(),
+        albumIds: albumIds.slice(),
+        count: bookIds.length + albumIds.length,
+      });
+    });
+    // 一次性自检日志：确认 archive 的 id 能对上 books / albums（见需求 R1 / R2）
+    logFinder('info', '官方分组解析', {
+      groups: groups.length,
+      archiveBookIds: archiveBookIds,
+      matchedBooks: matchedBooks,
+      archiveAlbumIds: archiveAlbumIds,
+      matchedAlbums: matchedAlbums,
     });
     return {
       books: books,
       albums: albums,
+      groups: groups,
       hasMp: !!data.mp,
       bookCount: typeof data.bookCount === 'number' ? data.bookCount : books.length,
     };
@@ -548,35 +604,6 @@
       return;
     }
     shelf = slimShelf(res.data) || { books: [], albums: [], hasMp: false, bookCount: 0 };
-    // —— 临时诊断（实测官方书架「分组」是否存在，确认后删除）——
-    try {
-      const d = res.data || {};
-      const topKeys = Object.keys(d);
-      const groupLike = topKeys.filter((k) => /group|categor|classif|archive|folder|shelf|tag/i.test(k));
-      const detail = {};
-      groupLike.forEach((k) => {
-        const v = d[k];
-        if (Array.isArray(v)) {
-          detail[k] = { isArray: true, length: v.length, firstKeys: v[0] ? Object.keys(v[0]) : [] };
-        } else if (v && typeof v === 'object') {
-          detail[k] = { isObject: true, keys: Object.keys(v) };
-        } else {
-          detail[k] = v;
-        }
-      });
-      const firstBook = Array.isArray(d.books) && d.books[0] ? Object.assign({}, d.books[0]) : null;
-      if (firstBook) { delete firstBook.cover; }
-      logFinder('info', '【临时诊断】/shelf/sync 返回结构', {
-        topKeys: topKeys,
-        groupLike: groupLike,
-        groupLikeDetail: detail,
-        bookCount: Array.isArray(d.books) ? d.books.length : 0,
-        bookKeys: firstBook ? Object.keys(firstBook) : [],
-        firstBook: firstBook,
-      });
-    } catch (e) {
-      logFinder('warn', '【临时诊断】结构读取失败', { err: String((e && e.message) || e) });
-    }
     shelfFromCache = false;
     shelfState = 'ok';
     try {
@@ -742,8 +769,12 @@
           return false;
         }
       }
+      const itemGroups = Array.isArray(item.groups) ? item.groups : [];
+      if (ui.groups.length && !ui.groups.some((g) => itemGroups.indexOf(g) >= 0)) {
+        return false;   // 官方分组：多选时任一命中即通过（一本文通常只在一组）
+      }
       if (kw) {
-        const text = [item.title, item.author].concat(itemTags).join(' ');
+        const text = [item.title, item.author].concat(itemTags).concat(itemGroups).join(' ');
         let hit = normalize(text).indexOf(kw) >= 0;
         if (!hit && kwIsLatin) {
           hit = initialsOf(text).indexOf(kw) >= 0;   // 拼音首字母模糊匹配
@@ -761,7 +792,7 @@
 
   /** 是否处于「筛选 / 搜索」状态（决定列表标题是「书架」还是「筛选结果」） */
   function hasActiveFilter() {
-    return !!(ui.keyword.trim() || ui.tags.length ||
+    return !!(ui.keyword.trim() || ui.tags.length || ui.groups.length ||
       ui.status !== 'all' || ui.notes !== 'all' || ui.recent !== 'all');
   }
 
@@ -956,6 +987,21 @@
     return '<div class="wre-find-section-title">按标签筛选</div>' + inner;
   }
 
+  /** 官方分组筛选（只读，来自官方书架 archive；与「标签」并列但视觉可区分） */
+  function buildGroupFilterHtml() {
+    const groups = shelf && Array.isArray(shelf.groups) ? shelf.groups : [];
+    if (!groups.length) {
+      return '';   // 空态：账号无分组时整块隐藏
+    }
+    const chips = groups.map((g) =>
+      '<button type="button" class="wre-find-chip wre-find-groupchip' + (ui.groups.indexOf(g.name) >= 0 ? ' is-active' : '') +
+      '" data-wre-find-group="' + escapeHtml(g.name) + '">' + escapeHtml(g.name) + ' <b>' + g.count + '</b></button>').join('');
+    return '<div class="wre-find-section-title">官方分组 <span class="wre-find-section-hint">只读 · 来自官方书架，多选任一命中</span></div>' +
+      '<div class="wre-find-chiprow wre-find-grouprow">' + chips +
+        (ui.groups.length ? '<button type="button" class="wre-find-chip" data-wre-find-groupclear="1">清除已选(' + ui.groups.length + ')</button>' : '') +
+      '</div>';
+  }
+
   function buildToolbarHtml(total) {
     const filtered = applyFilters().length;
     const countText = filtered === total
@@ -1040,6 +1086,18 @@
       '<span class="wre-find-progress-text">' + pct + '%</span></div>';
   }
 
+  /** 条目所属「官方分组」（中性灰胶囊，只读、无 ×，与绿色本机标签区分） */
+  function itemGroupsHtml(item) {
+    const groups = Array.isArray(item.groups) ? item.groups : [];
+    if (!groups.length) {
+      return '';
+    }
+    return '<div class="wre-find-bookgroups">' +
+      '<span class="wre-find-bookgroups-label">官方分组：</span>' +
+      groups.map((g) => '<span class="wre-find-groupbadge">' + escapeHtml(g) + '</span>').join('') +
+    '</div>';
+  }
+
   function buildItemHtml(item, index) {
     const status = itemStatus(item);
     const metaParts = [
@@ -1071,6 +1129,7 @@
         (metaParts.length ? '<div class="wre-find-meta">' + escapeHtml(metaParts.join(' · ')) + '</div>' : '') +
         progressHtml(item) +
         hitHtml +
+        itemGroupsHtml(item) +
         itemTagsHtml(item) +
       '</div>' +
     '</li>';
@@ -1139,7 +1198,7 @@
 
     return privacy + buildSearchHtml() +
       '<div id="wre-find-notesearcharea">' + buildNoteSearchHtml() + '</div>' +
-      buildFilterHtml() + buildTagFilterHtml() +
+      buildFilterHtml() + buildTagFilterHtml() + buildGroupFilterHtml() +
       '<div id="wre-find-toolbararea">' + buildToolbarAreaHtml() + '</div>' +
       '<div id="wre-find-listarea">' + buildListAreaHtml() + '</div>' +
       buildTagManagerHtml() +
@@ -1258,6 +1317,7 @@
     overlay.classList.add('wre-visible');
     message = '';
     ui.keyword = '';   // 每次打开都从空搜索框开始，避免上次关键词残留导致「必须点清空才能重新搜」
+    ui.groups = [];    // 官方分组筛选同样从空开始
     render();
     logFinder('info', '打开找书面板');
     await loadTags();
@@ -1563,6 +1623,26 @@
     }
     if (target.closest('[data-wre-find-tagclear]')) {
       ui.tags = [];
+      render();
+      return;
+    }
+
+    const groupBtn = target.closest('[data-wre-find-group]');
+    if (groupBtn) {
+      const group = groupBtn.getAttribute('data-wre-find-group');
+      const gidx = ui.groups.indexOf(group);
+      if (gidx >= 0) {
+        ui.groups.splice(gidx, 1);
+      } else {
+        ui.groups.push(group);
+      }
+      shown = PAGE_SIZE;
+      message = '';
+      render();
+      return;
+    }
+    if (target.closest('[data-wre-find-groupclear]')) {
+      ui.groups = [];
       render();
       return;
     }

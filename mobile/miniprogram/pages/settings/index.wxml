@@ -64,7 +64,10 @@
       <text class="settings-link__arrow">›</text>
     </view>
     <view class="settings-link" wx:if="{{isAdmin}}" bindtap="goAdmin">
-      <text class="settings-link__label">📊 运营看板</text>
+      <view class="settings-link__main">
+        <text class="settings-link__label">📊 运营看板</text>
+        <text class="settings-link__desc">小程序 / 插件使用量与我的阅读数据汇总 · 无需口令，按账号自动识别</text>
+      </view>
       <text class="settings-link__arrow">›</text>
     </view>
   </view>
@@ -79,7 +82,13 @@
         <text class="params__label">{{item.label}}</text>
         <text class="params__value">{{item.value}}</text>
       </view>
+      <view class="params__row" wx:if="{{myOpenid}}">
+        <text class="params__label">我的 openid</text>
+        <text class="params__value">{{myOpenid}}</text>
+      </view>
+      <button class="wre-btn wre-btn--ghost" wx:if="{{myOpenid}}" bindtap="copyOpenid">复制 openid</button>
       <view class="wre-muted params__note">仅展示本机可见的配置项与掩码，不显示 Key 明文。</view>
+      <view class="wre-muted params__note">openid 仅你自己可见；开启运营看板时，把它填进云函数环境变量 ADMIN_OPENIDS 即可。</view>
     </view>
   </view>
 

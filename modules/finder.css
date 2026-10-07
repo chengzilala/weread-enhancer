@@ -183,6 +183,60 @@
   opacity: 0.7;
 }
 
+/* ---------- 官方分组（只读，中性灰，与绿色本机标签区分） ---------- */
+
+.wre-find-overlay .wre-find-section-hint {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.55;
+}
+
+.wre-find-overlay .wre-find-grouprow {
+  max-height: 132px;
+  overflow-y: auto;
+}
+
+.wre-find-overlay .wre-find-groupchip b {
+  margin-left: 4px;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+/* 选中态用中性灰，不用主题绿 */
+.wre-find-overlay .wre-find-groupchip.is-active {
+  border-color: var(--wre-text);
+  color: var(--wre-text);
+  background: var(--wre-hover-bg);
+  font-weight: 600;
+}
+
+.wre-find-overlay .wre-find-bookgroups {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.wre-find-overlay .wre-find-bookgroups-label {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--wre-text);
+  opacity: 0.6;
+}
+
+.wre-find-overlay .wre-find-groupbadge {
+  padding: 2px 8px;
+  border: 1px solid var(--wre-border);
+  border-radius: 999px;
+  background: var(--wre-hover-bg);
+  color: var(--wre-text);
+  font-size: 11px;
+  line-height: 1.6;
+  opacity: 0.9;
+}
+
 /* ---------- 工具条 ---------- */
 
 .wre-find-overlay .wre-find-toolbar {

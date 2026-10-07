@@ -43,6 +43,32 @@
   margin: 0 16rpx 16rpx 0;
 }
 
+/* 官方分组分区（只读，中性灰，与品牌蓝的标签区分） */
+.wre-group {
+  margin-top: 20rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid #F0F1F4;
+}
+
+.wre-group__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 4rpx;
+}
+
+.wre-group__name {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #1F2430;
+}
+
+.wre-group__count {
+  font-size: 22rpx;
+  color: #8A8F99;
+  flex: none;
+}
+
 .item {
   display: flex;
   align-items: center;

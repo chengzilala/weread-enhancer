@@ -1,17 +1,22 @@
 /**
  * 我的纸书 — 纸质书归档 + 微信读书关联
  *
- * 三个视图（同一页面内切换，减少跳转）：
- *   list —— 我的纸书列表（扫码入库 / 手动添加 / 搜索）
- *   edit —— 单本详情 / 编辑（含「手动关联电子书」「去微信读书」）
- *   link —— 手动关联：搜微信读书 → 挑一本 → 绑定（M10）
+ * 四个视图（同一页面内切换，减少跳转）：
+ *   list  —— 我的纸书列表（扫码入库 / 手动添加 / 搜索）
+ *   edit  —— 单本详情 / 编辑（含「手动关联电子书」「去微信读书」「微信读书笔记」）
+ *   link  —— 手动关联：搜微信读书 → 挑一本 → 绑定（M10）
+ *   notes —— 关联电子版的笔记明细：划线 / 想法（M5）
  *
+ * 分工：页面只负责交互；存储→paperbook-store，取数→paperbook-data，匹配决策→paperbook-core。
  * 红线：Key 只从 store 取、只经云函数中转；本页不打印 Key。
  */
 const store = require('../../shared/store');
-const paperbook = require('../../shared/paperbook');
+const pbStore = require('../../shared/paperbook-store');
+const pbData = require('../../shared/paperbook-data');
+const pbCore = require('../../shared/paperbook-core');
 
 const ISBN_RE = /^\d{13}$/;
+const SCAN_MAX_BYTES = 2 * 1024 * 1024; // 云调用识别限制：图片须小于 2M
 
 Page({
   data: {
@@ -21,7 +26,7 @@ Page({
     keyword: '',
     linkedCount: 0,
 
-    view: 'list', // list | edit | link
+    view: 'list', // list | edit | link | notes
 
     editing: null,
     isNew: false,
@@ -30,6 +35,13 @@ Page({
     linkResults: [],
     linkLoading: false,
     linkError: '',
+
+    // M5：关联电子版的笔记
+    noteLoading: false,
+    noteCounts: null, // { ok, found, bookmarkCount, noteCount, reviewCount, total }
+    noteItems: { marks: [], reviews: [] },
+    noteItemsLoading: false,
+    noteItemsError: '',
   },
 
   onShow() {
@@ -38,7 +50,7 @@ Page({
   },
 
   reload() {
-    const books = paperbook.listLocal();
+    const books = pbStore.listLocal();
     const linkedCount = books.filter((b) => !!b.bookId).length;
     this.setData({ books: books, linkedCount: linkedCount });
     this.applyFilter();
@@ -103,15 +115,75 @@ Page({
       wx.showToast({ title: '这不是图书条码（应为 13 位 ISBN）', icon: 'none' });
       return;
     }
-    if (paperbook.findByIsbn(code)) {
+    if (pbStore.findByIsbn(code)) {
       wx.showToast({ title: '这本已在你的书库', icon: 'none' });
       return;
     }
-    const item = paperbook.addBook({ isbn: code, title: '' });
-    paperbook.backupSilent();
+    const item = pbStore.addBook({ isbn: code, title: '' });
+    pbStore.backupSilent();
     wx.showToast({ title: '已加入', icon: 'none', duration: 700 });
     this.reload();
     this.autoFill(item.id, code, '');
+  },
+
+  // ---- M2 拍照识码（旧书 / 条码磨损时，拍书背条码照片识别）----
+
+  onPhotoScan() {
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['camera', 'album'],
+      sizeType: ['compressed'],
+      success: (res) => {
+        const file = res.tempFiles && res.tempFiles[0];
+        if (!file) {
+          return;
+        }
+        this.prepareAndScan(file.tempFilePath, file.size);
+      },
+      fail: (err) => {
+        const msg = String((err && err.errMsg) || '');
+        if (msg.indexOf('cancel') >= 0) {
+          return;
+        }
+        wx.showToast({ title: '没有选择图片', icon: 'none' });
+      },
+    });
+  },
+
+  /** 超过 2M 先压缩，再交给云函数识别 */
+  prepareAndScan(filePath, size) {
+    const doScan = (path) => {
+      wx.showLoading({ title: '识别中…', mask: true });
+      pbData.scanImageCode(path).then((res) => {
+        wx.hideLoading();
+        if (!res.ok) {
+          wx.showToast({ title: res.error || '没识别到条码', icon: 'none' });
+          return;
+        }
+        const code = res.isbn || (res.codes || []).map((c) => c.data).filter((d) => ISBN_RE.test(d))[0] || '';
+        if (!code) {
+          wx.showModal({
+            title: '没识别到图书条码',
+            content: '把取景框对准书背的条形码再拍一张，或改用「手动添加」。',
+            showCancel: false,
+          });
+          return;
+        }
+        this.handleScannedCode(code);
+      });
+    };
+
+    if (size && size > SCAN_MAX_BYTES) {
+      wx.compressImage({
+        src: filePath,
+        quality: 60,
+        success: (r) => doScan(r.tempFilePath),
+        fail: () => doScan(filePath),
+      });
+      return;
+    }
+    doScan(filePath);
   },
 
   /** M3 自动匹配：先 ISBN 后书名；命中只作「建议」，用户可改 */
@@ -120,12 +192,12 @@ Page({
       return;
     }
     const key = store.getKey();
-    paperbook.autoMatch(key, isbn, title).then((res) => {
+    pbCore.autoMatch(key, isbn, title).then((res) => {
       if (!res || !res.ok || !res.hit) {
         return;
       }
       const hit = res.hit;
-      paperbook.updateBook(id, {
+      pbStore.updateBook(id, {
         title: hit.title || title || '',
         author: hit.author || '',
         cover: hit.cover || '',
@@ -134,7 +206,7 @@ Page({
         linkTitle: hit.title || '',
         linkManual: false,
       });
-      paperbook.backupSilent();
+      pbStore.backupSilent();
       this.reload();
       if (this.data.view === 'edit' && this.data.editing && this.data.editing.id === id) {
         this.openEdit({ currentTarget: { dataset: { id: id } } });
@@ -149,6 +221,8 @@ Page({
       view: 'edit',
       isNew: true,
       editing: { id: '', isbn: '', title: '', author: '', cover: '', bookId: '', deepLink: '', linkTitle: '', linkManual: false },
+      noteCounts: null,
+      noteLoading: false,
     });
   },
 
@@ -164,7 +238,18 @@ Page({
     if (!book) {
       return;
     }
-    this.setData({ view: 'edit', isNew: false, editing: Object.assign({}, book) });
+    this.setData({
+      view: 'edit',
+      isNew: false,
+      editing: Object.assign({}, book),
+      noteCounts: null,
+      noteLoading: false,
+      noteItems: { marks: [], reviews: [] },
+      noteItemsError: '',
+    });
+    if (book.bookId) {
+      this.loadNoteCounts(book.bookId);
+    }
   },
 
   onFieldInput(e) {
@@ -175,7 +260,7 @@ Page({
   },
 
   onBackToList() {
-    this.setData({ view: 'list', editing: null });
+    this.setData({ view: 'list', editing: null, noteCounts: null, noteItems: { marks: [], reviews: [] } });
     this.reload();
   },
 
@@ -197,12 +282,12 @@ Page({
     }
 
     if (this.data.isNew) {
-      if (isbn && paperbook.findByIsbn(isbn)) {
+      if (isbn && pbStore.findByIsbn(isbn)) {
         wx.showToast({ title: '该 ISBN 已在书库', icon: 'none' });
         return;
       }
-      const item = paperbook.addBook({ isbn: isbn, title: title, author: author, cover: e.cover || '' });
-      paperbook.backupSilent();
+      const item = pbStore.addBook({ isbn: isbn, title: title, author: author, cover: e.cover || '' });
+      pbStore.backupSilent();
       wx.showToast({ title: '已加入书库', icon: 'success' });
       this.setData({ view: 'list', isNew: false, editing: null });
       this.reload();
@@ -210,8 +295,8 @@ Page({
       return;
     }
 
-    paperbook.updateBook(e.id, { isbn: isbn, title: title, author: author, cover: e.cover || '' });
-    paperbook.backupSilent();
+    pbStore.updateBook(e.id, { isbn: isbn, title: title, author: author, cover: e.cover || '' });
+    pbStore.backupSilent();
     wx.showToast({ title: '已保存', icon: 'success' });
     this.setData({ view: 'list', editing: null });
     this.reload();
@@ -231,9 +316,9 @@ Page({
         if (!r.confirm) {
           return;
         }
-        paperbook.removeBook(e.id);
-        paperbook.backupSilent();
-        this.setData({ view: 'list', editing: null });
+        pbStore.removeBook(e.id);
+        pbStore.backupSilent();
+        this.setData({ view: 'list', editing: null, noteCounts: null });
         this.reload();
       },
     });
@@ -252,13 +337,13 @@ Page({
         wx.showToast({ title: '先填书名或 ISBN 再搜', icon: 'none' });
         return;
       }
-      editing = paperbook.addBook({
+      editing = pbStore.addBook({
         isbn: String(editing.isbn || '').trim(),
         title: String(editing.title || '').trim(),
         author: String(editing.author || '').trim(),
         cover: editing.cover || '',
       });
-      paperbook.backupSilent();
+      pbStore.backupSilent();
       this.setData({ editing: editing, isNew: false });
     }
     const kw = editing.title || editing.isbn || '';
@@ -279,7 +364,7 @@ Page({
       return;
     }
     this.setData({ linkLoading: true, linkError: '' });
-    paperbook.searchStore(kw, store.getKey()).then((res) => {
+    pbData.searchStore(kw, store.getKey()).then((res) => {
       if (!res.ok) {
         this.setData({ linkLoading: false, linkResults: [], linkError: res.error || '搜索失败，请重试' });
         return;
@@ -296,7 +381,7 @@ Page({
       return;
     }
     const id = editing.id;
-    const updated = paperbook.updateBook(id, {
+    const updated = pbStore.updateBook(id, {
       bookId: hit.bookId || '',
       deepLink: hit.deepLink || '',
       linkTitle: hit.title || '',
@@ -305,10 +390,13 @@ Page({
       author: editing.author || hit.author || '',
       title: editing.title || hit.title || '',
     });
-    paperbook.backupSilent();
+    pbStore.backupSilent();
     wx.showToast({ title: '已关联', icon: 'success' });
-    this.setData({ view: 'edit', editing: updated || editing });
+    this.setData({ view: 'edit', editing: updated || editing, noteCounts: null, noteItems: { marks: [], reviews: [] } });
     this.reload();
+    if (updated && updated.bookId) {
+      this.loadNoteCounts(updated.bookId);
+    }
   },
 
   onLinkCancel() {
@@ -327,9 +415,9 @@ Page({
         if (!r.confirm) {
           return;
         }
-        const updated = paperbook.updateBook(editing.id, { bookId: '', deepLink: '', linkTitle: '', linkManual: false });
-        paperbook.backupSilent();
-        this.setData({ editing: updated || editing });
+        const updated = pbStore.updateBook(editing.id, { bookId: '', deepLink: '', linkTitle: '', linkManual: false });
+        pbStore.backupSilent();
+        this.setData({ editing: updated || editing, noteCounts: null, noteItems: { marks: [], reviews: [] } });
         this.reload();
       },
     });
@@ -358,11 +446,61 @@ Page({
     });
   },
 
+  // ---- M5 微信读书笔记 ----
+
+  /** 读该书在微信读书的笔记计数（含 30 分钟缓存，不额外发请求） */
+  loadNoteCounts(bookId) {
+    if (!this.data.hasKey || !bookId) {
+      return;
+    }
+    const key = store.getKey();
+    this.setData({ noteLoading: true, noteCounts: null });
+    pbData.fetchBookNoteCounts(bookId, key).then((res) => {
+      // 防串页：仅当仍停留在同一本书时才写入
+      if (this.data.view !== 'edit' || !this.data.editing || this.data.editing.bookId !== bookId) {
+        return;
+      }
+      this.setData({ noteLoading: false, noteCounts: res });
+    });
+  },
+
+  /** 进入笔记明细视图 */
+  onOpenNotes() {
+    const editing = this.data.editing;
+    if (!editing || !editing.bookId) {
+      return;
+    }
+    if (!this.data.hasKey) {
+      wx.showToast({ title: '请先配置 API Key', icon: 'none' });
+      return;
+    }
+    this.setData({
+      view: 'notes',
+      noteItems: { marks: [], reviews: [] },
+      noteItemsLoading: true,
+      noteItemsError: '',
+    });
+    pbData.fetchBookNoteItems(editing.bookId, store.getKey()).then((res) => {
+      if (this.data.view !== 'notes') {
+        return;
+      }
+      if (!res || !res.ok) {
+        this.setData({ noteItemsLoading: false, noteItemsError: (res && res.error) || '读取笔记失败' });
+        return;
+      }
+      this.setData({ noteItemsLoading: false, noteItems: { marks: res.marks, reviews: res.reviews } });
+    });
+  },
+
+  onNotesBack() {
+    this.setData({ view: 'edit' });
+  },
+
   // ---- 云端恢复 ----
 
   onRestore() {
     wx.showLoading({ title: '读取云端…' });
-    paperbook.restoreFromCloud().then((res) => {
+    pbStore.restoreFromCloud().then((res) => {
       wx.hideLoading();
       if (!res.ok) {
         wx.showToast({ title: res.error || '云端恢复失败', icon: 'none' });
@@ -380,7 +518,7 @@ Page({
           if (!r.confirm) {
             return;
           }
-          paperbook.saveAll(res.books);
+          pbStore.saveAll(res.books);
           this.reload();
           wx.showToast({ title: '已恢复', icon: 'success' });
         },

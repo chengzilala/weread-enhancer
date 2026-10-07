@@ -186,3 +186,11 @@ HTTPS 推送 github.com 走本机代理（127.0.0.1:53893）间歇性 502；`api
 - 为什么能放子目录：H5 全用相对路径 + hash 路由，`sw.js` 与 manifest 也是相对注册 → PWA 作用范围自动收在 `/app/` 内，**不影响官网**。
 - 部署配置无需改动：仍是纯静态托管 `site-dist` 分支根目录。
 
+### 7.5 2026-10-07 官网新增「我的账户」页 `/account/`（与 `/app/` 同一套账户）
+
+- `web/build.py` 的 `render_account_page()` 生成 `dist/account/index.html`；交互脚本 `web/assets/account.js` 直接 `import` 网页版（`/app/src/`）的 `store / api / ui` 模块 → 两端同一份账户实现。
+- 官网（`/`）与网页版（`/app/`）**同域名同 origin、同一 localStorage**，共用存储键 `wre_account_*`（旧 `wre_h5_*` 首次加载自动迁移），登录态天然互通，**无需额外同步**。
+- 入口：顶部导航末项 + 页脚「我的账户」。
+- 部署配置无需改动：`/account/` 随 `site-dist` 一起发布。
+- **注意**：云函数 `wereadProxy` 本次有改动（`handleKeyClear` 改为只清 Key、保留昵称），需**重新上传部署**才生效。
+

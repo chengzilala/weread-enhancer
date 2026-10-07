@@ -7,6 +7,7 @@
         未配置 API Key：可以正常建档，但暂时不能自动补书名、也不能关联微信读书电子版。去「我的」页配置后即可。
       </view>
       <button class="wre-btn" bindtap="onScan">📷 扫码加书</button>
+      <button class="wre-btn wre-btn--ghost" bindtap="onPhotoScan">🖼 拍照识码（旧书 / 条码磨损）</button>
       <button class="wre-btn wre-btn--ghost" bindtap="onAddManual">手动添加（无条码的旧书）</button>
     </view>
 
@@ -21,7 +22,7 @@
       wx:if="{{!books.length}}"
       type="empty"
       text="你的纸书库还是空的"
-      sub="点上面「📷 扫码加书」，对准书背条码即可连续录入"
+      sub="点上面「📷 扫码加书」，对准书背条码即可连续录入；旧书条码扫不出可「拍照识码」"
     />
 
     <block wx:else>
@@ -77,6 +78,21 @@
           <text class="pb-link-title">{{editing.linkTitle || editing.title}}</text>
         </view>
         <button class="wre-btn" bindtap="onGoWeread">去微信读书读</button>
+
+        <!-- M5：微信读书笔记 -->
+        <view class="pb-notes">
+          <view class="wre-muted" wx:if="{{noteLoading}}">正在读取笔记…</view>
+          <block wx:elif="{{noteCounts && noteCounts.ok}}">
+            <view wx:if="{{noteCounts.total}}">
+              <view class="pb-note-line">微信读书笔记：{{noteCounts.total}} 条</view>
+              <view class="pb-note-sub">划线 {{noteCounts.noteCount}} · 想法 {{noteCounts.reviewCount}} · 书签 {{noteCounts.bookmarkCount}}</view>
+            </view>
+            <view class="wre-muted" wx:else>微信读书里这本还没有笔记</view>
+            <button class="wre-btn wre-btn--ghost" wx:if="{{noteCounts.total}}" bindtap="onOpenNotes">查看笔记明细</button>
+          </block>
+          <view class="wre-muted" wx:elif="{{noteCounts && !noteCounts.ok}}">{{noteCounts.error || '笔记读取失败'}}</view>
+        </view>
+
         <view class="pb-inline">
           <button class="wre-btn wre-btn--ghost pb-flex1" bindtap="onLinkStart">换一本</button>
           <button class="wre-btn wre-btn--ghost pb-flex1" bindtap="onUnlink">解除关联</button>
@@ -135,6 +151,43 @@
 
     <view class="pb-foot">
       <button class="wre-btn wre-btn--ghost" bindtap="onLinkCancel">返回</button>
+    </view>
+  </block>
+
+  <!-- ========== 笔记明细视图（M5）========== -->
+  <block wx:elif="{{view === 'notes'}}">
+    <view class="wre-card">
+      <view class="wre-title">{{editing.linkTitle || editing.title}}</view>
+      <view class="wre-muted">微信读书里这本的划线 / 想法（只读，不修改）</view>
+    </view>
+
+    <wre-state wx:if="{{noteItemsLoading}}" type="loading" text="正在读取笔记…" />
+    <view class="wre-card pb-error" wx:elif="{{noteItemsError}}">{{noteItemsError}}</view>
+    <wre-state
+      wx:elif="{{!noteItems.marks.length && !noteItems.reviews.length}}"
+      type="empty"
+      text="这本还没有笔记"
+      sub="在微信读书里划线或写想法后，这里就能看到"
+    />
+
+    <block wx:else>
+      <view class="wre-card" wx:if="{{noteItems.reviews.length}}">
+        <view class="wre-title">想法 / 点评（{{noteItems.reviews.length}}）</view>
+        <view class="pb-note-item" wx:for="{{noteItems.reviews}}" wx:key="index">
+          <view class="pb-note-text">{{item.text}}</view>
+        </view>
+      </view>
+
+      <view class="wre-card" wx:if="{{noteItems.marks.length}}">
+        <view class="wre-title">划线（{{noteItems.marks.length}}）</view>
+        <view class="pb-note-item" wx:for="{{noteItems.marks}}" wx:key="index">
+          <view class="pb-note-text">{{item.text}}</view>
+        </view>
+      </view>
+    </block>
+
+    <view class="pb-foot">
+      <button class="wre-btn wre-btn--ghost" bindtap="onNotesBack">返回详情</button>
     </view>
   </block>
 </view>

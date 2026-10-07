@@ -390,6 +390,12 @@ html, body {
 .wre-book__title { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wre-tag { font-size: 11px; color: #12A150; background: #EAF7EF; border-radius: 6px; padding: 2px 8px; flex: none; }
 
+/* 官方分组分区（只读；中性灰编号，与绿色标签区分） */
+.wre-group { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--wre-line); }
+.wre-group__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
+.wre-group__name { font-size: 13px; font-weight: 600; color: var(--wre-text); }
+.wre-group__count { font-size: 11px; color: var(--wre-muted); flex: none; }
+
 /* toast */
 .wre-toast {
   position: fixed;

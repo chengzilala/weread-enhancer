@@ -24,6 +24,8 @@ Page({
 
     // 管理员看板入口（M13）：由云函数判定，仅你的账号显示
     isAdmin: false,
+    // 自己的 openid（M13）：用于自助配置云函数环境变量 ADMIN_OPENIDS，仅自己可见
+    myOpenid: '',
   },
 
   onShow() {
@@ -41,8 +43,14 @@ Page({
       showParams: false,
       params: this.buildParams(key, profile),
     });
-    // 管理员判断：失败静默（非管理员 / 云函数未部署时都不显示入口）
-    ops.whoami().then((isAdmin) => this.setData({ isAdmin: !!isAdmin })).catch(() => {});
+    // 管理员判断：失败静默（非管理员 / 云函数未部署时都不显示入口），同时取回自己的 openid
+    ops
+      .whoami()
+      .then((r) => {
+        const info = r || {};
+        this.setData({ isAdmin: !!info.admin, myOpenid: info.openid || '' });
+      })
+      .catch(() => {});
   },
 
   // 参数详情：只列本机可见的配置项，绝不显示 Key 明文（只给掩码）
@@ -159,6 +167,15 @@ Page({
 
   goAdmin() {
     wx.navigateTo({ url: '/pages/admin/index' });
+  },
+
+  // 复制自己的 openid：用于把本账号加入云函数环境变量 ADMIN_OPENIDS，开启运营看板
+  copyOpenid() {
+    const openid = this.data.myOpenid;
+    if (!openid) {
+      return;
+    }
+    wx.setClipboardData({ data: openid });
   },
 
   setStatus(type, text) {

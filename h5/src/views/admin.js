@@ -1,19 +1,16 @@
 /**
  * H14 运营看板
  *
- * 口令门：本机保存运营口令（wre_h5_admin_token），没有则先输入；
- * 数据来自云函数 opsAdmin（小程序 / 插件 / H5 三段匿名用量汇总）。
- * 纯只读展示，不发写操作；口令只存本机，可随时「退出看板」清除。
+ * 免口令：服务端按「账户码（deviceId）」白名单认人（云函数环境变量 ADMIN_DEVICE_IDS），
+ * 前端无需输入任何口令，打开即拉取；数据来自云函数 opsAdmin
+ * （小程序 / 插件 / H5 三段匿名用量汇总）。纯只读展示，不发写操作。
  */
 
 import { opsAdmin } from '../api.js';
-import { localGet, localSet, localRemove } from '../store.js';
-import { esc, stateHtml, toast } from '../ui.js';
+import { esc, stateHtml } from '../ui.js';
 import { CONFIG } from '../config.js';
 
 export const title = '运营看板';
-
-const TOKEN_KEY = 'wre_h5_admin_token';
 
 // 三段来源，key 对应 opsAdmin 返回里的字段名
 const SECTIONS = [
@@ -22,79 +19,62 @@ const SECTIONS = [
   { key: 'h5', label: 'H5 网页版' },
 ];
 
-// 本次会话内已输入的口令（未落盘时供「重试」复用）
-let activeToken = '';
-
 export function render(root, app) {
   root.innerHTML = '<div class="wre-page" id="adminBody"></div>';
   const body = root.querySelector('#adminBody');
   body.addEventListener('click', (e) => onAction(e, body, app));
+  load(body);
+}
 
-  const token = readToken();
-  if (!token) {
-    body.innerHTML = gateHtml('');
+// ---- 拉数据 ----
+async function load(body) {
+  body.innerHTML = stateHtml('loading', '正在拉取运营数据…');
+
+  const res = await opsAdmin();
+  if (!res.ok) {
+    if (res.code === 'forbidden') {
+      body.innerHTML = deniedHtml(res.error || '当前账户码不在管理员白名单。');
+      return;
+    }
+    body.innerHTML = backHtml() + stateHtml('error', res.error || '拉取运营数据失败', '重试');
     return;
   }
-  load(body, app, token);
+
+  body.innerHTML = dashHtml(res);
 }
 
-/** 本机保存 > 本次会话输入 */
-function readToken() {
-  return String(localGet(TOKEN_KEY, '') || activeToken || '').trim();
+function backHtml() {
+  return '<div class="wre-back"><button class="wre-back__btn" data-goto="me">← 返回我的</button></div>';
 }
 
-// ---- 口令门 ----
-function gateHtml(errorMsg) {
+// ---- 无权限 ----
+function deniedHtml(msg) {
   return (
-    '<div class="wre-back"><button class="wre-back__btn" data-goto="me">← 返回我的</button></div>' +
+    backHtml() +
     '<div class="wre-card">' +
     '  <div class="wre-card__title">运营看板</div>' +
-    '  <div class="wre-muted">凭运营口令查看小程序 / 插件 / H5 的匿名使用量汇总。口令只保存在这台设备，可随时退出清除。</div>' +
-    (errorMsg ? '  <div class="wre-status wre-status--off">' + esc(errorMsg) + '</div>' : '') +
-    '  <input class="wre-input" id="adminToken" type="password" autocomplete="off" placeholder="运营口令" />' +
-    '  <button class="wre-btn" data-action="enter">进入看板</button>' +
+    '  <div class="wre-muted">该看板仅对管理员账户码开放，无需口令，按账户码自动识别。</div>' +
+    '  <div class="wre-status wre-status--off">' + esc(msg) + '</div>' +
     '</div>' +
     '<div class="wre-note">看板仅展示聚合后的匿名计数，不含任何个人数据。</div>'
   );
 }
 
-// ---- 拉数据 ----
-async function load(body, app, token) {
-  body.innerHTML = stateHtml('loading', '正在拉取运营数据…');
-
-  const res = await opsAdmin(token);
-  if (!res.ok) {
-    if (res.code === 'forbidden') {
-      activeToken = '';
-      localRemove(TOKEN_KEY);
-      body.innerHTML = gateHtml('口令不正确或已失效，请重新输入。');
-      return;
-    }
-    body.innerHTML = stateHtml('error', res.error || '拉取运营数据失败', '重试');
-    return;
-  }
-
-  activeToken = token;
-  localSet(TOKEN_KEY, token);
-  body.innerHTML = dashHtml(res);
-}
-
 // ---- 看板渲染 ----
 function dashHtml(res) {
   const parts = [];
-  parts.push('<div class="wre-back"><button class="wre-back__btn" data-goto="me">← 返回我的</button></div>');
+  parts.push(backHtml());
   parts.push(
     '<div class="wre-card">' +
     '  <div class="wre-card__title">运营看板</div>' +
     '  <div class="wre-muted">数据生成时间：' + esc(fmtTime(res.generatedAt) || '—') + '</div>' +
-    '  <button class="wre-btn wre-btn--ghost" data-action="exit">退出看板</button>' +
     '</div>'
   );
   SECTIONS.forEach((section) => {
     parts.push(sectionHtml(section, res[section.key]));
   });
   parts.push(
-    '<div class="wre-note">以上为各端匿名使用量的聚合汇总，仅作运营参考；口令只存本机。当前 H5 客户端版本 ' +
+    '<div class="wre-note">以上为各端匿名使用量的聚合汇总，仅作运营参考。当前 H5 客户端版本 ' +
     esc(CONFIG.APP_VERSION) + '。</div>'
   );
   return parts.join('');
@@ -166,33 +146,8 @@ function onAction(e, body, app) {
   }
   const action = btn.getAttribute('data-action');
 
-  if (action === 'enter') {
-    const input = body.querySelector('#adminToken');
-    const token = (input && input.value || '').trim();
-    if (!token) {
-      toast('请输入运营口令');
-      return;
-    }
-    activeToken = token;
-    load(body, app, token);
-    return;
-  }
-
   if (action === 'retry') {
-    const token = readToken();
-    if (!token) {
-      body.innerHTML = gateHtml('');
-      return;
-    }
-    load(body, app, token);
-    return;
-  }
-
-  if (action === 'exit') {
-    activeToken = '';
-    localRemove(TOKEN_KEY);
-    toast('已退出看板');
-    body.innerHTML = gateHtml('');
+    load(body);
   }
 }
 

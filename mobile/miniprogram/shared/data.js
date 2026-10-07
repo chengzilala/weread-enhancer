@@ -40,6 +40,7 @@ function slimShelf(data) {
     finishReading: Number(item.finishReading) === 1 ? 1 : 0,
     isTop: Number(item.isTop) === 1 ? 1 : 0,
     secret: Number(item.secret) === 1 ? 1 : 0,
+    groups: [],
   }));
   const albums = (Array.isArray(data.albums) ? data.albums : []).map((item) => {
     const info = item.albumInfo || {};
@@ -53,11 +54,43 @@ function slimShelf(data) {
       secret: Number(extra.secret) === 1 ? 1 : 0,
       isTop: Number(extra.isTop) === 1 ? 1 : 0,
       readUpdateTime: extra.lectureReadUpdateTime || 0,
+      groups: [],
     };
+  });
+  // 官方分组（archive）：反查挂载——archive 是「每组列着有哪些书」，需把组名挂回条目
+  const bookIndex = {};
+  const albumIndex = {};
+  books.forEach((b) => { if (b.bookId) { bookIndex[b.bookId] = b; } });
+  albums.forEach((a) => { if (a.albumId) { albumIndex[a.albumId] = a; } });
+  const groups = [];
+  (Array.isArray(data.archive) ? data.archive : []).forEach((entry) => {
+    if (!entry || typeof entry !== 'object') {
+      return;
+    }
+    const name = String(entry.name || '').trim();
+    if (!name) {
+      return;   // 无名分组跳过
+    }
+    const bookIds = Array.isArray(entry.bookIds) ? entry.bookIds : [];
+    const albumIds = Array.isArray(entry.albumIds) ? entry.albumIds : [];
+    bookIds.forEach((id) => {
+      const target = bookIndex[String(id)];
+      if (target && target.groups.indexOf(name) < 0) {
+        target.groups.push(name);
+      }
+    });
+    albumIds.forEach((id) => {
+      const target = albumIndex[String(id)];
+      if (target && target.groups.indexOf(name) < 0) {
+        target.groups.push(name);
+      }
+    });
+    groups.push({ name: name, bookIds: bookIds, albumIds: albumIds, count: bookIds.length + albumIds.length });
   });
   return {
     books: books,
     albums: albums,
+    groups: groups,
     hasMp: !!data.mp,
     bookCount: typeof data.bookCount === 'number' ? data.bookCount : books.length,
   };

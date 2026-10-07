@@ -108,6 +108,6 @@ export function opsPing(version) {
   return call({ action: 'opsPing', version: version || '' });
 }
 
-export function opsAdmin(token) {
-  return call({ action: 'opsAdmin', token: token || '' });
+export function opsAdmin() {
+  return call({ action: 'opsAdmin' });
 }
