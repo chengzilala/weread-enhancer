@@ -161,6 +161,10 @@ Page({
     wx.navigateTo({ url: '/pages/notes/index' });
   },
 
+  goDaily() {
+    wx.navigateTo({ url: '/pages/daily/index' });
+  },
+
   goWander() {
     wx.navigateTo({ url: '/pages/wander/index' });
   },

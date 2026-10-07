@@ -1,5 +1,27 @@
 /* 每日卡片回顾页 */
 
+/* 往期浏览提示条（蓝主题） */
+.archive-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #F0F4FF;
+  border-radius: 14rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 20rpx;
+}
+
+.archive-bar__text {
+  font-size: 26rpx;
+  color: #2B4C8C;
+}
+
+.archive-bar__back {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #2F6BFF;
+}
+
 .card__date {
   font-size: 26rpx;
   color: #8A8F99;

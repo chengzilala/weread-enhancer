@@ -680,7 +680,7 @@ def render_home(page):
 
     # 网页版（H5）入口：配置 appUrl 后出现；与官网同域，线上路径 /app/
     app_url = CONFIG.get("appUrl") or ""
-    app_btn = ('<a class="home-btn" href="%s">网页版体验</a>' % html.escape(app_url, quote=True)) if app_url else ""
+    app_btn = ('<a class="home-btn" href="%s">H5 移动端</a>' % html.escape(app_url, quote=True)) if app_url else ""
 
     # 开源地址（GitHub / Gitee）：与「安装到 Edge」同排、同款按钮
     src_links = ['<a class="home-btn" href="%s" target="_blank" rel="noopener">GitHub</a>' % html.escape(CONFIG["repoUrl"], quote=True)]

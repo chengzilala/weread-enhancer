@@ -8,7 +8,7 @@
  * 红线：微信读书 Key 只交服务端加密托管，本机只留掩码；本页不回显明文。
  */
 
-import { esc, copyText } from '/app/src/ui.js';
+import { esc, copyText, confirmSignOut } from '/app/src/ui.js';
 import {
   getDeviceId, setDeviceId, resetDeviceId,
   getMask, setMask, getProfile, setProfile,
@@ -246,8 +246,10 @@ async function clearKey() {
   toast('已清除云端 Key');
 }
 
-function signOut() {
-  if (!window.confirm('退出登录后本机会生成新的账户码；旧账户可用原账户码再登录找回。')) {
+async function signOut() {
+  // 退出前先让用户保存账户码（账户码是找回该账户的唯一凭证，退出后本机不再持有）
+  const ok = await confirmSignOut(getDeviceId());
+  if (!ok) {
     return;
   }
   resetDeviceId();

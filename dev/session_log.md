@@ -1564,4 +1564,38 @@
 - **待办**：真机核验——① 插件调试日志看 `官方分组解析` 的 `matchedBooks` 是否≈`archiveBookIds`（R1/R2）；② H5 刷新页面看「按官方分组」区块与数量；③ 小程序重新编译预览看分组卡。
 - **风险/注意事项**：① 若 R1/R2 的 id 口径对不上，会退化为「所有书都进『未分组』」，需按 RPD §5 改用 `deepLink` 哈希或书名兜底；② 本次改动**未提交**（待用户确认后按 `git-sync` / `pack-publish` 处理）。
 
+## 2026-10-08 会话条目：退出登录改为「先保存账户码」站内弹层（代码已完成，静态核验通过；待发布）
+- **目标**：修掉一个账户体系的使用风险——原「退出登录」用系统 `window.confirm` 一句提示，用户没抄账户码就退出会导致旧账户永久失联（Key / 昵称仍加密在服务端，但唯一钥匙丢了）。按用户确认的方案 A：**退出前先把完整账户码摆出来让用户复制/确认已保存，再真正退出**。
+- **已做**：
+  - **共用实现**：`h5/src/ui.js` 新增 `confirmSignOut(deviceId)` —— 返回 `Promise<boolean>` 的站内确认弹层：展示**完整账户码 + 一键复制**、提示「退出后本机变新账户、Key/昵称仍在服务端但需账户码才能找回」，按钮「取消 / 我已保存，退出登录」；支持 Esc / 点遮罩取消；弹层样式由 `ensureDialogStyle()` 自带注入（`wre-` 前缀类，`wreDialogStyle` 幂等），官网与网页版共用一份、无需改任何 CSS 文件。
+  - **官网**：`web/assets/account.js` 的 `signOut()` 由 `window.confirm` 改为 `await confirmSignOut(getDeviceId())`；import 增加 `confirmSignOut`。
+  - **网页版**：`h5/src/views/me.js` 退出分支同步改造（import 增加 `confirmSignOut`）。
+  - **文档回灌**：`plan/RPD_H5移动端_需求文档.md` §9 新增决策 9；`h5/README.md` 目录说明的 `ui.js` 行补 `confirmSignOut`。
+- **关键结论/决定**：
+  - **退出 = 只丢本机钥匙**：账户码 = 账号 + 登录凭证（本机 `wre_account_id` 唯一持有）；`resetDeviceId()` 只清本机，服务端 `wre_users` 文档原封不动；退出后 `getDeviceId()` 重新生成随机码 → 呈现为「新用户」。
+  - **只统一「退出登录」这一处**：「清除 Key」等其它确认仍保留系统 `window.confirm`（不受本次影响）。
+  - **单一实现优先**：弹层放进共用的 `ui.js`（官网 `/account/` 本就 import `/app/src/ui.js`），避免官网与网页版两套弹层逻辑漂移。
+- **产出物（文件）**：修改 `h5/src/ui.js`、`web/assets/account.js`、`h5/src/views/me.js`、`plan/RPD_H5移动端_需求文档.md`、`h5/README.md`；新增 `plan/账户体系_说明.md`（账户体系索引 + 登录方式汇总，收口散落在 3 份 RPD 的账户信息）。
+- **验证**：`python3 web/build.py` → 页面 25 篇 + 栏目索引 4 个、**0 告警**（v0.26.0）；`GetDiagnostics` 无 error；grep 静态断言 `confirmSignOut` 三处产物均在位（`dist/app/src/ui.js` / `dist/assets/account.js` / `dist/app/src/views/me.js`）。按「验证从简」未跑浏览器。
+- **待办**：发布上线后，在官网 `/account/` 与网页版「我的账户」页各点一次「退出登录」，确认弹层出现、复制可用、「我已保存」后才退出。
+- **风险/注意事项**：① 用户若在弹层里没点复制、直接点「我已保存」仍会退出——文案已尽量提醒，但本质靠用户自觉（方案 A 的边界）；② 本次改动**未提交**（待用户确认后按 `git-sync` / `pack-publish` 处理）。
+
+## 2026-10-08 会话条目：每日卡片「往期回顾」（小程序 + H5 双端，代码已完成，待真机核验）
+- **目标**：用户要求「小程序加入每日卡片往期回顾，h5 没有也加入」。原状：两端每日卡片页底部**已有往期列表但不可点开**；小程序「我的」无每日卡片入口、H5「我的账户」无入口。经澄清选定方案 **「入口 + 可点开看整张」**——「我的 / 我的账户」加明确入口，往期列表每条可点开看整张卡片（引用 + 解读/说明 + 关联旧划线），交互对齐「灵感漫游 · 往期归档」。
+- **已做**：
+  - **存储层（两端同构，仅 CJS→ESM）**：`mobile/miniprogram/shared/daily-store.js` 与 `h5/src/core/daily-store.js` 各新增并导出 `getCardById(id)`（遍历 `listCards()` 按 `id` 命中）。
+  - **小程序每日卡片页**：`pages/daily/index.js` 加 `viewingArchive` 状态、`viewCard()`（点开往期看整张 + 回到顶部）、`backToToday()`；`ensureCard()` / 生成成功 / 下拉刷新均重置或按往期分支处理（看往期时下拉 = 回到今天）。`index.wxml` 卡片区顶部加 `.archive-bar` 提示条（「正在看往期 · 日期」+「回到今天」），看往期时隐藏「重新生成」，历史列表项绑 `data-id` + `bindtap="viewCard"`、标题「往期回看」→「往期回顾」。`index.wxss` 开头新增蓝主题 `.archive-bar` 样式。
+  - **小程序「我的」入口**：`pages/settings/index.wxml` 在「笔记概览」与「灵感漫游 · 往期归档」之间加「每日卡片 · 往期回顾」`settings-link`；`index.js` 新增 `goDaily()`。
+  - **H5 每日卡片页**：`h5/src/views/daily.js` 加 `S.viewingArchive`、`archiveBarHtml()`（复用 `wre-archive-bar` / `wre-back__btn`，按钮 `data-action="back-today"`）、看往期时隐藏「重新生成」、历史列表项加 `id` + `data-archive` 并可点开、`onClick` 加 `[data-archive]` 分支、`handleAction` 加 `back-today`。
+  - **H5「我的账户」入口**：`h5/src/views/me.js` 在「危险操作」前新增「复盘与回顾」区块 + `data-action="open-daily"` → `app.go('daily')`。
+  - **文档回灌**：`plan/RPD_小程序移动端_需求文档.md`（M11 往期回顾条）、`plan/plan_小程序移动端.md`（阶段 4 任务 4.10）、`test/移动端小程序测试清单.md`（13.2.14–13.2.16）、`plan/RPD_H5移动端_需求文档.md`（H11 往期回顾条）、`h5/README.md`。
+- **关键结论/决定**：
+  - **不新建独立页**：往期回顾复用每日卡片页（列表 + 点开看整张），交互对齐灵感漫游（提示条 + 「回到今天」）。
+  - **业务保护**：看往期时**隐藏「重新生成」**以免误耗当日次数；下拉刷新等同「回到今天」。
+  - **双端一致性**：`getCardById` 两端逐字同构（仅 CJS→ESM），符合「core 与 shared 逐字一致」红线。
+- **产出物（文件）**：`mobile/miniprogram/shared/daily-store.js`、`mobile/miniprogram/pages/daily/index.{js,wxml,wxss}`、`mobile/miniprogram/pages/settings/index.{js,wxml}`、`h5/src/core/daily-store.js`、`h5/src/views/daily.js`、`h5/src/views/me.js`，及文档 5 处。
+- **验证**：`GetDiagnostics` 全量无 error（仅既有 Hint）；静态断言确认两端存储导出、渲染点、事件绑定均在位。按「验证从简」未跑浏览器 / 真机。
+- **待办**：真机 / 浏览器核验——① 小程序「我的」入口 → 每日卡片页；② 往期列表点开看整张、提示条「回到今天」；③ 看往期时下拉 = 回到今天、且不显示「重新生成」；④ H5「我的账户」入口与往期点开。
+- **风险/注意事项**：本次改动**未提交**（待用户确认后按 `git-sync` / `pack-publish` 处理）。
+
 

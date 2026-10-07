@@ -36,7 +36,7 @@ h5/
     ├── ai.js               AI 通道（H10 人格画像；托管 Key）
     ├── share.js            分享图（canvas）+ Web Share / 下载 / 复制链接
     ├── tts.js              语音复习（Web Speech API）
-    ├── ui.js               esc / stateHtml / toast / copyText
+    ├── ui.js               esc / stateHtml / toast / copyText / confirmSignOut（退出前保存账户码弹层）
     ├── core/               纯计算（与小程序 shared 逐字一致，仅 CJS→ESM）
     │   ├── format.js  report-core.js  persona-core.js  home-core.js  errors.js
     │   ├── daily-core.js  daily-data.js  daily-generate.js  daily-ai.js  daily-store.js
@@ -110,12 +110,12 @@ http://localhost:8930/?endpoint=https://xxx.service.tcloudbase.com/h5
 | 人格 H3 | 本地规则判定阅读人格（4 维 / 16 型），含数据门槛引导 |
 | 人格 H10 | AI 润色画像（走托管 DeepSeek Key；失败退回本机判定） |
 | 报告 H4 | 结构化文字报告（标题 / 指标 / 表格 / 卡片 / 列表） |
-| 每日卡片 H11 | 从自己的划线 / 想法取材，AI 成文；本机存档、回看、收藏、分享、朗读；每日限次重新生成 |
+| 每日卡片 H11 | 从自己的划线 / 想法取材，AI 成文；本机存档、回看、收藏、分享、朗读；每日限次重新生成；**往期回顾**列表可点开看整张卡片（「回到今天」返回） |
 | 灵感漫游 H12 | 铜/银/金分级 + 每周限次；六段式 AI 综述 + 原文下划线 + 外部火花 + 创作种子；往期归档 / 随机漫游 |
 | 书架 H6 / 笔记 H7 | 书架 + 笔记概览（电子书 / 专辑计数、笔记统计） |
 | 分享 H5 | 竖版分享图（canvas 零依赖）→ Web Share / 下载 PNG / 复制链接 |
 | 朗读 H13 | Web Speech API：想法 / 划线 / 每日卡片 / 灵感漫游 / 人格画像，可暂停 / 上下条 / 停止；切后台即停 |
-| 我的账户 | 身份头（昵称首字头像 / 账户码掩码 / 退出登录）、已连接 Key 状态（填→掩码→校验→清除）、DeepSeek Key、跨设备登录（H8 账户码 + 复制/显示）、昵称托管、运营看板入口（H14）。**不设 Key 门槛**，换设备时可直接进来用账户码登录；官网 `/account/` 是同套账户的另一入口 |
+| 我的账户 | 身份头（昵称首字头像 / 账户码掩码 / 退出登录）、已连接 Key 状态（填→掩码→校验→清除）、DeepSeek Key、跨设备登录（H8 账户码 + 复制/显示）、昵称托管、每日卡片 · 往期回顾入口、运营看板入口（H14）。**不设 Key 门槛**，换设备时可直接进来用账户码登录；官网 `/account/` 是同套账户的另一入口 |
 | 运营看板 H14 | 云函数 `opsAdmin` 按「账户码」白名单校验（免口令），聚合小程序 / 插件 / H5 三段匿名用量 |
 | PWA | `manifest.webmanifest` + `sw.js`（网络优先），支持加主屏 |
 

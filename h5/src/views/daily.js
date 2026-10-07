@@ -21,6 +21,7 @@ export const title = '每日卡片';
 // 页面状态（模块级，切 Tab 后保留）
 const S = {
   view: null,
+  viewingArchive: false,
   generating: false,
   error: '',
   needsKey: false,
@@ -35,6 +36,7 @@ export function render(root, app) {
   const body = root.querySelector('#dailyBody');
   body.addEventListener('click', (e) => onClick(e, body, app));
   S.view = null;
+  S.viewingArchive = false;
   S.error = '';
   S.reason = '';
   S.aiError = '';
@@ -156,9 +158,21 @@ function bodyHtml() {
     return materialHtml();
   }
   if (S.view) {
-    return cardHtml(S.view) + actionsHtml(S.view) + historyHtml() + statementHtml();
+    return archiveBarHtml() + cardHtml(S.view) + actionsHtml(S.view) + historyHtml() + statementHtml();
   }
   return stateHtml('loading', '正在挑选今天的划线…');
+}
+
+function archiveBarHtml() {
+  if (!S.viewingArchive) {
+    return '';
+  }
+  return (
+    '<div class="wre-archive-bar">' +
+    '<span>正在看往期 · ' + esc(S.view.dateLabel) + '</span>' +
+    '<button class="wre-back__btn" data-action="back-today">回到今天</button>' +
+    '</div>'
+  );
 }
 
 function materialHtml() {
@@ -214,9 +228,10 @@ function actionsHtml(view) {
   const parts = [];
   parts.push(
     '<div class="wre-card">' +
-    '  <button class="wre-btn" data-action="regen"' + (S.generating ? ' disabled' : '') + '>' +
-    (S.generating ? '正在重新生成…' : '重新生成') + '</button>' +
-    '  <div class="wre-hint">今日还可重新生成 ' + esc(db.regenLeft()) + ' 次</div>' +
+    (S.viewingArchive ? '' :
+      '  <button class="wre-btn" data-action="regen"' + (S.generating ? ' disabled' : '') + '>' +
+      (S.generating ? '正在重新生成…' : '重新生成') + '</button>' +
+      '  <div class="wre-hint">今日还可重新生成 ' + esc(db.regenLeft()) + ' 次</div>') +
     '  <div class="wre-btn-row">' +
     '    <button class="wre-btn wre-btn--ghost" data-action="star">' + (view.starred ? '取消收藏' : '收藏这张卡片') + '</button>' +
     '    <button class="wre-btn wre-btn--ghost" data-action="share">生成分享图</button>' +
@@ -236,6 +251,7 @@ function historyHtml() {
     .filter((c) => c && c.date !== today)
     .slice(0, 10)
     .map((c) => ({
+      id: c.id,
       dateLabel: core.dayLabel(c.createdAt),
       title: c.title || '',
       quote: (c.quote && c.quote.text) || '',
@@ -245,9 +261,11 @@ function historyHtml() {
     return '';
   }
   return (
-    '<div class="wre-card"><div class="wre-card__title">往期回看</div>' +
+    '<div class="wre-card">' +
+    '<div class="wre-card__title wre-card__title--row"><span>往期回顾</span>' +
+    '<span class="wre-hint">点开可看整张</span></div>' +
     list.map((h) =>
-      '<div class="wre-history">' +
+      '<div class="wre-history" data-archive="' + esc(h.id) + '">' +
       '<div class="wre-history__head"><span class="wre-history__date">' + esc(h.dateLabel) + '</span>' +
       (h.starred ? '<span class="wre-history__star">★ 收藏</span>' : '') + '</div>' +
       '<div class="wre-history__title">' + esc(h.title) + '</div>' +
@@ -276,6 +294,20 @@ function onClick(e, body, app) {
     if (item) {
       item.open = !item.open;
       paint(body);
+    }
+    return;
+  }
+
+  // 往期回顾：点开某张往期卡片，看整张
+  const archive = e.target.closest('[data-archive]');
+  if (archive) {
+    const card = db.getCardById(archive.getAttribute('data-archive'));
+    if (card) {
+      S.view = core.toView(card);
+      S.viewingArchive = true;
+      S.aiError = '';
+      paint(body);
+      window.scrollTo(0, 0);
     }
     return;
   }
@@ -311,6 +343,13 @@ function onClick(e, body, app) {
   }
   if (action === 'tts') {
     doTts();
+    return;
+  }
+  if (action === 'back-today') {
+    S.viewingArchive = false;
+    S.view = null;
+    boost(body, app);
+    window.scrollTo(0, 0);
   }
 }
 

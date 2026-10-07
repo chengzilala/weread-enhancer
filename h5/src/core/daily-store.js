@@ -90,6 +90,17 @@ export function getTodayCard() {
   return null;
 }
 
+/** 按 id 取单张卡片（往期回顾用） */
+export function getCardById(id) {
+  const cards = listCards();
+  for (let i = 0; i < cards.length; i += 1) {
+    if (cards[i] && cards[i].id === id) {
+      return cards[i];
+    }
+  }
+  return null;
+}
+
 /** 收藏 / 取消收藏，返回最新状态 */
 export function starCard(id) {
   const cards = listCards();

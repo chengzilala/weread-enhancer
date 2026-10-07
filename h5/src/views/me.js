@@ -11,7 +11,7 @@
 
 import { keySave, keyClear, verifyKey, keyGet, profileSave } from '../api.js';
 import { getMask, setMask, getProfile, setProfile, getDeviceId, setDeviceId, resetDeviceId } from '../store.js';
-import { esc, toast, copyText } from '../ui.js';
+import { esc, toast, copyText, confirmSignOut } from '../ui.js';
 
 export const title = '我的账户';
 
@@ -80,6 +80,12 @@ function paint(body) {
     '  <div class="wre-muted">昵称会随账户同步，换设备不用重填；头像用昵称首字显示，不上传图片。</div>' +
     '  <input class="wre-input" id="meNick" maxlength="24" placeholder="昵称" value="' + esc(profile.nickName) + '" />' +
     '  <button class="wre-btn wre-btn--ghost" data-action="save-profile">保存昵称</button>' +
+    '</div>' +
+
+    '<div class="wre-card">' +
+    '  <div class="wre-card__title">复盘与回顾</div>' +
+    '  <div class="wre-muted">每日卡片从你的历史划线 / 想法取材、逐日归档在本机；这里可直接回看往期。</div>' +
+    '  <button class="wre-btn wre-btn--ghost" data-action="open-daily">每日卡片 · 往期回顾</button>' +
     '</div>' +
 
     '<div class="wre-card">' +
@@ -262,12 +268,19 @@ async function onAction(e, body, app) {
   }
 
   if (action === 'sign-out') {
-    if (!window.confirm('退出登录后，本机将切换为一个全新的空账户；原账户与托管 Key 仍在服务端，可用账户码再次登录。确定退出吗？')) {
+    // 退出前先让用户保存账户码（账户码是找回该账户的唯一凭证，退出后本机不再持有）
+    const ok = await confirmSignOut(getDeviceId());
+    if (!ok) {
       return;
     }
     resetDeviceId();
     toast('已退出，正在重载…');
     setTimeout(() => location.reload(), 600);
+    return;
+  }
+
+  if (action === 'open-daily') {
+    app.go('daily');
     return;
   }
 

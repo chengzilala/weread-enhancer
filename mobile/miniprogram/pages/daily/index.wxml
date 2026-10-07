@@ -56,6 +56,12 @@
 
     <!-- 今日卡片 -->
     <block wx:elif="{{card}}">
+      <!-- 往期浏览提示条 -->
+      <view class="archive-bar" wx:if="{{viewingArchive}}">
+        <text class="archive-bar__text">正在看往期 · {{card.dateLabel}}</text>
+        <text class="archive-bar__back" bindtap="backToToday">回到今天</text>
+      </view>
+
       <view class="wre-card card">
         <view class="card__date">{{card.dateLabel}} · 每日卡片</view>
         <view class="card__title">{{card.title}}</view>
@@ -83,10 +89,12 @@
 
       <!-- 操作 -->
       <view class="wre-card actions">
-        <button class="wre-btn" bindtap="regenerate" loading="{{generating}}" disabled="{{generating}}">
-          {{generating ? '正在重新生成…' : '重新生成'}}
-        </button>
-        <view class="wre-muted">今日还可重新生成 {{regenLeft}} 次</view>
+        <block wx:if="{{!viewingArchive}}">
+          <button class="wre-btn" bindtap="regenerate" loading="{{generating}}" disabled="{{generating}}">
+            {{generating ? '正在重新生成…' : '重新生成'}}
+          </button>
+          <view class="wre-muted">今日还可重新生成 {{regenLeft}} 次</view>
+        </block>
         <view class="actions-row">
           <button class="wre-btn wre-btn--ghost" bindtap="toggleStar">{{card.starred ? '取消收藏' : '收藏这张卡片'}}</button>
           <button class="wre-btn wre-btn--ghost" bindtap="generateShare" loading="{{sharing}}" disabled="{{sharing}}">
@@ -95,10 +103,10 @@
         </view>
       </view>
 
-      <!-- 往期回看 -->
+      <!-- 往期回顾（点开可查看整张卡片） -->
       <view class="wre-card" wx:if="{{history.length}}">
-        <view class="wre-title">往期回看</view>
-        <view class="history__item" wx:for="{{history}}" wx:key="id">
+        <view class="wre-title">往期回顾</view>
+        <view class="history__item" wx:for="{{history}}" wx:key="id" data-id="{{item.id}}" bindtap="viewCard">
           <view class="history__head">
             <text class="history__date">{{item.dateLabel}}</text>
             <text class="history__star" wx:if="{{item.starred}}">★ 收藏</text>

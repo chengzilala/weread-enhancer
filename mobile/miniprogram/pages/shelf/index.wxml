@@ -52,54 +52,6 @@
         </view>
       </view>
 
-      <!-- 电子书 -->
-      <view class="wre-card" wx:if="{{books.length}}">
-        <view class="wre-title">电子书（{{books.length}}）</view>
-        <view
-          class="item"
-          wx:for="{{books}}"
-          wx:key="id"
-          data-title="{{item.title}}"
-          data-author="{{item.author}}"
-          bindtap="copyTitle"
-        >
-          <image class="item__cover" src="{{item.cover}}" mode="aspectFill" lazy-load />
-          <view class="item__main">
-            <view class="item__title">{{item.title}}</view>
-            <view class="item__sub">{{item.author}}{{item.category ? ' · ' + item.category : ''}}</view>
-          </view>
-          <view class="item__tags">
-            <text class="tag tag--done" wx:if="{{item.finished}}">读完</text>
-            <text class="tag" wx:if="{{item.top}}">置顶</text>
-            <text class="tag" wx:if="{{item.secret}}">私密</text>
-          </view>
-        </view>
-        <view class="more wre-muted" wx:if="{{bookMore}}">仅展示最近 100 本，还有 {{bookMore}} 本未显示。</view>
-      </view>
-
-      <!-- 有声书 / 专辑 -->
-      <view class="wre-card" wx:if="{{albums.length}}">
-        <view class="wre-title">有声书 / 专辑（{{albums.length}}）</view>
-        <view
-          class="item"
-          wx:for="{{albums}}"
-          wx:key="id"
-          data-title="{{item.title}}"
-          data-author="{{item.author}}"
-          bindtap="copyTitle"
-        >
-          <image class="item__cover" src="{{item.cover}}" mode="aspectFill" lazy-load />
-          <view class="item__main">
-            <view class="item__title">{{item.title}}</view>
-            <view class="item__sub">{{item.author}}</view>
-          </view>
-          <view class="item__tags">
-            <text class="tag tag--done" wx:if="{{item.finished}}">已听完</text>
-            <text class="tag" wx:if="{{item.top}}">置顶</text>
-          </view>
-        </view>
-      </view>
-
       <!-- 按官方分组（只读，来自官方书架 archive） -->
       <view class="wre-card" wx:if="{{groups.length || ungrouped}}">
         <view class="wre-title">按官方分组</view>
@@ -146,6 +98,54 @@
           <view class="more wre-muted" wx:if="{{ungrouped.more}}">还有 {{ungrouped.more}} 本未显示</view>
         </view>
         <view class="more wre-muted">官方分组为只读数据，来自你的微信读书官方书架。</view>
+      </view>
+
+      <!-- 电子书 -->
+      <view class="wre-card" wx:if="{{books.length}}">
+        <view class="wre-title">电子书（{{books.length}}）</view>
+        <view
+          class="item"
+          wx:for="{{books}}"
+          wx:key="id"
+          data-title="{{item.title}}"
+          data-author="{{item.author}}"
+          bindtap="copyTitle"
+        >
+          <image class="item__cover" src="{{item.cover}}" mode="aspectFill" lazy-load />
+          <view class="item__main">
+            <view class="item__title">{{item.title}}</view>
+            <view class="item__sub">{{item.author}}{{item.category ? ' · ' + item.category : ''}}</view>
+          </view>
+          <view class="item__tags">
+            <text class="tag tag--done" wx:if="{{item.finished}}">读完</text>
+            <text class="tag" wx:if="{{item.top}}">置顶</text>
+            <text class="tag" wx:if="{{item.secret}}">私密</text>
+          </view>
+        </view>
+        <view class="more wre-muted" wx:if="{{bookMore}}">仅展示最近 100 本，还有 {{bookMore}} 本未显示。</view>
+      </view>
+
+      <!-- 有声书 / 专辑 -->
+      <view class="wre-card" wx:if="{{albums.length}}">
+        <view class="wre-title">有声书 / 专辑（{{albums.length}}）</view>
+        <view
+          class="item"
+          wx:for="{{albums}}"
+          wx:key="id"
+          data-title="{{item.title}}"
+          data-author="{{item.author}}"
+          bindtap="copyTitle"
+        >
+          <image class="item__cover" src="{{item.cover}}" mode="aspectFill" lazy-load />
+          <view class="item__main">
+            <view class="item__title">{{item.title}}</view>
+            <view class="item__sub">{{item.author}}</view>
+          </view>
+          <view class="item__tags">
+            <text class="tag tag--done" wx:if="{{item.finished}}">已听完</text>
+            <text class="tag" wx:if="{{item.top}}">置顶</text>
+          </view>
+        </view>
       </view>
 
       <!-- 空书架 -->

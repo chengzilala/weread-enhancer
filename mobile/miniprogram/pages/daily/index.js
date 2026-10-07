@@ -18,6 +18,7 @@ Page({
     count: 0,
     need: core.MATERIAL_MIN,
     card: null,
+    viewingArchive: false,
     history: [],
     regenLeft: 0,
     aiError: '',
@@ -40,7 +41,12 @@ Page({
       wx.stopPullDownRefresh();
       return;
     }
-    // 下拉刷新 = 重新生成（会消耗当日次数，与「重新生成」同一口径）
+    // 看往期时下拉 = 回到今天；否则下拉刷新 = 重新生成（会消耗当日次数，与「重新生成」同一口径）
+    if (this.data.viewingArchive) {
+      this.backToToday();
+      wx.stopPullDownRefresh();
+      return;
+    }
     this.generate(!!this.data.card);
   },
 
@@ -51,7 +57,7 @@ Page({
     }
     const today = db.getTodayCard();
     if (today) {
-      this.setData({ card: core.toView(today), loading: false, error: '', reason: '' });
+      this.setData({ card: core.toView(today), viewingArchive: false, loading: false, error: '', reason: '' });
       this.loadHistory();
       return;
     }
@@ -161,6 +167,7 @@ Page({
       reason: '',
       aiError: '',
       card: core.toView(card),
+      viewingArchive: false,
       regenLeft: left,
     });
     this.loadHistory();
@@ -221,6 +228,30 @@ Page({
     const starred = db.starCard(card.id);
     this.setData({ 'card.starred': starred });
     this.loadHistory();
+  },
+
+  // ---- 往期回顾：点开某张往期卡片，看整张（引用 + 解读 + 关联旧划线）----
+  viewCard(e) {
+    const id = e.currentTarget.dataset.id;
+    const past = db.getCardById(id);
+    if (!past) {
+      return;
+    }
+    this.setData({ card: core.toView(past), viewingArchive: true, aiError: '' });
+    wx.pageScrollTo({ scrollTop: 0, duration: 0 });
+  },
+
+  backToToday() {
+    const today = db.getTodayCard();
+    if (today) {
+      this.setData({ card: core.toView(today), viewingArchive: false, aiError: '' });
+      wx.pageScrollTo({ scrollTop: 0, duration: 0 });
+      return;
+    }
+    this.setData({ card: null, viewingArchive: false, aiError: '' }, () => {
+      this.ensureCard();
+    });
+    wx.pageScrollTo({ scrollTop: 0, duration: 0 });
   },
 
   onShareAppMessage() {

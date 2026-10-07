@@ -60,6 +60,14 @@ function bodyHtml(shelf, notebooks, fromCache) {
     );
   }
 
+  // 按官方分组（紧随概览，便于第一时间看到；只读）
+  if (shelf) {
+    const block = groupsHtml(shelf);
+    if (block) {
+      parts.push(block);
+    }
+  }
+
   const stats = notebookStats(notebooks);
   if (stats) {
     parts.push(
@@ -103,14 +111,6 @@ function bodyHtml(shelf, notebooks, fromCache) {
         '</div>').join('') +
       '</div>'
     );
-  }
-
-  // 按官方分组（新增区块，不改动上方概览 / 最近 20 本 / 专辑）
-  if (shelf) {
-    const block = groupsHtml(shelf);
-    if (block) {
-      parts.push(block);
-    }
   }
 
   if (!parts.length) {
