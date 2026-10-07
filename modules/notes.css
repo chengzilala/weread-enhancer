@@ -2,7 +2,8 @@
    仅作用于笔记面板 / 复制浮标 / 轻提示，复用 content.css 的 --wre-* 变量。 */
 
 #wre-notes-modal .wre-notes-modal {
-  width: 480px;
+  width: 640px;
+  max-width: 94vw;
 }
 
 /* ---------- 顶部工具条 ---------- */
@@ -316,4 +317,23 @@
 #wre-notes-toast.wre-visible {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+/* ---------- 定位原文高亮（浮层，不改动官方 DOM） ---------- */
+
+.wre-jump-flash {
+  position: fixed;
+  z-index: calc(var(--wre-z-index) - 1);
+  border-radius: 3px;
+  background: rgba(255, 193, 7, 0.28);
+  box-shadow: 0 0 0 1px rgba(255, 160, 0, 0.85);
+  pointer-events: none;
+  animation: wre-jump-flash 1.7s ease-out forwards;
+}
+
+@keyframes wre-jump-flash {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
 }

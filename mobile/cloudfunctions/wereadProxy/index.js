@@ -15,13 +15,15 @@
  *   5. action: 'opsReport'    —— 插件匿名统计上报（M13，HTTP 访问服务，无 openid）；
  *   6. action: 'opsWhoami'    —— 判断当前调用者是否管理员（M13，只回布尔）；
  *   7. action: 'opsAdmin'     —— 管理员看板数据（M13，非白名单一律不下发）。
+ *   8. action: 'pbGet/pbPut'  —— 我的纸书云端备份（按 openid 隔离，只存纸书档案，不含 Key）。
  *
  * H5（纯网页 App）走 HTTP 访问服务，`handleHttp` 额外支持：
  *   - action: 'relay'         —— 用托管 Key 走官方网关中转（{deviceId, apiName, params}）；
  *   - action: 'ai'            —— 用托管 DeepSeek Key 转发（{deviceId, messages}）；
  *   - action: 'keySave'       —— Key 加密托管（{deviceId, apiKey?, aiKey?}，集合 wre_users）；
- *   - action: 'keyGet'        —— 只回「是否已配置 + 掩码」（{deviceId}）；
+ *   - action: 'keyGet'        —— 只回「是否已配置 + 掩码 + 昵称」（{deviceId}）；
  *   - action: 'keyClear'      —— 清除托管 Key（{deviceId}）；
+ *   - action: 'profileSave'   —— 保存昵称（{deviceId, nickName}，非敏感，随账户走）；
  *   - action: 'syncGet/Put'   —— 人格结果按 deviceId 云同步；
  *   - action: 'opsPing'       —— H5 匿名使用量（{deviceId, version}，按 deviceId + 天去重）；
  *   - action: 'opsAdmin'      —— H5 运营看板（{token}，口令校验通过才下发）。
@@ -37,6 +39,8 @@
  *      改为 30 秒（默认只有 3 秒；AI 转发最长用 30 秒，网关中转用 10 秒）。
  *   ② 首次使用云同步（B2）前，请在「云开发控制台 → 数据库」新建集合 `wre_sync`，
  *      权限选「仅创建者可读写」。（函数也会尝试自动创建，但手动建更稳妥。）
+ *      「我的纸书」云端备份同理，用集合 `wre_paperbooks`（权限同样选「仅创建者可读写」，
+ *      函数也会尝试自动创建，但手动建更稳妥）。
  *   ③ M13 运营看板：在「云开发控制台 → 数据库」新建集合 `wre_ops_daily`
  *      （权限选「仅管理端可读写」）；在「云函数 → wereadProxy → 配置 → 环境变量」新增
  *      `ADMIN_OPENIDS`（值＝你自己的 openid，多个用英文逗号分隔），否则看板对任何人都不下发；
@@ -46,7 +50,8 @@
  *      `KEY_SECRET`（任意足够长的随机串，用于应用层加密，**一旦设置不要更改**，否则已托管 Key 无法解密）
  *      与 `H5_ORIGINS`（允许跨域的 H5 站点地址，多个用英文逗号分隔；不配则退回 `*`）；
  *      可选：`ADMIN_TOKEN`（H5 运营看板口令，不配则 H5 看板关闭）；
- *      在「HTTP 访问服务」为 H5 另绑一个路径（如 `/h5`）到本函数，把该地址填进 `h5/src/config.js`。
+ *      在「HTTP 网关 → 域名及路由」为 H5 添加路由（路径如 `/h5`，关联本函数；跨域设置保持关闭由本函数处理），
+ *      把该地址填进 `h5/src/config.js`。
  */
 'use strict';
 
@@ -73,6 +78,9 @@ const AI_MAX_TOKENS = 2000;
 // 云同步（B2）：按 openid 隔离，只存人格结果，不存 Key、不存原始接口数据
 const SYNC_COLLECTION = 'wre_sync';
 const SYNC_MAX_BYTES = 400 * 1024;
+
+// 我的纸书：按 openid 隔离的云端备份（只存纸书档案：isbn/title/关联 bookId 等，不含任何 Key）
+const PB_COLLECTION = 'wre_paperbooks';
 
 // 运营统计（M13）：只存「聚合计数 + 去重键」，保留 90 天，到期只留计数
 const OPS_COLLECTION = 'wre_ops_daily';
@@ -356,6 +364,52 @@ async function handleSync(event) {
   return { ok: true, updatedAt: payload.updatedAt };
 }
 
+// ---------- 我的纸书：云端备份（按 openid 隔离） ----------
+
+/**
+ * pbGet / pbPut：把整份纸书库备份到云端（按 openid 一个文档），用于换机拉回。
+ * 红线：只存纸书档案（isbn / 书名 / 关联 bookId 等），不含任何 Key、不含微信读书原始数据。
+ */
+async function handlePaperbook(event) {
+  const ctx = cloud.getWXContext();
+  const openid = ctx && ctx.OPENID;
+  if (!openid) {
+    return { ok: false, code: 'noopenid', error: '未取到用户标识（需已开通云开发）' };
+  }
+  const db = cloud.database();
+  const coll = db.collection(PB_COLLECTION);
+
+  if (event && event.action === 'pbGet') {
+    try {
+      const r = await coll.doc(openid).get();
+      return { ok: true, books: (r.data && r.data.books) || [] };
+    } catch (err) {
+      // 文档不存在（或集合还没建）都按「云端暂无备份」处理
+      return { ok: true, books: [] };
+    }
+  }
+
+  const books = event && Array.isArray(event.books) ? event.books : null;
+  if (!books) {
+    return { ok: false, code: 'param', error: '缺少待备份的纸书数据' };
+  }
+  const payload = { books: books, updatedAt: Date.now() };
+  if (JSON.stringify(payload).length > SYNC_MAX_BYTES) {
+    return { ok: false, code: 'toobig', error: '纸书过多、数据过大，未备份' };
+  }
+  try {
+    await coll.doc(openid).set({ data: payload });
+  } catch (err) {
+    try {
+      await db.createCollection(PB_COLLECTION);
+      await coll.doc(openid).set({ data: payload });
+    } catch (err2) {
+      return { ok: false, code: 'sync', error: '备份写入失败：' + ((err2 && err2.errMsg) || '未知错误') };
+    }
+  }
+  return { ok: true, updatedAt: payload.updatedAt, count: books.length };
+}
+
 // ---------- M13：运营统计（小程序使用量 / 插件匿名使用量 / 管理员看板） ----------
 
 /** 中国时区（UTC+8）的 YYYY-MM-DD */
@@ -601,6 +655,9 @@ async function handleKeySave(body) {
   const db = cloud.database();
   const coll = db.collection(USERS_COLLECTION);
   const doc = (await readUserDoc(deviceId)) || {};
+  // 云开发文档自带 _id，回写时必须剔除，否则报 -501007「不能更新_id的值」
+  const base = Object.assign({}, doc);
+  delete base._id;
   const now = Date.now();
   const patch = {
     updatedAt: now,
@@ -616,11 +673,11 @@ async function handleKeySave(body) {
   }
 
   try {
-    await coll.doc(deviceId).set({ data: Object.assign({}, doc, patch) });
+    await coll.doc(deviceId).set({ data: Object.assign({}, base, patch) });
   } catch (err) {
     try {
       await db.createCollection(USERS_COLLECTION);
-      await coll.doc(deviceId).set({ data: Object.assign({}, doc, patch) });
+      await coll.doc(deviceId).set({ data: Object.assign({}, base, patch) });
     } catch (err2) {
       return { ok: false, code: 'save', error: 'Key 保存失败：' + ((err2 && err.errMsg) || '未知错误') };
     }
@@ -629,7 +686,7 @@ async function handleKeySave(body) {
   return { ok: true, hasKey: !!patch.enc || !!doc.enc, masked: patch.masked || doc.masked || '', hasAiKey: !!patch.aiEnc || !!doc.aiEnc, aiMasked: patch.aiMasked || doc.aiMasked || '' };
 }
 
-/** keyGet：只回「是否已配置 + 掩码」，绝不回明文 */
+/** keyGet：只回「是否已配置 + 掩码」 + 昵称，绝不回明文 */
 async function handleKeyGet(body) {
   const deviceId = cleanDeviceId(body && body.deviceId);
   if (!validDeviceId(deviceId)) {
@@ -642,10 +699,50 @@ async function handleKeyGet(body) {
     masked: (doc && doc.masked) || '',
     hasAiKey: !!(doc && doc.aiEnc),
     aiMasked: (doc && doc.aiMasked) || '',
+    nickName: (doc && doc.nickName) || '',
   };
 }
 
-/** keyClear：删除该 deviceId 的托管文档 */
+/**
+ * profileSave：保存昵称（非敏感展示名，随账户走，换设备可同步）
+ *
+ * 与 Key 分开：不需要 KEY_SECRET，未托管 Key 的账户也能只存昵称。
+ * 红线：仍不接收 / 不存储任何 Key 明文，也不存头像图片。
+ */
+async function handleProfileSave(body) {
+  const deviceId = cleanDeviceId(body && body.deviceId);
+  if (!validDeviceId(deviceId)) {
+    return { ok: false, code: 'nodevice', error: '缺少或非法的设备标识' };
+  }
+  const nickName = String((body && body.nickName) || '').trim().slice(0, 24);
+
+  const db = cloud.database();
+  const coll = db.collection(USERS_COLLECTION);
+  const doc = (await readUserDoc(deviceId)) || {};
+  const base = Object.assign({}, doc);
+  delete base._id;   // 云开发文档自带 _id，回写时必须剔除，否则报 -501007
+  const now = Date.now();
+  const patch = { nickName: nickName, updatedAt: now, createdAt: doc.createdAt || now };
+
+  try {
+    await coll.doc(deviceId).set({ data: Object.assign({}, base, patch) });
+  } catch (err) {
+    try {
+      await db.createCollection(USERS_COLLECTION);
+      await coll.doc(deviceId).set({ data: Object.assign({}, base, patch) });
+    } catch (err2) {
+      return { ok: false, code: 'save', error: '昵称保存失败：' + ((err2 && err2.errMsg) || '未知错误') };
+    }
+  }
+  return { ok: true, nickName: nickName };
+}
+
+/**
+ * keyClear：只清除托管在云端的 Key（保留昵称等账户资料）
+ *
+ * 与「退出登录」区分：退出登录只清本机账户码；本接口清的是云端 Key。
+ * 文档不存在 / 字段本就为空都算成功。
+ */
 async function handleKeyClear(body) {
   const deviceId = cleanDeviceId(body && body.deviceId);
   if (!validDeviceId(deviceId)) {
@@ -653,7 +750,16 @@ async function handleKeyClear(body) {
   }
   try {
     const db = cloud.database();
-    await db.collection(USERS_COLLECTION).doc(deviceId).remove();
+    const _ = db.command;
+    await db.collection(USERS_COLLECTION).doc(deviceId).update({
+      data: {
+        enc: _.remove(),
+        masked: _.remove(),
+        aiEnc: _.remove(),
+        aiMasked: _.remove(),
+        updatedAt: Date.now(),
+      },
+    });
   } catch (err) {
     // 文档本来就不存在也算成功
   }
@@ -804,6 +910,9 @@ async function handleHttp(event) {
   if (action === 'keyClear') {
     return httpReply(200, await handleKeyClear(body), origin);
   }
+  if (action === 'profileSave') {
+    return httpReply(200, await handleProfileSave(body), origin);
+  }
   if (action === 'relay') {
     return httpReply(200, await handleH5Relay(body), origin);
   }
@@ -835,6 +944,9 @@ exports.main = async (event) => {
   }
   if (action === 'syncGet' || action === 'syncPut') {
     return await handleSync(event);
+  }
+  if (action === 'pbGet' || action === 'pbPut') {
+    return await handlePaperbook(event);
   }
   if (action === 'opsPing') {
     return await handleOpsPing();

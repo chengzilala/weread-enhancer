@@ -1,0 +1,49 @@
+/* 微信悦读 · 主页找书入口样式（v0.26.0）
+   作用域：仅 #wre-homeshelf-entry（注入在微信读书主页「继续阅读」栏、官方「我的书架」左侧）。
+   设计目标：与官方「我的书架」（浅蓝描边 chip / 蓝色文字链）**一眼可分**——
+     ① 实心品牌绿填充 + 白字（官方是浅蓝描边 + 蓝字）；
+     ② 圆角矩形（官方是同款圆角胶囊）；
+     ③ 带 🔎 图标；④ 与官方链接拉开间距。
+   用 wre- 前缀防污染；对易被站点样式覆盖的属性加 !important。 */
+
+#wre-homeshelf-entry.wre-homeshelf-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  margin: 0 14px 0 0 !important;
+  padding: 5px 12px !important;
+  border: none !important;
+  border-radius: 8px !important;                 /* 圆角矩形：与官方胶囊拉开区别 */
+  background: #07c160 !important;                /* 实心品牌绿 */
+  color: #ffffff !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  box-shadow: 0 1px 4px rgba(7, 193, 96, 0.35) !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  vertical-align: middle !important;
+  position: relative !important;
+  z-index: 2 !important;                          /* 盖住官方链接的点击热区，避免点偏 */
+  transition: filter 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease !important;
+}
+
+#wre-homeshelf-entry.wre-homeshelf-btn:hover {
+  filter: brightness(1.06) !important;
+  box-shadow: 0 2px 8px rgba(7, 193, 96, 0.45) !important;
+}
+
+#wre-homeshelf-entry.wre-homeshelf-btn:active {
+  transform: translateY(1px) !important;
+  box-shadow: 0 1px 3px rgba(7, 193, 96, 0.4) !important;
+}
+
+#wre-homeshelf-entry.wre-homeshelf-btn:focus-visible {
+  outline: 2px solid rgba(7, 193, 96, 0.6) !important;
+  outline-offset: 2px !important;
+}
+
+#wre-homeshelf-entry .wre-homeshelf-ico {
+  font-size: 13px !important;
+  line-height: 1 !important;
+}

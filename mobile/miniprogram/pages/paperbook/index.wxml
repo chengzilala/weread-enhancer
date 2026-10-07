@@ -1,0 +1,140 @@
+<view class="wre-page">
+  <!-- ========== 列表视图 ========== -->
+  <block wx:if="{{view === 'list'}}">
+    <view class="wre-card">
+      <view class="pb-stat">共 {{books.length}} 本 · 已关联电子版 {{linkedCount}} 本</view>
+      <view class="wre-muted pb-hint" wx:if="{{!hasKey}}">
+        未配置 API Key：可以正常建档，但暂时不能自动补书名、也不能关联微信读书电子版。去「我的」页配置后即可。
+      </view>
+      <button class="wre-btn" bindtap="onScan">📷 扫码加书</button>
+      <button class="wre-btn wre-btn--ghost" bindtap="onAddManual">手动添加（无条码的旧书）</button>
+    </view>
+
+    <input
+      class="pb-search"
+      placeholder="搜索书名 / 作者 / ISBN"
+      value="{{keyword}}"
+      bindinput="onSearchInput"
+    />
+
+    <wre-state
+      wx:if="{{!books.length}}"
+      type="empty"
+      text="你的纸书库还是空的"
+      sub="点上面「📷 扫码加书」，对准书背条码即可连续录入"
+    />
+
+    <block wx:else>
+      <view class="pb-list">
+        <view class="pb-item" wx:for="{{filtered}}" wx:key="id" data-id="{{item.id}}" bindtap="onOpen">
+          <image wx:if="{{item.cover}}" class="pb-cover" src="{{item.cover}}" mode="aspectFill" />
+          <view wx:else class="pb-cover pb-cover--empty">书</view>
+          <view class="pb-info">
+            <view class="pb-title">{{item.title || '未命名纸书'}}</view>
+            <view class="pb-author" wx:if="{{item.author}}">{{item.author}}</view>
+            <view class="pb-isbn" wx:if="{{item.isbn}}">ISBN {{item.isbn}}</view>
+            <view class="pb-tags">
+              <text class="pb-tag pb-tag--on" wx:if="{{item.bookId}}">{{item.linkManual ? '手动关联电子版' : '有电子版'}}</text>
+              <text class="pb-tag" wx:else>仅纸质</text>
+            </view>
+          </view>
+          <text class="pb-arrow">›</text>
+        </view>
+      </view>
+
+      <wre-state wx:if="{{!filtered.length}}" type="empty" text="没有匹配的书" sub="换个关键字试试" />
+
+      <view class="pb-foot">
+        <button class="wre-btn wre-btn--ghost" bindtap="onRestore">从云端恢复备份</button>
+      </view>
+    </block>
+  </block>
+
+  <!-- ========== 详情 / 编辑视图 ========== -->
+  <block wx:elif="{{view === 'edit'}}">
+    <view class="wre-card">
+      <view class="wre-title">{{isNew ? '添加纸书' : '纸书详情'}}</view>
+      <view class="pb-field">
+        <text class="pb-label">书名</text>
+        <input class="pb-input" placeholder="书名" value="{{editing.title}}" data-field="title" bindinput="onFieldInput" />
+      </view>
+      <view class="pb-field">
+        <text class="pb-label">作者</text>
+        <input class="pb-input" placeholder="作者（可选）" value="{{editing.author}}" data-field="author" bindinput="onFieldInput" />
+      </view>
+      <view class="pb-field">
+        <text class="pb-label">ISBN</text>
+        <input class="pb-input" placeholder="13 位条码数字（可选）" value="{{editing.isbn}}" data-field="isbn" bindinput="onFieldInput" />
+      </view>
+      <button class="wre-btn" bindtap="onSave">保存</button>
+    </view>
+
+    <view class="wre-card" wx:if="{{!isNew}}">
+      <view class="wre-title">微信读书</view>
+      <block wx:if="{{editing.bookId}}">
+        <view class="pb-link">
+          <text class="pb-tag pb-tag--on">{{editing.linkManual ? '手动关联' : '自动匹配'}}</text>
+          <text class="pb-link-title">{{editing.linkTitle || editing.title}}</text>
+        </view>
+        <button class="wre-btn" bindtap="onGoWeread">去微信读书读</button>
+        <view class="pb-inline">
+          <button class="wre-btn wre-btn--ghost pb-flex1" bindtap="onLinkStart">换一本</button>
+          <button class="wre-btn wre-btn--ghost pb-flex1" bindtap="onUnlink">解除关联</button>
+        </view>
+      </block>
+      <block wx:else>
+        <view class="wre-muted">这本还没关联微信读书电子版。{{hasKey ? '可以搜一搜，挑一本绑定。' : '配置 API Key 后可搜索关联。'}}</view>
+        <button class="wre-btn" bindtap="onLinkStart">手动关联电子书</button>
+      </block>
+    </view>
+
+    <view class="pb-foot">
+      <button class="wre-btn wre-btn--ghost" bindtap="onBackToList">返回列表</button>
+      <button class="wre-btn wre-btn--danger" wx:if="{{!isNew}}" bindtap="onDelete">删除这本</button>
+    </view>
+  </block>
+
+  <!-- ========== 手动关联视图 ========== -->
+  <block wx:elif="{{view === 'link'}}">
+    <view class="wre-card">
+      <view class="wre-title">手动关联电子书</view>
+      <view class="wre-muted">搜微信读书，点一本绑定到「{{editing.title || editing.isbn}}」。</view>
+      <view class="pb-search-row">
+        <input
+          class="pb-search pb-search--inline"
+          placeholder="书名 / 作者"
+          value="{{linkKeyword}}"
+          bindinput="onLinkKeyword"
+          bindconfirm="onLinkSearch"
+        />
+        <button class="pb-search-btn" bindtap="onLinkSearch">搜索</button>
+      </view>
+    </view>
+
+    <wre-state wx:if="{{linkLoading}}" type="loading" text="正在搜微信读书…" />
+    <view class="wre-card pb-error" wx:elif="{{linkError}}">{{linkError}}</view>
+
+    <view class="wre-card" wx:if="{{!linkLoading && !linkError && linkResults.length}}">
+      <view class="pb-item" wx:for="{{linkResults}}" wx:key="bookId" data-index="{{index}}" bindtap="onLinkPick">
+        <image wx:if="{{item.cover}}" class="pb-cover" src="{{item.cover}}" mode="aspectFill" />
+        <view wx:else class="pb-cover pb-cover--empty">书</view>
+        <view class="pb-info">
+          <view class="pb-title">{{item.title}}</view>
+          <view class="pb-author" wx:if="{{item.author}}">{{item.author}}</view>
+          <view class="pb-reading" wx:if="{{item.readingCount}}">{{item.readingCount}} 人在读</view>
+        </view>
+      </view>
+    </view>
+
+    <wre-state
+      wx:elif="{{!linkLoading && !linkError}}"
+      type="empty"
+      text="没搜到"
+      sub="换个书名试试；也可能微信读书没有这本的电子版"
+    />
+
+    <view class="pb-foot">
+      <button class="wre-btn wre-btn--ghost" bindtap="onLinkCancel">返回</button>
+    </view>
+  </block>
+</view>

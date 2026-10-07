@@ -2414,10 +2414,19 @@
     return /^https?:\/\//i.test(String(s || '').trim());
   }
 
+  /**
+   * 网页版书籍哈希形态校验：形如 `71832e007260a75e718c6fb`（约 20+ 位字母数字）。
+   * 官方 App 侧 deepLink 里的加密 id（很长的一串）不是网页版哈希，
+   * 直接拼进 `/web/bookDetail/` 会 500，必须挡掉、改用书名到同源搜索解析。
+   */
+  function isWebBookId(id) {
+    return /^[0-9a-zA-Z]{16,48}$/.test(String(id || '').trim());
+  }
+
   /** 网页版书籍详情页 URL（电脑可打开）；参数为网页版哈希 id */
   function bookWebUrl(hashId) {
     const id = String(hashId || '').trim();
-    return id ? ('https://weread.qq.com/web/bookDetail/' + encodeURIComponent(id)) : '';
+    return isWebBookId(id) ? ('https://weread.qq.com/web/bookDetail/' + encodeURIComponent(id)) : '';
   }
 
   /**
@@ -2481,22 +2490,27 @@
 
   /** 打开书籍：优先把官方链接换成电脑可打开的网页版详情页；否则按书名解析 */
   async function openBookLink(title, rawLink) {
+    const raw = String(rawLink || '').trim();
     let link = '';
-    if (isHttpUrl(rawLink)) {
-      // 官方 https 多为手机落地页（book-detail?type=1）：换成本机网页版详情页
-      link = webUrlFromDeepLink(rawLink) || String(rawLink || '').trim();
+    if (isHttpUrl(raw)) {
+      // 官方 https 多为手机落地页（book-detail?type=1）：只接受「像网页版哈希」的 id
+      link = webUrlFromDeepLink(raw);
     }
     if (!link) {
-      link = await resolveWebBookUrl(title);
+      link = await resolveWebBookUrl(title);    // 同源搜索解析出电脑可打开的网页版详情页
     }
     if (!link) {
-      link = String(rawLink || '').trim(); // 兜底：仍尝试官方原链接
+      link = raw;                               // 兜底：仍尝试官方原链接
     }
     if (!link) {
       logOfficial('warn', '书籍跳转：无可打开的链接', { title: String(title || '') });
       return;
     }
-    logOfficial('info', '书籍跳转', { via: isHttpUrl(link) ? 'https' : 'scheme' });
+    logOfficial('info', '书籍跳转', {
+      via: isHttpUrl(link) ? 'https' : 'scheme',
+      hasRaw: !!raw,
+      isDetail: link.indexOf('/web/bookDetail/') >= 0,
+    });
     window.open(link, '_blank', 'noopener');
   }
 

@@ -191,6 +191,8 @@ function bodyHtml(raw, fromCache) {
     '<button class="wre-link" data-goto="shelf"><span>📚 书架</span><span class="wre-muted">' + esc(counts ? counts.total + ' 个条目' : '去看看') + '</span></button>' +
     '<button class="wre-link" data-goto="shelf"><span>📝 笔记</span><span class="wre-muted">' + esc(stats ? stats.totalNoteCount + ' 条' : '去看看') + '</span></button>' +
     '<button class="wre-link" data-goto="persona"><span>🧬 阅读人格</span><span class="wre-muted">去看看</span></button>' +
+    '<button class="wre-link" data-goto="daily"><span>🗂 每日卡片</span><span class="wre-muted">AI 成文</span></button>' +
+    '<button class="wre-link" data-goto="wander"><span>🧭 灵感漫游</span><span class="wre-muted">AI 串联</span></button>' +
     '</div>'
   );
 

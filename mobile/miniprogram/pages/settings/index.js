@@ -141,6 +141,12 @@ Page({
     this.setStatus('', '已清除 Key');
   },
 
+  // ---- 页面跳转 ----
+
+  goPaperbook() {
+    wx.navigateTo({ url: '/pages/paperbook/index' });
+  },
+
   // ---- DeepSeek Key 相关处理器（M15 合规下线：UI 已移除，保留不删以便转企业主体后恢复）----
 
   goNotes() {

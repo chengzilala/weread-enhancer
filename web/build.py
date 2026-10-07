@@ -32,6 +32,9 @@ DIST = WEB / "dist"
 ATTACHMENTS = CONTENT / "attachments"
 MANIFEST = ROOT / "manifest.json"
 ICONS = ROOT / "icons"
+APP = ROOT / "h5"          # 网页版（H5 移动端）源码，与官网同域发布
+APP_DIR = "app"            # 拷贝到 dist 下的子目录名（线上即 /app/）
+APP_SKIP = {"README.md"}   # 只给开发者看，不上线
 
 CONFIG = {}
 LINK_INDEX = {}
@@ -584,6 +587,7 @@ def render_footer():
     if not links:
         links.append('<a href="/start/">安装插件</a>')
     links.append('<a href="/changelog/">更新日志</a>')
+    links.append('<a href="/account/">我的账户</a>')
     links.append('<a href="/privacy/">隐私政策</a>')
     links.append('<a href="%s" target="_blank" rel="noopener">GitHub</a>' % CONFIG["repoUrl"])
     if CONFIG.get("giteeUrl"):
@@ -634,8 +638,30 @@ def home_install_button():
         html.escape(url, quote=True), ext, label)
 
 
+# 作者个人名片（跨域 iframe）：名片页自包含、零依赖；高度由名片页 postMessage 自适应
+PS_CARD_URL = "https://personalsite-32km31c.maozi.io/card.html"
+PS_CARD_TEMPLATE = """<div class="ps-card-embed">
+<iframe id="ps-card" src="__URL__" title="张诚 · Chester 名片" style="width:100%;border:0;display:block;height:360px" loading="lazy"></iframe>
+<script>
+(function () {
+  var box = document.getElementById('ps-card');
+  window.addEventListener('message', function (e) {
+    if (e.data && e.data.type === 'ps-card-height' && box) {
+      box.style.height = e.data.height + 'px';
+    }
+  });
+})();
+</script>
+</div>"""
+
+
+def render_card_embed():
+    """首页顶部的个人名片：原样输出 iframe + 自适应高度脚本（不加 sandbox，保证整卡可跳出跳转）"""
+    return PS_CARD_TEMPLATE.replace("__URL__", PS_CARD_URL)
+
+
 def render_home(page):
-    """首页 = 作者的话(前言) + Hero（front-matter，含安装等按钮组） + 正文（功能大图区等）"""
+    """首页 = 「关于作者」区块（个人名片 + 作者的话） + Hero（front-matter，含安装等按钮组） + 正文（功能大图区等）"""
     title = page.get("heroTitle") or page["title"]
     tagline = page.get("tagline") or page.get("description") or ""
 
@@ -651,6 +677,10 @@ def render_home(page):
         miniapp_btn = '<a class="home-btn" href="%s" target="_blank" rel="noopener">微信小程序</a>' % html.escape(miniapp_url, quote=True)
     else:
         miniapp_btn = '<span class="home-btn home-btn-soon">微信小程序</span>'
+
+    # 网页版（H5）入口：配置 appUrl 后出现；与官网同域，线上路径 /app/
+    app_url = CONFIG.get("appUrl") or ""
+    app_btn = ('<a class="home-btn" href="%s">网页版体验</a>' % html.escape(app_url, quote=True)) if app_url else ""
 
     # 开源地址（GitHub / Gitee）：与「安装到 Edge」同排、同款按钮
     src_links = ['<a class="home-btn" href="%s" target="_blank" rel="noopener">GitHub</a>' % html.escape(CONFIG["repoUrl"], quote=True)]
@@ -680,15 +710,19 @@ def render_home(page):
         '  <div class="home-hero-text">\n'
         '    <h1 class="home-hero-title">%s</h1>\n'
         '%s'
-        '    <div class="home-actions">%s<a class="home-btn" href="/start/">快速上手</a>%s%s</div>\n'
+        '    <div class="home-actions">%s<a class="home-btn" href="/start/">快速上手</a>%s%s%s</div>\n'
         '  </div>\n'
         '  %s\n'
         '</section>' % (inline(title, page), sub_html,
-                         home_install_button(), miniapp_btn, " ".join(src_links), media)
+                         home_install_button(), app_btn, miniapp_btn, " ".join(src_links), media)
     )
 
+    # 「关于作者」区块：个人名片 + 作者的话合成一组，置于页面顶部（Hero 之前）
+    note_block = ('\n' + note_html) if note_html else ''
+    author_band = '<section class="author-band">\n%s%s\n</section>\n' % (render_card_embed(), note_block)
+
     body = render_markdown(body_src, page)
-    return note_html + "\n" + hero + "\n" + body
+    return author_band + hero + "\n" + body
 
 
 # --------------------------------------------------------------------------
@@ -710,6 +744,35 @@ def render_section_index(sec):
     # 栏目名已由左侧栏标题展示，正文区不再重复输出 <h1>
     body = '<ul class="card-list">\n  <li>%s</li>\n</ul>' % "</li>\n  <li>".join(cards)
     return body
+
+
+def render_account_page():
+    """官网「我的账户」页：与 /app/ 网页版共用同一套账户与登录系统
+
+    页面骨架（标题 + 空壳）由构建输出；交互逻辑在 /assets/account.js，
+    该脚本直接 import 网页版（/app/src/）的 store / api / ui 模块，
+    因此两端是同一份账户实现；又因官网在 /、网页版在 /app/（同域名同 origin，
+    同一 localStorage），登录态天然互通，无需任何同步机制。
+    """
+    page = {
+        "title": "我的账户",
+        "url": "/account/",
+        "description": "一个账户，处处通用：官网与网页版共用同一个账户码，Key 与昵称随账户跨设备同步。",
+        "section": None,
+        "updatedAt": "",
+    }
+    lead = ('一个账户，处处通用：官网与 <a href="/app/">网页版</a> 共用同一个账户码，'
+            '微信读书 Key 与昵称都挂在你的账户下，换设备用账户码登录即可找回。')
+    content = (
+        article_header(page)
+        + '<p class="acct-lead">' + lead + '</p>'
+        + '<div id="acctRoot" class="acct"><p class="acct-loading">正在读取账户信息…</p></div>'
+        + '<script type="module" src="/assets/account.js"></script>'
+    )
+    out_file, url = slug_to_dist("account")
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    out_file.write_text(render_layout(page, content, extra_class="has-account"), encoding="utf-8")
+    GENERATED_URLS.add(url)
 
 
 def parse_changelog_latest():
@@ -784,6 +847,34 @@ def copy_assets():
             if target.exists():
                 warn("附件与站点资源重名，附件覆盖：%s" % item.name)
             shutil.copy2(item, target)
+
+
+def copy_app():
+    """把网页版（h5/）整份拷到 dist/app/，与官网同域发布（线上地址 /app/）
+
+    H5 全用相对路径 + hash 路由，且 sw.js / manifest 也是相对注册，
+    因此放进子目录即可，作用范围自动收在 /app/ 内，不影响官网。
+    必须在 dist 清空之后调用。
+    """
+    if not APP.exists():
+        warn("未找到网页版目录 h5/，跳过（线上将没有 /app/）")
+        return
+    dst = DIST / APP_DIR
+    count = 0
+    for item in sorted(APP.rglob("*")):
+        rel = item.relative_to(APP)
+        if any(part.startswith(".") for part in rel.parts):
+            continue
+        if rel.as_posix() in APP_SKIP:
+            continue
+        target = dst / rel
+        if item.is_dir():
+            target.mkdir(parents=True, exist_ok=True)
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(item, target)
+            count += 1
+    print("   📱 网页版（H5）：%d 个文件 → dist/%s/" % (count, APP_DIR))
 
 
 def generate_thumbnails():
@@ -881,6 +972,7 @@ def build():
     # 资源与图库缩略图（须先于页面渲染：渲染时按缩略图可用性决定引用）
     copy_assets()
     generate_thumbnails()
+    copy_app()
 
     # 1) 文章页
     # 部分页面名已由顶部导航体现，正文区不再重复输出大标题
@@ -916,6 +1008,9 @@ def build():
         out_file.write_text(html_text, encoding="utf-8")
         GENERATED_URLS.add(url)
         sec["url"] = url
+
+    # 2.5) 官网「我的账户」页（与 /app/ 网页版共用同一套账户）
+    render_account_page()
 
     # 3) 公告、死链检查
     latest = write_latest_json()

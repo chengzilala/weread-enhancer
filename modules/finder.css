@@ -3,7 +3,7 @@
    复用 content.css 的 --wre-* 变量与 .wre-modal / .wre-btn 基础样式。 */
 
 .wre-find-overlay .wre-find-modal {
-  width: 620px;
+  width: 660px;
   max-width: 94vw;
 }
 
@@ -23,14 +23,55 @@
   color: var(--wre-text);
 }
 
-/* ---------- 搜索框 ---------- */
+/* ---------- 搜索框（面板主角） ---------- */
 
 .wre-find-overlay .wre-find-search {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 14px;
+  padding: 0 8px 0 12px;
+  border: 1px solid var(--wre-border);
+  border-radius: 10px;
+  background: var(--wre-hover-bg);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
+
+.wre-find-overlay .wre-find-search:focus-within {
+  border-color: var(--wre-primary);
+  background: var(--wre-bg);
+  box-shadow: 0 0 0 3px rgba(7, 193, 96, 0.12);
+}
+
+.wre-find-overlay .wre-find-search-ico {
+  flex: none;
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0.75;
+}
+
+.wre-find-overlay .wre-find-search-clear {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--wre-text);
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0.45;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.wre-find-overlay .wre-find-search-clear:hover {
+  opacity: 1;
+  background: rgba(127, 127, 127, 0.16);
+}
+
+/* 基础输入框（标签编辑等仍在用） */
 
 .wre-find-overlay .wre-find-input {
   flex: 1;
@@ -46,6 +87,57 @@
 .wre-find-overlay .wre-find-input:focus {
   outline: none;
   border-color: var(--wre-primary);
+}
+
+/* 搜索框内的输入：去掉自身边框，融入外层容器 */
+.wre-find-overlay .wre-find-search .wre-find-input {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-size: 15px;
+}
+
+.wre-find-overlay .wre-find-search .wre-find-input:focus {
+  outline: none;
+  border: none;
+}
+
+/* ---------- 「还能搜我的笔记」分组 ---------- */
+
+.wre-find-overlay .wre-find-notegroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.wre-find-overlay .wre-find-notegroup-label {
+  font-size: 12px;
+  color: var(--wre-text);
+  opacity: 0.7;
+}
+
+.wre-find-overlay .wre-find-notegroup-status {
+  font-size: 11px;
+  color: var(--wre-text);
+  opacity: 0.7;
+}
+
+/* 灰色说明标签：只提示、不可点（真正的检索由右侧「搜我的划线/想法」触发） */
+.wre-find-overlay .wre-find-notegroup-hint {
+  padding: 4px 10px;
+  border: 1px dashed var(--wre-border);
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--wre-text);
+  opacity: 0.5;
+  cursor: default;
+  user-select: none;
 }
 
 /* ---------- 筛选 chips ---------- */
@@ -116,9 +208,23 @@
   gap: 6px;
 }
 
-.wre-find-overlay .wre-find-actions .wre-find-chip {
-  display: inline-flex;
-  align-items: center;
+/* 次要操作（刷新书架 / 标签管理）：弱化，不抢搜索框与结果卡的视觉重心 */
+.wre-find-overlay .wre-find-ghostbtn {
+  padding: 3px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--wre-text);
+  font-size: 12px;
+  line-height: 1.6;
+  opacity: 0.62;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.wre-find-overlay .wre-find-ghostbtn:hover {
+  opacity: 1;
+  background: var(--wre-hover-bg);
 }
 
 /* ---------- 区块标题 / 提示 / 空态 / 错误 ---------- */
@@ -184,11 +290,17 @@
 .wre-find-overlay .wre-find-item {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 10px;
-  border: 1px solid var(--wre-border);
-  border-radius: var(--wre-border-radius);
-  margin-bottom: 8px;
+  gap: 12px;
+  padding: 10px 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  margin-bottom: 2px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.wre-find-overlay .wre-find-item:hover {
+  background: var(--wre-hover-bg);
+  border-color: var(--wre-border);
 }
 
 .wre-find-overlay .wre-find-main {
@@ -273,10 +385,17 @@
 }
 
 .wre-find-overlay .wre-find-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--wre-text);
   word-break: break-word;
+}
+
+.wre-find-overlay .wre-find-mark {
+  padding: 0 1px;
+  border-radius: 2px;
+  background: rgba(7, 193, 96, 0.18);
+  color: inherit;
 }
 
 .wre-find-overlay .wre-find-badge {
@@ -380,6 +499,44 @@
   outline: none;
   border-style: solid;
   border-color: var(--wre-primary);
+}
+
+/* ---------- 标签候选浮层（自绘，替代原生 datalist 的大白框） ---------- */
+
+.wre-find-overlay .wre-find-tagsuggest {
+  position: absolute;
+  z-index: 2;
+  max-width: 240px;
+  max-height: 216px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--wre-border);
+  border-radius: 10px;
+  background: var(--wre-bg);
+  box-shadow: var(--wre-shadow);
+}
+
+.wre-find-overlay .wre-find-tagsuggest-item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--wre-text);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.wre-find-overlay .wre-find-tagsuggest-item:hover,
+.wre-find-overlay .wre-find-tagsuggest-item.is-active {
+  background: rgba(7, 193, 96, 0.12);
+  color: var(--wre-primary);
 }
 
 /* ---------- 标签管理 ---------- */

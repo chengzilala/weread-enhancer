@@ -30,7 +30,7 @@ const FALLBACK = {
   sync: '云同步失败，请稍后重试',
   toobig: '数据过大，未同步',
   // H5 新增
-  noendpoint: '尚未配置中转服务地址，请在「我的」里填写',
+  noendpoint: '尚未配置中转服务地址（开发者需在 h5/src/config.js 填写 ENDPOINT）',
   nodevice: '设备标识缺失或非法，请清缓存后重试',
   nosecret: '服务端未配置密钥托管，暂不可用',
   save: 'Key 保存失败，请稍后重试',

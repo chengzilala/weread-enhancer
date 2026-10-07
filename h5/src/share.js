@@ -9,6 +9,8 @@
  * 红线：分享图不含账号标识 / 隐私字段；不使用真人照片（纯文字排版）。
  */
 
+import { toast } from './ui.js';
+
 const CARD_W = 1080;
 const PAD = 64;
 const BRAND = '#2F6BFF';
@@ -334,4 +336,73 @@ export async function copyLink(url) {
   } catch (e) {
     return { ok: false };
   }
+}
+
+/**
+ * 分享图预览弹层：展示已画好的图，提供「分享 / 保存」「复制链接」「关闭」。
+ * 「分享 / 保存」在用户点击时触发，保证仍是用户手势（Web Share 更可靠）。
+ * @returns {function} 关闭函数
+ */
+export function openShareSheet(dataUrl, spec, filename) {
+  const s = spec || {};
+  const mask = document.createElement('div');
+  mask.className = 'wre-share-mask';
+  mask.innerHTML =
+    '<div class="wre-share-panel">' +
+    '  <div class="wre-share-preview"><img src="' + dataUrl + '" alt="分享图预览"></div>' +
+    '  <button class="wre-btn" data-share="go">分享 / 保存图片</button>' +
+    '  <button class="wre-btn wre-btn--ghost" data-share="link">复制链接</button>' +
+    '  <button class="wre-btn wre-btn--ghost" data-share="close">关闭</button>' +
+    '</div>';
+  document.body.appendChild(mask);
+
+  const close = () => {
+    if (mask.parentNode) {
+      mask.parentNode.removeChild(mask);
+    }
+  };
+
+  mask.addEventListener('click', async (e) => {
+    if (e.target === mask) {
+      close();
+      return;
+    }
+    const btn = e.target.closest('[data-share]');
+    if (!btn) {
+      return;
+    }
+    const act = btn.getAttribute('data-share');
+    if (act === 'close') {
+      close();
+      return;
+    }
+    if (act === 'link') {
+      const r = await copyLink(s.link || (typeof location !== 'undefined' ? location.href : ''));
+      toast(r.ok ? '链接已复制' : '复制失败，请手动复制');
+      return;
+    }
+    if (act === 'go') {
+      const r = await shareCard(dataUrl, s, filename);
+      if (r.ok) {
+        toast(r.method === 'share' ? '已调起分享' : '图片已保存');
+        close();
+      } else if (r.error && r.error !== '已取消分享') {
+        toast(r.error);
+      }
+    }
+  });
+
+  return close;
+}
+
+/** 画分享图并直接打开预览弹层（各页面统一入口）。永不 reject。 */
+export async function presentShareCard(spec, filename) {
+  const s = spec || {};
+  const res = await makeShareCard(s);
+  if (!res.ok) {
+    toast(res.error || '生成分享图失败');
+    return { ok: false, error: res.error };
+  }
+  openShareSheet(res.dataUrl, s, filename);
+  return { ok: true, dataUrl: res.dataUrl };
 }

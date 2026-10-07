@@ -58,101 +58,123 @@
       <button class="wre-btn" bindtap="retry">重新计算</button>
     </view>
 
-    <!-- 人格结果 -->
+    <!-- 人格结果（结构对齐插件「阅读人格」卡） -->
     <block wx:elif="{{persona}}">
-      <!-- 主卡 -->
-      <view class="wre-card hero">
-        <view class="hero__code">{{persona.code}}</view>
-        <view class="hero__code-note">四个字母，从左到右依次代表：阅读能量 · 内容取向 · 表达方式 · 阅读节奏</view>
+      <!-- 人格主卡 -->
+      <view class="wre-card persona">
+        <!-- 头部：代码 + 称号 + 定调 + 代表人物插画 -->
+        <view class="persona__head">
+          <view class="persona__code">{{persona.code}}</view>
+          <view class="persona__titlewrap">
+            <view class="persona__name">{{persona.name}}</view>
+            <view class="persona__tagline">{{persona.tagline}}</view>
+          </view>
+          <view class="persona__figurewrap" wx:if="{{persona.figure}}">
+            <image class="persona__figure" wx:if="{{persona.figureUri}}" src="{{persona.figureUri}}" mode="aspectFit" />
+            <view class="persona__figurename">{{persona.figure.name}}</view>
+          </view>
+        </view>
+
+        <!-- 代码释义：四位字母依次代表 -->
         <view class="hero__legend">
           <view class="hero__legend-item" wx:for="{{persona.codeItems}}" wx:key="key">
             <text class="hero__legend-letter">{{item.letter}}</text>
             <text class="hero__legend-label">{{item.label}}</text>
           </view>
         </view>
-        <view class="hero__name">{{persona.name}}</view>
-        <view class="hero__tagline">{{persona.tagline}}</view>
-        <view class="hero__figure" wx:if="{{persona.figure}}">
-          <image class="hero__figure-img" wx:if="{{persona.figureUri}}" src="{{persona.figureUri}}" mode="aspectFit" />
-          <text class="hero__figure-name">{{persona.figure.name}}</text>
-          <text class="hero__figure-line">{{persona.figure.line}}</text>
+
+        <!-- 生成竖版分享图 -->
+        <view class="persona__share">
+          <button class="wre-btn" bindtap="generateShare" loading="{{sharing}}" disabled="{{sharing}}">
+            {{sharing ? '正在生成…' : '生成竖版分享图'}}
+          </button>
+          <view class="persona__share-hint">生成后可一键转发给微信好友，或保存到相册</view>
         </view>
-        <view class="hero__one-liner" wx:if="{{persona.oneLiner}}">{{persona.oneLiner}}</view>
-      </view>
 
-      <!-- 生成竖版分享图 -->
-      <view class="wre-card share-entry">
-        <button class="wre-btn" bindtap="generateShare" loading="{{sharing}}" disabled="{{sharing}}">
-          {{sharing ? '正在生成…' : '生成竖版分享图'}}
-        </button>
-        <view class="wre-muted">生成后可一键转发给微信好友，或保存到相册</view>
-      </view>
-
-      <!-- M15 合规下线：原「人格画像」卡片已移除 -->
-
-      <!-- 特质绰号 -->
-      <view class="wre-card" wx:if="{{persona.nicknames.length}}">
-        <view class="wre-title">你的三个特质</view>
-        <view class="chips">
-          <view class="chip chip--strong" wx:for="{{persona.nicknames}}" wx:key="*this">{{item}}</view>
+        <!-- 三个特质绰号 -->
+        <view class="persona__nicks" wx:if="{{persona.nicknames.length}}">
+          <view class="persona__nick" wx:for="{{persona.nicknames}}" wx:key="*this">{{item}}</view>
         </view>
-      </view>
 
-      <!-- 四个维度 -->
-      <view class="wre-card">
-        <view class="wre-title">四个维度</view>
-        <view class="dim" wx:for="{{persona.dims}}" wx:key="title">
-          <view class="dim__head">
-            <text class="dim__title">{{item.title}}</text>
-            <text class="dim__side" wx:if="{{item.available}}">{{item.leftLetter}} {{item.leftLabel}} {{item.pct}}% / {{item.rightLabel}} {{item.rightLetter}}</text>
-            <text class="dim__side dim__side--muted" wx:else>数据不足</text>
-          </view>
-          <view class="dim__bar" wx:if="{{item.available}}">
-            <view class="dim__fill" style="width: {{item.pct}}%;"></view>
-          </view>
-          <view class="dim__basis">{{item.basis}}</view>
-        </view>
-      </view>
+        <!-- 一句话画像 -->
+        <view class="persona__oneliner" wx:if="{{persona.oneLiner}}">{{persona.oneLiner}}</view>
 
-      <!-- 判定依据 -->
-      <view class="wre-card" wx:if="{{persona.evidence.data.length}}">
-        <view class="wre-title">判定依据</view>
-        <view class="list__item" wx:for="{{persona.evidence.data}}" wx:key="*this">
-          <text class="list__mark">·</text>
-          <text class="list__text">{{item}}</text>
-        </view>
-      </view>
-
-      <!-- 原文证据 -->
-      <view class="wre-card" wx:if="{{persona.evidence.quotes.length}}">
-        <view class="wre-title">你说过的原话</view>
-        <view class="quote" wx:for="{{persona.evidence.quotes}}" wx:key="index">
-          <view class="quote__text">{{item.text}}</view>
-          <view class="quote__from" wx:if="{{item.title}}">——《{{item.title}}》</view>
-        </view>
-      </view>
-
-      <!-- 词语分析 -->
-      <view class="wre-card" wx:if="{{persona.words}}">
-        <view class="wre-title">词语分析</view>
-        <view class="wre-muted" wx:if="{{persona.words.catchphrase}}">
-          你的口头禅:{{persona.words.catchphrase.text}}（出现 {{persona.words.catchphrase.count}} 次）
-        </view>
-        <view class="themes" wx:if="{{persona.words.themes.length}}">
-          <view class="theme" wx:for="{{persona.words.themes}}" wx:key="name">
-            <text class="theme__name">{{item.name}}</text>
-            <text class="theme__count">{{item.count}}</text>
+        <!-- 四个维度 -->
+        <view class="persona__dims">
+          <view class="dim" wx:for="{{persona.dims}}" wx:key="key">
+            <view class="dim__top" wx:if="{{item.available}}">
+              <text class="dim__end {{item.leftPick ? 'is-pick' : ''}}">{{item.leftLabel}} {{item.pct}}%</text>
+              <text class="dim__end {{item.rightPick ? 'is-pick' : ''}}">{{item.rightPct}}% {{item.rightLabel}}</text>
+            </view>
+            <view class="dim__top" wx:else>
+              <text class="dim__end">{{item.leftLabel}}</text>
+              <text class="dim__pct">—</text>
+              <text class="dim__end">{{item.rightLabel}}</text>
+            </view>
+            <view class="dim__track {{item.available ? '' : 'is-na'}} {{item.centered ? 'is-center' : ''}}">
+              <view class="dim__fill" wx:if="{{item.available}}" style="width: {{item.pct}}%;"></view>
+            </view>
+            <view class="dim__basis">{{item.basisText}}</view>
           </view>
         </view>
-        <view class="emotion" wx:if="{{persona.words.emotion}}">
-          <text class="emotion__item">正向 {{persona.words.emotion.posPct}}%</text>
-          <text class="emotion__item">中性 {{persona.words.emotion.neuPct}}%</text>
-          <text class="emotion__item">负向 {{persona.words.emotion.negPct}}%</text>
+
+        <!-- 数据证据 -->
+        <view class="persona__evidence" wx:if="{{persona.evidence.data.length}}">
+          <view class="persona__subtitle">数据证据</view>
+          <view class="chips">
+            <view class="chip" wx:for="{{persona.evidence.data}}" wx:key="*this">{{item}}</view>
+          </view>
         </view>
-        <view class="chips">
-          <view class="chip" wx:for="{{persona.words.cloud}}" wx:key="word">{{item.word}} · {{item.count}}</view>
+
+        <!-- 原文证据 -->
+        <view class="persona__evidence" wx:if="{{persona.evidence.quotes.length}}">
+          <view class="persona__subtitle">原文证据</view>
+          <view class="quote" wx:for="{{persona.evidence.quotes}}" wx:key="idx">
+            <view class="quote__text">{{item.text}}</view>
+            <view class="quote__src">—— 《{{item.title || '未命名'}}》{{item.yearText}}</view>
+          </view>
         </view>
-        <view class="wre-muted" wx:if="{{persona.corpusState === 'error'}}">语料获取不完整（{{persona.corpusError}}），词语分析可能偏少。</view>
+
+        <!-- 语料提示 -->
+        <view class="persona__note" wx:if="{{persona.corpusState === 'loading'}}">🧬 正在读取你的划线/想法语料，「表达方式」与「词语分析」稍后补全…</view>
+        <view class="persona__note" wx:elif="{{persona.corpusState === 'error' && persona.corpusError}}">⚠️ {{persona.corpusError}}（不影响其余维度）</view>
+
+        <!-- 词语分析 -->
+        <view class="persona__words" wx:if="{{persona.words}}">
+          <view class="persona__subtitle">词语分析</view>
+          <view class="words__label">高频词 TOP{{persona.words.top.length}}</view>
+          <view class="word-list">
+            <view class="word-row" wx:for="{{persona.words.top}}" wx:key="idx">
+              <text class="word-rank">{{index + 1}}</text>
+              <text class="word">{{item.word}}</text>
+              <view class="word-bar"><view class="word-bar__fill" style="width: {{item.barPct}}%;"></view></view>
+              <text class="word-count">{{item.count}}</text>
+            </view>
+          </view>
+          <view class="words__label">情绪比例</view>
+          <view class="emotion-bar">
+            <view class="emotion-bar__seg is-pos" style="width: {{persona.words.emotion.posPct}}%;"></view>
+            <view class="emotion-bar__seg is-neu" style="width: {{persona.words.emotion.neuPct}}%;"></view>
+            <view class="emotion-bar__seg is-neg" style="width: {{persona.words.emotion.negPct}}%;"></view>
+          </view>
+          <view class="emotion-legend">正向 {{persona.words.emotion.posPct}}% · 中性 {{persona.words.emotion.neuPct}}% · 负向 {{persona.words.emotion.negPct}}%</view>
+          <block wx:if="{{persona.words.themes.length}}">
+            <view class="words__label">主题词</view>
+            <view class="chips">
+              <view class="chip" wx:for="{{persona.words.themes}}" wx:key="name">{{item.name}} {{item.count}}</view>
+            </view>
+          </block>
+          <block wx:if="{{persona.words.cloud.length}}">
+            <view class="words__label">词云</view>
+            <view class="cloud">
+              <text class="cloud__word" wx:for="{{persona.words.cloud}}" wx:key="idx" style="font-size: {{item.size}}rpx;">{{item.word}}</text>
+            </view>
+          </block>
+          <view class="words__catch" wx:if="{{persona.words.catchphrase}}">你的口头禅：<text class="words__catch-em">{{persona.words.catchphrase.text}}</text><text class="words__catch-src" wx:if="{{persona.words.catchphrase.title}}"> —— 《{{persona.words.catchphrase.title}}》</text></view>
+        </view>
+
+        <!-- 边界声明 -->
+        <view class="persona__boundary">基于你的阅读行为数据生成的趣味性参考画像，参考了 MBTI 的四维结构，不是心理测评，也不构成专业性格鉴定。</view>
       </view>
 
       <view class="wre-muted statement">本结果由本机按固定规则计算，主打一个「趣味参考」，不构成任何心理或性格测评。</view>

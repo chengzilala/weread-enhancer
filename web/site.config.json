@@ -5,6 +5,7 @@
   "repoUrl": "https://github.com/chengzilala/weread-enhancer",
   "giteeUrl": "https://gitee.com/chengzila/weread-enhancer",
   "miniappUrl": "",
+  "appUrl": "https://wereadapp-32km31c.maozi.io/app/",
   "issuesUrl": "https://github.com/chengzilala/weread-enhancer/issues",
   "minSupportedVersion": "0.9.0",
   "nav": [
@@ -16,7 +17,8 @@
     { "title": "知识资产", "url": "/thinking/" },
     { "title": "图库", "url": "/gallery/" },
     { "title": "常见问题", "url": "/faq/" },
-    { "title": "更新日志", "url": "/changelog/" }
+    { "title": "更新日志", "url": "/changelog/" },
+    { "title": "我的账户", "url": "/account/" }
   ],
   "sections": [
     {

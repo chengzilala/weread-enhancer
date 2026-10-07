@@ -45,7 +45,8 @@
   let tagManagerOpen = false;
   let tagEdit = null;         // { tag, mode: 'rename' | 'merge' } 内联编辑
   let message = '';           // 面板内一次性提示（成功 / 失败）
-  let contentState = { running: false, done: 0, total: 0, matched: {}, error: '' };
+  let contentState = { running: false, done: 0, total: 0, matched: {}, error: '', keyword: '' };
+  let tagSuggest = { input: null, items: [], active: -1 };   // 自绘标签候选浮层状态
   const contentCache = {};    // bookId -> { at, marks: [], reviews: [] }
 
   const ui = {
@@ -55,7 +56,7 @@
     status: 'all',            // all | reading | finished | never
     notes: 'all',             // all | has | none
     recent: 'all',            // all | 7 | 30 | 90 | older
-    withContent: false,       // 是否含划线 / 想法正文检索
+    withContent: false,       // 内容检索命中项是否参与列表筛选（由「搜我的划线/想法」置位）
   };
 
   const STATUS_OPTIONS = [
@@ -94,6 +95,30 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  /** 结果里高亮命中的关键词（仅做直接子串匹配；拼音首字母命中无法定位原字，故不高亮） */
+  function highlightText(text, keyword) {
+    const s = String(text === undefined || text === null ? '' : text);
+    const q = String(keyword || '').trim();
+    if (!q) {
+      return escapeHtml(s);
+    }
+    const lowerS = s.toLowerCase();
+    const lowerQ = q.toLowerCase();
+    let from = 0;
+    let i = lowerS.indexOf(lowerQ, from);
+    if (i < 0) {
+      return escapeHtml(s);
+    }
+    let out = '';
+    while (i >= 0) {
+      out += escapeHtml(s.slice(from, i)) +
+        '<mark class="wre-find-mark">' + escapeHtml(s.slice(i, i + q.length)) + '</mark>';
+      from = i + q.length;
+      i = lowerS.indexOf(lowerQ, from);
+    }
+    return out + escapeHtml(s.slice(from));
   }
 
   function pad2(value) {
@@ -170,9 +195,18 @@
     return /^https?:\/\//i.test(String(s || '').trim());
   }
 
+  /**
+   * 网页版书籍哈希形态校验：形如 `71832e007260a75e718c6fb`（约 20+ 位字母数字）。
+   * 官方 App 侧 deepLink 里的加密 id（很长的一串）不是网页版哈希，
+   * 直接拼进 `/web/bookDetail/` 会 500，必须挡掉、改用书名到同源搜索解析。
+   */
+  function isWebBookId(id) {
+    return /^[0-9a-zA-Z]{16,48}$/.test(String(id || '').trim());
+  }
+
   function bookWebUrl(hashId) {
     const id = String(hashId || '').trim();
-    return id ? ('https://weread.qq.com/web/bookDetail/' + encodeURIComponent(id)) : '';
+    return isWebBookId(id) ? ('https://weread.qq.com/web/bookDetail/' + encodeURIComponent(id)) : '';
   }
 
   function webUrlFromDeepLink(link) {
@@ -226,22 +260,27 @@
   }
 
   async function openBookLink(title, rawLink) {
+    const raw = String(rawLink || '').trim();
     let link = '';
-    if (isHttpUrl(rawLink)) {
-      link = webUrlFromDeepLink(rawLink) || String(rawLink || '').trim();
+    if (isHttpUrl(raw)) {
+      link = webUrlFromDeepLink(raw);           // 只接受「像网页版哈希」的 id，挡掉 App 侧加密 id
     }
     if (!link) {
-      link = await resolveWebBookUrl(title);
+      link = await resolveWebBookUrl(title);    // 同源搜索解析出电脑可打开的网页版详情页
     }
     if (!link) {
-      link = String(rawLink || '').trim();
+      link = raw;                               // 兜底：仍尝试官方原链接
     }
     if (!link) {
       message = '这本书没有可打开的链接，试试用书名在搜索框里找。';
       render();
       return;
     }
-    logFinder('info', '书籍跳转', { via: isHttpUrl(link) ? 'https' : 'scheme' });
+    logFinder('info', '书籍跳转', {
+      via: isHttpUrl(link) ? 'https' : 'scheme',
+      hasRaw: !!raw,
+      isDetail: link.indexOf('/web/bookDetail/') >= 0,
+    });
     window.open(link, '_blank', 'noopener');
   }
 
@@ -509,6 +548,35 @@
       return;
     }
     shelf = slimShelf(res.data) || { books: [], albums: [], hasMp: false, bookCount: 0 };
+    // —— 临时诊断（实测官方书架「分组」是否存在，确认后删除）——
+    try {
+      const d = res.data || {};
+      const topKeys = Object.keys(d);
+      const groupLike = topKeys.filter((k) => /group|categor|classif|archive|folder|shelf|tag/i.test(k));
+      const detail = {};
+      groupLike.forEach((k) => {
+        const v = d[k];
+        if (Array.isArray(v)) {
+          detail[k] = { isArray: true, length: v.length, firstKeys: v[0] ? Object.keys(v[0]) : [] };
+        } else if (v && typeof v === 'object') {
+          detail[k] = { isObject: true, keys: Object.keys(v) };
+        } else {
+          detail[k] = v;
+        }
+      });
+      const firstBook = Array.isArray(d.books) && d.books[0] ? Object.assign({}, d.books[0]) : null;
+      if (firstBook) { delete firstBook.cover; }
+      logFinder('info', '【临时诊断】/shelf/sync 返回结构', {
+        topKeys: topKeys,
+        groupLike: groupLike,
+        groupLikeDetail: detail,
+        bookCount: Array.isArray(d.books) ? d.books.length : 0,
+        bookKeys: firstBook ? Object.keys(firstBook) : [],
+        firstBook: firstBook,
+      });
+    } catch (e) {
+      logFinder('warn', '【临时诊断】结构读取失败', { err: String((e && e.message) || e) });
+    }
     shelfFromCache = false;
     shelfState = 'ok';
     try {
@@ -630,6 +698,12 @@
     return contentState.matched && contentState.matched[String(key || '')];
   }
 
+  /** 正文检索是否覆盖「当前关键词」：换词后旧命中不再参与筛选，避免误报命中 */
+  function contentSearchCoversCurrent() {
+    return !!ui.withContent && !!contentState.keyword &&
+      normalize(contentState.keyword) === normalize(ui.keyword);
+  }
+
   /** 笔记条数区间匹配（0 / 有话 / 无话 / 区间） */
   function matchNotes(total) {
     const n = Number(total) || 0;
@@ -674,7 +748,7 @@
         if (!hit && kwIsLatin) {
           hit = initialsOf(text).indexOf(kw) >= 0;   // 拼音首字母模糊匹配
         }
-        if (!hit && ui.withContent && item.kind === 'book') {
+        if (!hit && contentSearchCoversCurrent() && item.kind === 'book') {
           hit = !!contentMatched(item.key);
         }
         if (!hit) {
@@ -766,7 +840,7 @@
       return;
     }
     const candidates = shelfItems().filter((item) => item.kind === 'book' && noteTotal(item.key) > 0);
-    contentState = { running: true, done: 0, total: candidates.length, matched: {}, error: '' };
+    contentState = { running: true, done: 0, total: candidates.length, matched: {}, error: '', keyword: kw };
     renderDynamic();
     logFinder('info', '开始划线/想法正文检索', { keyword: kw, books: candidates.length });
 
@@ -819,118 +893,6 @@
     }
   }
 
-  // ---------- 导出 / 导入 ----------
-
-  function buildExportObject() {
-    const tags = {};
-    Object.keys(tagsMap).forEach((key) => {
-      const entry = tagsMap[key];
-      if (!entry || !Array.isArray(entry.tags) || !entry.tags.length) {
-        return;
-      }
-      tags[key] = { title: entry.title || '', author: entry.author || '', tags: entry.tags.slice() };
-    });
-    return {
-      app: '微信悦读',
-      kind: 'wre-book-tags',
-      schemaVersion: SCHEMA_VERSION,
-      exportedAt: new Date().toISOString(),
-      tags: tags,
-    };
-  }
-
-  function exportTags() {
-    const payload = buildExportObject();
-    const count = Object.keys(payload.tags).length;
-    if (!count) {
-      message = '还没有任何标签可以导出。先给几本书打上标签吧。';
-      render();
-      return;
-    }
-    try {
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      const stamp = new Date();
-      a.href = url;
-      a.download = '微信悦读-找书标签-' +
-        stamp.getFullYear() + pad2(stamp.getMonth() + 1) + pad2(stamp.getDate()) + '.json';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      message = '已导出 ' + count + ' 本书的标签（JSON）';
-      logFinder('info', '导出标签', { books: count });
-    } catch (e) {
-      message = '导出失败：' + ((e && e.message) || '未知错误');
-      logFinder('warn', '导出标签失败', { error: String((e && e.message) || e) });
-    }
-    render();
-  }
-
-  /** 解析导入文件；mode: 'merge' 合并（并集）/ 'replace' 覆盖（清空后写入） */
-  async function importTagsFromFile(file, mode) {
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      const incoming = data && data.tags;
-      if (!incoming || typeof incoming !== 'object') {
-        message = '导入失败：文件格式不对（缺少 tags 字段），请选择本插件导出的 JSON。';
-        render();
-        return;
-      }
-      const nextMap = mode === 'replace' ? {} : Object.assign({}, tagsMap);
-      let books = 0;
-      let tagCount = 0;
-      Object.keys(incoming).forEach((key) => {
-        const raw = incoming[key] || {};
-        const tags = Array.isArray(raw.tags)
-          ? raw.tags.map(cleanTag).filter(Boolean)
-          : [];
-        const uniq = tags.filter((t, i) => tags.indexOf(t) === i);
-        if (!uniq.length) {
-          return;
-        }
-        const existing = nextMap[key] || { title: '', author: '', tags: [], updatedAt: 0 };
-        if (mode === 'merge') {
-          uniq.forEach((t) => {
-            if (existing.tags.indexOf(t) < 0) {
-              existing.tags.push(t);
-            }
-          });
-        } else {
-          existing.tags = uniq.slice();
-        }
-        existing.title = raw.title || existing.title;
-        existing.author = raw.author || existing.author;
-        existing.updatedAt = Date.now();
-        nextMap[key] = existing;
-        books += 1;
-        tagCount += uniq.length;
-      });
-      tagsMap = nextMap;
-      await saveTags();
-      ui.tags = [];   // 清空筛选，避免旧标签残留
-      message = (mode === 'replace' ? '已覆盖导入：' : '已合并导入：') + books + ' 本书、约 ' + tagCount + ' 个标签';
-      logFinder('info', '导入标签', { mode: mode, books: books });
-      render();
-    } catch (e) {
-      message = '导入失败：' + ((e && e.message) || '文件无法解析') + '。请确认是本插件导出的 JSON 文件。';
-      logFinder('warn', '导入标签失败', { error: String((e && e.message) || e) });
-      render();
-    }
-  }
-
-  function triggerImport(mode) {
-    const input = document.getElementById('wre-find-import-input');
-    if (!input) {
-      return;
-    }
-    input.setAttribute('data-mode', mode);
-    input.value = '';
-    input.click();
-  }
-
   // ---------- 渲染 ----------
 
   function chipsHtml(options, current, attr) {
@@ -939,15 +901,38 @@
       '" data-' + attr + '="' + escapeHtml(opt.key) + '">' + escapeHtml(opt.label) + '</button>').join('');
   }
 
+  /** 搜索框（面板主角）：放大 + 🔍 图标 + 清空 */
   function buildSearchHtml() {
     return '<div class="wre-find-search">' +
+      '<span class="wre-find-search-ico" aria-hidden="true">🔍</span>' +
       '<input type="text" id="wre-find-keyword" class="wre-find-input" placeholder="搜书名 / 作者 / 标签 / 拼音首字母…" autocomplete="off" value="' + escapeHtml(ui.keyword) + '">' +
-      '<button type="button" class="wre-btn wre-btn-small" data-wre-find-clear="1">清空</button>' +
-    '</div>' +
-    '<div class="wre-find-chiprow">' + chipsHtml(STATUS_OPTIONS, ui.status, 'wre-find-status') + '</div>' +
-    '<div class="wre-find-chiprow">' + chipsHtml(NOTE_OPTIONS, ui.notes, 'wre-find-notes') + '</div>' +
-    '<div class="wre-find-chiprow">' + chipsHtml(RECENT_OPTIONS, ui.recent, 'wre-find-recent') + '</div>' +
-    '<div class="wre-find-note">支持拼音首字母搜索：如输入 rzjx 可命中《认知觉醒》</div>';
+      '<button type="button" class="wre-find-search-clear" data-wre-find-clear="1" title="清空搜索" aria-label="清空搜索">×</button>' +
+    '</div>';
+  }
+
+  /** 筛选 chips（状态 / 笔记 / 时间）与拼音用法提示 */
+  function buildFilterHtml() {
+    return '<div class="wre-find-chiprow">' + chipsHtml(STATUS_OPTIONS, ui.status, 'wre-find-status') + '</div>' +
+      '<div class="wre-find-chiprow">' + chipsHtml(NOTE_OPTIONS, ui.notes, 'wre-find-notes') + '</div>' +
+      '<div class="wre-find-chiprow">' + chipsHtml(RECENT_OPTIONS, ui.recent, 'wre-find-recent') + '</div>' +
+      '<div class="wre-find-note">支持拼音首字母搜索：如输入 rzjx 可命中《认知觉醒》</div>';
+  }
+
+  /** 「还能搜我的笔记」分组：说明文字（灰色、不可点）+ 在我的划线 / 想法里检索 */
+  function buildNoteSearchHtml() {
+    const running = contentState.running;
+    const progressText = running
+      ? '<span class="wre-find-notegroup-status">已查 ' + contentState.done + ' / ' + contentState.total + '</span>'
+      : '';
+    return '<div class="wre-find-notegroup">' +
+      '<span class="wre-find-notegroup-label">还能搜我的笔记</span>' +
+      '<span class="wre-find-notegroup-hint" aria-hidden="true">含划线 / 想法正文</span>' +
+      (ui.keyword.trim()
+        ? '<button type="button" class="wre-btn wre-btn-small" data-wre-find-run-content="1" title="在你所有「有笔记的书」里，搜你自己的划线 / 想法正文"' + (running ? ' disabled' : '') + '>' + (running ? '检索中…' : '搜我的划线/想法') + '</button>'
+        : '') +
+      (running ? '<button type="button" class="wre-btn wre-btn-small" data-wre-find-stop-content="1">停止</button>' : '') +
+      progressText +
+    '</div>';
   }
 
   function buildTagFilterHtml() {
@@ -972,28 +957,15 @@
   }
 
   function buildToolbarHtml(total) {
-    const contentOn = ui.withContent;
-    const running = contentState.running;
-    const progress = running
-      ? '（正文检索中 ' + contentState.done + '/' + contentState.total + '…）'
-      : '';
     const filtered = applyFilters().length;
     const countText = filtered === total
       ? ('共 ' + total + ' 本')
       : ('命中 ' + filtered + ' 本 · 共 ' + total + ' 本');
     return '<div class="wre-find-toolbar">' +
-      '<div class="wre-find-count">' + countText + progress + '</div>' +
+      '<div class="wre-find-count">' + countText + '</div>' +
       '<div class="wre-find-actions">' +
-        '<button type="button" class="wre-find-chip' + (contentOn ? ' is-active' : '') + '" data-wre-find-content="1">含划线/想法正文</button>' +
-        (ui.keyword.trim()
-          ? '<button type="button" class="wre-btn wre-btn-small" data-wre-find-run-content="1" title="在你所有「有笔记的书」里，搜你自己的划线 / 想法正文"' + (running ? ' disabled' : '') + '>' + (running ? '检索中…' : '搜我的划线/想法') + '</button>'
-          : '') +
-        (running ? '<button type="button" class="wre-btn wre-btn-small" data-wre-find-stop-content="1">停止</button>' : '') +
-        '<button type="button" class="wre-btn wre-btn-small" data-wre-find-refresh="1">刷新书架</button>' +
-        '<button type="button" class="wre-btn wre-btn-small" data-wre-find-export="1">导出 JSON</button>' +
-        '<button type="button" class="wre-btn wre-btn-small" data-wre-find-import-merge="1">导入(合并)</button>' +
-        '<button type="button" class="wre-btn wre-btn-small" data-wre-find-import-replace="1">导入(覆盖)</button>' +
-        '<button type="button" class="wre-btn wre-btn-small" data-wre-find-manager="1">' + (tagManagerOpen ? '收起标签管理' : '标签管理') + '</button>' +
+        '<button type="button" class="wre-find-ghostbtn" data-wre-find-refresh="1">刷新书架</button>' +
+        '<button type="button" class="wre-find-ghostbtn" data-wre-find-manager="1">' + (tagManagerOpen ? '收起标签管理' : '标签管理') + '</button>' +
       '</div>' +
     '</div>';
   }
@@ -1035,7 +1007,7 @@
       '<button type="button" class="wre-find-tagx" data-wre-find-remove-tag="' + escapeHtml(t) +
       '" data-wre-find-remove-key="' + escapeHtml(item.key) + '" title="移除标签">×</button></span>').join('');
     return '<div class="wre-find-booktags">' + tagChips +
-      '<input type="text" class="wre-find-taginput" list="wre-find-tag-suggest" placeholder="+ 加标签" ' +
+      '<input type="text" class="wre-find-taginput" placeholder="+ 加标签" autocomplete="off" ' +
       'data-wre-find-add-tag="' + escapeHtml(item.key) + '" data-wre-find-add-title="' + escapeHtml(item.title) +
       '" data-wre-find-add-author="' + escapeHtml(item.author || '') + '">' +
     '</div>';
@@ -1090,7 +1062,7 @@
       '<div class="wre-find-main">' +
         '<div class="wre-find-titleline">' +
           '<span class="wre-find-idx">' + (index + 1) + '</span>' +
-          '<span class="wre-find-title">' + escapeHtml(item.title || '未命名') + '</span>' +
+          '<span class="wre-find-title">' + highlightText(item.title || '未命名', ui.keyword) + '</span>' +
           badges.join('') +
           (item.deepLink || item.title
             ? '<button type="button" class="wre-find-open" data-wre-find-open="' + escapeHtml(item.deepLink || '') + '" data-wre-find-open-title="' + escapeHtml(item.title || '') + '">打开 ↗</button>'
@@ -1114,7 +1086,7 @@
         return '<div class="wre-find-empty">书架里没有可显示的书。</div>';
       }
       const kw = ui.keyword.trim();
-      if (kw && !ui.withContent) {
+      if (kw && !contentSearchCoversCurrent()) {
         return '<div class="wre-find-empty">没有符合条件的书。' +
           '<div style="margin-top:10px">想搜「' + escapeHtml(kw) + '」在你<strong>划线 / 想法</strong>里的内容？' +
           '<div style="margin-top:10px"><button type="button" class="wre-btn wre-btn-small" data-wre-find-run-content="1">🔍 在划线/想法里搜「' + escapeHtml(kw) + '」</button></div>' +
@@ -1165,16 +1137,15 @@
         '<div style="margin-top:12px"><button type="button" class="wre-btn" data-wre-find-goto-key="1">去配置 API Key</button></div></div>';
     }
 
-    return privacy + buildSearchHtml() + buildTagFilterHtml() +
+    return privacy + buildSearchHtml() +
+      '<div id="wre-find-notesearcharea">' + buildNoteSearchHtml() + '</div>' +
+      buildFilterHtml() + buildTagFilterHtml() +
       '<div id="wre-find-toolbararea">' + buildToolbarAreaHtml() + '</div>' +
       '<div id="wre-find-listarea">' + buildListAreaHtml() + '</div>' +
       buildTagManagerHtml() +
-      '<datalist id="wre-find-tag-suggest">' +
-        allTags().map((t) => '<option value="' + escapeHtml(t.name) + '"></option>').join('') + '</datalist>' +
-      '<input type="file" id="wre-find-import-input" accept="application/json,.json" style="display:none">' +
       '<div class="wre-find-note">' +
         (shelfFromCache ? '书架数据来自本机缓存（30 分钟内）。' : '书架数据为刚刚拉取。') +
-        '标签是插件私有的，换电脑或清缓存前记得「导出 JSON」备份。</div>';
+        '标签是插件私有的，换电脑或清缓存前请在「数据备份」模块导出备份。</div>';
   }
 
   function render() {
@@ -1188,6 +1159,7 @@
     }
     // 重绘会重建搜索框：先记住它的焦点与光标，重绘后还原，避免书架 / 笔记异步返回时
     // 把用户正在输入的搜索框打断（表现为「输入没反应，得点清空」）
+    hideTagSuggest();   // 重绘后标签输入框被重建，旧候选浮层一并收起
     const prev = document.getElementById('wre-find-keyword');
     const wasFocused = !!(prev && prev === document.activeElement);
     const caret = wasFocused ? prev.selectionStart : null;
@@ -1203,8 +1175,13 @@
     }
   }
 
-  /** 只替换工具条与列表两块（不重建搜索框），用于输入过滤与正文检索进度刷新 */
+  /** 只替换笔记检索区 / 工具条 / 列表三块（不重建搜索框），用于输入过滤与正文检索进度刷新 */
   function renderDynamic() {
+    hideTagSuggest();   // 列表区会被重建（含标签输入框），先收起候选浮层
+    const noteArea = document.getElementById('wre-find-notesearcharea');
+    if (noteArea) {
+      noteArea.innerHTML = buildNoteSearchHtml();
+    }
     const toolbarArea = document.getElementById('wre-find-toolbararea');
     if (toolbarArea) {
       toolbarArea.innerHTML = buildToolbarAreaHtml();
@@ -1232,7 +1209,8 @@
           '<button class="wre-modal-close" data-wre-find-close>&times;</button>' +
         '</div>' +
         '<div class="wre-modal-body wre-find-body" id="wre-find-body"></div>' +
-      '</div>';
+      '</div>' +
+      '<div class="wre-find-tagsuggest" id="wre-find-tagsuggest" hidden></div>';
     overlay.addEventListener('click', (event) => {
       if (event.target === overlay) {
         closePanel();
@@ -1244,8 +1222,17 @@
     }
     overlay.addEventListener('click', handleClick);
     overlay.addEventListener('input', handleInput);
-    overlay.addEventListener('change', handleChange);
     overlay.addEventListener('keydown', handleKeydown);
+    overlay.addEventListener('focusin', handleFocusIn);
+    // 候选浮层：按下时阻止默认，避免输入框失焦导致浮层先消失、点不中
+    overlay.addEventListener('mousedown', (event) => {
+      const item = event.target.closest && event.target.closest('[data-wre-find-suggest]');
+      if (item) {
+        event.preventDefault();
+      }
+    });
+    // 面板内滚动时收起浮层，避免浮层停在旧位置
+    overlay.addEventListener('scroll', () => hideTagSuggest(), true);
     overlay.addEventListener('compositionend', (event) => {
       // 只处理搜索框：其它输入框（如加标签）组词结束不该触发列表重绘，以免打断输入
       if (event.target && event.target.id === 'wre-find-keyword') {
@@ -1280,10 +1267,28 @@
     if (keyStatus.hasKey && shelfState !== 'loading' && !shelf) {
       loadData(false);
     }
+    focusSearchInput();
+  }
+
+  /** 打开面板后把光标落到搜索框（其它输入框已聚焦时不抢焦点） */
+  function focusSearchInput() {
+    const input = document.getElementById('wre-find-keyword');
+    if (!input) {
+      return;
+    }
+    const active = document.activeElement;
+    if (active && active !== input && active.tagName === 'INPUT') {
+      return;
+    }
+    try {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    } catch (e) { /* 部分浏览器忽略 */ }
   }
 
   function closePanel() {
     cancelContentSearch();
+    hideTagSuggest();
     const overlay = document.getElementById('wre-find-modal');
     if (overlay) {
       overlay.classList.remove('wre-visible');
@@ -1299,6 +1304,112 @@
     renderDynamic();
   }
 
+  // ---------- 标签候选浮层（自绘，替代原生 datalist） ----------
+
+  function tagSuggestEl() {
+    return document.getElementById('wre-find-tagsuggest');
+  }
+
+  function hideTagSuggest() {
+    const el = tagSuggestEl();
+    if (el) {
+      el.hidden = true;
+      el.innerHTML = '';
+    }
+    tagSuggest.input = null;
+    tagSuggest.items = [];
+    tagSuggest.active = -1;
+  }
+
+  /** 候选标签：排除该书已有标签，按输入子串过滤，最多 8 条 */
+  function tagSuggestItems(key, query) {
+    const owned = tagsOf(key);
+    const q = normalize(query);
+    return allTags()
+      .map((t) => t.name)
+      .filter((name) => owned.indexOf(name) < 0)
+      .filter((name) => !q || normalize(name).indexOf(q) >= 0)
+      .slice(0, 8);
+  }
+
+  function positionTagSuggest(input) {
+    const el = tagSuggestEl();
+    const overlay = document.getElementById('wre-find-modal');
+    if (!el || !overlay || !input) {
+      return;
+    }
+    const irec = input.getBoundingClientRect();
+    const orec = overlay.getBoundingClientRect();
+    el.style.left = Math.round(irec.left - orec.left) + 'px';
+    el.style.top = Math.round(irec.bottom - orec.top + 4) + 'px';
+    el.style.minWidth = Math.round(irec.width) + 'px';
+  }
+
+  function showTagSuggest(input) {
+    const el = tagSuggestEl();
+    if (!el || !input) {
+      return;
+    }
+    const key = input.getAttribute('data-wre-find-add-tag') || '';
+    const items = tagSuggestItems(key, input.value);
+    tagSuggest.input = input;
+    tagSuggest.items = items;
+    tagSuggest.active = -1;
+    if (!items.length) {
+      hideTagSuggest();
+      return;
+    }
+    el.innerHTML = items.map((name) =>
+      '<button type="button" class="wre-find-tagsuggest-item" data-wre-find-suggest="' + escapeHtml(name) + '">' +
+      escapeHtml(name) + '</button>').join('');
+    el.hidden = false;
+    positionTagSuggest(input);
+  }
+
+  function syncTagSuggestActive() {
+    const el = tagSuggestEl();
+    if (!el) {
+      return;
+    }
+    el.querySelectorAll('.wre-find-tagsuggest-item').forEach((node, i) => {
+      node.classList.toggle('is-active', i === tagSuggest.active);
+    });
+  }
+
+  function moveTagSuggest(delta) {
+    const n = tagSuggest.items.length;
+    if (!n) {
+      return;
+    }
+    let i = tagSuggest.active + delta;
+    if (i < 0) { i = n - 1; }
+    if (i >= n) { i = 0; }
+    tagSuggest.active = i;
+    syncTagSuggestActive();
+  }
+
+  /** 加标签输入框统一入口：显式候选名 > 高亮候选 > 输入框原文 */
+  function submitTagFromInput(input, explicitName) {
+    if (!input) {
+      return;
+    }
+    const name = explicitName
+      || (tagSuggest.active >= 0 && tagSuggest.items[tagSuggest.active] ? tagSuggest.items[tagSuggest.active] : '')
+      || input.value;
+    addTagTo({
+      key: input.getAttribute('data-wre-find-add-tag'),
+      title: input.getAttribute('data-wre-find-add-title') || '',
+      author: input.getAttribute('data-wre-find-add-author') || '',
+    }, name);
+  }
+
+  function handleFocusIn(event) {
+    const target = event.target;
+    if (target && target.classList && target.classList.contains('wre-find-taginput')) {
+      showTagSuggest(target);
+    }
+  }
+
   function handleInput(event) {
     const target = event.target;
     if (!target) {
@@ -1310,20 +1421,13 @@
         return;   // 中文输入法组词中：不重绘，等 compositionend 再刷
       }
       onKeywordChanged();
-    }
-  }
-
-  function handleChange(event) {
-    const target = event.target;
-    if (!target) {
       return;
     }
-    if (target.id === 'wre-find-import-input') {
-      const file = target.files && target.files[0];
-      const mode = target.getAttribute('data-mode') || 'merge';
-      if (file) {
-        importTagsFromFile(file, mode);
+    if (target.classList && target.classList.contains('wre-find-taginput')) {
+      if (event.isComposing) {
+        return;   // 组词中不刷新候选，避免打断输入法
       }
+      showTagSuggest(target);
     }
   }
 
@@ -1332,15 +1436,32 @@
     if (!target) {
       return;
     }
+    const isTagInput = !!(target.classList && target.classList.contains('wre-find-taginput'));
+    const suggestEl = tagSuggestEl();
+    const suggestOpen = !!(suggestEl && !suggestEl.hidden && target === tagSuggest.input);
+    if (isTagInput && suggestOpen) {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        moveTagSuggest(event.key === 'ArrowDown' ? 1 : -1);
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        hideTagSuggest();
+        return;
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        submitTagFromInput(target);
+        return;
+      }
+    }
     if (event.key !== 'Enter') {
       return;
     }
     if (target.hasAttribute && target.hasAttribute('data-wre-find-add-tag')) {
       event.preventDefault();
-      const key = target.getAttribute('data-wre-find-add-tag');
-      const title = target.getAttribute('data-wre-find-add-title') || '';
-      const author = target.getAttribute('data-wre-find-add-author') || '';
-      addTagTo({ key: key, title: title, author: author }, target.value);
+      submitTagFromInput(target);
       return;
     }
     if (target.hasAttribute && target.hasAttribute('data-wre-find-tagedit-input')) {
@@ -1377,6 +1498,12 @@
     if (gotoKey) {
       closePanel();
       document.dispatchEvent(new Event('wre-open-key-settings'));
+      return;
+    }
+
+    const suggestItem = target.closest('[data-wre-find-suggest]');
+    if (suggestItem) {
+      submitTagFromInput(tagSuggest.input, suggestItem.getAttribute('data-wre-find-suggest'));
       return;
     }
 
@@ -1440,22 +1567,8 @@
       return;
     }
 
-    const contentBtn = target.closest('[data-wre-find-content]');
-    if (contentBtn) {
-      ui.withContent = !ui.withContent;
-      if (!ui.withContent) {
-        cancelContentSearch();
-        contentState.matched = {};
-      }
-      message = '';
-      render();
-      return;
-    }
     if (target.closest('[data-wre-find-run-content]')) {
-      // 一键开始：自动打开「含划线/想法正文」开关再检索，避免两步操作被漏掉
-      if (!ui.withContent) {
-        ui.withContent = true;
-      }
+      ui.withContent = true;   // 内容检索命中项参与列表筛选
       runContentSearch();
       return;
     }
@@ -1469,18 +1582,6 @@
     if (target.closest('[data-wre-find-refresh]')) {
       message = '';
       loadData(true);
-      return;
-    }
-    if (target.closest('[data-wre-find-export]')) {
-      exportTags();
-      return;
-    }
-    if (target.closest('[data-wre-find-import-merge]')) {
-      triggerImport('merge');
-      return;
-    }
-    if (target.closest('[data-wre-find-import-replace]')) {
-      triggerImport('replace');
       return;
     }
     if (target.closest('[data-wre-find-manager]')) {

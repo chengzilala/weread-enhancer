@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extensionName__",
-  "version": "0.25.0",
+  "version": "0.26.0",
   "description": "__MSG_extensionDescription__",
   "default_locale": "zh_CN",
   "homepage_url": "https://wereadapp-32km31c.maozi.io",
@@ -47,6 +47,7 @@
         "modules/tts.css",
         "modules/official.css",
         "modules/finder.css",
+        "modules/home-shelf.css",
         "modules/support-center.css",
         "modules/backup.css",
         "modules/help.css"
@@ -58,6 +59,7 @@
         "modules/official.js",
         "modules/pinyin-data.js",
         "modules/finder.js",
+        "modules/home-shelf.js",
         "modules/support-center.js",
         "modules/backup.js",
         "modules/help.js",

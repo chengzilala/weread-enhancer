@@ -51,6 +51,10 @@
 
   <view class="wre-card">
     <view class="wre-title">更多</view>
+    <view class="settings-link" bindtap="goPaperbook">
+      <text class="settings-link__label">📚 我的纸书</text>
+      <text class="settings-link__arrow">›</text>
+    </view>
     <view class="settings-link" bindtap="goNotes">
       <text class="settings-link__label">笔记概览</text>
       <text class="settings-link__arrow">›</text>

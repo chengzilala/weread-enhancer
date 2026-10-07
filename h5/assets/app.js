@@ -1,19 +1,24 @@
 /**
- * H5 应用外壳：路由（五栏 Tab）+ 拦截态（未配中转地址 / 未配 Key）
+ * H5 应用外壳：路由（五栏 Tab + 二级页面）+ 拦截态（未配 Key）
  *
  * 五栏：首页 / 人格 / 报告 / 书架 / 我的（对齐小程序 tabBar）。
+ * 二级页面（每日卡片 / 灵感漫游 / 运营看板）不在底部 Tab，进入后隐藏 TabBar，页面自带返回。
  */
 
 import { CONFIG } from '../src/config.js';
-import { getEndpoint, setEndpoint, getMask, setMask } from '../src/store.js';
+import { getMask, setMask } from '../src/store.js';
 import { keyGet, keySave, verifyKey } from '../src/api.js';
 import { stateHtml, toast } from '../src/ui.js';
+import { setTtsToast } from '../src/tts.js';
 
 import * as home from '../src/views/home.js';
 import * as persona from '../src/views/persona.js';
 import * as report from '../src/views/report.js';
 import * as shelf from '../src/views/shelf.js';
 import * as me from '../src/views/me.js';
+import * as daily from '../src/views/daily.js';
+import * as wander from '../src/views/wander.js';
+import * as admin from '../src/views/admin.js';
 
 const TABS = [
   { key: 'home', label: '首页', icon: '🏠', view: home },
@@ -23,6 +28,25 @@ const TABS = [
   { key: 'me', label: '我的', icon: '👤', view: me },
 ];
 
+// 二级页面：不在底部 Tab，进入后隐藏 TabBar（页面内自带「返回」）
+const SECONDARY = [
+  { key: 'daily', label: '每日卡片', view: daily },
+  { key: 'wander', label: '灵感漫游', view: wander },
+  { key: 'admin', label: '运营看板', view: admin },
+];
+
+function findTab(key) {
+  return TABS.find((t) => t.key === key) || null;
+}
+
+function findSecondary(key) {
+  return SECONDARY.find((s) => s.key === key) || null;
+}
+
+function isKnown(key) {
+  return !!findTab(key) || !!findSecondary(key);
+}
+
 const viewEl = document.getElementById('view');
 const headerTitleEl = document.getElementById('headerTitle');
 const tabbarEl = document.getElementById('tabbar');
@@ -31,14 +55,14 @@ let current = 'home';
 
 const app = {
   go(key) {
-    if (!TABS.some((t) => t.key === key)) {
+    if (!isKnown(key)) {
       return;
     }
     if (location.hash !== '#/' + key) {
       location.hash = '#/' + key;   // 触发 hashchange → route
       return;
     }
-    renderTab(key);
+    route();
   },
   refreshKeyState() {
     route();
@@ -61,12 +85,12 @@ function renderTabbar() {
 
 function setChromeVisible(visible) {
   tabbarEl.style.display = visible ? '' : 'none';
-  headerTitleEl.textContent = visible ? (TABS.find((t) => t.key === current) || {}).title || CONFIG.APP_NAME : CONFIG.APP_NAME;
+  headerTitleEl.textContent = visible ? ((findTab(current) || {}).title || CONFIG.APP_NAME) : CONFIG.APP_NAME;
 }
 
 function renderTab(key) {
   current = key;
-  const tab = TABS.find((t) => t.key === key) || TABS[0];
+  const tab = findTab(key) || TABS[0];
   setChromeVisible(true);
   headerTitleEl.textContent = tab.view.title || tab.label;
   viewEl.scrollTop = 0;
@@ -74,13 +98,25 @@ function renderTab(key) {
   tab.view.render(viewEl, app);
 }
 
-/** 主路由：先判定「中转地址 / Key」是否就绪，再渲染对应 Tab */
+/** 二级页面：隐藏 TabBar，页面内自带返回 */
+function renderSecondary(key) {
+  current = key;
+  const item = findSecondary(key);
+  setChromeVisible(false);
+  headerTitleEl.textContent = item.view.title || item.label;
+  viewEl.scrollTop = 0;
+  window.scrollTo(0, 0);
+  item.view.render(viewEl, app);
+}
+
+/** 主路由：先判定「中转地址 / Key」是否就绪，再渲染对应页面 */
 async function route() {
   const hashKey = (location.hash || '').replace(/^#\/?/, '') || 'home';
-  current = TABS.some((t) => t.key === hashKey) ? hashKey : 'home';
+  current = isKnown(hashKey) ? hashKey : 'home';
 
-  if (!getEndpoint()) {
-    renderEndpointGate();
+  // 「我的账户」不设 Key 门槛：换设备时，用户正需要先在这里用账户码登录 / 查看自己的账户码
+  if (current === 'me') {
+    renderTab('me');
     return;
   }
 
@@ -95,7 +131,11 @@ async function route() {
     renderKeyGate(state.offline);
     return;
   }
-  renderTab(current);
+  if (findSecondary(current)) {
+    renderSecondary(current);
+  } else {
+    renderTab(current);
+  }
 }
 
 async function resolveKeyState() {
@@ -112,43 +152,19 @@ async function resolveKeyState() {
   return { ok: false, code: res.code, error: res.error };
 }
 
-// ---- 拦截态一：未配置中转地址 ----
-function renderEndpointGate() {
-  setChromeVisible(false);
-  viewEl.innerHTML =
-    '<div class="wre-page">' +
-    '<div class="wre-card">' +
-    '  <div class="wre-card__title">配置中转服务地址</div>' +
-    '  <div class="wre-muted">微信悦读 H5 需要经你自己的微信云函数中转官方数据（浏览器无法直连）。请先在云开发控制台把 wereadProxy 绑定到 HTTP 访问服务，再把地址填在这里。</div>' +
-    '  <input class="wre-input" id="gateEndpoint" placeholder="https://xxx.service.tcloudbase.com/h5" />' +
-    '  <button class="wre-btn" id="gateEndpointSave">保存</button>' +
-    '  <div class="wre-hint">部署步骤见 h5/README.md。也可用网址参数 ?endpoint=... 一次性指定。</div>' +
-    '</div>' +
-    '</div>';
-  viewEl.querySelector('#gateEndpointSave').addEventListener('click', () => {
-    const input = viewEl.querySelector('#gateEndpoint');
-    const url = (input && input.value || '').trim();
-    if (!/^https?:\/\//.test(url)) {
-      toast('地址需以 http:// 或 https:// 开头');
-      return;
-    }
-    setEndpoint(url);
-    toast('已保存，正在重载…');
-    setTimeout(() => location.reload(), 600);
-  });
-}
-
-// ---- 拦截态二：未配置 Key ----
+// ---- 拦截态：未配置 Key ----
 function renderKeyGate(offline) {
   setChromeVisible(false);
   viewEl.innerHTML =
     '<div class="wre-page">' +
     '<div class="wre-card">' +
     '  <div class="wre-card__title">粘贴你的微信读书 API Key</div>' +
-    '  <div class="wre-muted">Key 只提交一次，由你自建的云函数加密托管；之后本机只带随机设备标识，不再保存明文，可随时在「我的」里清除。</div>' +
+    '  <div class="wre-muted">Key 只提交一次，由你自建的云函数加密托管；之后本机只带随机设备标识，不再保存明文，可随时在「我的账户」里清除。</div>' +
+    '  <div class="wre-hint">获取方式：微信读书 App →「我」→「微信读书 Skill」页面 → 复制 wrk- 开头的 API Key。</div>' +
     (offline ? '  <div class="wre-hint">上次连接未成功，若已配置过可点下方「重试」。</div>' : '') +
     '  <input class="wre-input" id="gateKey" type="password" autocomplete="off" placeholder="wrk- 开头" />' +
     '  <button class="wre-btn" id="gateKeySave">保存并校验</button>' +
+    '  <button class="wre-btn wre-btn--ghost" id="gateAccount">已有账户码？用它登录</button>' +
     '  <button class="wre-btn wre-btn--ghost" id="gateRetry">重试</button>' +
     '</div>' +
     '</div>';
@@ -182,9 +198,13 @@ function renderKeyGate(offline) {
     route();
   });
   viewEl.querySelector('#gateRetry').addEventListener('click', () => route());
+  viewEl.querySelector('#gateAccount').addEventListener('click', () => {
+    location.hash = '#/me';   // 去「我的账户」用账户码登录
+  });
 }
 
 window.addEventListener('hashchange', () => route());
 
+setTtsToast(toast);   // 语音模块复用统一 toast
 renderTabbar();
 route();

@@ -24,7 +24,7 @@ const SYSTEM_PROMPT = '你是一位克制、有洞察的阅读分析师。' +
 /** 用「视图人格」拼出给 AI 的用户消息（纯客观数据） */
 export function buildPersonaPrompt(persona) {
   const dimLines = (persona.dims || []).map((dim) => (dim.available
-    ? ('- ' + dim.title + '：' + dim.leftLabel + ' ' + dim.pct + '% ↔ ' + (100 - dim.pct) + '% ' + dim.rightLabel + (dim.basis ? '（依据：' + dim.basis + '）' : ''))
+    ? ('- ' + dim.title + '：' + dim.left.label + ' ' + dim.leftPct + '% ↔ ' + (100 - dim.leftPct) + '% ' + dim.right.label + (dim.basis ? '（依据：' + dim.basis + '）' : ''))
     : ('- ' + dim.title + '：数据不足')));
   const evidence = (persona.evidence && persona.evidence.data) || [];
   const quotes = (persona.evidence && persona.evidence.quotes) || [];

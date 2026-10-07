@@ -1,7 +1,7 @@
 /**
  * 中转服务客户端（H5）
  *
- * 所有请求都 POST 到云函数 wereadProxy 的「HTTP 访问服务」地址，body 为 JSON；
+ * 所有请求都 POST 到云函数 wereadProxy 的 HTTP 网关地址（控制台「HTTP 网关」绑定的路由），body 为 JSON；
  * 统一带上本机 deviceId，Key 由服务端按 deviceId 取（前端不持有明文 Key）。
  * 返回结构与云函数一致：{ ok:true, ... } 或 { ok:false, code, error }。
  */
@@ -13,7 +13,7 @@ import { getEndpoint, getDeviceId } from './store.js';
 async function call(body, timeoutMs) {
   const url = getEndpoint();
   if (!url) {
-    return { ok: false, code: 'noendpoint', error: '尚未配置中转服务地址，请在「我的」里填写' };
+    return { ok: false, code: 'noendpoint', error: '尚未配置中转服务地址（开发者需在 h5/src/config.js 填写 ENDPOINT）' };
   }
   const payload = Object.assign({ deviceId: getDeviceId() }, body || {});
   const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -87,6 +87,11 @@ export function keyGet() {
 
 export function keyClear() {
   return call({ action: 'keyClear' });
+}
+
+/** 保存昵称（非敏感，托管到自建云函数，随账户跨设备同步） */
+export function profileSave(nickName) {
+  return call({ action: 'profileSave', nickName: nickName || '' });
 }
 
 // ---- 人格结果云同步 ----

@@ -6,6 +6,9 @@
   <meta name="theme-color" content="#2F6BFF">
   <meta name="description" content="微信悦读 · 手机上打开网页就能看自己的阅读数据、阅读人格与阅读报告。">
   <title>微信悦读 · 阅读数据</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icon.svg">
   <link rel="stylesheet" href="assets/app.css">
 </head>
 <body>
@@ -15,5 +18,6 @@
   <main id="view" class="wre-main"></main>
   <nav id="tabbar" class="wre-tabbar" aria-label="主导航"></nav>
   <script type="module" src="assets/app.js"></script>
+  <script src="assets/pwa.js" defer></script>
 </body>
 </html>

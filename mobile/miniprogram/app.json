@@ -4,6 +4,7 @@
     "pages/persona/index",
     "pages/report/index",
     "pages/shelf/index",
+    "pages/paperbook/index",
     "pages/settings/index",
     "pages/notes/index",
     "pages/daily/index",

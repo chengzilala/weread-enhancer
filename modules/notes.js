@@ -17,6 +17,9 @@
  *      用前者保留排版，粘到记事本/微信等纯文本场景用后者，纯文本不含 Markdown 符号）
  *   5. 选中即复制：选中正文文字后在选区旁显示「复制」浮标，一键复制
  *   6. Ctrl/Cmd+C 增强：拦截 copy 事件，清掉官方附加的版权声明（水印）
+ *   7. 定位原文：点击面板里的划线 / 想法条目，在当前阅读页里找到这段原文并高亮闪烁一下。
+ *      滚动模式下平滑滚到该处；翻页 / canvas 模式下若目标在本页之后，自动逐页翻过去
+ *      （只覆盖当前章节附近，超出范围即明确提示手动翻页，尽力而为）
  *
  * 数据来源说明（重要，优先级由高到低）：
  *   1. 官方 Agent 网关（推荐，需先在「🔑 API Key」入口配好 wrk- Key）：
@@ -55,6 +58,7 @@
   let searchQuery = ''; // 笔记搜索关键词（实时过滤划线/想法）
   let searchComposing = false; // 输入法（IME）组合态标记：组合期间不重绘，避免打断中文输入
   let panelState = { loading: false, error: '', emptyReason: '', needsKey: '', data: null };
+  let jumpTargets = []; // 面板条目的定位信息（DOM 上的 data-wre-notes-jump 下标 ↔ 目标）
 
   // ---------- 通用小工具 ----------
 
@@ -1058,19 +1062,27 @@
     if (groups.length === 0) {
       return '<div class="wre-notes-empty">' + emptyText + '</div>';
     }
+    jumpTargets = [];
     const listenBtn = ttsApi()
       ? '<button class="wre-notes-listen" data-wre-notes-listen title="朗读这一条（本机朗读，不联网、不上传）">▶</button>'
       : '';
     return groups.map((group) => {
       const items = group.items.map((item) => {
+        const index = jumpTargets.length;
+        jumpTargets.push({
+          // 想法优先用其引用的原文（abstract）定位；划线用划线原文
+          text: item.kind === 'thought' ? (item.abstract || item.text || '') : (item.text || ''),
+          chapterName: group.name || '',
+        });
+        const jumpAttr = ' data-wre-notes-jump="' + index + '" title="点击定位到原文（在当前页面查找这段内容）"';
         if (item.kind === 'thought') {
-          return '<div class="wre-notes-item is-thought">' + listenBtn +
+          return '<div class="wre-notes-item is-thought"' + jumpAttr + '>' + listenBtn +
               (item.abstract ? '<div class="wre-notes-quote">' + escapeHtml(item.abstract) + '</div>' : '') +
               '<div class="wre-notes-thought">' + escapeHtml(item.text) + '</div>' +
               '<div class="wre-notes-meta">' + escapeHtml(formatDateTime(item.createTime)) + '</div>' +
             '</div>';
         }
-        return '<div class="wre-notes-item">' + listenBtn +
+        return '<div class="wre-notes-item"' + jumpAttr + '>' + listenBtn +
             '<div class="wre-notes-text">' + escapeHtml(item.text) + '</div>' +
             (item.createTime ? '<div class="wre-notes-meta">' + escapeHtml(formatDateTime(item.createTime)) + '</div>' : '') +
           '</div>';
@@ -1162,7 +1174,8 @@
           '</div>'
         : '') +
       groupHtml +
-      '<div class="wre-notes-note">' + escapeHtml(data.sourceNote || '') + '</div>';
+      '<div class="wre-notes-note">' + escapeHtml(data.sourceNote || '') + '</div>' +
+      '<div class="wre-notes-note">点击任意条目，会在当前页面里定位这段原文并高亮一下；若不在当前已展开的章节，先切到对应章节再点。</div>';
     body.scrollTop = scrollTop;
   }
 
@@ -1281,6 +1294,381 @@
       renderPanel();
       return;
     }
+    const jumpEl = event.target.closest('[data-wre-notes-jump]');
+    if (jumpEl) {
+      const index = Number(jumpEl.getAttribute('data-wre-notes-jump'));
+      jumpToNote(jumpTargets[index]);
+    }
+  }
+
+  // ---------- 定位原文 ----------
+
+  // 去掉全部空白，便于跨文本节点、忽略排版差异地匹配（中文正文尤其实用）
+  function tightenForSearch(text) {
+    return String(text || '').replace(/\s+/g, '');
+  }
+
+  // 把根节点下的文本节点拼成「原文 + 去空白串 + 去空白下标→原文下标映射」，
+  // 从而能在不破坏原有 DOM 的前提下，跨节点、忽略空白地定位一段文字。
+  function buildReaderIndex(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    const segs = [];
+    let raw = '';
+    let node = walker.nextNode();
+    while (node) {
+      const value = node.nodeValue || '';
+      if (value) {
+        segs.push({ node: node, start: raw.length, end: raw.length + value.length });
+        raw += value;
+      }
+      node = walker.nextNode();
+    }
+    let tight = '';
+    const map = []; // 去空白串下标 → 原文串下标
+    for (let i = 0; i < raw.length; i += 1) {
+      if (/\s/.test(raw.charAt(i))) {
+        continue;
+      }
+      tight += raw.charAt(i);
+      map.push(i);
+    }
+    return { raw: raw, tight: tight, map: map, segs: segs };
+  }
+
+  // 把「原文串下标区间」还原成 DOM Range（可跨多个文本节点）
+  function rangeFromRawOffsets(index, rawStart, rawEnd) {
+    let startNode = null;
+    let startOffset = 0;
+    let endNode = null;
+    let endOffset = 0;
+    for (let i = 0; i < index.segs.length; i += 1) {
+      const seg = index.segs[i];
+      if (startNode === null && rawStart < seg.end) {
+        startNode = seg.node;
+        startOffset = rawStart - seg.start;
+      }
+      if (endNode === null && rawEnd <= seg.end) {
+        endNode = seg.node;
+        endOffset = rawEnd - seg.start;
+      }
+      if (startNode && endNode) {
+        break;
+      }
+    }
+    if (!startNode || !endNode) {
+      return null;
+    }
+    try {
+      const range = document.createRange();
+      const startMax = startNode.nodeValue ? startNode.nodeValue.length : 0;
+      const endMax = endNode.nodeValue ? endNode.nodeValue.length : 0;
+      range.setStart(startNode, Math.max(0, Math.min(startOffset, startMax)));
+      range.setEnd(endNode, Math.max(0, Math.min(endOffset, endMax)));
+      return range;
+    } catch (error) {
+      logNotes('warn', '构造定位 Range 失败', { error: String(error && error.message ? error.message : error) });
+      return null;
+    }
+  }
+
+  // 在阅读页「已渲染的正文」里找这段文字，命中即返回对应的 DOM Range
+  function locateInReader(text) {
+    const needle = tightenForSearch(text);
+    if (needle.length < 2) {
+      return null;
+    }
+    const roots = Array.prototype.slice.call(document.querySelectorAll('.readerChapterContent'));
+    if (roots.length === 0) {
+      const alt = document.querySelector('.app_content') || document.querySelector('.readerContent');
+      if (alt) {
+        roots.push(alt);
+      }
+    }
+    // 由长到短依次尝试：既优先精确，又容忍长划线首尾的字词差异
+    const lengths = [needle.length, 40, 20, 10];
+    for (let r = 0; r < roots.length; r += 1) {
+      const index = buildReaderIndex(roots[r]);
+      if (!index.tight) {
+        continue;
+      }
+      for (let l = 0; l < lengths.length; l += 1) {
+        const len = Math.min(lengths[l], needle.length);
+        if (len < 4) {
+          continue;
+        }
+        const probe = needle.slice(0, len);
+        const at = index.tight.indexOf(probe);
+        if (at < 0) {
+          continue;
+        }
+        const lastIdx = Math.min(at + probe.length - 1, index.map.length - 1);
+        const range = rangeFromRawOffsets(index, index.map[at], index.map[lastIdx] + 1);
+        if (range) {
+          return range;
+        }
+      }
+    }
+    return null;
+  }
+
+  // 阅读器「可视区」矩形：翻页模式取正文外层容器，退化到窗口
+  function readerViewportRect() {
+    const el = document.querySelector('.wr_horizontalReader_app_content') ||
+      document.querySelector('.readerChapterContent_container') ||
+      document.querySelector('.app_content');
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 1 && rect.height > 1) {
+        return rect;
+      }
+    }
+    return {
+      top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth,
+      width: window.innerWidth, height: window.innerHeight,
+    };
+  }
+
+  // 目标文字是否已落在可视区里（能看见才值得闪一下）
+  function rangeVisibleRect(range) {
+    let rects;
+    try {
+      rects = range.getClientRects();
+    } catch (error) {
+      rects = null;
+    }
+    if (!rects || !rects.length) {
+      return null;
+    }
+    const view = readerViewportRect();
+    for (let i = 0; i < rects.length; i += 1) {
+      const rect = rects[i];
+      if (!rect || rect.width < 1 || rect.height < 1) {
+        continue;
+      }
+      if (rect.bottom > view.top + 2 && rect.top < view.bottom - 2) {
+        return rect;
+      }
+    }
+    return null;
+  }
+
+  // 目标相对可视区的方位：inside / ahead（在后面，需向后翻）/ back（在前面）/ unknown
+  function rangeDirection(range) {
+    let box = null;
+    try {
+      box = range.getBoundingClientRect();
+    } catch (error) {
+      box = null;
+    }
+    if (!box || (box.width < 1 && box.height < 1)) {
+      return 'unknown';
+    }
+    const view = readerViewportRect();
+    if (box.bottom <= view.top + 2) {
+      return 'back';
+    }
+    if (box.top >= view.bottom - 2) {
+      return 'ahead';
+    }
+    return 'inside';
+  }
+
+  // 滚动模式：把目标滚到可视区偏上位置
+  function centerRangeInView(range, scroller) {
+    let rect = null;
+    try {
+      rect = range.getBoundingClientRect();
+    } catch (error) {
+      rect = null;
+    }
+    if (!rect) {
+      return;
+    }
+    if (scroller === 'window') {
+      window.scrollTo({ top: window.scrollY + rect.top - window.innerHeight / 3, behavior: 'smooth' });
+      return;
+    }
+    if (scroller instanceof Element) {
+      const base = scroller.getBoundingClientRect().top;
+      scroller.scrollTop += (rect.top - base) - scroller.clientHeight / 3;
+    }
+  }
+
+  // 让浏览器把目标元素滚进视野（滚动模式下有效；翻页模式为空操作）
+  function revealRange(range) {
+    const node = range.startContainer;
+    const el = node && node.nodeType === 3 ? node.parentElement : (node || null);
+    if (el && typeof el.scrollIntoView === 'function') {
+      try {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      } catch (error) {
+        el.scrollIntoView();
+      }
+    }
+  }
+
+  // 命中后的收尾：高亮 + 提示 + 日志
+  function finishJump(range, target) {
+    revealRange(range);
+    // 等平滑滚动结束后，按新位置画高亮框
+    setTimeout(function () {
+      flashRange(range);
+    }, 340);
+    toast('已定位到原文');
+    logNotes('info', '已在正文定位到目标文本', {
+      chapter: target.chapterName || '',
+      length: tightenForSearch(target.text).length,
+    });
+  }
+
+  const JUMP_MAX_TURNS = 12; // 翻页模式最多向后翻多少页去找目标
+
+  // 向后翻一页：复用 content.js 自动阅读在 canvas 模式下的同款机制
+  function turnOnePage() {
+    if (typeof scrollTargetBy === 'function') {
+      scrollTargetBy('canvas', 1);
+      return;
+    }
+    document.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'ArrowDown', code: 'ArrowDown', keyCode: 40, which: 40, bubbles: true, cancelable: true,
+    }));
+  }
+
+  // 逐页向后翻，直到目标文字进入可视区（仅用于确认目标在当前页之后的情况）
+  function turnToTarget(target, turns) {
+    const range = locateInReader(target.text);
+    if (range && rangeVisibleRect(range)) {
+      finishJump(range, target);
+      return;
+    }
+    if (range && rangeDirection(range) === 'back') {
+      toast('这段原文在当前页之前，请先向前翻到「' + (target.chapterName || '对应位置') + '」再点');
+      logNotes('info', '定位原文在视野之前，停止向后翻页', { chapter: target.chapterName || '', turns: turns });
+      return;
+    }
+    if (turns >= JUMP_MAX_TURNS) {
+      toast(target.chapterName
+        ? '这段原文不在当前页，已向后翻了 ' + turns + ' 页仍未找到，请手动翻到「' + target.chapterName + '」再点'
+        : '这段原文不在当前页，已向后翻了 ' + turns + ' 页仍未找到，请手动翻到对应章节再点');
+      logNotes('info', '翻页定位未命中', { chapter: target.chapterName || '', turns: turns });
+      return;
+    }
+    turnOnePage();
+    setTimeout(function () {
+      turnToTarget(target, turns + 1);
+    }, 420);
+  }
+
+  // 在目标文字四周画一圈临时高亮（用浮层实现，不改动官方 DOM）
+  function flashRange(range) {
+    Array.prototype.forEach.call(document.querySelectorAll('.wre-jump-flash'), (el) => {
+      if (el && el.parentNode) {
+        el.parentNode.removeChild(el);
+      }
+    });
+    let rects;
+    try {
+      rects = range.getClientRects();
+    } catch (error) {
+      rects = null;
+    }
+    if (!rects || !rects.length) {
+      return;
+    }
+    const visibleRects = [];
+    Array.prototype.forEach.call(rects, (rect) => {
+      if (!rect || rect.width < 1 || rect.height < 1) {
+        return;
+      }
+      visibleRects.push(rect);
+    });
+    visibleRects.forEach((rect) => {
+      const box = document.createElement('div');
+      box.className = 'wre-jump-flash';
+      box.style.left = rect.left + 'px';
+      box.style.top = rect.top + 'px';
+      box.style.width = rect.width + 'px';
+      box.style.height = rect.height + 'px';
+      document.body.appendChild(box);
+      setTimeout(() => {
+        if (box.parentNode) {
+          box.parentNode.removeChild(box);
+        }
+      }, 1800);
+    });
+  }
+
+  function jumpToNote(target) {
+    if (!target) {
+      return;
+    }
+    const text = tightenForSearch(target.text);
+    if (!text) {
+      toast('这条没有可定位的原文');
+      return;
+    }
+    const chapter = target.chapterName || '';
+
+    const range = locateInReader(target.text);
+    if (!range) {
+      toast(chapter
+        ? '当前页面里没找到这段原文，先切到「' + chapter + '」再点'
+        : '当前页面里没找到这段原文，先翻到对应章节再点');
+      logNotes('info', '定位原文未命中（不在当前已渲染的章节内容里）', { chapter: chapter });
+      return;
+    }
+
+    const direction = rangeDirection(range);
+    const revealRect = rangeVisibleRect(range);
+    // 复用 content.js 的滚动目标探测（window / 可滚容器 / canvas 翻页）
+    const scroller = typeof findScrollTarget === 'function'
+      ? findScrollTarget()
+      : (document.querySelector('.wr_horizontalReader') ? 'canvas' : 'window');
+    // 记录一次判定依据，便于真机排查「命中但没动」的情况
+    logNotes('info', '定位原文命中', {
+      chapter: chapter,
+      length: text.length,
+      rects: (function () {
+        try {
+          return range.getClientRects().length;
+        } catch (error) {
+          return -1;
+        }
+      })(),
+      inView: !!revealRect,
+      direction: direction,
+      scrollTarget: String(scroller),
+    });
+
+    // 1) 目标已在当前视野：直接高亮
+    if (revealRect) {
+      finishJump(range, target);
+      return;
+    }
+
+    // 2) 可滚动（滚动模式）：滚到目标处再高亮
+    if (scroller && scroller !== 'canvas') {
+      centerRangeInView(range, scroller);
+      setTimeout(function () {
+        finishJump(locateInReader(target.text) || range, target);
+      }, 380);
+      return;
+    }
+
+    // 3) 翻页 / canvas 模式：只有确认目标在本页之后才逐页向后翻，否则给出明确提示
+    if (direction === 'back') {
+      toast('这段原文在当前页之前，请先向前翻到「' + (chapter || '对应位置') + '」再点');
+      logNotes('info', '定位原文在视野之前，未自动翻页', { chapter: chapter });
+      return;
+    }
+    if (direction !== 'ahead') {
+      toast(chapter
+        ? '这段原文不在当前页，请手动翻到「' + chapter + '」再点'
+        : '这段原文不在当前页，请手动翻到对应位置再点');
+      logNotes('info', '定位原文无法判断方位，未自动翻页', { chapter: chapter, direction: direction });
+      return;
+    }
+    turnToTarget(target, 0);
   }
 
   // ---------- 导出 ----------

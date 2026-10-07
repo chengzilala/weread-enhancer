@@ -1,20 +1,51 @@
 /**
- * 本机存储（H5 版）
+ * 本机存储（账户层，官网与网页版共用）
+ *
+ * 统一存储键：官网（/）与网页版（/app/）同域名同 origin，共用下面这组键，
+ *   所以「网站+h5 同一套账户、同一个登录系统」天然成立，无需任何同步机制。
+ *   官网「我的账户」页与网页版「我的」页都读写这里，登录态互通。
  *
  * 红线：
  *   1. 微信读书 wrk- / DeepSeek sk- Key **不落本机**，只交服务端加密托管（见 H1）；
- *      本机仅保存 deviceId 与「掩码」，用于识别与展示。
- *   2. 本机资料（昵称 / 头像）只存 localStorage，用于分享署名，不上传。
- *   3. localStorage 仅存：deviceId、端点地址、掩码、昵称头像、接口缓存。
+ *      本机仅保存账户码与「掩码」，用于识别与展示。
+ *   2. 昵称可托管到自建云函数（随账户跨设备同步，非敏感）；头像不上传图片，
+ *      用昵称首字在本机渲染。本机 localStorage 只作显示缓存。
+ *   3. localStorage 仅存：账户码、端点地址、掩码、昵称、接口缓存。
  */
 
 import { CONFIG } from './config.js';
 
-const DEVICE_KEY = 'wre_h5_device';
-const ENDPOINT_KEY = 'wre_h5_endpoint';
-const MASK_KEY = 'wre_h5_masked';          // { masked, hasAiKey, aiMasked }
-const PROFILE_KEY = 'wre_h5_profile';      // { nickName, avatarUrl }
-const CACHE_PREFIX = 'wre_h5_cache_';
+// 账户码 = 账号 + 登录凭证（一体）；同一浏览器首次访问自动生成并长期复用
+const DEVICE_KEY = 'wre_account_id';
+const ENDPOINT_KEY = 'wre_account_endpoint';
+const MASK_KEY = 'wre_account_mask';       // { masked, hasAiKey, aiMasked }
+const PROFILE_KEY = 'wre_account_profile'; // { nickName, avatarUrl }
+const CACHE_PREFIX = 'wre_h5_cache_';      // 纯本机临时缓存，无需与官网共享
+
+// 旧版（仅网页版时期）的键名 → 统一键名；首次加载时一次性搬过来，保证登录态不丢
+const LEGACY_KEY_MAP = {
+  wre_h5_device: DEVICE_KEY,
+  wre_h5_endpoint: ENDPOINT_KEY,
+  wre_h5_masked: MASK_KEY,
+  wre_h5_profile: PROFILE_KEY,
+};
+
+(function migrateLegacyKeys() {
+  try {
+    Object.keys(LEGACY_KEY_MAP).forEach(function (oldKey) {
+      const nextKey = LEGACY_KEY_MAP[oldKey];
+      if (!localStorage.getItem(nextKey)) {
+        const val = localStorage.getItem(oldKey);
+        if (val) {
+          localStorage.setItem(nextKey, val);
+        }
+      }
+      localStorage.removeItem(oldKey);
+    });
+  } catch (e) {
+    // 隐私模式 / 存储不可用：忽略
+  }
+})();
 
 /** 生成十六进制随机串（浏览器 CSPRNG，非用户信息） */
 function randomHex(bytes) {
@@ -30,7 +61,7 @@ function randomHex(bytes) {
   return Array.from(arr).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** 设备标识：首次访问生成一次（32 位十六进制），之后长期复用 */
+/** 账户码：首次访问生成一次（32 位十六进制），之后长期复用；即账号 + 登录凭证 */
 export function getDeviceId() {
   let id = '';
   try {
@@ -49,14 +80,30 @@ export function getDeviceId() {
   return id;
 }
 
-/** 更换设备标识（相当于「换一个身份」，会与已托管的 Key 失联） */
+/** 退出登录：清空本机账户码、掩码与昵称（下次访问会生成新账户；旧账户可用账户码再登录找回） */
 export function resetDeviceId() {
   try {
     localStorage.removeItem(DEVICE_KEY);
     localStorage.removeItem(MASK_KEY);
+    localStorage.removeItem(PROFILE_KEY);
   } catch (e) {
     // 忽略
   }
+}
+
+/** 用账户码登录（填入另一台设备的账户码）恢复身份；须为 32 位十六进制。返回是否成功 */
+export function setDeviceId(id) {
+  const value = String(id || '').trim().toLowerCase();
+  if (!/^[0-9a-f]{32}$/.test(value)) {
+    return false;
+  }
+  try {
+    localStorage.setItem(DEVICE_KEY, value);
+    localStorage.removeItem(MASK_KEY);   // 掩码已失效，重新向服务端确认
+  } catch (e) {
+    return false;
+  }
+  return true;
 }
 
 /** 中转服务地址：网址参数 > 本机保存 > 配置常量 */
@@ -110,7 +157,7 @@ export function setMask(mask) {
   }
 }
 
-/** 本机资料：{ nickName, avatarUrl } */
+/** 本机资料缓存：{ nickName, avatarUrl }（昵称以服务端为准，这里只作显示与分享署名） */
 export function getProfile() {
   try {
     const raw = localStorage.getItem(PROFILE_KEY);

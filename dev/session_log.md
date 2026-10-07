@@ -1451,4 +1451,75 @@
   - 上线侧（用户自理）：部署云函数 HTTP 访问服务、建集合、设环境变量、把线上域名加入 `H5_ORIGINS`。
 - **风险/注意事项**：① `KEY_SECRET` **一旦设置不可更改**，否则已托管 Key 无法解密；② 未配 `H5_ORIGINS` 会退回 `Origin: *`（仅调试用，上线务必收敛）；③ `deviceId` 即身份、无登录，泄露可被冒用（随机 ≥32 位、仅存本机、服务端只回掩码）；④ 本地预览域名需临时加入 `H5_ORIGINS` 方可跨域调试；⑤ 本次 H5 改动**未提交**。
 
+---
+
+## 2026-10-07 会话条目：H5 移动端 阶段 2 + 3 + 4 全部落地 · 一次性测试 (完成代码，本地验证通过；待部署 / 待真机验收)
+- **目标**：按需求 §6 把 H5 剩余功能**一次性开发完成**——阶段 2（H10/H11/H12 AI 回顾）、阶段 3（H5 分享 / H6·H7 / H9）、阶段 4（H13 朗读 / H8 同步码 / H14 运营看板 / PWA），随后统一做一次测试。
+- **已做**：
+  - **阶段 2 · AI 回顾**：
+    - **`h5/src/core/` 逐字移植小程序 `shared/*`（仅 CJS→ESM）**：`daily-core.js`、`daily-data.js`、`daily-generate.js`（去本机 Key 检查，只走托管 AI 路径）、`daily-ai.js`、`daily-store.js`；`wander-core.js`、`wander-data.js`、`wander-ai.js`（六段式提示词逐字一致）、`wander-store.js`。H5 差异：数据层签名无 `apiKey`（Key 由服务端按 deviceId 托管）。
+    - **H10 AI 人格画像**：`src/ai.js` 提供 `generatePersonaPortrait/buildPersonaPrompt/callAI`；`views/persona.js` 新增 AI 润色卡（`ai` 按钮，`aiBusy` 门控）、分享、朗读；AI 只润色、失败退回本机判定。
+    - **H11 每日卡片** `views/daily.js`：取材自己的划线 / 想法 → AI 成文；本机存档、往期回看、收藏、分享、朗读；每日限次重新生成。
+    - **H12 灵感漫游** `views/wander.js`：铜/银/金分级 + 每周限次；六段式综述 + 原文下划线（`wre-mine`）+ 外部火花（标「AI 联想 · 未核实」）+ 创作种子；往期归档 / 随机漫游 / 规则弹层。
+  - **阶段 3 · 延展与传播**：
+    - **H5 分享** `src/share.js`：`makeShareCard`（canvas 竖版零依赖）、`downloadImage`、`shareCard`（Web Share → 下载兜底）、`copyLink`、`openShareSheet` / `presentShareCard`（先出图 → 弹层 → 用户点击时再触发分享，保证用户手势）。
+    - **H9 署名**：`store.getProfile/setProfile`（昵称，仅本机）；分享图 footer 带署名。
+  - **阶段 4 · 增强**：
+    - **H13 朗读** `src/tts.js`：`speechSynthesis`，分段朗读（≤80 字）规避 Chrome 截断；底部控制条（暂停 / 上下条 / 停止）；切后台 / `pagehide` 即停；`setTtsToast` 注入统一 toast；已接入每日卡片 / 灵感漫游 / 人格。
+    - **H8 同步码**：`store.setDeviceId`（校验 32 位 hex，清除本机掩码）＋「我的」页「复制同步码 / 用同步码恢复」；跨设备粘贴即可找回同一份托管 Key。
+    - **H14 运营看板** `views/admin.js`：口令门（本机 `wre_h5_admin_token`）→ 云函数 `opsAdmin` 聚合小程序 / 插件 / H5 三段匿名用量；只读。
+    - **PWA**：`h5/manifest.webmanifest` + `h5/sw.js`（网络优先，仅同源 GET）+ `h5/assets/pwa.js`（仅 https/localhost 注册，失败静默）；`index.html` 接入 manifest / icon / pwa.js。
+  - **接线**：
+    - `assets/app.js`：新增**二级页路由** `SECONDARY`（`daily / wander / admin`，进入隐藏 TabBar、页面自带返回）；`app.go` 支持 Tab 与二级页；启动注入 `setTtsToast(toast)`。
+    - `views/home.js`：首页入口新增「🗂 每日卡片 / 🧭 灵感漫游」。
+    - `views/me.js`：新增「同步码（跨设备找回）」卡与「运营看板」入口；`views/admin.js` 加返回条。
+    - `assets/app.css`：新增全部新视图类名（`wre-back/wre-btn-row/wre-dailycard/wre-related/wre-spark/wre-seed/wre-history/wre-block/wre-share-mask·panel/wre-tts-bar/wre-link-inline` 等）。
+  - **文档回灌**：`plan/RPD_H5移动端_需求文档.md` §6 阶段 0–4 全部打勾（H8 补注「复制 deviceId → 新设备粘贴恢复」）；`h5/README.md`（目录结构 + 「实现的页面（阶段 0–4）」表）。
+  - **一次性测试（本轮）**：`GetDiagnostics` 全部新 / 改文件**无 error**（仅剩 Hint：未用变量 / `execCommand` 弃用等）；本地 `python3 -m http.server 8930` + 浏览器核验：首屏「配置中转服务地址」卡 + 五栏 Tab 正常；**控制台零错误**。
+- **修复（本轮发现并已处理）**：
+  1. **ESM 致命链断裂**：`wander-store.js` 从 `wander-core.js` 导入 `hashKey`，但后者只 `export { dateKey }` → 链接期 `SyntaxError`，`assets/app.js` 整图失败（空白主内容）。修复：`wander-core.js` 改为 `export { dateKey, hashKey }`（顺带修正了沿用小程序侧「`used[hashKey(...)]` 因 `hashKey` 为 undefined 导致去重失效」的隐患）。**浏览器二次硬刷新后该错误消失、控制台归零。**
+  2. **AI 提示词字段不匹配**：`src/ai.js` 的 `buildPersonaPrompt` 用了 `dim.leftLabel/pct`，而 `persona-core` 维度实为 `dim.left.label/leftPct` → 提示词会输出 `undefined`。修复：改为读 `dim.left.label / dim.leftPct / dim.right.label`；`views/persona.js` 的分享 chips 与朗读文案同步改用正确字段。
+- **关键结论/决定**：① AI 只做「润色 / 串联」，绝不改变本机已算好的事实，失败不退回本地模板冒充；② 分享采用「先出图 → 弹层 → 用户手势触发分享」，兼容移动端 Web Share 限制；③ TTS 零依赖、本机合成、不联网、不上传、切后台即停；④ H8 采用「deviceId 即同步码」的最小形态（用户自行复制），符合 §9-5「无登录、跨设备留 P2」；⑤ PWA 仅壳缓存，业务数据仍网络优先。
+- **产出物（文件/链接）**：
+  - 新增：`h5/src/core/{daily-core,daily-data,daily-generate,daily-ai,daily-store,wander-core,wander-data,wander-ai,wander-store}.js`、`h5/src/{ai,share,tts}.js`、`h5/src/views/{daily,wander,admin}.js`、`h5/manifest.webmanifest`、`h5/sw.js`、`h5/assets/pwa.js`、`h5/assets/icon.svg`。
+  - 修改：`h5/index.html`、`h5/assets/app.js`、`h5/assets/app.css`、`h5/src/store.js`、`h5/src/ai.js`、`h5/src/views/{home,persona,me}.js`、`h5/src/core/wander-core.js`、`plan/RPD_H5移动端_需求文档.md`、`h5/README.md`。
+  - **验证**：`GetDiagnostics` 无 error；本地起服务浏览器核验「零 console 错误 + 五栏 + 设置门正常」。
+- **待办**：
+  - 用户侧部署：云函数 `wereadProxy` 的 `H5_ORIGINS` 白名单、`KEY_SECRET`、`wre_users` 集合、HTTP 访问服务绑 `/h5`，以及 DeepSeek Key（AI 功能）。
+  - 真机验收：AI 三处（H10/H11/H12）在托管 Key 下能生成、未配 / 失效有引导；分享图能分享 / 下载；TTS 能播放 / 暂停 / 停止；H8 同步码跨设备找回；H14 口令看板。
+  - 本次 H5 改动**未提交**（待用户确认后按 `git-sync` / `pack-publish` 处理）。
+- **风险/注意事项**：① 无后端 endpoint 时所有路由统一显示设置门（属预期，非错误）；② 官方网关变更 / Key 风控 → 统一错误码降级；③ 移动浏览器 TTS 差异（iOS 需用户手势、语音包不一）已在交互上规避；④ AI 成本由用户自付 Key，已用「每日限次 / 每周分级」限流；⑤ `hashKey` 去重修复后，H5 与小程序在该处行为不再逐字一致（H5 为修正版）。
+
+## 2026-10-07 会话条目：H5 云端联调打通 + 并入官网 /app/ 发布 (完成代码，云端已联调；待重新部署云函数 / 待真机验收)
+- **目标**：让 H5 真正跑起来——① 打通云函数网关（Key 托管链路）；② 决定并落地「H5 与官网」的部署关系。
+- **已做**：
+  - **云端部署联调**（用户操作 + 我逐项验证）：云开发控制台为 `wereadProxy` 绑 HTTP 网关路由 `/h5`（**新控制台该项叫「HTTP 网关」，旧版开发者工具内置控制台没有此菜单**）；执行超时 3s → 30s；环境变量 `KEY_SECRET`；新建集合 `wre_users`。验证序列：路由连通 → `nosecret`（未配密钥）→ `param`（已配、缺参数）→ 用假 Key 走完「写入 → 读掩码 → 清除 → 再读确认」四步全通（测试数据已清理）。
+  - **H5 内置网关地址**：`h5/src/config.js` 的 `ENDPOINT` 写死为 `https://cloud1-d4g1dq0sc7f62329d-1500443307.ap-shanghai.app.tcloudbase.com/h5`；**删除首屏「配置中转服务地址」拦截页**与「我的」页里的地址输入项——该配置属开发者一次性配置，不该让终端用户填。
+  - **官网合并发布（本次决定）**：`web/build.py` 新增 `copy_app()`（`h5/` → `dist/app/`，排除 `README.md`）；`web/site.config.json` 新增 `appUrl: "/app/"`；首页 Hero 按钮组新增「网页版体验」（排在「快速上手」与「微信小程序」之间）。
+- **修复（本轮发现并已处理）**：
+  1. **`keySave` 更新路径报 `-501007 不能更新_id的值`**：读回的托管文档被**原样回写**，把云开发自带的 `_id` 一起写了回去。已改为回写前 `delete base._id`（见 `mobile/cloudfunctions/wereadProxy/index.js` 的 `handleKeySave`）。**该 bug 只在「第二次保存」（文档已存在）时触发**，首次写入的测试覆盖不到——上一条会话的 curl 自测正是首次写入，因此漏过。
+- **关键结论/决定**：
+  - **H5 与官网「合并部署、源码独立」**：官网用绝对路径（`/assets/...`）必须占域名根；H5 全用相对路径 + hash 路由，`sw.js` 与 manifest 也是相对注册 → 放进 `/app/` **零改造**，且 SW 作用范围自动收在 `/app/` 内，不波及官网。
+  - **网关跨域不必额外配**：实测 HTTP 网关自身会加 `Access-Control-Allow-Origin`（且与云函数的不重复），控制台路由的「跨域设置」保持开启即可，`H5_ORIGINS` 可留空。
+- **产出物（文件/链接）**：
+  - 修改：`web/build.py`、`web/site.config.json`、`mobile/cloudfunctions/wereadProxy/index.js`、`h5/src/config.js`、`h5/assets/app.js`、`h5/src/views/me.js`、`h5/README.md`、`plan/session_handoff_网站帽子云部署.md`。
+  - 线上路径：官网 `https://wereadapp-32km31c.maozi.io`，网页版 `https://wereadapp-32km31c.maozi.io/app/`。
+- **验证**：`python3 web/build.py` → 25 页 + 4 栏目索引、**0 告警**、37 个文件进 `dist/app/`（`README.md` 未带入）；在 `web/dist` 起本地服务，`/`、`/app/`、`/app/index.html`、`/app/assets/app.js`、`/app/src/views/home.js`、`/app/manifest.webmanifest`、`/app/sw.js` **全部 200**。
+- **待办**：
+  - **重新上传部署云函数 `wereadProxy`**（含 `_id` 修复），否则更新路径仍报错。
+  - 网站 + H5 一起发布：重建 `site-dist` 分支 → 帽子云控制台点部署。
+  - 真机验收：填真实 `wrk-` Key、AI 三处、分享图、朗读、同步码、口令看板。
+- **风险/注意事项**：① 云函数改动**必须重新部署**才生效（改本机文件不自动同步云端）；② `/app/` 依赖静态托管的目录索引，机制与现有 `/guide/` 相同，风险低；③ 本次改动**未提交**（待用户确认后按 `git-sync` / `pack-publish` 处理）。
+
+## 2026-10-07 会话条目：小程序 / H5 阅读人格严格复刻插件板式 (代码已完成，待真机/浏览器验收)
+- **目标**：小程序与 H5 的「阅读人格」结果页内容过少，**严格完整复刻插件板式**。
+- **已做**：
+  - **H5**（`h5/src/views/persona.js`、`h5/assets/app.css`）：引入 `personaYear`；重写 `dimRow`（对齐插件 `buildPersonaDimHtml`——极名 + 百分比 + 依据 + 居中/数据不足态）；新增 `wordsHtml`（对齐 `buildPersonaWordsHtml`——高频词 TOP10 条形 / 情绪三色条 + 图例 / 主题词 chips / 字号映射词云 / 口头禅）；重写 `personaHtml` 为单张 `.wre-persona` 主卡（头部含人物插画 + 分享 + 绰号 + 一句话 + AI 块 + 四维 + 数据证据 + 原文证据 + 语料提示 + 词语分析 + 边界声明）。
+  - **小程序**（`pages/persona/index.{js,wxml,wxss}`）：`renderResult` 补齐视图模型（`dims` rightPct/leftPick/rightPick/basisText、`words.top.barPct`、`words.cloud.size`、`quotes.yearText`、`figureUri`）；WXML 结果块重写为单张 `.wre-card.persona`，逐块对齐插件；WXSS 整体重写（rpx，数值按 `official.css` 比例换算）。
+- **关键结论**：复刻权威源 = 插件 `modules/official.js` 的 `buildPersonaSectionHtml()` / `buildPersonaDimHtml()` / `buildPersonaWordsHtml()` 与 `modules/official.css`；三端数据同源（`persona-core`），差异只在渲染层。
+- **产出物**：`h5/src/views/persona.js`、`h5/assets/app.css`、`mobile/miniprogram/pages/persona/index.{js,wxml,wxss}`；文档回灌 `plan/RPD_阅读人格_需求文档.md`（v0.3.4）、`plan/RPD_H5移动端_需求文档.md`、`plan/RPD_小程序移动端_需求文档.md`、`test/移动端小程序测试清单.md`（新增 5.9~5.12）。
+- **验证**：`GetDiagnostics` 两处改动文件均无 error（仅无害 Hint）。视觉/交互留待真机与浏览器验收。
+- **待办**：小程序重新编译预览、H5 刷新页面复验；按 `test/移动端小程序测试清单.md` 5.9~5.12 走查。
+- **风险/注意事项**：① 版本号沿用当前开发版 `0.26.0`（上个已归档 Tag 为 v0.25.0），本次未再递增；② 本次改动**未提交**（待用户确认后按 `git-sync` / `pack-publish` 处理）。
+
 

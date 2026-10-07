@@ -4,7 +4,7 @@
 需求文档：`plan/RPD_H5移动端_需求文档.md`。
 
 - 技术栈：原生 HTML / CSS / JS（ES Module），**零外部依赖**。
-- 数据来源：复用微信云函数 `wereadProxy` 的「HTTP 访问服务」中转官方网关（浏览器无法直连）。
+- 数据来源：复用微信云函数 `wereadProxy` 的 HTTP 网关（控制台「HTTP 网关」路由）中转官方接口（浏览器无法直连）。
 - 身份：无登录，用本机随机 `deviceId`（32 位十六进制）识别。
 - Key：只提交一次给**你自己的云函数加密托管**（AES-256-GCM），本机只留掩码，可一键清除。
 - 计算：阅读数据 / 人格 / 报告全部在浏览器本机按固定规则算出（`h5/src/core/*` 与小程序 `shared/*` 逐字一致）。
@@ -20,19 +20,29 @@
 
 ```
 h5/
-├── index.html          外壳页（header / main#view / nav#tabbar）
+├── index.html              外壳页（header / main#view / nav#tabbar）
+├── manifest.webmanifest    PWA 清单
+├── sw.js                   Service Worker（网络优先）
 ├── assets/
-│   ├── app.css         移动端样式（品牌色 #2F6BFF）
-│   └── app.js          应用外壳：hash 路由 + 五栏 Tab + 拦截态
+│   ├── app.css             移动端样式（品牌色 #2F6BFF）
+│   ├── app.js              应用外壳：hash 路由（五栏 Tab + 二级页）+ 拦截态
+│   ├── pwa.js              PWA 注册（仅 https / localhost）
+│   └── icon.svg            图标
 └── src/
-    ├── config.js       全局配置（中转地址、超时）
-    ├── store.js        本机存储（deviceId / 端点 / 掩码 / 资料 / 缓存）
-    ├── api.js          中转客户端（relay / ai / keySave…）
-    ├── data.js         取数层（拼装官方接口 → 精简结构）
-    ├── ui.js           esc / stateHtml / toast / copyText
-    ├── core/           纯计算（与小程序 shared 逐字一致，仅 CJS→ESM）
+    ├── config.js           全局配置（中转地址、超时）
+    ├── store.js            本机存储（账户码 / 端点 / 掩码 / 昵称 / 缓存）；统一键 wre_account_*，与官网共用
+    ├── api.js              中转客户端（relay / ai / keySave / ops…）
+    ├── data.js             取数层（拼装官方接口 → 精简结构）
+    ├── ai.js               AI 通道（H10 人格画像；托管 Key）
+    ├── share.js            分享图（canvas）+ Web Share / 下载 / 复制链接
+    ├── tts.js              语音复习（Web Speech API）
+    ├── ui.js               esc / stateHtml / toast / copyText
+    ├── core/               纯计算（与小程序 shared 逐字一致，仅 CJS→ESM）
     │   ├── format.js  report-core.js  persona-core.js  home-core.js  errors.js
-    └── views/          页面：home / persona / report / shelf / me
+    │   ├── daily-core.js  daily-data.js  daily-generate.js  daily-ai.js  daily-store.js
+    │   └── wander-core.js  wander-data.js  wander-ai.js  wander-store.js
+    └── views/              页面：home / persona / report / shelf / me
+                            + daily / wander / admin
 ```
 
 ## 一、部署云函数（中转服务）
@@ -44,18 +54,25 @@ H5 的全部数据、AI、Key 托管都经云函数完成，先按 `mobile/cloud
 3. 「云函数 → wereadProxy → 配置 → 环境变量」新增：
    - `KEY_SECRET`：一串足够长的随机字符串，用于应用层加密。**一旦设置不要更改**，否则已托管的 Key 无法解密。
    - `H5_ORIGINS`：允许跨域的 H5 站点地址（如 `https://your.site`），多个用英文逗号分隔。**不配则退回 `Origin: *`**（仅调试用，上线务必收敛）。
-4. 「云开发控制台 → HTTP 访问服务」为 H5 另绑一个路径（如 `/h5`）到本函数，得到形如
-   `https://<envId>.service.tcloudbase.com/h5` 的地址。
+4. 「云开发控制台 → HTTP 网关 → 域名及路由 → 添加路由」为 H5 另绑一个路径（如 `/h5`）到本函数：
+   - 访问路径 `/h5`；关联资源选「云函数」→ `wereadProxy`
+   - 「跨域设置」**关闭**（跨域由云函数自身的 `H5_ORIGINS` 处理，重复配置会出现两个 CORS 头反而报错）
+   - 「路径透传」「身份认证」均关闭
+   保存后得到形如 `https://<envId>-<随机串>.<地域>.app.tcloudbase.com/h5` 的地址。
 
-## 二、配置中转地址
+## 二、配置中转地址（开发者一次性）
 
-三种方式任选其一（优先级：网址参数 > 本机保存 > `config.js` 常量）：
+网关地址是**部署参数，终端用户无需填写**：把它写进 `h5/src/config.js` 的 `ENDPOINT` 即可（本仓库已内置）。
 
-- **推荐**：打开 H5 → 首屏「配置中转服务地址」→ 填入上一步地址 → 保存。
-- 网址参数：`https://your.site/?endpoint=https://xxx.service.tcloudbase.com/h5`（写入本机后长期生效）。
-- 代码常量：把地址写进 `h5/src/config.js` 的 `ENDPOINT`（适合自动化部署）。
+本地调试可用网址参数临时覆盖，优先级：网址参数 > 本机 localStorage > `config.js` 常量：
 
-配好后「我的」页可随时查看 / 修改；再填写以 `wrk-` 开头的微信读书 Key（DeepSeek Key 可选）。
+```
+http://localhost:8930/?endpoint=https://xxx.app.tcloudbase.com/h5
+```
+
+配好后打开 H5，填写以 `wrk-` 开头的微信读书 Key（DeepSeek Key 可选）即可使用。
+
+> **与官网同一套账户**：官网（`/`）与网页版（`/app/`）同域名同 origin，共用同一组存储键 `wre_account_*`（旧 `wre_h5_*` 首次加载自动迁移，登录态不丢）与同一个登录系统；官网「我的账户」页 `/account/` 直接 `import` 本目录的 `store / api / ui` 模块，因此两端是同一份账户实现，登录态天然互通、无需同步。
 
 ## 三、本地预览
 
@@ -83,14 +100,27 @@ http://localhost:8930/?endpoint=https://xxx.service.tcloudbase.com/h5
 - 把线上域名补进云函数环境变量 `H5_ORIGINS`。
 - 页面与 `assets/`、`src/` 保持相对路径结构不变。
 
-## 五、实现的页面（阶段 0 + 阶段 1）
+## 五、实现的页面（阶段 0 – 阶段 4）
+
+底部五栏：首页 / 人格 / 报告 / 书架 / 我的；二级页（自带返回）：每日卡片 / 灵感漫游 / 运营看板。
 
 | 页面 | 说明 |
 | --- | --- |
-| 首页 H2 | 周期切换（本周/本月/本年/累计）+ Hero + 迷你趋势 + 指标 + 偏好分类 + 时段 + 读得最多 |
+| 首页 H2 | 周期切换（本周/本月/本年/累计）+ Hero + 迷你趋势 + 指标 + 偏好分类 + 时段 + 读得最多；底部入口含每日卡片 / 灵感漫游 |
 | 人格 H3 | 本地规则判定阅读人格（4 维 / 16 型），含数据门槛引导 |
+| 人格 H10 | AI 润色画像（走托管 DeepSeek Key；失败退回本机判定） |
 | 报告 H4 | 结构化文字报告（标题 / 指标 / 表格 / 卡片 / 列表） |
-| 书架 H6 | 书架 + 笔记概览（电子书 / 专辑计数、笔记统计） |
-| 我的 | Key 托管（填写→掩码→校验→清除）、DeepSeek Key、署名、中转地址、deviceId |
+| 每日卡片 H11 | 从自己的划线 / 想法取材，AI 成文；本机存档、回看、收藏、分享、朗读；每日限次重新生成 |
+| 灵感漫游 H12 | 铜/银/金分级 + 每周限次；六段式 AI 综述 + 原文下划线 + 外部火花 + 创作种子；往期归档 / 随机漫游 |
+| 书架 H6 / 笔记 H7 | 书架 + 笔记概览（电子书 / 专辑计数、笔记统计） |
+| 分享 H5 | 竖版分享图（canvas 零依赖）→ Web Share / 下载 PNG / 复制链接 |
+| 朗读 H13 | Web Speech API：想法 / 划线 / 每日卡片 / 灵感漫游 / 人格画像，可暂停 / 上下条 / 停止；切后台即停 |
+| 我的账户 | 身份头（昵称首字头像 / 账户码掩码 / 退出登录）、已连接 Key 状态（填→掩码→校验→清除）、DeepSeek Key、跨设备登录（H8 账户码 + 复制/显示）、昵称托管、运营看板入口（H14）。**不设 Key 门槛**，换设备时可直接进来用账户码登录 |
+| 运营看板 H14 | 云函数 `opsAdmin` 口令校验，聚合小程序 / 插件 / H5 三段匿名用量 |
+| PWA | `manifest.webmanifest` + `sw.js`（网络优先），支持加主屏 |
 
-> 后续阶段（AI H10–H12、分享图、语音复习 H13、同步码 H8、运营看板 H14、PWA）见需求文档 §6。
+> **运营看板的口令从哪来（两套机制别混）**
+> - **H5 看板**：口令＝云函数 `wereadProxy` 的环境变量 `ADMIN_TOKEN`（云开发控制台 → 云函数 → `wereadProxy` → 配置 → 环境变量）。**不配则 H5 看板关闭**（接口直接返回「看板未开启」）。用户输入的口令只存本机（`wre_h5_admin_token`），可随时在「我的 → 运营看板」里退出清除。
+> - **小程序看板**：走 `ADMIN_OPENIDS`（你自己 openid 白名单，多个用英文逗号分隔），**不用口令**，仅白名单账号可见。
+
+> 各阶段勾选见需求文档 §6（已全部完成）。

@@ -3,7 +3,7 @@ const data = require('../../shared/data');
 const sync = require('../../shared/sync');
 const { AI_ENABLED } = require('../../config');
 const { generatePersonaPortrait } = require('../../shared/ai');
-const { getReadingPersona } = require('../../shared/persona-core');
+const { getReadingPersona, personaYear } = require('../../shared/persona-core');
 const { personaFigureDataUri } = require('../../shared/persona-figure');
 const { renderPersonaShare } = require('../../shared/persona-share');
 const { messageOf, isKeyError } = require('../../shared/errors');
@@ -303,18 +303,27 @@ Page({
       this.setData({ reason: persona.reason, progress: persona.progress || null, persona: null, error: '' });
       return null;
     }
-    const dimsView = persona.dims.map((dim) => ({
-      key: dim.key,
-      title: dim.title,
-      available: dim.available,
-      leftLetter: dim.left.letter,
-      rightLetter: dim.right.letter,
-      leftLabel: dim.left.label,
-      rightLabel: dim.right.label,
-      side: dim.side,
-      pct: dim.leftPct,
-      basis: dim.basis,
-    }));
+    const dimsView = persona.dims.map((dim) => {
+      const available = dim.available;
+      const centered = !!dim.centered;
+      return {
+        key: dim.key,
+        title: dim.title,
+        available: available,
+        centered: centered,
+        leftLetter: dim.left.letter,
+        rightLetter: dim.right.letter,
+        leftLabel: dim.left.label,
+        rightLabel: dim.right.label,
+        pct: dim.leftPct,
+        rightPct: 100 - (Number(dim.leftPct) || 0),
+        leftPick: available && !centered && dim.side === dim.left.letter,
+        rightPick: available && !centered && dim.side === dim.right.letter,
+        basisText: available
+          ? ('依据：' + (dim.basis || '') + (centered ? '（居中）' : ''))
+          : (dim.basis || '数据还不够'),
+      };
+    });
     // 人格代码释义：把四位字母逐个展开为「字母 + 对应的一端」
     const codeItems = persona.dims.map((dim) => ({
       key: dim.key,
@@ -323,14 +332,43 @@ Page({
         ? (dim.side === dim.left.letter ? dim.left.label : dim.right.label)
         : '待补全',
     }));
+    // 词语分析：补齐高频词条形宽度、词云字号（对齐插件）
     const words = persona.words;
-    const wordsView = words ? {
-      top: words.top,
-      cloud: words.cloud,
-      themes: words.themes,
-      emotion: words.emotion,
-      catchphrase: words.catchphrase,
-    } : null;
+    let wordsView = null;
+    if (words) {
+      const top = words.top || [];
+      const max = top.reduce((acc, item) => Math.max(acc, item.count), 0) || 1;
+      const cloudList = words.cloud || [];
+      const cloudMax = cloudList.reduce((acc, item) => Math.max(acc, item.count), 0) || 1;
+      const cloudMin = cloudList.reduce((acc, item) => Math.min(acc, item.count), cloudMax);
+      wordsView = {
+        top: top.map((item, index) => ({
+          idx: index,
+          word: item.word,
+          count: item.count,
+          barPct: Math.max(4, Math.round((item.count / max) * 100)),
+        })),
+        cloud: cloudList.map((item, index) => ({
+          idx: index,
+          word: item.word,
+          count: item.count,
+          size: 24 + Math.round(((item.count - cloudMin) / ((cloudMax - cloudMin) || 1)) * 28),
+        })),
+        themes: words.themes,
+        emotion: words.emotion,
+        catchphrase: words.catchphrase,
+      };
+    }
+    // 原文证据：补「· 年份」
+    const evidence = {
+      data: persona.evidence.data,
+      quotes: (persona.evidence.quotes || []).map((q, index) => ({
+        idx: index,
+        text: q.text,
+        title: q.title,
+        yearText: q.at ? (' · ' + personaYear(q.at)) : '',
+      })),
+    };
     // 重算时保留同一人格代码的 AI 画像（避免刷新后丢失）
     const prev = this.data.persona;
     const aiText = prev && prev.code === persona.code ? (prev.aiText || '') : '';
@@ -345,7 +383,7 @@ Page({
       nicknames: persona.nicknames,
       oneLiner: persona.oneLiner,
       dims: dimsView,
-      evidence: persona.evidence,
+      evidence: evidence,
       words: wordsView,
       corpusState: persona.corpusState,
       corpusError: persona.corpusError,

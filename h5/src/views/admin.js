@@ -46,6 +46,7 @@ function readToken() {
 // ---- 口令门 ----
 function gateHtml(errorMsg) {
   return (
+    '<div class="wre-back"><button class="wre-back__btn" data-goto="me">← 返回我的</button></div>' +
     '<div class="wre-card">' +
     '  <div class="wre-card__title">运营看板</div>' +
     '  <div class="wre-muted">凭运营口令查看小程序 / 插件 / H5 的匿名使用量汇总。口令只保存在这台设备，可随时退出清除。</div>' +
@@ -81,6 +82,7 @@ async function load(body, app, token) {
 // ---- 看板渲染 ----
 function dashHtml(res) {
   const parts = [];
+  parts.push('<div class="wre-back"><button class="wre-back__btn" data-goto="me">← 返回我的</button></div>');
   parts.push(
     '<div class="wre-card">' +
     '  <div class="wre-card__title">运营看板</div>' +
@@ -152,6 +154,12 @@ function versionsHtml(list, truncated) {
 
 // ---- 事件委托 ----
 function onAction(e, body, app) {
+  const go = e.target.closest('[data-goto]');
+  if (go) {
+    app.go(go.getAttribute('data-goto'));
+    return;
+  }
+
   const btn = e.target.closest('[data-action]');
   if (!btn) {
     return;

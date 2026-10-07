@@ -178,3 +178,11 @@ HTTPS 推送 github.com 走本机代理（127.0.0.1:53893）间歇性 502；`api
 - 线上 `/changelog/` 含 v0.18.0。
 
 **待办**：商店后台（Edge/Chrome/360）的「网站 URL」改为配套站点（文档已改，平台侧需用户操作）。
+
+### 7.4 2026-10-07 网页版（H5）并入网站 `/app/`
+
+- `python3 web/build.py` 现在会把 `h5/` 一并拷到 `web/dist/app/`（排除 `README.md`）。所以**更新 `site-dist` 分支时网页版自动随行**，不需要额外步骤，线上地址 `https://wereadapp-32km31c.maozi.io/app/`。
+- 首页 Hero 新增「网页版体验」按钮，由 `web/site.config.json` 的 `appUrl` 控制（留空则不渲染）。
+- 为什么能放子目录：H5 全用相对路径 + hash 路由，`sw.js` 与 manifest 也是相对注册 → PWA 作用范围自动收在 `/app/` 内，**不影响官网**。
+- 部署配置无需改动：仍是纯静态托管 `site-dist` 分支根目录。
+
