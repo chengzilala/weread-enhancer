@@ -120,8 +120,29 @@ Page({
       scanType: ['barCode'],
       onlyFromCamera: true,
       success: (res) => {
-        this.handleScannedCode(String((res && res.result) || '').trim());
-        this.scanNext(); // 连续录入，直到用户返回
+        const status = this.handleScannedCode(String((res && res.result) || '').trim());
+        if (status === 'added' || status === 'duplicate' || status === 'empty') {
+          // 只有「真的入库了」才自动续扫；留点时间让提示能看清
+          setTimeout(() => this.scanNext(), status === 'added' ? 500 : 900);
+          return;
+        }
+        // 扫到的不是图书 ISBN（或没扫清）→ 停下来让用户决定，避免摄像头反复开关
+        wx.showModal({
+          title: status === 'notisbn' ? '这不是图书条码' : '条码没扫清',
+          content:
+            status === 'notisbn'
+              ? '这是书上的其它条码。请对准封底/书背带 978 或 979 的那条 ISBN 条码；也可改用「手动添加」。'
+              : '再对准一点、让条码占满取景框，重扫一次；也可改用「手动添加」。',
+          confirmText: '再扫一次',
+          cancelText: '手动添加',
+          success: (r) => {
+            if (r.confirm) {
+              this.scanNext();
+            } else {
+              this.onAddManual();
+            }
+          },
+        });
       },
       fail: (err) => {
         const msg = String((err && err.errMsg) || '');
@@ -137,27 +158,25 @@ Page({
     });
   },
 
+  /** 处理扫到/识别到的码 → 返回 'added' | 'duplicate' | 'notisbn' | 'unclear' | 'empty' */
   handleScannedCode(code) {
-    if (!code) {
-      return;
+    const value = String(code || '').trim();
+    if (!value) {
+      return 'empty';
     }
-    if (!pbCore.isIsbnBarcode(code)) {
-      if (/^97[89]\d{10}$/.test(code)) {
-        wx.showToast({ title: '条码没扫清，请重扫一次', icon: 'none' });
-      } else {
-        wx.showToast({ title: '不是图书 ISBN 条码（请对准 978/979 开头那条）', icon: 'none', duration: 2200 });
-      }
-      return;
+    if (!pbCore.isIsbnBarcode(value)) {
+      return /^97[89]\d{10}$/.test(value) ? 'unclear' : 'notisbn';
     }
-    if (pbStore.findByIsbn(code)) {
+    if (pbStore.findByIsbn(value)) {
       wx.showToast({ title: '这本已在你的书库', icon: 'none' });
-      return;
+      return 'duplicate';
     }
-    const item = pbStore.addBook({ isbn: code, title: '' });
+    const item = pbStore.addBook({ isbn: value, title: '' });
     pbStore.backupSilent();
-    wx.showToast({ title: '已加入', icon: 'none', duration: 700 });
+    wx.showToast({ title: '已加入', icon: 'success', duration: 700 });
     this.reload();
-    this.autoFill(item.id, code, '');
+    this.autoFill(item.id, value, '');
+    return 'added';
   },
 
   // ---- M2 拍照识码（旧书 / 条码磨损时，拍书背条码照片识别）----

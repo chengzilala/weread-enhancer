@@ -116,17 +116,18 @@ function renderBlock(b) {
   }
   switch (b.type) {
     case 'heading':
-      return '<h' + b.level + ' class="wre-h' + b.level + '">' + esc(b.text) + '</h' + b.level + '>';
+      // 对齐小程序 report/index.wxml 的 .sec-title / .sec-title--sub
+      return '<div class="wre-sec-title' + (b.level === 3 ? ' wre-sec-title--sub' : '') + '">' + esc(b.text) + '</div>';
     case 'kv':
-      return '<div class="wre-kv">' + b.rows.map((r) =>
-        '<div class="wre-kv__row"><span>' + esc(r[0]) + '</span><span>' + esc(r[1]) + '</span></div>').join('') + '</div>';
+      return '<div class="wre-card"><div class="wre-kv">' + b.rows.map((r) =>
+        '<div class="wre-kv__row"><span>' + esc(r[0]) + '</span><span>' + esc(r[1]) + '</span></div>').join('') + '</div></div>';
     case 'cards':
-      return '<div class="wre-grid">' + b.items.map((it) =>
-        '<div class="wre-grid__item"><div class="wre-grid__value">' + esc(it.value) + '</div>' +
-        '<div class="wre-grid__label">' + esc(it.label) + '</div></div>').join('') + '</div>';
+      return '<div class="wre-cards">' + b.items.map((it) =>
+        '<div class="wre-cards__item"><div class="wre-cards__value">' + esc(it.value) + '</div>' +
+        '<div class="wre-cards__label">' + esc(it.label) + '</div></div>').join('') + '</div>';
     case 'chips':
-      return '<div class="wre-chips">' + b.items.map((it) =>
-        '<span class="wre-chip wre-chip--soft">' + esc(it.label) + '<em>' + esc(it.value) + '</em></span>').join('') + '</div>';
+      return '<div class="wre-card"><div class="wre-chips">' + b.items.map((it) =>
+        '<span class="wre-chip wre-chip--soft">' + esc(it.label) + '<em>' + esc(it.value) + '</em></span>').join('') + '</div></div>';
     case 'table': {
       const bars = Array.isArray(b.bars) ? b.bars : null;
       let html = '<div class="wre-table"><div class="wre-table__head">' +
@@ -136,13 +137,13 @@ function renderBlock(b) {
         const bar = bars ? '<div class="wre-track wre-track--slim"><div class="wre-track__fill" style="width:' + bars[i] + '%"></div></div>' : '';
         return '<div class="wre-table__row">' + cells + bar + '</div>';
       }).join('');
-      return html + '</div>';
+      return '<div class="wre-card wre-table-card">' + html + '</div>';
     }
     case 'paragraph':
-      return '<p class="wre-p">' + esc(b.text) + '</p>';
+      return '<div class="wre-card"><p class="wre-p">' + esc(b.text) + '</p></div>';
     case 'list': {
       const tag = b.ordered ? 'ol' : 'ul';
-      return '<' + tag + ' class="wre-list">' + b.items.map((it) => '<li>' + esc(it) + '</li>').join('') + '</' + tag + '>';
+      return '<div class="wre-card"><' + tag + ' class="wre-list">' + b.items.map((it) => '<li>' + esc(it) + '</li>').join('') + '</' + tag + '></div>';
     }
     case 'note':
       return '<div class="wre-note wre-note--inline">' + esc(b.text) + '</div>';

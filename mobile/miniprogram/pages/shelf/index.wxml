@@ -60,18 +60,17 @@
             <text class="wre-group__name">{{grp.name}}</text>
             <text class="wre-group__count">{{grp.count}} 本</text>
           </view>
-          <view
-            class="item"
-            wx:for="{{grp.items}}"
-            wx:key="id"
-            data-title="{{item.title}}"
-            data-author="{{item.author}}"
-            bindtap="copyTitle"
-          >
-            <image class="item__cover" src="{{item.cover}}" mode="aspectFill" lazy-load />
-            <view class="item__main">
-              <view class="item__title">{{item.title}}</view>
-              <view class="item__sub">{{item.author}}</view>
+          <view class="wre-covergrid">
+            <view
+              class="wre-covercell"
+              wx:for="{{grp.items}}"
+              wx:key="id"
+              data-title="{{item.title}}"
+              data-author="{{item.author}}"
+              bindtap="copyTitle"
+            >
+              <image class="wre-covercell__img" src="{{item.cover}}" mode="aspectFill" lazy-load />
+              <view class="wre-covercell__title">{{item.title}}</view>
             </view>
           </view>
           <view class="more wre-muted" wx:if="{{grp.more}}">还有 {{grp.more}} 本未显示</view>
@@ -81,18 +80,17 @@
             <text class="wre-group__name">未分组</text>
             <text class="wre-group__count">{{ungrouped.count}} 本</text>
           </view>
-          <view
-            class="item"
-            wx:for="{{ungrouped.items}}"
-            wx:key="id"
-            data-title="{{item.title}}"
-            data-author="{{item.author}}"
-            bindtap="copyTitle"
-          >
-            <image class="item__cover" src="{{item.cover}}" mode="aspectFill" lazy-load />
-            <view class="item__main">
-              <view class="item__title">{{item.title}}</view>
-              <view class="item__sub">{{item.author}}</view>
+          <view class="wre-covergrid">
+            <view
+              class="wre-covercell"
+              wx:for="{{ungrouped.items}}"
+              wx:key="id"
+              data-title="{{item.title}}"
+              data-author="{{item.author}}"
+              bindtap="copyTitle"
+            >
+              <image class="wre-covercell__img" src="{{item.cover}}" mode="aspectFill" lazy-load />
+              <view class="wre-covercell__title">{{item.title}}</view>
             </view>
           </view>
           <view class="more wre-muted" wx:if="{{ungrouped.more}}">还有 {{ungrouped.more}} 本未显示</view>

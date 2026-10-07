@@ -56,11 +56,11 @@ function paint(body) {
     '</div>' +
 
     '<div class="wre-card">' +
-    '  <div class="wre-card__title">已连接</div>' +
+    '  <div class="wre-card__title">API Key</div>' +
+    '  <div class="wre-muted">Key 只提交一次给你自己的云函数加密托管，之后本机只带账户码，不再下发明文；可随时清除。</div>' +
     connRow('wrk', '微信读书 Key', mask.hasKey, mask.masked) +
     connRow('ai', 'DeepSeek Key（可选）', mask.hasAiKey, mask.aiMasked) +
     (openForm ? keyForm(openForm) : '') +
-    '  <div class="wre-hint">Key 只提交一次给你自己的云函数加密托管，之后本机只带账户码，不再下发明文；可随时清除。</div>' +
     '</div>' +
 
     '<div class="wre-card">' +
@@ -76,27 +76,26 @@ function paint(body) {
     '</div>' +
 
     '<div class="wre-card">' +
-    '  <div class="wre-card__title">我的资料</div>' +
-    '  <div class="wre-muted">昵称会随账户同步，换设备不用重填；头像用昵称首字显示，不上传图片。</div>' +
-    '  <input class="wre-input" id="meNick" maxlength="24" placeholder="昵称" value="' + esc(profile.nickName) + '" />' +
+    '  <div class="wre-card__title">我的资料（可选）</div>' +
+    '  <div class="wre-muted">昵称随账户同步，换设备不用重填；头像用昵称首字显示，不上传图片。</div>' +
+    '  <div class="wre-profile">' +
+    '    <div class="wre-profile__avatar">' + esc(avatarChar(profile.nickName)) + '</div>' +
+    '    <input class="wre-profile__nick" id="meNick" maxlength="24" placeholder="点击填写昵称" value="' + esc(profile.nickName) + '" />' +
+    '  </div>' +
     '  <button class="wre-btn wre-btn--ghost" data-action="save-profile">保存昵称</button>' +
     '</div>' +
 
     '<div class="wre-card">' +
-    '  <div class="wre-card__title">复盘与回顾</div>' +
-    '  <div class="wre-muted">每日卡片从你的历史划线 / 想法取材、逐日归档在本机；这里可直接回看往期。</div>' +
-    '  <button class="wre-btn wre-btn--ghost" data-action="open-daily">每日卡片 · 往期回顾</button>' +
+    '  <div class="wre-card__title">更多</div>' +
+    linkRow('🗂 每日卡片 · 往期回顾', 'open-daily') +
+    linkRow('🧭 灵感漫游 · 往期归档', 'open-wander') +
+    linkRow('📊 运营看板', 'open-admin') +
     '</div>' +
 
     '<div class="wre-card">' +
     '  <div class="wre-card__title">危险操作</div>' +
+    '  <div class="wre-muted">仅清除云端托管的 Key，昵称与账户保留；清除后需重新填写。</div>' +
     '  <button class="wre-btn wre-btn--danger" data-action="clear-key">清除托管 Key</button>' +
-    '</div>' +
-
-    '<div class="wre-card">' +
-    '  <div class="wre-card__title">运营看板</div>' +
-    '  <div class="wre-muted">查看小程序 / 插件 / H5 的匿名使用量汇总。已按账户码自动识别管理员，无需口令；仅运营人员需要。</div>' +
-    '  <button class="wre-btn wre-btn--ghost" data-action="open-admin">打开运营看板</button>' +
     '</div>' +
 
     '<div class="wre-card">' +
@@ -105,6 +104,16 @@ function paint(body) {
     '</div>' +
 
     '<div class="wre-note">微信悦读 H5 · 数据与人格全部在你的浏览器本机计算；Key 由你自建的云函数加密托管，昵称托管后可跨设备同步，两者都能一键清除。</div>';
+}
+
+/** 「更多」列表行（对齐小程序 .settings-link） */
+function linkRow(label, action) {
+  return (
+    '<button class="wre-link" data-action="' + action + '">' +
+    '  <span>' + esc(label) + '</span>' +
+    '  <span class="wre-link__arrow">›</span>' +
+    '</button>'
+  );
 }
 
 /** 「已连接」列表行 */
@@ -281,6 +290,11 @@ async function onAction(e, body, app) {
 
   if (action === 'open-daily') {
     app.go('daily');
+    return;
+  }
+
+  if (action === 'open-wander') {
+    app.go('wander');
     return;
   }
 

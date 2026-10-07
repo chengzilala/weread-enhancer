@@ -173,12 +173,13 @@ function groupSectionHtml(name, list) {
   return '<div class="wre-group">' +
     '<div class="wre-group__head"><span class="wre-group__name">' + esc(name) + '</span>' +
     '<span class="wre-group__count">' + list.length + ' 本</span></div>' +
+    '<div class="wre-covergrid">' +
     shown.map((it) =>
-      '<div class="wre-book">' +
-      (it.cover ? '<img class="wre-book__cover" loading="lazy" src="' + esc(it.cover) + '" alt="">' : '<div class="wre-book__cover wre-book__cover--ph"></div>') +
-      '<div class="wre-book__meta"><div class="wre-book__title">' + esc(it.title || '未命名') + '</div>' +
-      '<div class="wre-hint">' + esc(it.author || '') + '</div></div>' +
+      '<div class="wre-covercell">' +
+      (it.cover ? '<img class="wre-covercell__img" loading="lazy" src="' + esc(it.cover) + '" alt="">' : '<div class="wre-covercell__img wre-covercell__img--ph"></div>') +
+      '<div class="wre-covercell__title">' + esc(it.title || '未命名') + '</div>' +
       '</div>').join('') +
+    '</div>' +
     (more > 0 ? '<div class="wre-hint">还有 ' + more + ' 本未显示</div>' : '') +
     '</div>';
 }

@@ -69,6 +69,39 @@
   flex: none;
 }
 
+/* 组内书目：3 列封面网格（封面下写书名，仿官方书架） */
+.wre-covergrid {
+  display: flex;
+  flex-wrap: wrap;
+  margin: -8rpx;
+}
+
+.wre-covercell {
+  width: 33.333%;
+  padding: 8rpx;
+  box-sizing: border-box;
+}
+
+.wre-covercell__img {
+  display: block;
+  width: 100%;
+  height: 210rpx;
+  border-radius: 10rpx;
+  background: #F0F1F4;
+}
+
+.wre-covercell__title {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  line-height: 1.35;
+  color: #1F2430;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
 .item {
   display: flex;
   align-items: center;

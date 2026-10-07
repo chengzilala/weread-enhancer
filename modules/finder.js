@@ -43,6 +43,7 @@
   let shelfFromCache = false;
   let shown = PAGE_SIZE;
   let tagManagerOpen = false;
+  let groupViewOpen = false;  // 「按官方分组」封面网格分区是否展开
   let tagEdit = null;         // { tag, mode: 'rename' | 'merge' } 内联编辑
   let message = '';           // 面板内一次性提示（成功 / 失败）
   let contentState = { running: false, done: 0, total: 0, matched: {}, error: '', keyword: '' };
@@ -1007,13 +1008,67 @@
     const countText = filtered === total
       ? ('共 ' + total + ' 本')
       : ('命中 ' + filtered + ' 本 · 共 ' + total + ' 本');
+    const hasGroups = !!(shelf && Array.isArray(shelf.groups) && shelf.groups.length);
     return '<div class="wre-find-toolbar">' +
       '<div class="wre-find-count">' + countText + '</div>' +
       '<div class="wre-find-actions">' +
         '<button type="button" class="wre-find-ghostbtn" data-wre-find-refresh="1">刷新书架</button>' +
+        (hasGroups ? '<button type="button" class="wre-find-ghostbtn" data-wre-find-groupview="1">' + (groupViewOpen ? '收起官方分组' : '按官方分组') + '</button>' : '') +
         '<button type="button" class="wre-find-ghostbtn" data-wre-find-manager="1">' + (tagManagerOpen ? '收起标签管理' : '标签管理') + '</button>' +
       '</div>' +
     '</div>';
+  }
+
+  /** 「按官方分组」封面网格分区（只读，来自官方书架 archive；与「官方分组」筛选 chips 并列） */
+  function buildGroupViewHtml() {
+    if (!groupViewOpen) {
+      return '';
+    }
+    const groups = shelf && Array.isArray(shelf.groups) ? shelf.groups : [];
+    if (!groups.length) {
+      return '';
+    }
+    const items = shelfItems();
+    const MAX = 12;
+    const sectionHtml = (name, list) => {
+      const shownList = list.slice(0, MAX);
+      const more = list.length - shownList.length;
+      return '<div class="wre-find-groupblock">' +
+        '<div class="wre-find-groupblock-head"><span class="wre-find-groupblock-name">' + escapeHtml(name) + '</span>' +
+        '<span class="wre-find-groupblock-count">' + list.length + ' 本</span></div>' +
+        '<div class="wre-find-covergrid">' +
+        shownList.map((it) => {
+          let url = String(it.cover || '').trim();
+          if (url.indexOf('//') === 0) { url = 'https:' + url; }
+          const cell = isHttpUrl(url)
+            ? '<img class="wre-find-covercell-img" src="' + escapeHtml(url) + '" alt="" loading="lazy" referrerpolicy="no-referrer">'
+            : '<div class="wre-find-covercell-img wre-find-covercell-ph"><span>📖</span></div>';
+          return '<div class="wre-find-covercell" title="' + escapeHtml(it.title || '未命名') + '">' + cell +
+            '<div class="wre-find-covercell-title">' + escapeHtml(it.title || '未命名') + '</div></div>';
+        }).join('') +
+        '</div>' +
+        (more > 0 ? '<div class="wre-find-note">还有 ' + more + ' 本未显示</div>' : '') +
+        '</div>';
+    };
+    let html = '';
+    let rendered = false;
+    groups.forEach((g) => {
+      const inGroup = items.filter((it) => Array.isArray(it.groups) && it.groups.indexOf(g.name) >= 0);
+      if (!inGroup.length) {
+        return;
+      }
+      rendered = true;
+      html += sectionHtml(g.name, inGroup);
+    });
+    const ungrouped = items.filter((it) => !Array.isArray(it.groups) || !it.groups.length);
+    if (ungrouped.length) {
+      rendered = true;
+      html += sectionHtml('未分组', ungrouped);
+    }
+    if (!rendered) {
+      return '';
+    }
+    return '<div class="wre-find-section-title">按官方分组 <span class="wre-find-section-hint">只读 · 来自官方书架</span></div>' + html;
   }
 
   function buildTagManagerHtml() {
@@ -1201,6 +1256,7 @@
       buildFilterHtml() + buildTagFilterHtml() + buildGroupFilterHtml() +
       '<div id="wre-find-toolbararea">' + buildToolbarAreaHtml() + '</div>' +
       '<div id="wre-find-listarea">' + buildListAreaHtml() + '</div>' +
+      buildGroupViewHtml() +
       buildTagManagerHtml() +
       '<div class="wre-find-note">' +
         (shelfFromCache ? '书架数据来自本机缓存（30 分钟内）。' : '书架数据为刚刚拉取。') +
@@ -1662,6 +1718,11 @@
     if (target.closest('[data-wre-find-refresh]')) {
       message = '';
       loadData(true);
+      return;
+    }
+    if (target.closest('[data-wre-find-groupview]')) {
+      groupViewOpen = !groupViewOpen;
+      render();
       return;
     }
     if (target.closest('[data-wre-find-manager]')) {

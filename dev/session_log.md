@@ -1598,4 +1598,20 @@
 - **待办**：真机 / 浏览器核验——① 小程序「我的」入口 → 每日卡片页；② 往期列表点开看整张、提示条「回到今天」；③ 看往期时下拉 = 回到今天、且不显示「重新生成」；④ H5「我的账户」入口与往期点开。
 - **风险/注意事项**：本次改动**未提交**（待用户确认后按 `git-sync` / `pack-publish` 处理）。
 
+## 2026-10-08 会话条目：官方分组分区改「封面网格」样式（三端，代码已完成）
+- **目标**：用户反馈 H5「按官方分组」旧样式（组标题下逐行列书）「看不出意义」，要求按微信读书官方书架的样式（3 列封面网格、封面下写书名）重做，且**三端统一**（用户选定）。
+- **已做**：
+  - **H5**：`h5/src/views/shelf.js` 的 `groupSectionHtml()` 由「`.wre-book` 行」改为「`.wre-covergrid` + `.wre-covercell`（封面 + 书名）」；`h5/assets/app.css` 新增 `.wre-covergrid/.wre-covercell*`（3 列 `grid`、`aspect-ratio: 3/4`、书名两行截断）。
+  - **小程序**：`mobile/miniprogram/pages/shelf/index.wxml` 分组区（含「未分组」）由 `.item` 行改为 `.wre-covergrid/.wre-covercell`；`index.wxss` 新增对应样式（`flex-wrap` + `33.333%` 三列，封面定高 `210rpx`）。
+  - **插件**：`modules/finder.js` 新增 `groupViewOpen` 状态、工具条「按官方分组」开关（仅账号有分组时出现）+ 新增 `buildGroupViewHtml()`（列表下方按 `groups` 逐组渲染封面网格，每组前 12 本 + 「还有 X 本」+ 末尾「未分组」）、`buildBodyHtml()` 插入该区块、点击事件切换；`modules/finder.css` 新增 `.wre-find-groupblock* / .wre-find-covergrid / .wre-find-covercell*`（`auto-fill minmax(88px,1fr)`）。
+  - **文档回灌**：`plan/RPD_书架官方分组_需求文档.md` §3.1/§3.2/§3.3/§3.4 补「封面网格」样式约定，文档版本升 **v0.3**，变更记录加一条。
+- **关键结论/决定**：
+  - **分组结构保留**（组标题 + 组内数量），只把「组内书目」由列表行换成封面网格 → 既像官方书架、又不丢分组信息（用户选「封面网格+组标题」）。
+  - **插件端补一个新入口而非替换**：原有「官方分组」筛选 chips 与书卡灰胶囊**保留不动**，新增的是列表下方的封面网格分区（默认折叠），两者互不替代、不违反原 RPD §3.1。
+  - **三端样式同构**：组标题（组名 + N 本）在两行内、封面 3 列、书名两行截断，跨端一致。
+- **产出物（文件）**：`h5/src/views/shelf.js`、`h5/assets/app.css`、`mobile/miniprogram/pages/shelf/index.wxml`、`index.wxss`、`modules/finder.js`、`modules/finder.css`、`plan/RPD_书架官方分组_需求文档.md`。
+- **验证**：`GetDiagnostics` 无 error；`python3 web/build.py` 构建成功（v0.26.0，0 告警，H5 38 文件 → `dist/app/`）；grep 静态断言 `wre-covergrid/wre-covercell` 已进 `dist/app/assets/app.css` 与 `dist/app/src/views/shelf.js`。按「验证从简」未跑浏览器（H5 分组需本人账号缓存，浏览器沙箱无数据）。
+- **待办**：用户本地**硬刷新** `localhost:8920/app/#/shelf` 看 H5 分组区是否已变 3 列封面网格；小程序开发者工具**重新编译**看「分类分布」下方分组卡；插件打开「🔎 找书」→ 点工具条「按官方分组」看封面网格分区。
+- **风险/注意事项**：书架缓存 30 分钟，旧缓存无 `groups` → 需点「刷新书架」/ 下拉刷新后才显示分组；本次改动**未提交**（待用户确认后按 `git-sync` / `pack-publish` 处理）。
+
 
