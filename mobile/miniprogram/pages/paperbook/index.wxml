@@ -13,10 +13,19 @@
 
     <input
       class="pb-search"
-      placeholder="搜索书名 / 作者 / ISBN"
+      placeholder="搜索书名 / 作者 / ISBN / 标签"
       value="{{keyword}}"
       bindinput="onSearchInput"
     />
+
+    <scroll-view class="pb-filters" scroll-x enable-flex>
+      <view class="pb-chip {{filter === 'all' ? 'pb-chip--on' : ''}}" data-value="all" bindtap="onFilter">全部</view>
+      <view class="pb-chip {{filter === 'linked' ? 'pb-chip--on' : ''}}" data-value="linked" bindtap="onFilter">有电子版</view>
+      <view class="pb-chip {{filter === 'paper' ? 'pb-chip--on' : ''}}" data-value="paper" bindtap="onFilter">仅纸质</view>
+      <view class="pb-chip {{filter === 'read' ? 'pb-chip--on' : ''}}" data-value="read" bindtap="onFilter">已读</view>
+      <view class="pb-chip {{filter === 'reading' ? 'pb-chip--on' : ''}}" data-value="reading" bindtap="onFilter">在读</view>
+      <view class="pb-chip {{filter === 'want' ? 'pb-chip--on' : ''}}" data-value="want" bindtap="onFilter">想读</view>
+    </scroll-view>
 
     <wre-state
       wx:if="{{!books.length}}"
@@ -37,6 +46,8 @@
             <view class="pb-tags">
               <text class="pb-tag pb-tag--on" wx:if="{{item.bookId}}">{{item.linkManual ? '手动关联电子版' : '有电子版'}}</text>
               <text class="pb-tag" wx:else>仅纸质</text>
+              <text class="pb-tag pb-tag--status" wx:if="{{item.status}}">{{item.status === 'read' ? '已读' : (item.status === 'reading' ? '在读' : '想读')}}</text>
+              <text class="pb-tag pb-tag--soft" wx:for="{{item.tags}}" wx:key="index">{{item}}</text>
             </view>
           </view>
           <text class="pb-arrow">›</text>
@@ -46,6 +57,8 @@
       <wre-state wx:if="{{!filtered.length}}" type="empty" text="没有匹配的书" sub="换个关键字试试" />
 
       <view class="pb-foot">
+        <button class="wre-btn wre-btn--ghost" bindtap="onExport">导出 Markdown（分享文件）</button>
+        <button class="wre-btn wre-btn--ghost" bindtap="onExportCopy">复制 Markdown 到剪贴板</button>
         <button class="wre-btn wre-btn--ghost" bindtap="onRestore">从云端恢复备份</button>
       </view>
     </block>
@@ -66,6 +79,34 @@
       <view class="pb-field">
         <text class="pb-label">ISBN</text>
         <input class="pb-input" placeholder="13 位条码数字（可选）" value="{{editing.isbn}}" data-field="isbn" bindinput="onFieldInput" />
+      </view>
+      <view class="pb-field pb-field--stack">
+        <text class="pb-label">阅读状态</text>
+        <view class="pb-chips">
+          <view class="pb-chip {{editing.status === 'read' ? 'pb-chip--on' : ''}}" data-value="read" bindtap="onStatusPick">已读</view>
+          <view class="pb-chip {{editing.status === 'reading' ? 'pb-chip--on' : ''}}" data-value="reading" bindtap="onStatusPick">在读</view>
+          <view class="pb-chip {{editing.status === 'want' ? 'pb-chip--on' : ''}}" data-value="want" bindtap="onStatusPick">想读</view>
+        </view>
+      </view>
+      <view class="pb-field pb-field--stack">
+        <text class="pb-label">标签</text>
+        <view class="pb-tag-edit" wx:if="{{editing.tags.length}}">
+          <view class="pb-tag-chip" wx:for="{{editing.tags}}" wx:key="index" data-index="{{index}}" bindtap="onTagRemove">
+            {{item}}<text class="pb-tag-x">✕</text>
+          </view>
+        </view>
+        <view class="pb-search-row">
+          <input class="pb-search pb-search--inline" placeholder="加标签，如 一号书柜 / 借出中" value="{{tagInput}}" bindinput="onTagInput" bindconfirm="onTagAdd" />
+          <button class="pb-search-btn" bindtap="onTagAdd">加入</button>
+        </view>
+      </view>
+      <view class="pb-field">
+        <text class="pb-label">纸质位置</text>
+        <input class="pb-input" placeholder="如 客厅书架第 2 层（可选）" value="{{editing.location}}" data-field="location" bindinput="onFieldInput" />
+      </view>
+      <view class="pb-field pb-field--stack">
+        <text class="pb-label">我的感想</text>
+        <textarea class="pb-textarea" placeholder="读完这本想说点什么（只存本机，与微信读书笔记分开）" value="{{editing.feeling}}" data-field="feeling" bindinput="onFieldInput" maxlength="2000" auto-height />
       </view>
       <button class="wre-btn" bindtap="onSave">保存</button>
     </view>

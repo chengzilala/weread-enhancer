@@ -1,6 +1,6 @@
 # RPD 需求文档 · 纸书归档（拍书）与微信读书联动
 
-> **版本**：v0.4（2026-10-08；S1、S2 全部落地，含 M2 拍照识码；共享模块按职责拆分）
+> **版本**：v0.5（2026-10-08；小程序侧 S1–S4 全部落地：扫码 / 拍照识码 / 关联 / 状态与标签 / 感想 / 纸质位置 / 导出；仅剩浏览器扩展面板未做）
 > **定位（已确认）**：**先给自己用**——私人工具，不发布、不商用。
 > **形态（建议）**：复用现有「微信悦读」小程序，**新增一个「📚 纸书」页**；自用走**体验版**，可免 ICP 备案。
 > **前置**：可行性结论见同目录 `可行性分析_纸书归档.md`（含硬边界与最小验证清单）。
@@ -143,9 +143,9 @@
 
 | 层 | 方案 |
 |---|---|
-| 前端 | 复用 `mobile/miniprogram`；新增 `pages/paperbook/`（列表/详情/扫码/手补/笔记明细）；共享模块按职责拆分为 `shared/paperbook-store.js`（本机+云存储）、`paperbook-data.js`（联网搜书/取笔记）、`paperbook-core.js`（匹配决策）；复用 `shared/gateway.js` 的 `callGateway` |
+| 前端 | 复用 `mobile/miniprogram`；新增 `pages/paperbook/`（列表/详情/扫码/手补/笔记明细）；共享模块按职责拆分为 `shared/paperbook-store.js`（本机+云存储）、`paperbook-data.js`（联网搜书/取笔记/拍照识码）、`paperbook-core.js`（匹配决策）、`paperbook-share.js`（导出 Markdown/分享）；复用 `shared/gateway.js` 的 `callGateway` |
 | 云函数 | 复用 `wereadProxy`；**新增** `action: 'imgScan'`（云调用 `openapi.img.scanQRCode`，识别图片条码）；网关 relay 沿用现状 |
-| 数据 | **本机 storage 为主**（`wre_paperbooks`）+ **云开发集合 `wre_paperbooks` 备份**（按 openid 隔离，换机可拉回）；字段：id、isbn、title、author、cover、bookId、deepLink、linkTitle、linkManual、createdAt |
+| 数据 | **本机 storage 为主**（`wre_paperbooks`）+ **云开发集合 `wre_paperbooks` 备份**（按 openid 隔离，换机可拉回）；字段：id、isbn、title、author、cover、bookId、deepLink、linkTitle、linkManual、status、tags、feeling、location、createdAt |
 | 关联 | `/store/search`（`scope: 10`）→ 取官方数字 `bookId` + `deepLink`（自动 M3 / 手动 M10 共用）；后续 `/book/bookmarklist`、`/review/list/mine` |
 | 依赖 | **零外部依赖**（沿用项目红线）；拍照识别走微信原生云调用，不引第三方 OCR 库 |
 | 权限 | 小程序需 `scope.camera`（扫码）、相册/相机（拍照）；无新增隐私数据类型 |
@@ -165,7 +165,7 @@
 - [x] M1 扫码建档（连续扫）+ 手输兜底
 - [x] M3 元数据自动补齐（`/store/search`，按 ISBN→书名 依次尝试）
 - [x] **M10 手动关联电子书**（搜书 → 挑一本 → 绑定）
-- [x] M4 列表 + 搜索 + 删除
+- [x] M4 列表 + 搜索（书名/作者/ISBN/标签）+ 筛选（全部/有电子版/仅纸质/已读/在读/想读）+ 删除
 - [x] 数据落本机 `wre_paperbooks` + 云备份
 
 ### S2 · 关联深化（P0 后半）— ✅ 已完成（2026-10-08）
@@ -173,14 +173,14 @@
 - [x] M5 展示笔记条数并可进入明细（划线/想法，2026-10-08）
 - [x] M2 拍照识码兜底（云函数 `imgScan` 云调用 `img.scanQRCode`，2026-10-08）
 
-### S3 · 完善（P1）
-- [ ] M6 我的读书感想
-- [ ] M7 标签与阅读状态
-- [ ] M8 导出备份
+### S3 · 完善（P1）— ✅ 已完成（2026-10-08）
+- [x] M6 我的读书感想（详情页 `textarea`，存 `feeling`，只存本机、与微信读书笔记分开）
+- [x] M7 标签与阅读状态（`status`：未标记/已读/在读/想读；`tags`：最多 10 个；列表可筛选）
+- [x] M8 导出备份（`paperbook-share.js`：导出 Markdown → 分享文件 / 复制到剪贴板）
 
 ### S4 · 可选（P2）
-- [ ] M9 纸质位置
-- [ ] 浏览器扩展加"我的纸书"面板（电脑端管理/导出）
+- [x] M9 纸质位置（详情页 `location` 输入，如"客厅书架第 2 层"）
+- [ ] 浏览器扩展加"我的纸书"面板（电脑端管理 / 导出）— 未做（另一个平台，需单独立项）
 
 ---
 
@@ -215,4 +215,5 @@
 - 2026-10-08 用户要求「代码做好分类」：共享模块按职责拆为 `paperbook-store.js` / `paperbook-data.js` / `paperbook-core.js`（对齐项目既有 `daily-* / wander-*` 命名规矩）。
 - 2026-10-08 S1 全部落地、S2 前两项（M5 电子版标记 + 笔记条数/明细）落地。
 - 2026-10-08 S2 收尾：**M2 拍照识码**落地——云函数新增 `action: 'imgScan'`（云调用 `img.scanQRCode`，权限在 `cloudfunctions/wereadProxy/config.json` 声明）；前端「📷 扫码加书」旁新增「🖼 拍照识码」按钮（选图/拍照 → 压缩 → 上传云存储 → 识别 → 清理临时图）。
-- 待确认（下一轮）：M2 真机验证需**重新部署云函数**，并在小程序后台《用户隐私保护指引》勾选「摄像头」「相册（仅写入）」；「📚 我的纸书」命名是否 OK。
+- 2026-10-08 S3 + M9 全部落地（用户要求「全部开发完」）：**M7** 阅读状态（未标记/已读/在读/想读）+ 标签（≤10 个）+ 列表筛选；**M6** 我的感想（`feeling`，只存本机，与微信读书笔记分卡展示）；**M9** 纸质位置（`location`）；**M8** 导出——新增 `paperbook-share.js`，支持「导出 Markdown（分享文件）」与「复制到剪贴板」。字段扩展：`status / tags / feeling / location`（旧数据读取时由 `normalizeBook` 自动补齐）。
+- 待确认（下一轮）：M2 / M8 真机验证需**重新部署云函数**，并在小程序后台《用户隐私保护指引》勾选「摄像头」「相册（仅写入）」；浏览器扩展「我的纸书」面板（S4 第 2 项）未做，需单独立项。

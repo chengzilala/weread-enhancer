@@ -2,21 +2,34 @@
  * 我的纸书 — 纸质书归档 + 微信读书关联
  *
  * 四个视图（同一页面内切换，减少跳转）：
- *   list  —— 我的纸书列表（扫码入库 / 手动添加 / 搜索）
- *   edit  —— 单本详情 / 编辑（含「手动关联电子书」「去微信读书」「微信读书笔记」）
+ *   list  —— 我的纸书列表（扫码 / 拍照识码入库 / 手动添加 / 搜索 / 筛选 / 导出）
+ *   edit  —— 单本详情 / 编辑（状态·标签·位置·我的感想 / 「手动关联电子书」「去微信读书」「微信读书笔记」）
  *   link  —— 手动关联：搜微信读书 → 挑一本 → 绑定（M10）
  *   notes —— 关联电子版的笔记明细：划线 / 想法（M5）
  *
- * 分工：页面只负责交互；存储→paperbook-store，取数→paperbook-data，匹配决策→paperbook-core。
+ * 分工：页面只负责交互；存储→paperbook-store，取数→paperbook-data，匹配决策→paperbook-core，导出→paperbook-share。
  * 红线：Key 只从 store 取、只经云函数中转；本页不打印 Key。
  */
 const store = require('../../shared/store');
 const pbStore = require('../../shared/paperbook-store');
 const pbData = require('../../shared/paperbook-data');
 const pbCore = require('../../shared/paperbook-core');
+const pbShare = require('../../shared/paperbook-share');
 
 const ISBN_RE = /^\d{13}$/;
 const SCAN_MAX_BYTES = 2 * 1024 * 1024; // 云调用识别限制：图片须小于 2M
+
+/** 补齐旧数据缺失的字段，避免 WXML 里取 length 报错 */
+function normalizeBook(book) {
+  const b = Object.assign({}, book);
+  if (!Array.isArray(b.tags)) {
+    b.tags = [];
+  }
+  b.status = b.status || '';
+  b.feeling = b.feeling || '';
+  b.location = b.location || '';
+  return b;
+}
 
 Page({
   data: {
@@ -24,12 +37,14 @@ Page({
     books: [],
     filtered: [],
     keyword: '',
+    filter: 'all', // all | linked | paper | read | reading | want
     linkedCount: 0,
 
     view: 'list', // list | edit | link | notes
 
     editing: null,
     isNew: false,
+    tagInput: '',
 
     linkKeyword: '',
     linkResults: [],
@@ -58,20 +73,35 @@ Page({
 
   applyFilter() {
     const kw = String(this.data.keyword || '').trim().toLowerCase();
-    const all = this.data.books;
-    const filtered = kw
-      ? all.filter(
-          (b) =>
-            String(b.title || '').toLowerCase().indexOf(kw) >= 0 ||
-            String(b.author || '').toLowerCase().indexOf(kw) >= 0 ||
-            String(b.isbn || '').indexOf(kw) >= 0
-        )
-      : all;
-    this.setData({ filtered: filtered });
+    const f = this.data.filter;
+    let list = this.data.books;
+    if (kw) {
+      list = list.filter(
+        (b) =>
+          String(b.title || '').toLowerCase().indexOf(kw) >= 0 ||
+          String(b.author || '').toLowerCase().indexOf(kw) >= 0 ||
+          String(b.isbn || '').indexOf(kw) >= 0 ||
+          (b.tags || []).join(' ').toLowerCase().indexOf(kw) >= 0
+      );
+    }
+    if (f === 'linked') {
+      list = list.filter((b) => !!b.bookId);
+    } else if (f === 'paper') {
+      list = list.filter((b) => !b.bookId);
+    } else if (f === 'read' || f === 'reading' || f === 'want') {
+      list = list.filter((b) => b.status === f);
+    }
+    this.setData({ filtered: list });
   },
 
   onSearchInput(e) {
     this.setData({ keyword: e.detail.value });
+    this.applyFilter();
+  },
+
+  onFilter(e) {
+    const value = e.currentTarget.dataset.value || 'all';
+    this.setData({ filter: value });
     this.applyFilter();
   },
 
@@ -220,7 +250,22 @@ Page({
     this.setData({
       view: 'edit',
       isNew: true,
-      editing: { id: '', isbn: '', title: '', author: '', cover: '', bookId: '', deepLink: '', linkTitle: '', linkManual: false },
+      editing: {
+        id: '',
+        isbn: '',
+        title: '',
+        author: '',
+        cover: '',
+        bookId: '',
+        deepLink: '',
+        linkTitle: '',
+        linkManual: false,
+        status: '',
+        tags: [],
+        feeling: '',
+        location: '',
+      },
+      tagInput: '',
       noteCounts: null,
       noteLoading: false,
     });
@@ -241,7 +286,8 @@ Page({
     this.setData({
       view: 'edit',
       isNew: false,
-      editing: Object.assign({}, book),
+      editing: normalizeBook(book),
+      tagInput: '',
       noteCounts: null,
       noteLoading: false,
       noteItems: { marks: [], reviews: [] },
@@ -280,13 +326,23 @@ Page({
       wx.showToast({ title: 'ISBN 应为 13 位数字', icon: 'none' });
       return;
     }
+    const basic = {
+      isbn: isbn,
+      title: title,
+      author: author,
+      cover: e.cover || '',
+      status: e.status || '',
+      tags: Array.isArray(e.tags) ? e.tags : [],
+      feeling: String(e.feeling || ''),
+      location: String(e.location || '').trim(),
+    };
 
     if (this.data.isNew) {
       if (isbn && pbStore.findByIsbn(isbn)) {
         wx.showToast({ title: '该 ISBN 已在书库', icon: 'none' });
         return;
       }
-      const item = pbStore.addBook({ isbn: isbn, title: title, author: author, cover: e.cover || '' });
+      const item = pbStore.addBook(basic);
       pbStore.backupSilent();
       wx.showToast({ title: '已加入书库', icon: 'success' });
       this.setData({ view: 'list', isNew: false, editing: null });
@@ -295,11 +351,53 @@ Page({
       return;
     }
 
-    pbStore.updateBook(e.id, { isbn: isbn, title: title, author: author, cover: e.cover || '' });
+    pbStore.updateBook(e.id, basic);
     pbStore.backupSilent();
     wx.showToast({ title: '已保存', icon: 'success' });
     this.setData({ view: 'list', editing: null });
     this.reload();
+  },
+
+  // ---- M7 阅读状态 / 标签 ----
+
+  onStatusPick(e) {
+    const status = e.currentTarget.dataset.value || '';
+    const editing = Object.assign({}, this.data.editing);
+    editing.status = editing.status === status ? '' : status; // 再点一次取消
+    this.setData({ editing: editing });
+  },
+
+  onTagInput(e) {
+    this.setData({ tagInput: e.detail.value });
+  },
+
+  onTagAdd() {
+    const text = String(this.data.tagInput || '').trim();
+    if (!text) {
+      return;
+    }
+    const editing = Object.assign({}, this.data.editing);
+    const tags = Array.isArray(editing.tags) ? editing.tags.slice() : [];
+    if (tags.indexOf(text) >= 0) {
+      this.setData({ tagInput: '' });
+      return;
+    }
+    if (tags.length >= 10) {
+      wx.showToast({ title: '标签最多 10 个', icon: 'none' });
+      return;
+    }
+    tags.push(text);
+    editing.tags = tags;
+    this.setData({ editing: editing, tagInput: '' });
+  },
+
+  onTagRemove(e) {
+    const idx = Number(e.currentTarget.dataset.index);
+    const editing = Object.assign({}, this.data.editing);
+    const tags = Array.isArray(editing.tags) ? editing.tags.slice() : [];
+    tags.splice(idx, 1);
+    editing.tags = tags;
+    this.setData({ editing: editing });
   },
 
   onDelete() {
@@ -523,6 +621,33 @@ Page({
           wx.showToast({ title: '已恢复', icon: 'success' });
         },
       });
+    });
+  },
+
+  // ---- M8 导出备份 ----
+
+  onExport() {
+    if (!this.data.books.length) {
+      wx.showToast({ title: '书库还是空的', icon: 'none' });
+      return;
+    }
+    wx.showLoading({ title: '生成中…', mask: true });
+    pbShare.exportMarkdown(this.data.books).then((res) => {
+      wx.hideLoading();
+      if (!res.ok) {
+        wx.showToast({ title: res.error || '导出失败', icon: 'none' });
+      }
+    });
+  },
+
+  onExportCopy() {
+    if (!this.data.books.length) {
+      wx.showToast({ title: '书库还是空的', icon: 'none' });
+      return;
+    }
+    wx.setClipboardData({
+      data: pbShare.toMarkdown(this.data.books),
+      fail: () => wx.showToast({ title: '复制失败', icon: 'none' }),
     });
   },
 });

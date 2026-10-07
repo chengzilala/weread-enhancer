@@ -133,6 +133,86 @@
   background: #EAF1FF;
 }
 
+.pb-tag--status {
+  color: #1A9C6B;
+  background: #E8F7EF;
+}
+
+.pb-tag--soft {
+  color: #6B7280;
+  background: #F5F6F8;
+}
+
+/* 筛选 chips */
+.pb-filters {
+  white-space: nowrap;
+  margin-bottom: 20rpx;
+}
+
+.pb-chips {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.pb-chip {
+  display: inline-block;
+  font-size: 26rpx;
+  color: #4B5563;
+  background: #FFFFFF;
+  border: 1rpx solid #E5E7EB;
+  border-radius: 100rpx;
+  padding: 10rpx 26rpx;
+  margin: 0 16rpx 0 0;
+}
+
+.pb-chip--on {
+  color: #FFFFFF;
+  background: #2F6BFF;
+  border-color: #2F6BFF;
+}
+
+/* 标签编辑 */
+.pb-field--stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.pb-field--stack .pb-label {
+  width: auto;
+  margin-bottom: 12rpx;
+}
+
+.pb-tag-edit {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 12rpx;
+}
+
+.pb-tag-chip {
+  font-size: 24rpx;
+  color: #2F6BFF;
+  background: #EAF1FF;
+  border-radius: 8rpx;
+  padding: 8rpx 16rpx;
+  margin: 0 12rpx 12rpx 0;
+}
+
+.pb-tag-x {
+  color: #8FA9E0;
+  margin-left: 10rpx;
+}
+
+.pb-textarea {
+  width: 100%;
+  min-height: 140rpx;
+  font-size: 28rpx;
+  line-height: 1.6;
+  background: #F7F8FA;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  box-sizing: border-box;
+}
+
 .pb-arrow {
   color: #C4C8D0;
   font-size: 40rpx;

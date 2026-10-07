@@ -38,6 +38,10 @@ function addBook(book) {
       deepLink: '',
       linkTitle: '',
       linkManual: false,
+      status: '', // '' 未标记 | read 已读 | reading 在读 | want 想读（M7）
+      tags: [], // 自定义标签（M7）
+      feeling: '', // 我在纸书上写的感想（M6）
+      location: '', // 纸质位置：哪个书架/哪一层（M9）
       createdAt: now,
     },
     book || {}
