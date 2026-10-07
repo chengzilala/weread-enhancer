@@ -55,6 +55,13 @@
       <text class="settings-link__label">📚 我的纸书</text>
       <text class="settings-link__arrow">›</text>
     </view>
+    <view class="settings-link" bindtap="goLink">
+      <view class="settings-link__main">
+        <text class="settings-link__label">🔗 关联网页账户</text>
+        <text class="settings-link__desc">{{linked ? '已关联 · 与网页共用阅读人格与昵称' : '关联网页版后，两端共用阅读人格与昵称'}}</text>
+      </view>
+      <text class="settings-link__arrow">›</text>
+    </view>
     <view class="settings-link" bindtap="goNotes">
       <text class="settings-link__label">笔记概览</text>
       <text class="settings-link__arrow">›</text>

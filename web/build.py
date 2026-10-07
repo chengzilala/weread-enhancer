@@ -764,8 +764,7 @@ def render_account_page():
     lead = ('一个账户，处处通用：官网与 <a href="/app/">网页版</a> 共用同一个账户码，'
             '微信读书 Key 与昵称都挂在你的账户下，换设备用账户码登录即可找回。')
     content = (
-        article_header(page)
-        + '<p class="acct-lead">' + lead + '</p>'
+        '<p class="acct-lead">' + lead + '</p>'
         + '<div id="acctRoot" class="acct"><p class="acct-loading">正在读取账户信息…</p></div>'
         + '<script type="module" src="/assets/account.js"></script>'
     )

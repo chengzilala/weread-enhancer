@@ -17,6 +17,10 @@
  *   7. action: 'opsAdmin'     —— 管理员看板数据（M13，非白名单一律不下发）。
  *   8. action: 'pbGet/pbPut'  —— 我的纸书云端备份（按 openid 隔离，只存纸书档案，不含 Key）。
  *   9. action: 'imgScan'      —— 我的纸书拍照识码（M2，云调用 img.scanQRCode 识别图片里的条码）。
+ *  10. action: 'bindClaim'    —— 小程序端认领绑定（6 位绑定码 / 直接粘贴账户码），建立 openid ↔ deviceId 映射。
+ *  11. action: 'bindInfo'     —— 查询小程序当前是否已关联网页账户（含账户昵称）。
+ *  12. action: 'bindUnbind'   —— 小程序端解除关联（把账户侧最新数据回搬本机，保留本机数据）。
+ *  13. action: 'profilePut'   —— 小程序端把昵称写入已绑定账户（随账户在网页端可见）。
  *
  * H5（纯网页 App）走 HTTP 访问服务，`handleHttp` 额外支持：
  *   - action: 'relay'         —— 用托管 Key 走官方网关中转（{deviceId, apiName, params}）；
@@ -26,6 +30,9 @@
  *   - action: 'keyClear'      —— 清除托管 Key（{deviceId}）；
  *   - action: 'profileSave'   —— 保存昵称（{deviceId, nickName}，非敏感，随账户走）；
  *   - action: 'syncGet/Put'   —— 人格结果按 deviceId 云同步；
+ *   - action: 'bindCreate'    —— 网页端生成一次性绑定码（{deviceId} → {code, expireAt}）；
+ *   - action: 'bindStatus'    —— 网页端查询本账户是否已被小程序绑定（{deviceId} → {linked}）；
+ *   - action: 'bindRemove'    —— 网页端解除绑定（{deviceId}）；
  *   - action: 'opsPing'       —— H5 匿名使用量（{deviceId, version}，按 deviceId + 天去重）；
  *   - action: 'opsAdmin'      —— H5 运营看板（{deviceId}，账户码白名单内才下发）。
  *
@@ -54,6 +61,8 @@
  *      可选：`ADMIN_DEVICE_IDS`（H5 运营看板的管理员账户码白名单，英文逗号分隔；不配则 H5 看板关闭）；
  *      在「HTTP 网关 → 域名及路由」为 H5 添加路由（路径如 `/h5`，关联本函数；跨域设置保持关闭由本函数处理），
  *      把该地址填进 `h5/src/config.js`。
+ *   ⑥ 跨端打通（网页账户码 ↔ 小程序 openid）：新建集合 `wre_links`（权限选「仅管理端可读写」，
+ *      只存两端身份映射与一次性绑定码，不含 Key）。函数也会尝试自动创建，但手动建更稳妥。
  *   ⑤ 「我的纸书 → 拍照识码」（M2）走云调用 `img.scanQRCode`，权限已在同目录 `config.json` 声明（随函数一起上传）；
  *      真机使用需在小程序后台《用户隐私保护指引》勾选「摄像头」「相册（仅写入）」。
  */
@@ -115,6 +124,16 @@ const H5_ORIGINS = String(process.env.H5_ORIGINS || '')
   .map((s) => s.trim())
   .filter(Boolean);
 const DEVICE_MIN_LEN = 16;   // 前端生成的随机 deviceId 至少 16 位（建议 32 位十六进制）
+
+// 跨端打通：网页（账户码 deviceId）↔ 小程序（微信 openid）绑定映射
+//   - wre_links：同集合存三类文档（用 kind 区分，避免多建集合）
+//       l_<openid>  { kind:'link', openid, deviceId }   正向：openid → 账户码
+//       d_<deviceId>{ kind:'link', openid, deviceId }   反向：账户码 → openid（供网页端解绑 O(1) 定位）
+//       b_<deviceId>{ kind:'bind', code, status, ... }  一次性绑定码会话（网页生成，小程序认领）
+//   - 绑定后：小程序侧 syncGet/syncPut 统一按 deviceId 存取，与网页端同一份 wre_sync 文档。
+//   - 红线：只存映射关系，不存 Key、不存官方原始数据；解绑即删除映射。
+const LINK_COLLECTION = 'wre_links';
+const BIND_TTL_MS = 10 * 60 * 1000;   // 绑定码有效期 10 分钟
 
 function maskKey(key) {
   if (typeof key !== 'string' || !key) {
@@ -337,12 +356,14 @@ async function handleSync(event) {
     return { ok: false, code: 'noopenid', error: '未取到用户标识（需已开通云开发）' };
   }
 
+  // 已关联网页账户 → 统一按账户码（deviceId）存取，与网页端读写同一份文档；未关联则退回 openid
+  const uid = (await resolveLinkDeviceId(openid)) || openid;
   const db = cloud.database();
   const coll = db.collection(SYNC_COLLECTION);
 
   if (action === 'syncGet') {
     try {
-      const r = await coll.doc(openid).get();
+      const r = await coll.doc(uid).get();
       return { ok: true, data: (r.data && r.data.persona) || null, updatedAt: (r.data && r.data.updatedAt) || 0 };
     } catch (err) {
       // 文档不存在（或集合还没建）都按「无云端数据」处理
@@ -360,12 +381,12 @@ async function handleSync(event) {
   }
 
   try {
-    await coll.doc(openid).set({ data: payload });
+    await coll.doc(uid).set({ data: payload });
   } catch (err) {
     // 集合不存在时尝试建集合后重试一次
     try {
       await db.createCollection(SYNC_COLLECTION);
-      await coll.doc(openid).set({ data: payload });
+      await coll.doc(uid).set({ data: payload });
     } catch (err2) {
       return { ok: false, code: 'sync', error: '同步写入失败：' + ((err2 && err2.errMsg) || '未知错误') };
     }
@@ -937,6 +958,270 @@ async function handleH5OpsAdmin(body) {
   return { ok: true, generatedAt: Date.now(), mp: mp, plugin: plugin, h5: h5 };
 }
 
+// ---------- 跨端打通：网页账户码 ↔ 小程序 openid 绑定 ----------
+//
+// 身份来源不同（浏览器拿不到 openid，小程序用不到账户码），故用「用户主动绑定」建立映射：
+//   ① 扫码：网页端展示二维码（内容＝绑定码），小程序扫码后凭码认领；
+//   ② 短码：网页端展示 6 位数字，小程序内手输；
+//   ③ 粘贴：网页端复制 32 位账户码，小程序内粘贴。
+// 三种入口最终都走 bindClaim 建立映射，结果一致。红线：只存映射，不存 Key、不存官方原始数据。
+
+/** 6 位数字绑定码（一次性、10 分钟过期） */
+function genBindCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+/** 云开发集合不存在时建集合（幂等；已存在会抛错，忽略即可） */
+async function ensureCollection(db, name) {
+  try {
+    await db.createCollection(name);
+  } catch (err) {
+    // 已存在：忽略
+  }
+}
+
+/** 读文档（不存在 / 集合未建都返回 null，绝不抛错穿透） */
+async function readDoc(collName, id) {
+  try {
+    const r = await cloud.database().collection(collName).doc(id).get();
+    return r && r.data ? r.data : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+/** 写文档（覆盖式 set；集合不存在时先建再写一次） */
+async function writeDoc(collName, id, data) {
+  const db = cloud.database();
+  try {
+    await db.collection(collName).doc(id).set({ data: data });
+  } catch (err) {
+    await ensureCollection(db, collName);
+    await db.collection(collName).doc(id).set({ data: data });
+  }
+}
+
+/** 删除文档（不存在也算成功） */
+async function removeDoc(collName, id) {
+  try {
+    await cloud.database().collection(collName).doc(id).remove();
+  } catch (err) {
+    // 忽略
+  }
+}
+
+/** 小程序侧：当前 openid 已绑定的账户码（未绑定返回空串） */
+async function resolveLinkDeviceId(openid) {
+  const doc = await readDoc(LINK_COLLECTION, 'l_' + openid);
+  const deviceId = doc && doc.deviceId;
+  return typeof deviceId === 'string' && validDeviceId(deviceId) ? deviceId : '';
+}
+
+/** 按绑定码找「待认领且未过期」的会话（取最新一条） */
+async function findBindSession(code) {
+  const db = cloud.database();
+  const _ = db.command;
+  try {
+    const r = await db
+      .collection(LINK_COLLECTION)
+      .where({ kind: 'bind', code: code, status: 'pending', expireAt: _.gt(Date.now()) })
+      .limit(1)
+      .get();
+    return (r && r.data && r.data[0]) || null;
+  } catch (err) {
+    return null;
+  }
+}
+
+/** 首次绑定：账户侧还没有人格时，把本机（openid）已算好的人格搬过去（绝不覆盖账户已有数据） */
+async function migratePersonaOnBind(openid, deviceId) {
+  if (openid === deviceId) {
+    return;
+  }
+  const target = await readDoc(SYNC_COLLECTION, deviceId);
+  if (target && target.persona) {
+    return;
+  }
+  const local = await readDoc(SYNC_COLLECTION, openid);
+  if (local && local.persona) {
+    await writeDoc(SYNC_COLLECTION, deviceId, { persona: local.persona, updatedAt: local.updatedAt || Date.now() });
+  }
+}
+
+/** 解绑：把账户侧最新人格回搬本机（openid）侧，避免解绑后本机数据回退 */
+async function migratePersonaOnUnbind(openid, deviceId) {
+  if (openid === deviceId) {
+    return;
+  }
+  const acc = await readDoc(SYNC_COLLECTION, deviceId);
+  if (acc && acc.persona) {
+    await writeDoc(SYNC_COLLECTION, openid, { persona: acc.persona, updatedAt: acc.updatedAt || Date.now() });
+  }
+}
+
+/**（H5）bindCreate：网页端生成一次性绑定码，小程序侧凭它认领本账户 */
+async function handleBindCreate(body) {
+  const deviceId = cleanDeviceId(body && body.deviceId);
+  if (!validDeviceId(deviceId)) {
+    return { ok: false, code: 'nodevice', error: '缺少或非法的账户码' };
+  }
+  const now = Date.now();
+  const doc = {
+    kind: 'bind',
+    code: genBindCode(),
+    deviceId: deviceId,
+    status: 'pending',
+    createdAt: now,
+    expireAt: now + BIND_TTL_MS,
+    openid: '',
+  };
+  try {
+    await writeDoc(LINK_COLLECTION, 'b_' + deviceId, doc);
+  } catch (err) {
+    return { ok: false, code: 'save', error: '绑定码生成失败，请稍后重试' };
+  }
+  return { ok: true, code: doc.code, expireAt: doc.expireAt };
+}
+
+/**（H5）bindStatus：本账户是否已被小程序绑定 */
+async function handleBindStatus(body) {
+  const deviceId = cleanDeviceId(body && body.deviceId);
+  if (!validDeviceId(deviceId)) {
+    return { ok: false, code: 'nodevice', error: '缺少或非法的账户码' };
+  }
+  const session = await readDoc(LINK_COLLECTION, 'b_' + deviceId);
+  if (session && session.status === 'claimed') {
+    return { ok: true, linked: true };
+  }
+  const own = await readDoc(LINK_COLLECTION, 'd_' + deviceId);
+  return { ok: true, linked: !!(own && own.openid) };
+}
+
+/**（H5）bindRemove：网页端解除绑定（删除映射，网页侧不再与小程序共享数据） */
+async function handleBindRemove(body) {
+  const deviceId = cleanDeviceId(body && body.deviceId);
+  if (!validDeviceId(deviceId)) {
+    return { ok: false, code: 'nodevice', error: '缺少或非法的账户码' };
+  }
+  const own = await readDoc(LINK_COLLECTION, 'd_' + deviceId);
+  const openid = (own && own.openid) || '';
+  if (openid) {
+    await removeDoc(LINK_COLLECTION, 'l_' + openid);
+    await removeDoc(LINK_COLLECTION, 'd_' + deviceId);
+  }
+  await removeDoc(LINK_COLLECTION, 'b_' + deviceId);
+  return { ok: true };
+}
+
+/**（小程序）bindClaim：认领绑定（6 位绑定码 或 直接粘贴的账户码），建立 openid ↔ deviceId 映射 */
+async function handleBindClaim(event) {
+  const ctx = cloud.getWXContext();
+  const openid = ctx && ctx.OPENID;
+  if (!openid) {
+    return { ok: false, code: 'noopenid', error: '未取到用户标识（需已开通云开发）' };
+  }
+  const raw = String((event && event.code) || '').trim();
+  let deviceId = '';
+  let session = null;
+  if (/^\d{6}$/.test(raw)) {
+    session = await findBindSession(raw);
+    if (!session) {
+      return { ok: false, code: 'nocode', error: '绑定码无效或已过期，请在网页端重新生成' };
+    }
+    deviceId = cleanDeviceId(session.deviceId);
+  } else if (/^[0-9a-fA-F]{16,64}$/.test(raw)) {
+    deviceId = raw.toLowerCase();
+  } else {
+    return { ok: false, code: 'param', error: '请输入 6 位绑定码，或粘贴完整账户码' };
+  }
+  if (!validDeviceId(deviceId)) {
+    return { ok: false, code: 'param', error: '账户码格式不正确（应为 32 位十六进制）' };
+  }
+
+  const now = Date.now();
+  try {
+    const link = { kind: 'link', openid: openid, deviceId: deviceId, createdAt: now, updatedAt: now };
+    await writeDoc(LINK_COLLECTION, 'l_' + openid, link);
+    await writeDoc(LINK_COLLECTION, 'd_' + deviceId, link);
+    if (session) {
+      await writeDoc(LINK_COLLECTION, session._id, {
+        kind: 'bind',
+        code: session.code,
+        deviceId: deviceId,
+        status: 'claimed',
+        createdAt: session.createdAt || now,
+        expireAt: session.expireAt || now,
+        openid: openid,
+        claimedAt: now,
+      });
+    }
+  } catch (err) {
+    return { ok: false, code: 'save', error: '绑定失败：' + ((err && err.errMsg) || '未知错误') };
+  }
+  await migratePersonaOnBind(openid, deviceId);
+  return { ok: true, deviceId: deviceId };
+}
+
+/**（小程序）bindInfo：当前是否已关联网页账户（含账户昵称） */
+async function handleBindInfo() {
+  const ctx = cloud.getWXContext();
+  const openid = ctx && ctx.OPENID;
+  if (!openid) {
+    return { ok: false, code: 'noopenid', error: '未取到用户标识（需已开通云开发）' };
+  }
+  const deviceId = await resolveLinkDeviceId(openid);
+  if (!deviceId) {
+    return { ok: true, linked: false };
+  }
+  const user = await readDoc(USERS_COLLECTION, deviceId);
+  return { ok: true, linked: true, deviceId: deviceId, nickName: (user && user.nickName) || '' };
+}
+
+/**（小程序）bindUnbind：解除关联（先回搬数据，再删映射；本机数据保留） */
+async function handleBindUnbind() {
+  const ctx = cloud.getWXContext();
+  const openid = ctx && ctx.OPENID;
+  if (!openid) {
+    return { ok: false, code: 'noopenid', error: '未取到用户标识（需已开通云开发）' };
+  }
+  const deviceId = await resolveLinkDeviceId(openid);
+  if (deviceId) {
+    await migratePersonaOnUnbind(openid, deviceId);
+    await removeDoc(LINK_COLLECTION, 'l_' + openid);
+    await removeDoc(LINK_COLLECTION, 'd_' + deviceId);
+    await removeDoc(LINK_COLLECTION, 'b_' + deviceId);
+  }
+  return { ok: true };
+}
+
+/**（小程序）profilePut：把本机昵称写入已绑定账户（网页端「我的账户」即可看到） */
+async function handleProfilePut(event) {
+  const ctx = cloud.getWXContext();
+  const openid = ctx && ctx.OPENID;
+  if (!openid) {
+    return { ok: false, code: 'noopenid', error: '未取到用户标识（需已开通云开发）' };
+  }
+  const deviceId = await resolveLinkDeviceId(openid);
+  if (!deviceId) {
+    return { ok: false, code: 'nolink', error: '尚未关联网页账户' };
+  }
+  const nickName = String((event && event.nickName) || '').trim().slice(0, 24);
+  const doc = (await readDoc(USERS_COLLECTION, deviceId)) || {};
+  const base = Object.assign({}, doc);
+  delete base._id;   // 云开发文档自带 _id，回写时必须剔除，否则报 -501007
+  const now = Date.now();
+  try {
+    await writeDoc(USERS_COLLECTION, deviceId, Object.assign({}, base, {
+      nickName: nickName,
+      updatedAt: now,
+      createdAt: doc.createdAt || now,
+    }));
+  } catch (err) {
+    return { ok: false, code: 'save', error: '昵称同步失败：' + ((err && err.errMsg) || '未知错误') };
+  }
+  return { ok: true, nickName: nickName };
+}
+
 // HTTP 访问服务响应头（插件以 text/plain 简单请求上报，无需预检；H5 以 application/json + 预检）
 function buildCorsHeaders(origin) {
   const headers = {
@@ -1007,6 +1292,15 @@ async function handleHttp(event) {
   if (action === 'syncGet' || action === 'syncPut') {
     return httpReply(200, await handleH5Sync(body), origin);
   }
+  if (action === 'bindCreate') {
+    return httpReply(200, await handleBindCreate(body), origin);
+  }
+  if (action === 'bindStatus') {
+    return httpReply(200, await handleBindStatus(body), origin);
+  }
+  if (action === 'bindRemove') {
+    return httpReply(200, await handleBindRemove(body), origin);
+  }
   if (action === 'opsPing') {
     return httpReply(200, await handleH5OpsPing(body), origin);
   }
@@ -1029,6 +1323,18 @@ exports.main = async (event) => {
   }
   if (action === 'syncGet' || action === 'syncPut') {
     return await handleSync(event);
+  }
+  if (action === 'bindClaim') {
+    return await handleBindClaim(event);
+  }
+  if (action === 'bindInfo') {
+    return await handleBindInfo();
+  }
+  if (action === 'bindUnbind') {
+    return await handleBindUnbind();
+  }
+  if (action === 'profilePut') {
+    return await handleProfilePut(event);
   }
   if (action === 'pbGet' || action === 'pbPut') {
     return await handlePaperbook(event);

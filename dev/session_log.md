@@ -1614,4 +1614,16 @@
 - **待办**：用户本地**硬刷新** `localhost:8920/app/#/shelf` 看 H5 分组区是否已变 3 列封面网格；小程序开发者工具**重新编译**看「分类分布」下方分组卡；插件打开「🔎 找书」→ 点工具条「按官方分组」看封面网格分区。
 - **风险/注意事项**：书架缓存 30 分钟，旧缓存无 `groups` → 需点「刷新书架」/ 下拉刷新后才显示分组；本次改动**未提交**（待用户确认后按 `git-sync` / `pack-publish` 处理）。
 
+## 2026-10-08 会话条目：H5 复刻小程序 —— 报告页 / 我的页 / TabBar 对齐 + 写入多端一致性规则
+- **目标**：用户要求「H5 样式要跟小程序一样」，指出①报告模块样式没起来；②我的模块排版没按小程序设计；并要求把「H5 与小程序除平台限制项外，样式/功能/模块几乎复刻一模一样」写进项目规则。
+- **已做**：
+  - **项目规则双写**：母本 `/Users/Admin/Knowledge/Coding/AI协作规划库/1-规则_Rules/项目规则_project_rules.md` 与项目副本 `.trae/rules/project_rules.md` 新增「多端一致性（H5 ↔ 小程序）」条款，明确除平台限制项外样式/功能/模块一一对应。
+  - **报告页**：`h5/src/views/report.js` 的 `renderBlock()` 改为「每块一张 `.wre-card`」（kv/paragraph/list/table/chips），heading 改用 `.wre-sec-title / --sub`，cards 改用新 `.wre-cards`（2 列白底蓝值卡）；`h5/assets/app.css` 周期切换改小程序 `.period` 卡片式，报告样式块重写（`.wre-sec-title / .wre-kv__row / .wre-cards* / .wre-table-card / .wre-p / .wre-list`），rpx÷2 对齐。
+  - **我的页**：`h5/src/views/me.js` 的 `paint()` 卡片顺序对齐小程序 settings（身份头 → API Key → 跨设备登录 → 我的资料 → 更多 → 危险操作 → 关于版本），新增 `linkRow()`（对齐 `.settings-link`，右侧「›」）与资料行（`wre-profile__avatar` 圆形 60px + `wre-profile__nick` 输入框）；`onAction` 补 `open-wander` → `app.go('wander')`；`h5/assets/app.css` 新增 `.wre-link__arrow / .wre-profile*`（含昵称首字头像）。
+  - **TabBar 选中态**（浏览器核验发现）：`h5/assets/app.js` 新增 `setActiveTab()`，在 `renderTab` 高亮当前项、`renderSecondary` 清空；`app.css` 加 `.wre-tab.is-active { color: var(--wre-brand); font-weight: 600; }`，对齐小程序 tabBar 选中色。
+- **关键结论/决定**：H5 为小程序「复刻版」写入项目规则；单位统一 rpx÷2；报告块「一卡一块」；TabBar 必须有选中态。
+- **产出物（文件）**：`h5/src/views/report.js`、`h5/src/views/me.js`、`h5/assets/app.css`、`h5/assets/app.js`、规则母本 + `.trae/rules/project_rules.md`。
+- **验证**：`python3 web/build.py` → 页面 25 篇 + 栏目索引 4 个、**0 告警**（v0.26.0）；`GetDiagnostics` 无 error；grep 静态断言 `wre-profile__nick / open-wander / wre-link__arrow / wre-tab.is-active / setActiveTab` 均在 `dist/app/` 产物中。浏览器核验「我的」页：身份头、六张白卡、资料行、三行「更多」链接均成立，控制台无报错；报告页因浏览器沙箱无 Key 被门禁拦截，未能视觉核验（结构已在源码层确认）。
+- **待办**：用户本地硬刷新 `localhost:8920/app/#/me` 与 `#/report`（报告需已配 Key）看效果；本次改动**未提交**（待用户确认后按 `git-sync` / `pack-publish` 处理）。
+
 

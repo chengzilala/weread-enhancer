@@ -50,6 +50,7 @@ Page({
     linkResults: [],
     linkLoading: false,
     linkError: '',
+    linkSearched: false,
 
     // M5：关联电子版的笔记
     noteLoading: false,
@@ -120,28 +121,35 @@ Page({
       scanType: ['barCode'],
       onlyFromCamera: true,
       success: (res) => {
-        const status = this.handleScannedCode(String((res && res.result) || '').trim());
-        if (status === 'added' || status === 'duplicate' || status === 'empty') {
-          // 只有「真的入库了」才自动续扫；留点时间让提示能看清
-          setTimeout(() => this.scanNext(), status === 'added' ? 500 : 900);
-          return;
-        }
-        // 扫到的不是图书 ISBN（或没扫清）→ 停下来让用户决定，避免摄像头反复开关
-        wx.showModal({
-          title: status === 'notisbn' ? '这不是图书条码' : '条码没扫清',
-          content:
-            status === 'notisbn'
-              ? '这是书上的其它条码。请对准封底/书背带 978 或 979 的那条 ISBN 条码；也可改用「手动添加」。'
-              : '再对准一点、让条码占满取景框，重扫一次；也可改用「手动添加」。',
-          confirmText: '再扫一次',
-          cancelText: '手动添加',
-          success: (r) => {
-            if (r.confirm) {
-              this.scanNext();
-            } else {
-              this.onAddManual();
-            }
-          },
+        this.handleScannedCode(String((res && res.result) || '').trim()).then((r) => {
+          const status = r.status;
+          if (status === 'added' || status === 'duplicate' || status === 'empty') {
+            // 只有「真的入库了」才自动续扫；留点时间让提示能看清
+            setTimeout(() => this.scanNext(), status === 'added' ? 500 : 900);
+            return;
+          }
+          if (status === 'nomatch') {
+            // 入库了、但微信读书按 ISBN 没匹配上 → 停下连续扫，直接打开「挑一本」
+            this.openLinkPicker(r.id);
+            return;
+          }
+          // 扫到的不是图书 ISBN（或没扫清）→ 停下来让用户决定，避免摄像头反复开关
+          wx.showModal({
+            title: status === 'notisbn' ? '这不是图书条码' : '条码没扫清',
+            content:
+              status === 'notisbn'
+                ? '这是书上的其它条码。请对准封底/书背带 978 或 979 的那条 ISBN 条码；也可改用「手动添加」。'
+                : '再对准一点、让条码占满取景框，重扫一次；也可改用「手动添加」。',
+            confirmText: '再扫一次',
+            cancelText: '手动添加',
+            success: (r) => {
+              if (r.confirm) {
+                this.scanNext();
+              } else {
+                this.onAddManual();
+              }
+            },
+          });
         });
       },
       fail: (err) => {
@@ -158,25 +166,37 @@ Page({
     });
   },
 
-  /** 处理扫到/识别到的码 → 返回 'added' | 'duplicate' | 'notisbn' | 'unclear' | 'empty' */
+  /**
+   * 处理扫到/识别到的码：校验 → 入库 → 尝试自动匹配。
+   * → Promise<{ status, id? }>
+   *   status：'empty' | 'notisbn' | 'unclear' | 'duplicate'
+   *         | 'added'（已入库且匹配上，或未配 Key 无从匹配）
+   *         | 'nomatch'（已入库但微信读书没匹配上）
+   */
   handleScannedCode(code) {
     const value = String(code || '').trim();
     if (!value) {
-      return 'empty';
+      return Promise.resolve({ status: 'empty' });
     }
     if (!pbCore.isIsbnBarcode(value)) {
-      return /^97[89]\d{10}$/.test(value) ? 'unclear' : 'notisbn';
+      return Promise.resolve({ status: /^97[89]\d{10}$/.test(value) ? 'unclear' : 'notisbn' });
     }
     if (pbStore.findByIsbn(value)) {
       wx.showToast({ title: '这本已在你的书库', icon: 'none' });
-      return 'duplicate';
+      return Promise.resolve({ status: 'duplicate' });
     }
     const item = pbStore.addBook({ isbn: value, title: '' });
     pbStore.backupSilent();
     wx.showToast({ title: '已加入', icon: 'success', duration: 700 });
     this.reload();
-    this.autoFill(item.id, value, '');
-    return 'added';
+    if (!this.data.hasKey) {
+      // 未配 Key：先入库，配置后可手动关联
+      return Promise.resolve({ status: 'added', id: item.id });
+    }
+    return this.autoFill(item.id, value, '').then((matched) => ({
+      status: matched ? 'added' : 'nomatch',
+      id: item.id,
+    }));
   },
 
   // ---- M2 拍照识码（旧书 / 条码磨损时，拍书背条码照片识别）----
@@ -223,7 +243,11 @@ Page({
           });
           return;
         }
-        this.handleScannedCode(code);
+        this.handleScannedCode(code).then((r) => {
+          if (r.status === 'nomatch') {
+            this.openLinkPicker(r.id);
+          }
+        });
       });
     };
 
@@ -239,15 +263,15 @@ Page({
     doScan(filePath);
   },
 
-  /** M3 自动匹配：先 ISBN 后书名；命中只作「建议」，用户可改 */
+  /** M3 自动匹配：只在 ISBN 完全一致（或书名对得上）时回填；→ Promise<boolean> 是否命中 */
   autoFill(id, isbn, title) {
     if (!this.data.hasKey) {
-      return;
+      return Promise.resolve(false);
     }
     const key = store.getKey();
-    pbCore.autoMatch(key, isbn, title).then((res) => {
+    return pbCore.autoMatch(key, isbn, title).then((res) => {
       if (!res || !res.ok || !res.hit) {
-        return;
+        return false;
       }
       const hit = res.hit;
       pbStore.updateBook(id, {
@@ -264,6 +288,30 @@ Page({
       if (this.data.view === 'edit' && this.data.editing && this.data.editing.id === id) {
         this.openEdit({ currentTarget: { dataset: { id: id } } });
       }
+      return true;
+    });
+  },
+
+  /** 扫到但没匹配上 → 直接打开「挑一本」，让用户输书名搜（微信读书不认 ISBN，故不预填 ISBN） */
+  openLinkPicker(id) {
+    const book = pbStore.listLocal().filter((b) => b.id === id)[0];
+    if (!book) {
+      return;
+    }
+    this.setData({
+      view: 'link',
+      isNew: false,
+      editing: normalizeBook(book),
+      tagInput: '',
+      noteCounts: null,
+      noteLoading: false,
+      noteItems: { marks: [], reviews: [] },
+      noteItemsError: '',
+      linkKeyword: '',
+      linkResults: [],
+      linkError: '',
+      linkLoading: false,
+      linkSearched: false,
     });
   },
 
@@ -467,8 +515,9 @@ Page({
       pbStore.backupSilent();
       this.setData({ editing: editing, isNew: false });
     }
-    const kw = editing.title || editing.isbn || '';
-    this.setData({ view: 'link', linkKeyword: kw, linkResults: [], linkError: '', linkLoading: false });
+    // 微信读书只认书名/作者、不认 ISBN：拿 ISBN 去搜只会搜出无关书，故不预填 ISBN、不按 ISBN 搜
+    const kw = editing.title || '';
+    this.setData({ view: 'link', linkKeyword: kw, linkResults: [], linkError: '', linkLoading: false, linkSearched: false });
     if (kw) {
       this.onLinkSearch();
     }
@@ -484,7 +533,7 @@ Page({
       wx.showToast({ title: '请输入书名或作者', icon: 'none' });
       return;
     }
-    this.setData({ linkLoading: true, linkError: '' });
+    this.setData({ linkLoading: true, linkError: '', linkSearched: true });
     pbData.searchStore(kw, store.getKey()).then((res) => {
       if (!res.ok) {
         this.setData({ linkLoading: false, linkResults: [], linkError: res.error || '搜索失败，请重试' });

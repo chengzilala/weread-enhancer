@@ -1,0 +1,55 @@
+.link-loading {
+  margin-top: 20rpx;
+}
+
+.link-input {
+  margin-top: 24rpx;
+  padding: 24rpx;
+  background: #F5F6F8;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+}
+
+.link-hint {
+  margin-top: 20rpx;
+}
+
+.link-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24rpx;
+  padding: 20rpx 0;
+  border-top: 1rpx solid #F0F1F4;
+  border-bottom: 1rpx solid #F0F1F4;
+}
+
+.link-state__label {
+  font-size: 30rpx;
+  color: #1F2430;
+}
+
+.link-state__val {
+  font-size: 28rpx;
+  color: #12A150;
+}
+
+.link-status {
+  margin-top: 20rpx;
+  font-size: 26rpx;
+  color: #8A8F99;
+}
+
+.link-status--ok {
+  color: #12A150;
+}
+
+.link-status--error {
+  color: #E54545;
+}
+
+.wre-help {
+  color: #8A8F99;
+  font-size: 26rpx;
+  line-height: 1.9;
+}

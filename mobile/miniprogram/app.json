@@ -6,6 +6,7 @@
     "pages/shelf/index",
     "pages/paperbook/index",
     "pages/settings/index",
+    "pages/link/index",
     "pages/notes/index",
     "pages/daily/index",
     "pages/wander/index",

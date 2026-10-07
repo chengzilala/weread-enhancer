@@ -1,6 +1,7 @@
 const store = require('../../shared/store');
 const { verifyKey } = require('../../shared/gateway');
 const ops = require('../../shared/ops');
+const account = require('../../shared/account');
 const { CLOUD_ENV, PROXY_FUNCTION } = require('../../config');
 
 Page({
@@ -26,6 +27,8 @@ Page({
     isAdmin: false,
     // 自己的 openid（M13）：用于自助配置云函数环境变量 ADMIN_OPENIDS，仅自己可见
     myOpenid: '',
+    // 是否已关联网页账户（跨端打通）
+    linked: false,
   },
 
   onShow() {
@@ -49,6 +52,13 @@ Page({
       .then((r) => {
         const info = r || {};
         this.setData({ isAdmin: !!info.admin, myOpenid: info.openid || '' });
+      })
+      .catch(() => {});
+    // 关联状态：失败静默
+    account
+      .bindInfo()
+      .then((r) => {
+        this.setData({ linked: !!(r && r.ok && r.linked) });
       })
       .catch(() => {});
   },
@@ -100,6 +110,10 @@ Page({
     const nickName = String((e.detail && e.detail.value) || '').trim().slice(0, 24);
     store.setProfile({ avatarUrl: this.data.avatarUrl, nickName: nickName });
     this.setData({ nickName: nickName, hasProfile: !!(this.data.avatarUrl || nickName) });
+    // 已关联网页账户：昵称随之同步（未关联时云函数返回 nolink，静默忽略）
+    if (this.data.linked && nickName) {
+      account.profilePut(nickName).catch(() => {});
+    }
   },
 
   onClearProfile() {
@@ -153,6 +167,10 @@ Page({
 
   goPaperbook() {
     wx.navigateTo({ url: '/pages/paperbook/index' });
+  },
+
+  goLink() {
+    wx.navigateTo({ url: '/pages/link/index' });
   },
 
   // ---- DeepSeek Key 相关处理器（M15 合规下线：UI 已移除，保留不删以便转企业主体后恢复）----

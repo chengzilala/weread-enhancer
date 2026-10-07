@@ -13,12 +13,18 @@ import {
   getDeviceId, setDeviceId, resetDeviceId,
   getMask, setMask, getProfile, setProfile,
 } from '/app/src/store.js';
-import { keyGet, keySave, keyClear, verifyKey, profileSave } from '/app/src/api.js';
+import { keyGet, keySave, keyClear, verifyKey, profileSave, bindCreate, bindStatus, bindRemove } from '/app/src/api.js';
 
 const root = document.getElementById('acctRoot');
 
 let openForm = '';      // '' | 'wrk' | 'ai'
 let showCode = false;
+
+// 关联小程序（跨端打通）状态
+let bindCode = '';      // 当前展示的一次性绑定码（6 位）
+let bindExpire = 0;     // 绑定码过期时间
+let bindLinked = null;  // null=未知 / true=已关联 / false=未关联
+let bindTimer = null;   // 关联状态轮询定时器
 
 /** 账户码默认掩码显示（前 4 后 4） */
 function maskCode(id) {
@@ -121,6 +127,8 @@ function render() {
     '</div>' +
     '</section>' +
 
+    bindSection() +
+
     '<section class="acct-card">' +
     '<h2 class="acct-card__title">我的资料</h2>' +
     '<div class="acct-inline">' +
@@ -139,6 +147,104 @@ function render() {
 
     '<p class="acct-foot">这是与网页版共用的同一个账户，手机上可打开 ' +
     '<a href="/app/">网页版 →</a></p>';
+}
+
+/** 关联小程序区块：已关联 / 展示绑定码 / 未关联 三态 */
+function bindSection() {
+  let inner;
+  if (bindLinked === true) {
+    inner = '<div class="acct-row">' +
+      '<div class="acct-row__main">' +
+      '<div class="acct-row__name">微信小程序</div>' +
+      '<div class="acct-row__val is-on">已关联</div>' +
+      '</div>' +
+      '<button class="acct-link" type="button" data-act="remove-bind">解除</button>' +
+      '</div>';
+  } else if (bindCode && Date.now() < bindExpire) {
+    inner = '<div class="acct-bindcode">' + esc(bindCode) + '</div>' +
+      '<p class="acct-hint">在小程序里打开「我的 → 关联网页账户」，输入这 6 位数字即可完成关联（10 分钟内有效）。</p>' +
+      '<button class="acct-btn acct-btn--ghost" type="button" data-act="gen-bind">重新生成</button>';
+  } else {
+    const expired = bindCode && Date.now() >= bindExpire;
+    inner = (expired ? '<p class="acct-hint">绑定码已过期，请重新生成。</p>' : '') +
+      '<button class="acct-btn" type="button" data-act="gen-bind">生成绑定码</button>' +
+      '<p class="acct-hint">也可点上方「复制」，把完整账户码粘贴到小程序里关联。</p>';
+  }
+  return '<section class="acct-card">' +
+    '<h2 class="acct-card__title">关联微信小程序</h2>' +
+    '<p class="acct-hint">关联后，小程序与网页共用同一份阅读人格与昵称。</p>' +
+    inner +
+    '</section>';
+}
+
+/** 轮询关联状态：用户在小程序里绑定后，本页自动切换为「已关联」 */
+function startPoll() {
+  stopPoll();
+  bindTimer = setInterval(async function () {
+    if (!document.getElementById('acctRoot')) {
+      stopPoll();
+      return;
+    }
+    if (Date.now() >= bindExpire) {
+      stopPoll();
+      render();
+      return;
+    }
+    const res = await bindStatus();
+    if (res && res.ok && res.linked) {
+      bindLinked = true;
+      stopPoll();
+      render();
+      toast('已关联微信小程序');
+    }
+  }, 3000);
+}
+
+function stopPoll() {
+  if (bindTimer) {
+    clearInterval(bindTimer);
+    bindTimer = null;
+  }
+}
+
+async function refreshLink() {
+  const res = await bindStatus();
+  if (!res || !res.ok) {
+    return;
+  }
+  bindLinked = !!res.linked;
+  if (bindLinked) {
+    stopPoll();
+  }
+  render();
+}
+
+async function genBind() {
+  const res = await bindCreate();
+  if (!res || !res.ok) {
+    toast((res && res.error) || '生成失败，请稍后重试');
+    return;
+  }
+  bindCode = res.code || '';
+  bindExpire = res.expireAt || 0;
+  render();
+  startPoll();
+}
+
+async function removeBind() {
+  if (!window.confirm('确定解除与微信小程序的关联吗？解除后两端将各自独立，当前账户数据保留。')) {
+    return;
+  }
+  const res = await bindRemove();
+  if (!res || !res.ok) {
+    toast((res && res.error) || '解除失败，请稍后重试');
+    return;
+  }
+  bindLinked = false;
+  bindCode = '';
+  stopPoll();
+  render();
+  toast('已解除关联');
 }
 
 /** 从服务端拉取掩码与昵称（账号 = 本机账户码） */
@@ -288,6 +394,8 @@ function onAction(e) {
   if (act === 'restore') { restoreCode(); return; }
   if (act === 'save-profile') { saveProfile(); return; }
   if (act === 'clear-key') { clearKey(); return; }
+  if (act === 'gen-bind') { genBind(); return; }
+  if (act === 'remove-bind') { removeBind(); return; }
   if (act === 'sign-out') { signOut(); return; }
 }
 
@@ -309,8 +417,13 @@ function onKeydown(e) {
 }
 
 if (root) {
+  bindCode = '';
+  bindExpire = 0;
+  bindLinked = null;
+  stopPoll();
   render();
   root.addEventListener('click', onAction);
   root.addEventListener('keydown', onKeydown);
   syncFromServer();
+  refreshLink();
 }

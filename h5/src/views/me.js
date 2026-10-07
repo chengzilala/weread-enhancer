@@ -9,7 +9,7 @@
  *      完整账户码等同一把钥匙，默认只显示掩码，点「显示完整」才展开。
  */
 
-import { keySave, keyClear, verifyKey, keyGet, profileSave } from '../api.js';
+import { keySave, keyClear, verifyKey, keyGet, profileSave, bindCreate, bindStatus, bindRemove } from '../api.js';
 import { getMask, setMask, getProfile, setProfile, getDeviceId, setDeviceId, resetDeviceId } from '../store.js';
 import { esc, toast, copyText, confirmSignOut } from '../ui.js';
 
@@ -18,12 +18,23 @@ export const title = '我的账户';
 let openForm = '';    // '' | 'wrk' | 'ai'：当前展开的 Key 输入区
 let showCode = false; // 是否展开完整账户码
 
+// 关联小程序（跨端打通）状态
+let bindCode = '';      // 当前展示的一次性绑定码（6 位）
+let bindExpire = 0;     // 绑定码过期时间
+let bindLinked = null;  // null=未知 / true=已关联 / false=未关联
+let bindTimer = null;   // 关联状态轮询定时器
+
 export function render(root, app) {
   root.innerHTML = '<div class="wre-page" id="meBody"></div>';
   const body = root.querySelector('#meBody');
   body.addEventListener('click', (e) => onAction(e, body, app));
+  bindCode = '';
+  bindExpire = 0;
+  bindLinked = null;
+  stopPoll();
   paint(body);
   syncFromServer(body);   // 静默与服务端对齐昵称 / 掩码
+  refreshLink(body);      // 静默查询是否已关联小程序
 }
 
 /** 账户码掩码：前 4 后 4，中间打点 */
@@ -74,6 +85,8 @@ function paint(body) {
     '  <input class="wre-input" id="meSync" placeholder="粘贴另一台设备的账户码" />' +
     '  <button class="wre-btn" data-action="restore-device">用账户码登录</button>' +
     '</div>' +
+
+    bindCard() +
 
     '<div class="wre-card">' +
     '  <div class="wre-card__title">我的资料（可选）</div>' +
@@ -147,6 +160,85 @@ function keyForm(kind) {
     '  <button class="wre-btn" data-action="save-ai">保存 DeepSeek Key</button>' +
     '</div>'
   );
+}
+
+/** 关联小程序卡片：已关联 / 展示绑定码 / 未关联 三态 */
+function bindCard() {
+  let inner;
+  if (bindLinked === true) {
+    inner =
+      '  <div class="wre-conn">' +
+      '    <div class="wre-conn__main">' +
+      '      <div class="wre-conn__name">微信小程序</div>' +
+      '      <div class="wre-conn__val is-on">已关联</div>' +
+      '    </div>' +
+      '    <button class="wre-conn__btn" data-action="remove-bind">解除</button>' +
+      '  </div>';
+  } else if (bindCode && Date.now() < bindExpire) {
+    inner =
+      '  <div class="wre-code wre-code--bind">' + esc(bindCode) + '</div>' +
+      '  <div class="wre-hint">在小程序里打开「我的 → 关联网页账户」，输入这 6 位数字即可完成关联（10 分钟内有效）。</div>' +
+      '  <div class="wre-btn-row">' +
+      '    <button class="wre-btn wre-btn--ghost" data-action="gen-bind">重新生成</button>' +
+      '  </div>';
+  } else {
+    const expired = bindCode && Date.now() >= bindExpire;
+    inner =
+      (expired ? '  <div class="wre-hint">绑定码已过期，请重新生成。</div>' : '') +
+      '  <button class="wre-btn" data-action="gen-bind">生成绑定码</button>' +
+      '  <div class="wre-hint">也可点上方「复制」，把完整账户码粘贴到小程序里关联。</div>';
+  }
+  return (
+    '<div class="wre-card">' +
+    '  <div class="wre-card__title">关联微信小程序</div>' +
+    '  <div class="wre-muted">关联后，小程序与网页共用同一份阅读人格与昵称。</div>' +
+    inner +
+    '</div>'
+  );
+}
+
+/** 轮询关联状态：用户在小程序里绑定后，本页自动切换为「已关联」 */
+function startPoll() {
+  stopPoll();
+  bindTimer = setInterval(async () => {
+    const body = document.getElementById('meBody');
+    if (!body) {
+      stopPoll();
+      return;
+    }
+    if (Date.now() >= bindExpire) {
+      stopPoll();
+      paint(body);
+      return;
+    }
+    const res = await bindStatus();
+    if (res.ok && res.linked) {
+      bindLinked = true;
+      stopPoll();
+      paint(body);
+      toast('已关联微信小程序');
+    }
+  }, 3000);
+}
+
+function stopPoll() {
+  if (bindTimer) {
+    clearInterval(bindTimer);
+    bindTimer = null;
+  }
+}
+
+/** 进入页面时查询一次关联状态 */
+async function refreshLink(body) {
+  const res = await bindStatus();
+  if (!res.ok) {
+    return;
+  }
+  bindLinked = !!res.linked;
+  if (bindLinked) {
+    stopPoll();
+  }
+  paint(body);
 }
 
 /** 静默对齐服务端：昵称以服务端为准，掩码刷新 */
@@ -257,6 +349,36 @@ async function onAction(e, body, app) {
   if (action === 'copy-device') {
     const ok = await copyText(getDeviceId());
     toast(ok ? '账户码已复制' : '复制失败，请手动选择');
+    return;
+  }
+
+  if (action === 'gen-bind') {
+    const res = await bindCreate();
+    if (!res.ok) {
+      toast(res.error || '生成失败，请稍后重试');
+      return;
+    }
+    bindCode = res.code || '';
+    bindExpire = res.expireAt || 0;
+    paint(body);
+    startPoll();
+    return;
+  }
+
+  if (action === 'remove-bind') {
+    if (!window.confirm('确定解除与微信小程序的关联吗？解除后两端将各自独立，Web 端仍保留现有数据。')) {
+      return;
+    }
+    const res = await bindRemove();
+    if (!res.ok) {
+      toast(res.error || '解除失败，请稍后重试');
+      return;
+    }
+    bindLinked = false;
+    bindCode = '';
+    stopPoll();
+    paint(body);
+    toast('已解除关联');
     return;
   }
 

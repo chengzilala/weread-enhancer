@@ -1,0 +1,40 @@
+<view class="wre-page">
+  <view class="wre-card">
+    <view class="wre-title">关联网页账户</view>
+    <view class="wre-muted">关联后，小程序与网页共用同一份阅读人格与昵称；换设备才需重新关联。</view>
+
+    <view class="wre-muted link-loading" wx:if="{{loading}}">查询中…</view>
+
+    <block wx:elif="{{linked}}">
+      <view class="link-state">
+        <text class="link-state__label">微信小程序</text>
+        <text class="link-state__val">已关联</text>
+      </view>
+      <view class="wre-muted link-hint" wx:if="{{deviceMasked}}">账户码 {{deviceMasked}}</view>
+      <button class="wre-btn wre-btn--ghost" bindtap="onUnbind">解除关联</button>
+    </block>
+
+    <block wx:else>
+      <input
+        class="link-input"
+        type="text"
+        placeholder="输入 6 位绑定码，或粘贴完整账户码"
+        value="{{code}}"
+        bindinput="onInput"
+      />
+      <button class="wre-btn" loading="{{busy}}" bindtap="onSubmit">关联</button>
+      <view class="wre-muted link-hint">
+        在网页版「我的账户 → 关联微信小程序」里点「生成绑定码」得到 6 位数字；也可直接复制完整账户码粘贴到这里。
+      </view>
+    </block>
+
+    <view class="link-status link-status--{{statusType}}" wx:if="{{statusText}}">{{statusText}}</view>
+  </view>
+
+  <view class="wre-card">
+    <view class="wre-title">说明</view>
+    <view class="wre-help">1. 关联只建立两端身份映射，不涉及任何 Key。</view>
+    <view class="wre-help">2. 关联后阅读人格与昵称两端共用；「我的纸书」仍按微信账号保存在本机。</view>
+    <view class="wre-help">3. 可随时解除关联，解除后本机数据保留。</view>
+  </view>
+</view>

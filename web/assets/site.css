@@ -680,6 +680,20 @@ body.wre-lb-open { overflow: hidden; }
   word-break: break-all;
 }
 
+/* 关联小程序的一次性绑定码：放大居中，方便照抄 / 输入 */
+.acct-bindcode {
+  margin: 12px 0 0;
+  padding: 16px 10px;
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: 8px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
 .acct-foot { margin: 4px 0 0; color: var(--text-soft); font-size: 0.88em; }
 
 .acct-toast {

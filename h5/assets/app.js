@@ -83,6 +83,13 @@ function renderTabbar() {
   });
 }
 
+/** 高亮当前底部 Tab（对齐小程序 tabBar 选中态；二级页传 '' 清空） */
+function setActiveTab(key) {
+  tabbarEl.querySelectorAll('.wre-tab').forEach((el) => {
+    el.classList.toggle('is-active', el.getAttribute('data-tab') === key);
+  });
+}
+
 function setChromeVisible(visible) {
   tabbarEl.style.display = visible ? '' : 'none';
   headerTitleEl.textContent = visible ? ((findTab(current) || {}).title || CONFIG.APP_NAME) : CONFIG.APP_NAME;
@@ -92,6 +99,7 @@ function renderTab(key) {
   current = key;
   const tab = findTab(key) || TABS[0];
   setChromeVisible(true);
+  setActiveTab(tab.key);
   headerTitleEl.textContent = tab.view.title || tab.label;
   viewEl.scrollTop = 0;
   window.scrollTo(0, 0);
@@ -103,6 +111,7 @@ function renderSecondary(key) {
   current = key;
   const item = findSecondary(key);
   setChromeVisible(false);
+  setActiveTab('');
   headerTitleEl.textContent = item.view.title || item.label;
   viewEl.scrollTop = 0;
   window.scrollTo(0, 0);

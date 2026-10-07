@@ -171,6 +171,10 @@
     <wre-state wx:if="{{linkLoading}}" type="loading" text="正在搜微信读书…" />
     <view class="wre-card pb-error" wx:elif="{{linkError}}">{{linkError}}</view>
 
+    <view class="wre-card" wx:if="{{!linkSearched && !linkLoading && !linkError}}">
+      <view class="wre-muted">微信读书按「书名 / 作者」搜索（不认 ISBN），输入书名再点「搜索」。</view>
+    </view>
+
     <view class="wre-card" wx:if="{{!linkLoading && !linkError && linkResults.length}}">
       <view class="pb-item" wx:for="{{linkResults}}" wx:key="bookId" data-index="{{index}}" bindtap="onLinkPick">
         <image wx:if="{{item.cover}}" class="pb-cover" src="{{item.cover}}" mode="aspectFill" />
@@ -184,7 +188,7 @@
     </view>
 
     <wre-state
-      wx:elif="{{!linkLoading && !linkError}}"
+      wx:elif="{{!linkLoading && !linkError && linkSearched}}"
       type="empty"
       text="没搜到"
       sub="换个书名试试；也可能微信读书没有这本的电子版"

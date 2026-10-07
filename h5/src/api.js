@@ -103,6 +103,19 @@ export function syncPut(persona) {
   return call({ action: 'syncPut', persona: persona });
 }
 
+// ---- 跨端关联：网页账户码 ↔ 微信小程序 openid ----
+export function bindCreate() {
+  return call({ action: 'bindCreate' });
+}
+
+export function bindStatus() {
+  return call({ action: 'bindStatus' });
+}
+
+export function bindRemove() {
+  return call({ action: 'bindRemove' });
+}
+
 // ---- H5 匿名使用量 / 运营看板 ----
 export function opsPing(version) {
   return call({ action: 'opsPing', version: version || '' });

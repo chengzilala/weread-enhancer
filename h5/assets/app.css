@@ -75,6 +75,7 @@ html, body {
   cursor: pointer;
 }
 .wre-tab__icon { font-size: 18px; line-height: 1; }
+.wre-tab.is-active { color: var(--wre-brand); font-weight: 600; }
 
 /* 卡片 */
 .wre-card {
@@ -143,6 +144,15 @@ html, body {
   background: #F7F8FA;
   border-radius: 8px;
   padding: 10px;
+}
+/* 关联小程序的一次性绑定码：放大居中，方便照抄 / 输入 */
+.wre-code--bind {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: 8px;
+  text-align: center;
+  color: var(--wre-text);
+  padding: 16px 10px;
 }
 
 /* 周期切换（对齐小程序 .period / .period__item） */
