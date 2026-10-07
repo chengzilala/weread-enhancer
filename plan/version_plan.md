@@ -3,7 +3,7 @@
 > **文档类型**：版本历程 + 未来规划  
 > **项目仓库**：[chengzilala/weread-enhancer](https://github.com/chengzilala/weread-enhancer)  
 > **版本规则**：`v主.次.补`（语义化简化）  
-> **最后更新**：2026-10-07
+> **最后更新**：2026-10-08
 
 ---
 
@@ -559,6 +559,20 @@
 
 ---
 
+### v0.26.0 — 首页书架 + 纸书归档 + H5 账户体系（2026-10-08）
+
+> manifest.json 版本号：`0.25.0` → `0.26.0`
+
+**本版本改动**：
+- **扩展首页书架**（新增 `modules/home-shelf.js` + `home-shelf.css`）：在微信读书主页书架做增强/聚合
+- **小程序「纸书归档」完整**（`mobile/miniprogram/pages/paperbook/*` + `shared/paperbook-{store,data,core,share}.js`）：扫码 / 拍照识码（云函数 `imgScan` → `img.scanQRCode`）/ 手动关联电子书 / 阅读状态（未标记·已读·在读·想读）与标签（≤10）/ 我的感想 `feeling` / 纸质位置 `location` / 导出 Markdown（分享文件 / 复制剪贴板）；本机 `wre_paperbooks` + 云备份
+- **H5 账户体系**（`h5/` + `web/assets/account.js`）：微信读书 Key 服务端加密托管（AES-256-GCM，依赖环境变量 `KEY_SECRET`）；退出登录改「先展示完整账户码、确认已保存」站内弹层（`ui.js` 的 `confirmSignOut`，官网 `/account/` 与网页版共用）；每日卡片「往期回顾」可点开看整张；书架「按官方分组」区块上移
+- **网站**：Hero 按钮「网页版体验」改名「H5 移动端」；同步系列 RPD 与归档文档
+
+**里程碑**：纸书归档小程序侧全部落地；H5 与官网共用同一套账户与登录体系。
+
+---
+
 ### 还未确认的开发计划
 
 1. 浏览器上架：将主流的浏览器都做，商店上架。
@@ -636,8 +650,8 @@ UI框架       +全部核心模块 +动态感应区   → 最终收敛为       
 
 | 文档/位置 | 版本号 | 说明 |
 |----------|-------|------|
-| manifest.json | `0.25.0` | 当前浏览器实际加载版本（屏占比 + 自动阅读 + 阅读统计 + 笔记增强（含语音复习 `tts.js`「▶ 听」）+ 阅读洞察（原生 Canvas 图表、规律建议、笔记密度、书架 / 发现页签、阅读人格）+ 本地找书 + 数据备份 `backup.js` + 集中 API Key 入口 + 支持与反馈/帮助中心 + 中英双语 + 匿名使用统计（默认开启可关闭）；已移除主题设置） |
+| manifest.json | `0.26.0` | 当前浏览器实际加载版本（屏占比 + 自动阅读 + 阅读统计 + 笔记增强（含语音复习 `tts.js`「▶ 听」）+ 阅读洞察（原生 Canvas 图表、规律建议、笔记密度、书架 / 发现页签、阅读人格）+ 本地找书 + 数据备份 `backup.js` + 首页书架 `home-shelf.js` + 集中 API Key 入口 + 支持与反馈/帮助中心 + 中英双语 + 匿名使用统计（默认开启可关闭）；已移除主题设置） |
 | RPD_需求文档.md | `v0.21` | PRD 迭代版本（第 10 章官方数据、第 11 章本地找书、第 12 章评论侧栏〔规划 v0.21.0〕、第 13 章多模型〔规划 v0.22.0〕、第 14 章语音复习〔已实现 v0.24.0〕、第 15 章数据备份与恢复〔已实现 v0.25.0〕、第 16 章样式统一配置〔待办·未排期〕） |
-| Git Tag | `v0.25.0` | 最新已打的 Tag（2026-10-07）；v0.20.1 及之前见 [plan_github_versioning.md](./plan_github_versioning.md) |
-| release zip | `weread-enhancer-v0.25.0.zip` | 最新上传包（由 `pack.py` 生成） |
+| Git Tag | `v0.26.0` | 最新已打的 Tag（2026-10-08）；v0.20.1 及之前见 [plan_github_versioning.md](./plan_github_versioning.md) |
+| release zip | `weread-enhancer-v0.26.0.zip` | 最新上传包（由 `pack.py` 生成） |
 | version_plan.md | `v1.3` | 本文档独立版本 |
