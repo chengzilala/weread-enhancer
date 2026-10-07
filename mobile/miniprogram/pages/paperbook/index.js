@@ -141,8 +141,12 @@ Page({
     if (!code) {
       return;
     }
-    if (!ISBN_RE.test(code)) {
-      wx.showToast({ title: '这不是图书条码（应为 13 位 ISBN）', icon: 'none' });
+    if (!pbCore.isIsbnBarcode(code)) {
+      if (/^97[89]\d{10}$/.test(code)) {
+        wx.showToast({ title: '条码没扫清，请重扫一次', icon: 'none' });
+      } else {
+        wx.showToast({ title: '不是图书 ISBN 条码（请对准 978/979 开头那条）', icon: 'none', duration: 2200 });
+      }
       return;
     }
     if (pbStore.findByIsbn(code)) {
@@ -191,7 +195,7 @@ Page({
           wx.showToast({ title: res.error || '没识别到条码', icon: 'none' });
           return;
         }
-        const code = res.isbn || (res.codes || []).map((c) => c.data).filter((d) => ISBN_RE.test(d))[0] || '';
+        const code = res.isbn || (res.codes || []).map((c) => c.data).filter((d) => pbCore.isIsbnBarcode(d))[0] || '';
         if (!code) {
           wx.showModal({
             title: '没识别到图书条码',

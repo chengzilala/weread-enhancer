@@ -7,6 +7,28 @@
  */
 const pbData = require('./paperbook-data');
 
+/** EAN-13 校验位是否正确（用来挡掉扫码误读 / 乱码） */
+function isValidEan13(code) {
+  const s = String(code || '');
+  if (!/^\d{13}$/.test(s)) {
+    return false;
+  }
+  let sum = 0;
+  for (let i = 0; i < 12; i++) {
+    sum += Number(s.charAt(i)) * (i % 2 === 0 ? 1 : 3);
+  }
+  return (10 - (sum % 10)) % 10 === Number(s.charAt(12));
+}
+
+/**
+ * 是否是图书 ISBN 条码：EAN-13 + 978/979 图书段位 + 校验位正确。
+ * 书上的其它条码（出版社自编码、物流/防伪码等）不以 978/979 开头，会被挡掉。
+ */
+function isIsbnBarcode(code) {
+  const s = String(code || '').trim();
+  return /^97[89]\d{10}$/.test(s) && isValidEan13(s);
+}
+
 /**
  * 自动匹配（M3）：先按 ISBN 试，不中再按书名试。
  * 命中即视为「建议」，用户可在详情页改（或走 M10 手动关联覆盖）。
@@ -40,4 +62,6 @@ async function autoMatch(apiKey, isbn, title) {
 
 module.exports = {
   autoMatch,
+  isValidEan13,
+  isIsbnBarcode,
 };

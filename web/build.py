@@ -710,7 +710,7 @@ def render_home(page):
         '  <div class="home-hero-text">\n'
         '    <h1 class="home-hero-title">%s</h1>\n'
         '%s'
-        '    <div class="home-actions">%s<a class="home-btn" href="/start/">快速上手</a>%s%s%s</div>\n'
+        '    <div class="home-actions">%s%s%s%s</div>\n'
         '  </div>\n'
         '  %s\n'
         '</section>' % (inline(title, page), sub_html,

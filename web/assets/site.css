@@ -558,8 +558,7 @@ a:hover { text-decoration: underline; }
 body.wre-lb-open { overflow: hidden; }
 
 /* ---------- 我的账户页（/account/，与网页版共用同一套账户） ---------- */
-/* 收成单列，避免大屏下表单被拉得过宽 */
-.has-account .doc { max-width: 720px; margin: 0 auto; }
+/* 与全站其他页面同宽同对齐（.site-body 内左对齐），不再单独限宽居中 */
 .acct-lead { color: var(--text-soft); margin: 0 0 22px; }
 
 .acct-hero {

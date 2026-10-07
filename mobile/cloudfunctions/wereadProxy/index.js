@@ -489,7 +489,7 @@ async function handleImgScan(event) {
       data: String((c && c.data) || ''),
     }))
     .filter((c) => !!c.data);
-  const isbn = (codes.filter((c) => /^\d{13}$/.test(c.data))[0] || {}).data || '';
+  const isbn = (codes.filter((c) => /^97[89]\d{10}$/.test(c.data))[0] || {}).data || '';
 
   console.log('[wereadProxy] imgScan', { codes: codes.length, isbn: isbn ? 'hit' : 'none' });
   return { ok: true, isbn: isbn, codes: codes };
