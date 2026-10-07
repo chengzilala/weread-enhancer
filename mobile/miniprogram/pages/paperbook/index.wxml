@@ -172,7 +172,7 @@
     <view class="wre-card pb-error" wx:elif="{{linkError}}">{{linkError}}</view>
 
     <view class="wre-card" wx:if="{{!linkSearched && !linkLoading && !linkError}}">
-      <view class="wre-muted">微信读书按「书名 / 作者」搜索（不认 ISBN），输入书名再点「搜索」。</view>
+      <view class="wre-muted">微信读书按「书名 / 作者」搜索（不认 ISBN）。搜索会先在你的微信读书书架里找，命中会置顶标「在我的书架」。</view>
     </view>
 
     <view class="wre-card" wx:if="{{!linkLoading && !linkError && linkResults.length}}">
@@ -182,6 +182,7 @@
         <view class="pb-info">
           <view class="pb-title">{{item.title}}</view>
           <view class="pb-author" wx:if="{{item.author}}">{{item.author}}</view>
+          <text class="pb-tag pb-tag--on" wx:if="{{item.inShelf}}">在我的书架</text>
           <view class="pb-reading" wx:if="{{item.readingCount}}">{{item.readingCount}} 人在读</view>
         </view>
       </view>

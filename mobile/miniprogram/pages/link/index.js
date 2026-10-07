@@ -54,12 +54,38 @@ Page({
   },
 
   async onSubmit() {
-    if (this.data.busy) {
-      return;
-    }
     const code = extractCode(this.data.code);
     if (!code) {
       this.setStatus('error', '请填写 6 位绑定码，或粘贴完整账户码');
+      return;
+    }
+    this.submitCode(code);
+  },
+
+  /** 扫码关联：扫网页端「生成绑定码」后展示的二维码 */
+  onScan() {
+    if (this.data.busy) {
+      return;
+    }
+    wx.scanCode({
+      onlyFromCamera: false,
+      scanType: ['qrCode'],
+      success: (res) => {
+        const code = extractCode(res && res.result);
+        if (!code) {
+          this.setStatus('error', '二维码内容无法识别，请在网页端重新生成');
+          return;
+        }
+        this.submitCode(code);
+      },
+      fail: () => {
+        // 用户取消扫码：静默处理
+      },
+    });
+  },
+
+  async submitCode(code) {
+    if (this.data.busy) {
       return;
     }
     this.setData({ busy: true });

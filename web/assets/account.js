@@ -11,9 +11,10 @@
 import { esc, copyText, confirmSignOut } from '/app/src/ui.js';
 import {
   getDeviceId, setDeviceId, resetDeviceId,
-  getMask, setMask, getProfile, setProfile,
+  getMask, setMask, getProfile, setProfile, readAvatarFile,
 } from '/app/src/store.js';
 import { keyGet, keySave, keyClear, verifyKey, profileSave, bindCreate, bindStatus, bindRemove } from '/app/src/api.js';
+import { qrSvg } from '/app/src/qrcode.js';
 
 const root = document.getElementById('acctRoot');
 
@@ -32,10 +33,14 @@ function maskCode(id) {
   return v.length > 8 ? v.slice(0, 4) + '····' + v.slice(-4) : v;
 }
 
-/** 头像取昵称首字（不上传图片） */
-function avatarChar(nickName) {
-  const chars = Array.from(String(nickName || '').trim());
-  return chars.length ? chars[0] : '微';
+/** 头像：有自定义图片则显示图片，否则退回昵称首字（图片仅存本机） */
+function avatarInner(profile) {
+  const avatarUrl = (profile && profile.avatarUrl) || '';
+  if (avatarUrl) {
+    return '<img class="acct-avatar__img" src="' + esc(avatarUrl) + '" alt="头像">';
+  }
+  const chars = Array.from(String((profile && profile.nickName) || '').trim());
+  return esc(chars.length ? chars[0] : '微');
 }
 
 /** 极简提示条（沿用官网站点样式） */
@@ -91,13 +96,15 @@ function render() {
     return;
   }
   const id = getDeviceId();
-  const nickName = getProfile().nickName || '';
+  const profile = getProfile();
+  const nickName = profile.nickName || '';
+  const hasAvatar = !!profile.avatarUrl;
   const mask = getMask() || {};
   const shownCode = showCode ? id : maskCode(id);
 
   root.innerHTML =
     '<section class="acct-hero">' +
-    '<div class="acct-avatar">' + esc(avatarChar(nickName)) + '</div>' +
+    '<div class="acct-avatar">' + avatarInner(profile) + '</div>' +
     '<div class="acct-hero__meta">' +
     '<div class="acct-name">' + (nickName ? esc(nickName) : '未设置昵称') + '</div>' +
     '<div class="acct-code">账户码 ' + esc(maskCode(id)) + '</div>' +
@@ -131,12 +138,20 @@ function render() {
 
     '<section class="acct-card">' +
     '<h2 class="acct-card__title">我的资料</h2>' +
+    '<div class="acct-profile">' +
+    '<div class="acct-profile__avatar">' + avatarInner(profile) + '</div>' +
+    '<div class="acct-profile__ops">' +
+    '<button class="acct-btn acct-btn--ghost" type="button" data-act="pick-avatar">' + (hasAvatar ? '更换头像' : '上传头像') + '</button>' +
+    (hasAvatar ? '<button class="acct-link" type="button" data-act="remove-avatar">移除头像</button>' : '') +
+    '</div>' +
+    '<input class="acct-file" id="acctAvatarInput" type="file" accept="image/*" hidden>' +
+    '</div>' +
     '<div class="acct-inline">' +
     '<input class="acct-input" id="acctNickInput" type="text" maxlength="24" autocomplete="off" ' +
     'placeholder="昵称（用于分享署名）" value="' + esc(nickName) + '">' +
     '<button class="acct-btn" type="button" data-act="save-profile">保存昵称</button>' +
     '</div>' +
-    '<p class="acct-hint">头像用昵称首字生成，不上传图片。</p>' +
+    '<p class="acct-hint">头像只在你的浏览器本机显示，不会上传到服务器；昵称随账户同步。</p>' +
     '</section>' +
 
     '<section class="acct-card acct-card--danger">' +
@@ -162,7 +177,8 @@ function bindSection() {
       '</div>';
   } else if (bindCode && Date.now() < bindExpire) {
     inner = '<div class="acct-bindcode">' + esc(bindCode) + '</div>' +
-      '<p class="acct-hint">在小程序里打开「我的 → 关联网页账户」，输入这 6 位数字即可完成关联（10 分钟内有效）。</p>' +
+      '<div class="acct-qr">' + qrSvg(bindCode) + '</div>' +
+      '<p class="acct-hint">打开微信小程序「我的 → 关联网页账户」，点「扫一扫」扫码；也可手动输入上方 6 位数字（10 分钟内有效）。</p>' +
       '<button class="acct-btn acct-btn--ghost" type="button" data-act="gen-bind">重新生成</button>';
   } else {
     const expired = bindCode && Date.now() >= bindExpire;
@@ -258,7 +274,7 @@ async function syncFromServer() {
       hasAiKey: !!res.hasAiKey,
     });
     if (res.nickName) {
-      setProfile({ nickName: res.nickName });
+      setProfile({ nickName: res.nickName, avatarUrl: getProfile().avatarUrl });
     }
   }
   render();
@@ -332,9 +348,29 @@ async function saveProfile() {
     toast((res && res.error) || '保存失败');
     return;
   }
-  setProfile({ nickName: name });
+  setProfile({ nickName: name, avatarUrl: getProfile().avatarUrl });
   render();
   toast(name ? '昵称已保存' : '昵称已清空');
+}
+
+/** 选择头像：读本地图片 → 压缩 → 仅存本机 */
+async function pickAvatar(file) {
+  try {
+    toast('处理图片中…');
+    const url = await readAvatarFile(file);
+    setProfile({ nickName: getProfile().nickName, avatarUrl: url });
+    render();
+    toast('头像已更新（仅本机显示）');
+  } catch (e) {
+    toast((e && e.message) || '头像设置失败');
+  }
+}
+
+/** 移除头像，退回昵称首字 */
+function removeAvatar() {
+  setProfile({ nickName: getProfile().nickName, avatarUrl: '' });
+  render();
+  toast('已移除头像');
 }
 
 async function clearKey() {
@@ -393,6 +429,12 @@ function onAction(e) {
   if (act === 'save-key') { saveKey(btn.getAttribute('data-kind')); return; }
   if (act === 'restore') { restoreCode(); return; }
   if (act === 'save-profile') { saveProfile(); return; }
+  if (act === 'pick-avatar') {
+    const f = document.getElementById('acctAvatarInput');
+    if (f) { f.click(); }
+    return;
+  }
+  if (act === 'remove-avatar') { removeAvatar(); return; }
   if (act === 'clear-key') { clearKey(); return; }
   if (act === 'gen-bind') { genBind(); return; }
   if (act === 'remove-bind') { removeBind(); return; }
@@ -416,6 +458,15 @@ function onKeydown(e) {
   }
 }
 
+/** 文件选择：选中头像图片后立即处理 */
+function onRootChange(e) {
+  const t = e.target;
+  if (t && t.id === 'acctAvatarInput' && t.files && t.files[0]) {
+    pickAvatar(t.files[0]);
+    t.value = '';
+  }
+}
+
 if (root) {
   bindCode = '';
   bindExpire = 0;
@@ -424,6 +475,7 @@ if (root) {
   render();
   root.addEventListener('click', onAction);
   root.addEventListener('keydown', onKeydown);
+  root.addEventListener('change', onRootChange);
   syncFromServer();
   refreshLink();
 }

@@ -15,6 +15,7 @@
     </block>
 
     <block wx:else>
+      <button class="wre-btn wre-btn--ghost link-scan" bindtap="onScan">扫一扫</button>
       <input
         class="link-input"
         type="text"
@@ -24,7 +25,7 @@
       />
       <button class="wre-btn" loading="{{busy}}" bindtap="onSubmit">关联</button>
       <view class="wre-muted link-hint">
-        在网页版「我的账户 → 关联微信小程序」里点「生成绑定码」得到 6 位数字；也可直接复制完整账户码粘贴到这里。
+        在网页版「我的账户 → 关联微信小程序」里点「生成绑定码」，用上方「扫一扫」扫二维码；也可手动输入 6 位数字，或复制完整账户码粘贴到这里。
       </view>
     </block>
 

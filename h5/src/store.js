@@ -183,6 +183,46 @@ export function setProfile(profile) {
   }
 }
 
+/**
+ * 读取用户选择的头像图片 → 居中裁成 256×256 的 dataURL。
+ * 仅作本机显示（写入 profile.avatarUrl），**不上传任何服务器**。
+ * 用 canvas 降采样，避免大图把 localStorage 撑爆。返回 Promise<string>。
+ */
+export function readAvatarFile(file) {
+  return new Promise(function (resolve, reject) {
+    if (!file || !/^image\//.test(file.type)) {
+      reject(new Error('请选择图片文件'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = function () { reject(new Error('读取失败')); };
+    reader.onload = function () {
+      const img = new Image();
+      img.onerror = function () { reject(new Error('图片无法解析')); };
+      img.onload = function () {
+        try {
+          const SIZE = 256;
+          const canvas = document.createElement('canvas');
+          canvas.width = SIZE;
+          canvas.height = SIZE;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, SIZE, SIZE);
+          const scale = Math.max(SIZE / img.width, SIZE / img.height);
+          const w = Math.round(img.width * scale);
+          const h = Math.round(img.height * scale);
+          ctx.drawImage(img, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        } catch (e) {
+          reject(new Error('图片处理失败'));
+        }
+      };
+      img.src = String(reader.result || '');
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 // ---- 通用缓存（带 TTL）----
 export function cacheGet(key, ttlMs) {
   try {

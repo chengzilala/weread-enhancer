@@ -8,6 +8,7 @@
 const { PROXY_FUNCTION } = require('../config');
 
 const LOCAL_KEY = 'wre_paperbooks';
+const ISBN_MAP_KEY = 'wre_pb_isbn_map'; // 记忆：ISBN → 微信读书电子版（关联一次，永久复用）
 
 // ---------- 本机读写 ----------
 
@@ -82,6 +83,43 @@ function findByIsbn(isbn) {
   return listLocal().filter((b) => String(b.isbn || '').trim() === norm)[0] || null;
 }
 
+// ---------- 记忆式关联：ISBN → 电子版 映射 ----------
+// 微信读书只认书名/作者、不认 ISBN，扫到的 ISBN 无法直接换到电子版。
+// 故「关联一次就记住」：把 ISBN → {bookId, title, ...} 存本机，同 ISBN 再扫即零操作复用。
+
+/** 全部映射（缺失/损坏时返回空对象） */
+function getIsbnMap() {
+  const value = wx.getStorageSync(ISBN_MAP_KEY);
+  return value && typeof value === 'object' ? value : {};
+}
+
+/** 查某 ISBN 记住的电子版；没有返回 null */
+function getIsbnMemory(isbn) {
+  const key = String(isbn || '').trim();
+  if (!key) {
+    return null;
+  }
+  return getIsbnMap()[key] || null;
+}
+
+/** 记住「某 ISBN = 某电子版」（关联成功后调用；无 ISBN / 无 bookId 时忽略） */
+function rememberIsbn(isbn, hit) {
+  const key = String(isbn || '').trim();
+  if (!key || !hit || !hit.bookId) {
+    return;
+  }
+  const map = getIsbnMap();
+  map[key] = {
+    bookId: hit.bookId || '',
+    deepLink: hit.deepLink || '',
+    title: hit.title || '',
+    author: hit.author || '',
+    cover: hit.cover || '',
+    ts: Date.now(),
+  };
+  wx.setStorageSync(ISBN_MAP_KEY, map);
+}
+
 // ---------- 云端备份（换机拉回；失败静默，不影响本机使用） ----------
 
 function cloudAvailable() {
@@ -131,6 +169,8 @@ module.exports = {
   updateBook,
   removeBook,
   findByIsbn,
+  getIsbnMemory,
+  rememberIsbn,
   backupSilent,
   restoreFromCloud,
 };

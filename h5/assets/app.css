@@ -154,6 +154,17 @@ html, body {
   color: var(--wre-text);
   padding: 16px 10px;
 }
+/* 绑定码二维码：白底居中，供小程序「扫一扫」 */
+.wre-qr {
+  width: fit-content;
+  margin: 12px auto 0;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid var(--wre-line);
+  border-radius: 10px;
+  line-height: 0;
+}
+.wre-qr svg { display: block; }
 
 /* 周期切换（对齐小程序 .period / .period__item） */
 .wre-modes {
@@ -407,9 +418,9 @@ html, body {
 .wre-table-card { padding: 10px 12px; }
 .wre-table { margin-top: 8px; }
 .wre-table__head,
-.wre-table__row { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; font-size: 13px; padding: 8px 0; border-bottom: 1px solid var(--wre-line); }
+.wre-table__row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; font-size: 13px; padding: 8px 0; border-bottom: 1px solid var(--wre-line); }
 .wre-table__head { color: var(--wre-muted); border-bottom: 1px solid var(--wre-line); font-weight: 600; }
-.wre-table__row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wre-table__head span, .wre-table__row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wre-table__main { font-weight: 600; }
 .wre-table__row .wre-track--slim { grid-column: 1 / -1; }
 /* 段落 / 列表（已在卡片内，去掉自身外边距；序号用品牌色） */
@@ -629,6 +640,7 @@ html, body {
   height: 46px;
   flex: none;
   border-radius: 12px;
+  overflow: hidden;
   background: var(--wre-brand);
   color: #fff;
   display: flex;
@@ -637,6 +649,7 @@ html, body {
   font-size: 20px;
   font-weight: 600;
 }
+.wre-avatar__img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .wre-account__meta { flex: 1; min-width: 0; }
 .wre-account__name { font-size: 17px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wre-account__id {
@@ -680,6 +693,7 @@ html, body {
   height: 60px;
   flex: none;
   border-radius: 30px;
+  overflow: hidden;
   background: #F5F6F8;
   color: #A8ADB8;
   display: flex;
@@ -703,16 +717,23 @@ html, body {
 /* ---- 宽屏（桌面浏览器 / 大屏预览）：收成居中的手机宽度，避免整页被拉满 ---- */
 @media (min-width: 560px) {
   :root { --wre-shell: 480px; }
-  body { background: #E9EBF0; }
+  body { background: #E4E7EE; }
   .wre-header,
   .wre-main {
     max-width: var(--wre-shell);
     margin-left: auto;
     margin-right: auto;
   }
+  /* 中间「手机列」：给这一列独立背景色，与外侧深一点的灰底区分，形成清晰的手机屏边界；
+     min-height 撑到视口底部，避免列底露出外层底色 */
+  .wre-main {
+    background: var(--wre-bg);
+    min-height: calc(100vh - 50px);
+    box-shadow: 0 0 0 1px rgba(31, 36, 48, 0.05);
+  }
   .wre-header { box-shadow: 0 1px 0 rgba(31, 36, 48, 0.08); }
-  /* 上下中间同宽：去掉页面左右 12px 缩进，让中间卡片与顶栏 / 底栏边缘对齐 */
-  .wre-page { padding-left: 0; padding-right: 0; }
+  /* 保留页面左右留白（24rpx → 12px，与小程序一致），让内容与手机列左右边缘等距对齐 */
+  .wre-page { padding: 12px; }
   .wre-tabbar {
     left: 50%;
     right: auto;

@@ -79,8 +79,32 @@ async function autoMatch(apiKey, isbn, title) {
   return { ok: true, hit: null, via: '' };
 }
 
+/**
+ * 在我的书架里找「书名对得上」的电子版（B 方案：优先匹配自己的书架）。
+ * 书架不含 ISBN，故只能按书名判定（复用 titleMatches）；命中可能多本，保持书架原序。
+ * → 候选数组，每项带 inShelf:true（调用方负责置顶 + 让用户确认）。
+ */
+function matchInShelf(title, shelfBooks) {
+  const kw = String(title || '').trim();
+  if (!kw) {
+    return [];
+  }
+  return (Array.isArray(shelfBooks) ? shelfBooks : [])
+    .filter((b) => b && titleMatches(b.title, kw))
+    .map((b) => ({
+      bookId: b.bookId || '',
+      title: b.title || '',
+      author: b.author || '',
+      cover: b.cover || '',
+      deepLink: '',
+      readingCount: 0,
+      inShelf: true,
+    }));
+}
+
 module.exports = {
   autoMatch,
+  matchInShelf,
   isValidEan13,
   isIsbnBarcode,
 };

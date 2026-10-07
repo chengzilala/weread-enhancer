@@ -1,6 +1,6 @@
 {
   "siteName": "微信悦读",
-  "siteDescription": "微信悦读是微信读书网页版的阅读增强插件：屏占比调节、自动阅读、阅读统计、笔记增强与阅读洞察（阅读行为报告）。这里是它的使用教程与阅读方法论。",
+  "siteDescription": "微信悦读是微信读书的阅读增强工具：桌面插件（屏占比调节、自动阅读、阅读统计、笔记增强、阅读洞察）＋ H5 网页版 ＋ 微信小程序。这里是它的使用教程、移动端说明与阅读方法论。",
   "baseUrl": "https://wereadapp-32km31c.maozi.io",
   "repoUrl": "https://github.com/chengzilala/weread-enhancer",
   "giteeUrl": "https://gitee.com/chengzila/weread-enhancer",
@@ -13,6 +13,8 @@
     { "title": "快速上手", "url": "/start/" },
     { "title": "功能教程", "url": "/guide/" },
     { "title": "进阶技巧", "url": "/tips/" },
+    { "title": "H5 移动端", "url": "/h5/" },
+    { "title": "微信小程序", "url": "/miniapp/" },
     { "title": "阅读人格", "url": "/persona/" },
     { "title": "知识资产", "url": "/thinking/" },
     { "title": "图库", "url": "/gallery/" },
@@ -32,6 +34,18 @@
       "dir": "进阶技巧",
       "title": "进阶技巧",
       "description": "把多个功能组合起来的用法，直接照抄就能用。"
+    },
+    {
+      "key": "h5",
+      "dir": "H5 移动端",
+      "title": "H5 移动端",
+      "description": "在手机浏览器里打开就能用的微信悦读：数据总览、阅读人格、阅读行为报告、每日卡片、灵感漫游，保留 AI 深度解析。"
+    },
+    {
+      "key": "miniapp",
+      "dir": "微信小程序",
+      "title": "微信小程序",
+      "description": "微信里的「悦读且住」小程序：读完之后看数据、看人格、看报告，还有我的纸书与扫码加书。"
     },
     {
       "key": "thinking",

@@ -112,6 +112,22 @@ async function searchStore(keyword, apiKey) {
   return { ok: true, items: slimSearch(res.data) };
 }
 
+// ---------- 我的书架（「挑一本」时优先在自己书库里匹配）----------
+
+/**
+ * 取「我的微信读书书架」书籍（官方只返回书名/作者等，**不含 ISBN**）。
+ * 用途：手动关联搜索时，先在自己的书架上按书名严格匹配 → 命中置顶，避免全站模糊结果里挑花眼。
+ * → { ok, books }；失败 { ok:false, code, error }
+ */
+async function fetchShelfBooks(apiKey) {
+  const res = await callGateway('/shelf/sync', {}, apiKey);
+  if (!res.ok) {
+    return { ok: false, code: res.code, error: res.error };
+  }
+  const slim = data.slimShelf(res.data);
+  return { ok: true, books: (slim && slim.books) || [] };
+}
+
 // ---------- 拍照识码（M2，云函数 imgScan → 云调用 img.scanQRCode）----------
 
 function cloudReady() {
@@ -233,6 +249,7 @@ module.exports = {
   searchStore,
   slimSearch,
   pickDeepLink,
+  fetchShelfBooks,
   scanImageCode,
   fetchBookNoteCounts,
   fetchBookNoteItems,

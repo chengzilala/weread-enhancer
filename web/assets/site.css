@@ -71,15 +71,21 @@ a:hover { text-decoration: underline; }
   gap: 20px;
 }
 
-.brand { display: flex; align-items: center; gap: 8px; color: var(--text); font-weight: 600; }
+.brand { display: flex; align-items: center; gap: 8px; color: var(--text); font-weight: 600; flex-shrink: 0; white-space: nowrap; }
 .brand:hover { text-decoration: none; }
 .brand-icon { width: 28px; height: 28px; border-radius: 7px; }
 .brand-name { font-size: 1em; }
 
-.site-nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: 18px; }
-.site-nav a { color: var(--text-soft); font-size: 1em; }
+.site-nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px 12px; }
+.site-nav a { color: var(--text-soft); font-size: 0.95em; white-space: nowrap; }
 .site-nav a:hover { color: var(--accent); text-decoration: none; }
 .site-nav a.active { color: var(--accent); font-weight: 600; }
+
+/* 中等宽度：80vw 容器较窄，进一步收紧导航，尽量单行放下全部栏目 */
+@media (min-width: 861px) and (max-width: 1300px) {
+  .site-nav { gap: 6px 9px; }
+  .site-nav a { font-size: 0.9em; }
+}
 
 .nav-toggle {
   display: none;
@@ -579,11 +585,36 @@ body.wre-lb-open { overflow: hidden; }
   align-items: center;
   justify-content: center;
   border-radius: 14px;
+  overflow: hidden;
   background: var(--accent);
   color: #fff;
   font-size: 24px;
   font-weight: 600;
 }
+.acct-avatar__img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* 我的资料：头像 + 上传/移除 */
+.acct-profile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.acct-profile__avatar {
+  width: 60px;
+  height: 60px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 15px;
+  overflow: hidden;
+  background: var(--accent);
+  color: #fff;
+  font-size: 24px;
+  font-weight: 600;
+}
+.acct-profile__ops { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .acct-hero__meta { flex: 1; min-width: 0; }
 .acct-name { font-size: 1.15em; font-weight: 600; }
 .acct-code {
@@ -694,7 +725,22 @@ body.wre-lb-open { overflow: hidden; }
   border-radius: 8px;
 }
 
-.acct-foot { margin: 4px 0 0; color: var(--text-soft); font-size: 0.88em; }
+.acct-qr {
+  width: fit-content;
+  margin: 12px auto 0;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  line-height: 0;
+}
+.acct-qr svg { display: block; }
+
+.acct-foot {
+  margin: 4px 0 0;
+  color: var(--text-soft);
+  font-size: 0.88em;
+}
 
 .acct-toast {
   position: fixed;

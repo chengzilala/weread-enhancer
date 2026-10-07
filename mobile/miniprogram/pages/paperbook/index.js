@@ -181,12 +181,25 @@ Page({
     if (!pbCore.isIsbnBarcode(value)) {
       return Promise.resolve({ status: /^97[89]\d{10}$/.test(value) ? 'unclear' : 'notisbn' });
     }
-    if (pbStore.findByIsbn(value)) {
+    // A 记忆式：这个 ISBN 之前关联过 → 直接复用，零操作
+    const memory = pbStore.getIsbnMemory(value);
+    const existing = pbStore.findByIsbn(value);
+    if (existing) {
+      if (!existing.bookId && memory) {
+        this.applyRememberedLink(existing.id, memory);
+        wx.showToast({ title: '已按记忆关联《' + (memory.title || '') + '》', icon: 'none', duration: 900 });
+        return Promise.resolve({ status: 'added', id: existing.id });
+      }
       wx.showToast({ title: '这本已在你的书库', icon: 'none' });
       return Promise.resolve({ status: 'duplicate' });
     }
-    const item = pbStore.addBook({ isbn: value, title: '' });
+    const item = pbStore.addBook({ isbn: value, title: memory ? memory.title || '' : '' });
     pbStore.backupSilent();
+    if (memory) {
+      this.applyRememberedLink(item.id, memory);
+      wx.showToast({ title: '已按记忆关联《' + (memory.title || '') + '》', icon: 'none', duration: 900 });
+      return Promise.resolve({ status: 'added', id: item.id });
+    }
     wx.showToast({ title: '已加入', icon: 'success', duration: 700 });
     this.reload();
     if (!this.data.hasKey) {
@@ -197,6 +210,21 @@ Page({
       status: matched ? 'added' : 'nomatch',
       id: item.id,
     }));
+  },
+
+  /** 按「记忆」回填并关联（不再走搜索） */
+  applyRememberedLink(id, memory) {
+    pbStore.updateBook(id, {
+      title: memory.title || '',
+      author: memory.author || '',
+      cover: memory.cover || '',
+      bookId: memory.bookId || '',
+      deepLink: memory.deepLink || '',
+      linkTitle: memory.title || '',
+      linkManual: false,
+    });
+    pbStore.backupSilent();
+    this.reload();
   },
 
   // ---- M2 拍照识码（旧书 / 条码磨损时，拍书背条码照片识别）----
@@ -283,6 +311,7 @@ Page({
         linkTitle: hit.title || '',
         linkManual: false,
       });
+      pbStore.rememberIsbn(isbn, hit); // A：记住这次关联，同 ISBN 再扫零操作
       pbStore.backupSilent();
       this.reload();
       if (this.data.view === 'edit' && this.data.editing && this.data.editing.id === id) {
@@ -533,13 +562,41 @@ Page({
       wx.showToast({ title: '请输入书名或作者', icon: 'none' });
       return;
     }
-    this.setData({ linkLoading: true, linkError: '', linkSearched: true });
-    pbData.searchStore(kw, store.getKey()).then((res) => {
-      if (!res.ok) {
-        this.setData({ linkLoading: false, linkResults: [], linkError: res.error || '搜索失败，请重试' });
+    this.setData({ linkLoading: true, linkError: '', linkSearched: true, linkResults: [] });
+    const key = store.getKey();
+    // B：先查「我的书架」（失败不阻塞，退回纯全站搜索）
+    Promise.all([
+      pbData.fetchShelfBooks(key).catch(() => ({ ok: false, books: [] })),
+      pbData.searchStore(kw, key),
+    ]).then((results) => {
+      const shelfRes = (results && results[0]) || {};
+      const searchRes = (results && results[1]) || {};
+      const shelfHits = pbCore.matchInShelf(kw, shelfRes.ok ? shelfRes.books : []);
+      if (!searchRes.ok && !shelfHits.length) {
+        this.setData({ linkLoading: false, linkResults: [], linkError: searchRes.error || '搜索失败，请重试' });
         return;
       }
-      this.setData({ linkLoading: false, linkResults: res.items, linkError: '' });
+      // 书架命中置顶（标「在我的书架」），全站结果补充、按 bookId 去重
+      const seen = {};
+      const merged = [];
+      shelfHits.forEach((it) => {
+        const k = it.bookId || it.title;
+        if (k && !seen[k]) {
+          seen[k] = true;
+          merged.push(it);
+        }
+      });
+      (searchRes.items || []).forEach((it) => {
+        const k = it.bookId || it.title;
+        if (k && seen[k]) {
+          return;
+        }
+        if (k) {
+          seen[k] = true;
+        }
+        merged.push(it);
+      });
+      this.setData({ linkLoading: false, linkResults: merged, linkError: '' });
     });
   },
 
@@ -560,6 +617,8 @@ Page({
       author: editing.author || hit.author || '',
       title: editing.title || hit.title || '',
     });
+    // A：记住这次「ISBN → 电子版」关联，同 ISBN 再扫零操作
+    pbStore.rememberIsbn(editing.isbn, hit);
     pbStore.backupSilent();
     wx.showToast({ title: '已关联', icon: 'success' });
     this.setData({ view: 'edit', editing: updated || editing, noteCounts: null, noteItems: { marks: [], reviews: [] } });

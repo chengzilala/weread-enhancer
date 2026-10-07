@@ -2,6 +2,11 @@
   margin-top: 20rpx;
 }
 
+/* 扫一扫：主操作，置于手动输入之上 */
+.link-scan {
+  margin-top: 24rpx;
+}
+
 .link-input {
   margin-top: 24rpx;
   padding: 24rpx;

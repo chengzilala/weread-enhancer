@@ -1626,4 +1626,27 @@
 - **验证**：`python3 web/build.py` → 页面 25 篇 + 栏目索引 4 个、**0 告警**（v0.26.0）；`GetDiagnostics` 无 error；grep 静态断言 `wre-profile__nick / open-wander / wre-link__arrow / wre-tab.is-active / setActiveTab` 均在 `dist/app/` 产物中。浏览器核验「我的」页：身份头、六张白卡、资料行、三行「更多」链接均成立，控制台无报错；报告页因浏览器沙箱无 Key 被门禁拦截，未能视觉核验（结构已在源码层确认）。
 - **待办**：用户本地硬刷新 `localhost:8920/app/#/me` 与 `#/report`（报告需已配 Key）看效果；本次改动**未提交**（待用户确认后按 `git-sync` / `pack-publish` 处理）。
 
+## 2026-10-08 会话条目：H5 宽屏「手机列」加背景色 + 恢复左右留白
+- **目标**：用户反馈「样式调整，左右不对齐了，对于中间区域加入背景色」。
+- **排查**：浏览器实测（`#/me`，viewport 671）：`.wre-header / .wre-main / .wre-tabbar` 均 x=96、宽 480，中心/边缘完全对齐，无横向溢出；但 `.wre-main` 背景为**透明**（透出 body 的 `#E9EBF0`）→ 中间手机列没有自己的底色；且宽屏下 `.wre-page` 被改成 `padding: 0` → 卡片贴死列的左右边缘、无留白，视觉上「不对齐」。
+- **已做**（`h5/assets/app.css`）：
+  - 宽屏媒体查询里给 `.wre-main` 加 `background: var(--wre-bg)` + `min-height: calc(100vh - 50px)` + 1px 细描边，形成清晰「手机列」；外层 body 底色由 `#E9EBF0` 调深为 `#E4E7EE` 增强对比。
+  - 宽屏 `.wre-page` 由 `padding-left/right: 0` 改为 `padding: 12px`（= 小程序 24rpx），内容与手机列左右边缘等距，和窄屏/小程序一致。
+  - 顺手给报告表格加横向溢出保护：`grid-auto-columns: 1fr` → `minmax(0, 1fr)`，表头单元格也加省略号（避免长标题撑宽导致整页横向滚动、进而让 sticky 顶栏与 fixed Tab 栏错位）。
+- **验证**：`python3 web/build.py` → **0 告警**（v0.26.0）；浏览器实测：`.wre-main` 背景 `rgb(245,246,248)`、body `rgb(228,231,238)` 两色不同；首卡 x=108（页 x=96+12 留白）、宽 456；`scrollWidth == clientWidth`（无横向溢出）；顶栏/手机列/Tab 栏同为 x=96、宽 480；控制台无报错。
+- **待办**：用户本地**硬刷新** `localhost:8920/app/#/report` 复核；本次改动**未提交**（待用户确认后按 `git-sync` / `pack-publish` 处理）。
+
+## 2026-10-08 会话条目：扫码绑定入口 —— 零依赖纯本地二维码生成器（三端，代码已完成）
+- **目标**：补齐 `plan/账户体系_说明.md` §5.4「网页端 ↔ 小程序端打通」的**扫码绑定**入口（spec 原定扫码 / 6 位短码 / 粘贴账户码三种，此前只做了后两种）；红线是「零外部依赖 / 不用 CDN」。
+- **已做**：
+  - **自研二维码库** `h5/src/qrcode.js`：固定 **ISO/IEC 18004 Version 3 / 纠错 M / 字节模式**（29×29 模块；70 码字 = 44 数据 + 26 纠错）；自实现 GF(256)（本原多项式 `0x11d`）+ Reed-Solomon 纠错 + 8 种掩码罚分择优 + BCH(15,5) 格式信息（`0x537` / 异或 `0x5412`）；导出 `qrMatrix(text,{mask})` 与 `qrSvg(text,{scale})`（含 4 模块静区）；纯 ES 模块，无第三方依赖。
+  - **网页版** `h5/src/views/me.js`：绑定卡片「已生成绑定码」分支加 `<div class="wre-qr">` + 文案指引；`h5/assets/app.css` 加 `.wre-qr`（白底居中，扫一扫可读）。
+  - **官网** `web/assets/account.js`：同上接入，import 自 `/app/src/qrcode.js`；`web/assets/site.css` 加 `.acct-qr`。
+  - **小程序** `mobile/miniprogram/pages/link/index.{js,wxml,wxss}`：加「扫一扫」按钮（`wx.scanCode({scanType:['qrCode']})`），重构 `onSubmit`→`submitCode`，扫码结果经 `extractCode` 后复用 `account.bindClaim`。
+  - **文档回灌**：`plan/账户体系_说明.md` §5.4 三种入口①由「⏳ 未做」改为「✅ 已实现」+ 新增二维码生成器小节 + §9 变更记录；`plan/RPD_小程序移动端_需求文档.md` M15 第 6 条补**豁免说明**（扫码关联属账户打通，不算「引导去站外用 AI」）。
+- **关键结论/决定**：二维码**纯本地生成**（守零依赖红线）；绑定码仅 6 位数字，V3-M 容量 44 字节绰绰有余；矩阵仅承载 6 位码，**无需纠错块分组**（V3-M 单纠错块）。
+- **产出物（文件）**：`h5/src/qrcode.js`（新）、`h5/src/views/me.js`、`h5/assets/app.css`、`web/assets/account.js`、`web/assets/site.css`、`mobile/miniprogram/pages/link/index.js|wxml|wxss`、`plan/账户体系_说明.md`、`plan/RPD_小程序移动端_需求文档.md`。
+- **验证**：与 Python `qrcode` 参考实现**逐位比对**（跨掩码 0–7 + 真实 32 位账户码 + 自动选掩码）**全部一致**；期间定位并修复 `buildBaseMatrix` **漏拼纠错码字**导致 85 处错误（数据循环取到 EC 区越界取 0）；`python3 web/build.py` 成功、`web/dist/app/src/qrcode.js` 已生成（官网导入路径有效）。
+- **待办**：小程序端需在**真机**验证 `wx.scanCode` 扫码→关联闭环；本次改动**未提交**（待用户确认后按 `git-sync` / `pack-publish` 处理）。
+
 

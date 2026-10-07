@@ -5,13 +5,14 @@
  *   「账户码」就是它，换设备输入即可登录同一账户（未来可在此挂 openid 做微信登录）。
  *
  * 红线：Key 明文只提交一次给服务端加密托管，本机只保存掩码；提交后不再持有明文。
- *      昵称非敏感、可托管；头像不上传图片，用昵称首字渲染。
+ *      昵称非敏感、可托管；头像可本机上传，仅存本机、不上传服务器。
  *      完整账户码等同一把钥匙，默认只显示掩码，点「显示完整」才展开。
  */
 
 import { keySave, keyClear, verifyKey, keyGet, profileSave, bindCreate, bindStatus, bindRemove } from '../api.js';
-import { getMask, setMask, getProfile, setProfile, getDeviceId, setDeviceId, resetDeviceId } from '../store.js';
+import { getMask, setMask, getProfile, setProfile, getDeviceId, setDeviceId, resetDeviceId, readAvatarFile } from '../store.js';
 import { esc, toast, copyText, confirmSignOut } from '../ui.js';
+import { qrSvg } from '../qrcode.js';
 
 export const title = '我的账户';
 
@@ -28,6 +29,7 @@ export function render(root, app) {
   root.innerHTML = '<div class="wre-page" id="meBody"></div>';
   const body = root.querySelector('#meBody');
   body.addEventListener('click', (e) => onAction(e, body, app));
+  body.addEventListener('change', (e) => onAvatarChange(e, body));
   bindCode = '';
   bindExpire = 0;
   bindLinked = null;
@@ -37,27 +39,50 @@ export function render(root, app) {
   refreshLink(body);      // 静默查询是否已关联小程序
 }
 
+/** 文件选择：选中头像图片后压缩并仅存本机 */
+async function onAvatarChange(e, body) {
+  const t = e.target;
+  if (!t || t.id !== 'meAvatar' || !t.files || !t.files[0]) {
+    return;
+  }
+  try {
+    toast('处理图片中…');
+    const url = await readAvatarFile(t.files[0]);
+    setProfile({ nickName: getProfile().nickName, avatarUrl: url });
+    paint(body);
+    toast('头像已更新（仅本机显示）');
+  } catch (err) {
+    toast((err && err.message) || '头像设置失败');
+  }
+  t.value = '';
+}
+
 /** 账户码掩码：前 4 后 4，中间打点 */
 function maskCode(id) {
   const v = String(id || '');
   return v.length > 8 ? v.slice(0, 4) + '····' + v.slice(-4) : v;
 }
 
-/** 头像用昵称首字（不上传图片） */
-function avatarChar(nickName) {
-  const chars = Array.from(String(nickName || '').trim());
-  return chars.length ? chars[0] : '微';
+/** 头像：有本机上传的图片则显示图片，否则退回昵称首字（图片仅存本机、不上传） */
+function avatarInner(profile) {
+  const avatarUrl = (profile && profile.avatarUrl) || '';
+  if (avatarUrl) {
+    return '<img class="wre-avatar__img" src="' + esc(avatarUrl) + '" alt="头像" />';
+  }
+  const chars = Array.from(String((profile && profile.nickName) || '').trim());
+  return esc(chars.length ? chars[0] : '微');
 }
 
 function paint(body) {
   const mask = getMask() || {};
   const profile = getProfile();
   const deviceId = getDeviceId();
+  const hasAvatar = !!profile.avatarUrl;
 
   body.innerHTML =
     '<div class="wre-card">' +
     '  <div class="wre-account">' +
-    '    <div class="wre-avatar">' + esc(avatarChar(profile.nickName)) + '</div>' +
+    '    <div class="wre-avatar">' + avatarInner(profile) + '</div>' +
     '    <div class="wre-account__meta">' +
     '      <div class="wre-account__name">' + esc(profile.nickName || '未命名用户') + '</div>' +
     '      <div class="wre-account__id">账户码 ' + esc(maskCode(deviceId)) + '</div>' +
@@ -90,12 +115,17 @@ function paint(body) {
 
     '<div class="wre-card">' +
     '  <div class="wre-card__title">我的资料（可选）</div>' +
-    '  <div class="wre-muted">昵称随账户同步，换设备不用重填；头像用昵称首字显示，不上传图片。</div>' +
+    '  <div class="wre-muted">昵称随账户同步，换设备不用重填；头像只存本机、不上传服务器。</div>' +
     '  <div class="wre-profile">' +
-    '    <div class="wre-profile__avatar">' + esc(avatarChar(profile.nickName)) + '</div>' +
+    '    <div class="wre-profile__avatar">' + avatarInner(profile) + '</div>' +
     '    <input class="wre-profile__nick" id="meNick" maxlength="24" placeholder="点击填写昵称" value="' + esc(profile.nickName) + '" />' +
     '  </div>' +
-    '  <button class="wre-btn wre-btn--ghost" data-action="save-profile">保存昵称</button>' +
+    '  <div class="wre-btn-row">' +
+    '    <button class="wre-btn wre-btn--ghost" data-action="save-profile">保存昵称</button>' +
+    '    <button class="wre-btn wre-btn--ghost" data-action="pick-avatar">' + (hasAvatar ? '更换头像' : '上传头像') + '</button>' +
+    (hasAvatar ? '    <button class="wre-btn wre-btn--ghost" data-action="remove-avatar">移除头像</button>' : '') +
+    '  </div>' +
+    '  <input type="file" id="meAvatar" accept="image/*" hidden />' +
     '</div>' +
 
     '<div class="wre-card">' +
@@ -177,7 +207,8 @@ function bindCard() {
   } else if (bindCode && Date.now() < bindExpire) {
     inner =
       '  <div class="wre-code wre-code--bind">' + esc(bindCode) + '</div>' +
-      '  <div class="wre-hint">在小程序里打开「我的 → 关联网页账户」，输入这 6 位数字即可完成关联（10 分钟内有效）。</div>' +
+      '  <div class="wre-qr">' + qrSvg(bindCode) + '</div>' +
+      '  <div class="wre-hint">打开微信小程序「我的 → 关联网页账户」，点「扫一扫」扫码；也可手动输入上方 6 位数字（10 分钟内有效）。</div>' +
       '  <div class="wre-btn-row">' +
       '    <button class="wre-btn wre-btn--ghost" data-action="gen-bind">重新生成</button>' +
       '  </div>';
@@ -343,6 +374,19 @@ async function onAction(e, body, app) {
     const res = await profileSave(nickName);
     toast(res.ok ? '昵称已保存并同步' : ('已存本机，云端同步失败：' + (res.error || '请稍后重试')));
     paint(body);
+    return;
+  }
+
+  if (action === 'pick-avatar') {
+    const f = body.querySelector('#meAvatar');
+    if (f) { f.click(); }
+    return;
+  }
+
+  if (action === 'remove-avatar') {
+    setProfile({ nickName: getProfile().nickName, avatarUrl: '' });
+    paint(body);
+    toast('已移除头像');
     return;
   }
 
