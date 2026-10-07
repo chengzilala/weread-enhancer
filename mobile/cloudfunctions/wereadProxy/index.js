@@ -22,7 +22,9 @@
  *   - action: 'keySave'       —— Key 加密托管（{deviceId, apiKey?, aiKey?}，集合 wre_users）；
  *   - action: 'keyGet'        —— 只回「是否已配置 + 掩码」（{deviceId}）；
  *   - action: 'keyClear'      —— 清除托管 Key（{deviceId}）；
- *   - action: 'syncGet/Put'   —— 人格结果按 deviceId 云同步。
+ *   - action: 'syncGet/Put'   —— 人格结果按 deviceId 云同步；
+ *   - action: 'opsPing'       —— H5 匿名使用量（{deviceId, version}，按 deviceId + 天去重）；
+ *   - action: 'opsAdmin'      —— H5 运营看板（{token}，口令校验通过才下发）。
  *
  * 红线：
  *   1. 不持久化、不记录任何用户的 Key（日志只允许出现掩码）；
@@ -43,6 +45,7 @@
  *   ④ H5：新建集合 `wre_users`（权限选「仅管理端可读写」，用于 Key 加密托管）；在环境变量新增
  *      `KEY_SECRET`（任意足够长的随机串，用于应用层加密，**一旦设置不要更改**，否则已托管 Key 无法解密）
  *      与 `H5_ORIGINS`（允许跨域的 H5 站点地址，多个用英文逗号分隔；不配则退回 `*`）；
+ *      可选：`ADMIN_TOKEN`（H5 运营看板口令，不配则 H5 看板关闭）；
  *      在「HTTP 访问服务」为 H5 另绑一个路径（如 `/h5`）到本函数，把该地址填进 `h5/src/config.js`。
  */
 'use strict';
@@ -88,6 +91,8 @@ const ADMIN_OPENIDS = String(process.env.ADMIN_OPENIDS || '')
 //   - H5_ORIGINS：允许跨域访问本站的域名白名单（英文逗号分隔）；未配置时退回 `*`（便于本地开发）。
 const USERS_COLLECTION = 'wre_users';
 const KEY_SECRET = String(process.env.KEY_SECRET || '');
+// H5 运营看板口令（H14）：H5 无 openid，改用「口令 + 服务端校验」；未配置则 H5 看板一律关闭
+const ADMIN_TOKEN = String(process.env.ADMIN_TOKEN || '');
 const H5_ORIGINS = String(process.env.H5_ORIGINS || '')
   .split(',')
   .map((s) => s.trim())
@@ -713,6 +718,34 @@ async function handleH5Sync(body) {
   return { ok: true, updatedAt: payload.updatedAt };
 }
 
+/** H5 匿名使用量：按 deviceId + 天去重（不存阅读数据 / Key / 书目 / 笔记 / IP） */
+async function handleH5OpsPing(body) {
+  const deviceId = cleanDeviceId(body && body.deviceId);
+  if (!validDeviceId(deviceId)) {
+    return { ok: false, code: 'nodevice', error: '缺少或非法的设备标识' };
+  }
+  const version = cleanToken(body && body.version, 24);
+  const ok = await bumpDaily('h5', deviceId, { version: version });
+  return ok ? { ok: true } : { ok: false, code: 'ops', error: '统计写入失败' };
+}
+
+/** H5 运营看板（H14）：口令校验通过才下发；未配 ADMIN_TOKEN 一律关闭 */
+async function handleH5OpsAdmin(body) {
+  if (!ADMIN_TOKEN) {
+    return { ok: false, code: 'forbidden', error: '看板未开启（缺少 ADMIN_TOKEN）' };
+  }
+  const token = String((body && body.token) || '').slice(0, 256);
+  if (!token || token !== ADMIN_TOKEN) {
+    return { ok: false, code: 'forbidden', error: '口令不正确' };
+  }
+  const today = cstDate(Date.now());
+  const mp = await aggregate('mp', today);
+  const plugin = await aggregate('plugin', today);
+  const h5 = await aggregate('h5', today);
+  cleanupOld(); // 不 await：清理是顺手动作
+  return { ok: true, generatedAt: Date.now(), mp: mp, plugin: plugin, h5: h5 };
+}
+
 // HTTP 访问服务响应头（插件以 text/plain 简单请求上报，无需预检；H5 以 application/json + 预检）
 function buildCorsHeaders(origin) {
   const headers = {
@@ -779,6 +812,12 @@ async function handleHttp(event) {
   }
   if (action === 'syncGet' || action === 'syncPut') {
     return httpReply(200, await handleH5Sync(body), origin);
+  }
+  if (action === 'opsPing') {
+    return httpReply(200, await handleH5OpsPing(body), origin);
+  }
+  if (action === 'opsAdmin') {
+    return httpReply(200, await handleH5OpsAdmin(body), origin);
   }
   return httpReply(400, { ok: false, code: 'action', error: '未知的 HTTP 操作' }, origin);
 }

@@ -45,7 +45,6 @@
   let tagManagerOpen = false;
   let tagEdit = null;         // { tag, mode: 'rename' | 'merge' } 内联编辑
   let message = '';           // 面板内一次性提示（成功 / 失败）
-  let composing = false;      // 中文输入法组词中（组词期间不重绘，避免打断输入）
   let contentState = { running: false, done: 0, total: 0, matched: {}, error: '' };
   const contentCache = {};    // bookId -> { at, marks: [], reviews: [] }
 
@@ -686,6 +685,12 @@
     });
   }
 
+  /** 是否处于「筛选 / 搜索」状态（决定列表标题是「书架」还是「筛选结果」） */
+  function hasActiveFilter() {
+    return !!(ui.keyword.trim() || ui.tags.length ||
+      ui.status !== 'all' || ui.notes !== 'all' || ui.recent !== 'all');
+  }
+
   // ---------- 划线 / 想法正文检索（按需 + 内存缓存） ----------
 
   async function fetchBookReviews(bookId) {
@@ -799,8 +804,9 @@
       return;
     }
     contentState.running = false;
+    const hitCount = Object.keys(contentState.matched).length;
     message = contentState.done
-      ? ('已在 ' + contentState.done + ' 本有笔记的书里检索「' + ui.keyword.trim() + '」')
+      ? ('已在 ' + contentState.done + ' 本有笔记的书里检索「' + ui.keyword.trim() + '」，命中 ' + hitCount + ' 本')
       : '没有可检索的书（书架里还没有带笔记的书）';
     logFinder('info', '正文检索完成', { matched: Object.keys(contentState.matched).length });
     renderDynamic();
@@ -972,13 +978,15 @@
       ? '（正文检索中 ' + contentState.done + '/' + contentState.total + '…）'
       : '';
     const filtered = applyFilters().length;
-    const countText = filtered === total ? ('共 ' + total + ' 本') : (filtered + ' / ' + total + ' 本');
+    const countText = filtered === total
+      ? ('共 ' + total + ' 本')
+      : ('命中 ' + filtered + ' 本 · 共 ' + total + ' 本');
     return '<div class="wre-find-toolbar">' +
       '<div class="wre-find-count">' + countText + progress + '</div>' +
       '<div class="wre-find-actions">' +
         '<button type="button" class="wre-find-chip' + (contentOn ? ' is-active' : '') + '" data-wre-find-content="1">含划线/想法正文</button>' +
         (ui.keyword.trim()
-          ? '<button type="button" class="wre-btn wre-btn-small" data-wre-find-run-content="1"' + (running ? ' disabled' : '') + '>' + (running ? '检索中…' : '搜索正文') + '</button>'
+          ? '<button type="button" class="wre-btn wre-btn-small" data-wre-find-run-content="1" title="在你所有「有笔记的书」里，搜你自己的划线 / 想法正文"' + (running ? ' disabled' : '') + '>' + (running ? '检索中…' : '搜我的划线/想法') + '</button>'
           : '') +
         (running ? '<button type="button" class="wre-btn wre-btn-small" data-wre-find-stop-content="1">停止</button>' : '') +
         '<button type="button" class="wre-btn wre-btn-small" data-wre-find-refresh="1">刷新书架</button>' +
@@ -1102,7 +1110,7 @@
       if (contentState.running) {
         return '<div class="wre-find-empty">正在检索划线 / 想法…（' + contentState.done + ' / ' + contentState.total + '）<br>命中会实时出现在这里，可随时点「停止」。</div>';
       }
-      if (!ui.keyword && !ui.tags.length && ui.status === 'all' && ui.notes === 'all' && ui.recent === 'all') {
+      if (!hasActiveFilter()) {
         return '<div class="wre-find-empty">书架里没有可显示的书。</div>';
       }
       const kw = ui.keyword.trim();
@@ -1118,7 +1126,8 @@
     const more = items.length > shown
       ? '<div class="wre-find-more"><button type="button" class="wre-btn wre-btn-small" data-wre-find-more="1">显示更多（还有 ' + (items.length - shown) + ' 本）</button></div>'
       : '';
-    return '<div class="wre-find-section-title">书架（' + items.length + '）</div>' +
+    const title = (hasActiveFilter() ? '筛选结果' : '书架') + '（' + items.length + ' 本）';
+    return '<div class="wre-find-section-title">' + title + '</div>' +
       '<ul class="wre-find-list">' + list + '</ul>' + more;
   }
 
@@ -1177,7 +1186,21 @@
     if (!body) {
       return;
     }
+    // 重绘会重建搜索框：先记住它的焦点与光标，重绘后还原，避免书架 / 笔记异步返回时
+    // 把用户正在输入的搜索框打断（表现为「输入没反应，得点清空」）
+    const prev = document.getElementById('wre-find-keyword');
+    const wasFocused = !!(prev && prev === document.activeElement);
+    const caret = wasFocused ? prev.selectionStart : null;
     body.innerHTML = buildBodyHtml();
+    if (wasFocused) {
+      const next = document.getElementById('wre-find-keyword');
+      if (next) {
+        next.focus();
+        if (caret != null) {
+          try { next.setSelectionRange(caret, caret); } catch (e) { /* 部分浏览器忽略 */ }
+        }
+      }
+    }
   }
 
   /** 只替换工具条与列表两块（不重建搜索框），用于输入过滤与正文检索进度刷新 */
@@ -1223,8 +1246,12 @@
     overlay.addEventListener('input', handleInput);
     overlay.addEventListener('change', handleChange);
     overlay.addEventListener('keydown', handleKeydown);
-    overlay.addEventListener('compositionstart', () => { composing = true; });
-    overlay.addEventListener('compositionend', () => { composing = false; onKeywordChanged(); });
+    overlay.addEventListener('compositionend', (event) => {
+      // 只处理搜索框：其它输入框（如加标签）组词结束不该触发列表重绘，以免打断输入
+      if (event.target && event.target.id === 'wre-find-keyword') {
+        onKeywordChanged();
+      }
+    });
     root.appendChild(overlay);
     return overlay;
   }
@@ -1243,6 +1270,7 @@
     });
     overlay.classList.add('wre-visible');
     message = '';
+    ui.keyword = '';   // 每次打开都从空搜索框开始，避免上次关键词残留导致「必须点清空才能重新搜」
     render();
     logFinder('info', '打开找书面板');
     await loadTags();
@@ -1278,7 +1306,7 @@
     }
     if (target.id === 'wre-find-keyword') {
       ui.keyword = target.value;
-      if (composing) {
+      if (event.isComposing) {
         return;   // 中文输入法组词中：不重绘，等 compositionend 再刷
       }
       onKeywordChanged();

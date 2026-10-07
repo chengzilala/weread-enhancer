@@ -1424,4 +1424,31 @@
 - **待办**：真机 / 浏览器验收 `test/语音复习测试清单.md` 八组（重点：中文语音是否可用、长划线不被截断、切后台 / 关面板即停、快捷键不被抢）；本次改动**未提交**。
 - **风险/注意事项**：① 浏览器若无可用的中文语音（`getVoices()` 为空），朗读会走默认语音、发音可能生硬——已做提示但不报错；② Chrome 已知「长文本 / 切页面」节流问题，已用「分段朗读 + 失焦即停」缓解，**不做后台常驻播放**；③ `speechSynthesis` 在部分环境首次调用需用户手势，本实现均由按钮点击触发，符合要求；④ 朗读声音由系统语音提供，不同操作系统音色不同属预期。
 
+---
+
+## 2026-10-06 会话条目：H5 移动端（纯网页 App）阶段 0 + 阶段 1 落地 (完成代码，待部署，本地验证通过)
+- **目标**：按 `plan/RPD_H5移动端_需求文档.md`（v0.1）开发纯网页 H5 移动端——把小程序「读完之后」的复盘 / 分享搬到网页，并**保留小程序侧已关闭的 AI**。本阶段交付需求 §6 的**阶段 0（地基）+ 阶段 1（核心展示）**。
+- **已做**：
+  - **云函数 `mobile/cloudfunctions/wereadProxy/index.js` 扩展 H5 动作（H0，不新写后端）**：`handleHttp` 在原有 `opsReport` 之外新增 `relay` / `ai` / `keySave` / `keyGet` / `keyClear` / `syncGet` / `syncPut`；新增 H5 常量（`USERS_COLLECTION='wre_users'`、`KEY_SECRET`、`H5_ORIGINS`、`DEVICE_MIN_LEN`）与一整套函数（`cleanDeviceId` / `validDeviceId` / `deriveSecret` / `encryptSecret` / `decryptSecret` / `readUserDoc` / `getHostedKey` / `handleKeySave` / `handleKeyGet` / `handleKeyClear` / `handleH5Relay` / `handleH5Ai` / `handleH5Sync`）；CORS 由固定 `HTTP_HEADERS` 改为 `buildCorsHeaders(origin)` + `httpReply(status, obj, origin)`，**未配 `H5_ORIGINS` 退回 `*`，配了则只回显白名单来源**；未知 action 返 400；文件头 docblock 增 H5 动作说明 + 部署提醒④（建 `wre_users`、设 `KEY_SECRET` / `H5_ORIGINS`、HTTP 访问服务绑 `/h5`）。
+  - **Key 加密托管（H1）**：应用层 **AES-256-GCM**，密钥由 `KEY_SECRET` 经 SHA-256 派生；存储格式 `v1:<iv b64>:<tag b64>:<密文 b64>`；文档 `_id = deviceId`，字段 `{ enc, masked, aiEnc, aiMasked, createdAt, updatedAt }`；响应**只回掩码**，明文仅在云函数内存中用于中转；`keyClear` 删托管字段。
+  - **新建独立 `h5/` 目录（纯静态、零依赖、ES Module，与 `web/` 互不影响）**：
+    - 外壳：`index.html`（header / `main#view` / `nav#tabbar`）、`assets/app.css`（移动端样式，品牌色 `#2F6BFF`）、`assets/app.js`（hash 路由 + 五栏 Tab + 两级拦截态：未配中转地址 / 未配 Key）。
+    - `src/`：`config.js`（ENDPOINT / 超时）、`store.js`（`deviceId` 32 位 hex / 端点 / 掩码 / 昵称 / 带 TTL 缓存）、`api.js`（`call()` POST + `AbortController` 超时，导出 `relay/verifyKey/ai/keySave/keyGet/keyClear/syncGet/syncPut`）、`data.js`（取数层：`fetchReadData/fetchOverview/fetchCorpus/...`）、`ui.js`（`esc/stateHtml/toast/copyText`）。
+    - `src/core/`：把小程序 `shared/*` **逐字改写为 ESM（仅 CommonJS→ESM，算法单一来源）**——`format.js`、`report-core.js`、`persona-core.js`、`home-core.js`、`errors.js`（补 H5 错误码 `noendpoint/nodevice/nosecret/ai_nokey/save/action`）。
+    - `src/views/`：**H2 首页**（周期切换 + Hero + 迷你趋势 + 指标 + 偏好分类 + 时段 + 读得最多 + 入口）、**H3 阅读人格**（先查数据门槛再拉语料重算）、**H4 报告**（`buildReportBlocks` + 多种块渲染）、**H6 书架 + H7 笔记概览**（`shelfCounts/notebookStats`）、**我的**（微信读书 Key 保存/校验、DeepSeek Key、昵称、中转地址、deviceId 复制、一键清除）。
+    - `h5/README.md`：新增——云函数部署（超时 30s / 建集合 `wre_users` / 设 `KEY_SECRET` 与 `H5_ORIGINS` / HTTP 访问服务绑 `/h5`）、配置中转地址三种方式、本地预览（`python3 -m http.server 8930`）、上线清单、已实现页面表。
+  - **文档回灌**：`README.md` 项目结构新增 `h5/` 节点。
+- **关键结论/决定**：① 代码落点＝独立 `h5/`，与 `mobile/`、`web/` 平级、独立部署（需求 §9-1）；② 数据中转**复用现有云函数**，只扩 action（§9-2）；③ Key **用户明示同意后加密托管、可一键清除**（红线同步放开，§9-3）；④ 无登录，用**匿名 `deviceId`**（§9-5）；⑤ `core` 与小程序 `shared` 保持**逐字一致**防漂移；⑥ CORS 从 `*` 收敛为 `H5_ORIGINS` 白名单（§8）；⑦ 浏览器无法直连官方网关（OPTIONS 预检 401），全部数据必须经云函数中转（§1.1-1）。
+- **产出物（文件/链接）**：
+  - 云函数：`mobile/cloudfunctions/wereadProxy/index.js`
+  - H5 新目录：`h5/index.html`、`h5/assets/app.css`、`h5/assets/app.js`、`h5/src/{config,store,api,data,ui}.js`、`h5/src/core/{format,report-core,persona-core,home-core,errors}.js`、`h5/src/views/{home,persona,report,shelf,me}.js`、`h5/README.md`
+  - 文档：`README.md`
+  - **验证**：`GetDiagnostics` 全绿（云函数仅剩一条 CommonJS Hint，无语法错误）；本机 `python3 -m http.server 8930` 起静态服务，浏览器核验——**页面正常渲染非白屏**，顶部「微信悦读」+ 首屏「配置中转服务地址」卡片（输入框 + 保存按钮）齐全，`assets/*` 与 `src/**/*.js` **全部 200**，**无任何 console / JS 模块错误**（`@vite/client` 404 为浏览器代理注入、与本项目无关）。
+- **待办**（后续阶段，均待用户指令）：
+  - 阶段 2：**H10 AI 人格画像 / H11 每日卡片 / H12 灵感漫游**（走托管 Key）。
+  - 阶段 3：**H5 分享**（canvas 竖版分享图 + Web Share / 下载 / 复制链接）、H6/H7 细节、H9 头像昵称。
+  - 阶段 4：**H13 语音复习**（Web Speech API）、**H8 跨设备同步码**、**H14 运营看板**、PWA。
+  - 上线侧（用户自理）：部署云函数 HTTP 访问服务、建集合、设环境变量、把线上域名加入 `H5_ORIGINS`。
+- **风险/注意事项**：① `KEY_SECRET` **一旦设置不可更改**，否则已托管 Key 无法解密；② 未配 `H5_ORIGINS` 会退回 `Origin: *`（仅调试用，上线务必收敛）；③ `deviceId` 即身份、无登录，泄露可被冒用（随机 ≥32 位、仅存本机、服务端只回掩码）；④ 本地预览域名需临时加入 `H5_ORIGINS` 方可跨域调试；⑤ 本次 H5 改动**未提交**。
+
 

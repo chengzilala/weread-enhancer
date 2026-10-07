@@ -1719,6 +1719,9 @@ function handleMenuClick(action) {
     case 'support-center':
       // 支持与反馈中心由 modules/support-center.js 自行接管（它已绑定自己的 click），同上。
       break;
+    case 'backup':
+      // 数据备份面板由 modules/backup.js 自行接管（它已绑定自己的 click），同上。
+      break;
     case 'help':
       // 帮助中心由 modules/help.js 自行接管（它已绑定自己的 click），同上。
       break;

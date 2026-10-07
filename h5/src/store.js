@@ -171,3 +171,30 @@ export function cacheClear(key) {
     // 忽略
   }
 }
+
+// ---- 通用本机键值（供 daily / wander / 卡片存档等使用；值自动 JSON 序列化）----
+export function localGet(key, fallback) {
+  const def = fallback === undefined ? null : fallback;
+  try {
+    const raw = localStorage.getItem(key);
+    return raw === null || raw === '' ? def : JSON.parse(raw);
+  } catch (e) {
+    return def;
+  }
+}
+
+export function localSet(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    // 存储失败不影响主流程
+  }
+}
+
+export function localRemove(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch (e) {
+    // 忽略
+  }
+}

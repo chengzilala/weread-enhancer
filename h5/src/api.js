@@ -97,3 +97,12 @@ export function syncGet() {
 export function syncPut(persona) {
   return call({ action: 'syncPut', persona: persona });
 }
+
+// ---- H5 匿名使用量 / 运营看板 ----
+export function opsPing(version) {
+  return call({ action: 'opsPing', version: version || '' });
+}
+
+export function opsAdmin(token) {
+  return call({ action: 'opsAdmin', token: token || '' });
+}

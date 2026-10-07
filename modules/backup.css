@@ -1,0 +1,104 @@
+/* 微信悦读 · 数据备份与恢复样式（v0.25.0）
+   仅负责「🗄️ 数据备份」弹层内部布局，外层复用 content.css 的 .wre-modal / .wre-btn。 */
+
+.wre-backup-modal {
+  width: 460px;
+  max-width: 92vw;
+}
+
+.wre-backup-tip {
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  border-radius: 8px;
+  background: rgba(7, 193, 96, 0.08);
+  border: 1px solid rgba(7, 193, 96, 0.25);
+  color: var(--wre-text);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.wre-backup-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.wre-backup-list {
+  border: 1px solid var(--wre-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.wre-backup-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--wre-border);
+}
+
+.wre-backup-item:last-child {
+  border-bottom: none;
+}
+
+.wre-backup-item.is-empty {
+  opacity: 0.5;
+}
+
+.wre-backup-item-label {
+  font-size: 13px;
+  color: var(--wre-text);
+  flex-shrink: 0;
+}
+
+.wre-backup-item-value {
+  font-size: 12px;
+  color: #888;
+  text-align: right;
+  word-break: break-all;
+}
+
+.wre-backup-message {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--wre-hover-bg);
+  font-size: 12px;
+  color: var(--wre-text);
+  line-height: 1.5;
+}
+
+.wre-backup-reload {
+  margin-top: 10px;
+}
+
+.wre-backup-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.wre-backup-clear {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--wre-border);
+}
+
+.wre-backup-clear-tip {
+  font-size: 12px;
+  color: #999;
+}
+
+.wre-backup-foot {
+  margin-top: 14px;
+  font-size: 12px;
+  color: #999;
+  line-height: 1.6;
+}
