@@ -1,14 +1,15 @@
 /**
  * H2 数据总览（首页）
  *
- * 对齐小程序 M2：Hero 主卡 + 迷你趋势图 + 指标卡 + 偏好分类 / 时段 + 读得最多。
- * A 档（本周期 readdata）即时渲染；书架/笔记概览为 B 档懒加载（此处仅做入口提示）。
+ * 对齐小程序 M2：顶部为「每日卡片 / 灵感漫游」入口卡（微信绿 / 紫），其下为
+ * 周期切换 + Hero 主卡 + 迷你趋势图 + 指标卡 + 偏好分类 / 时段 + 读得最多。
+ * A 档（本周期 readdata）即时渲染；书架 / 笔记 / 人格走底部 Tab，不再在本页放入口。
  */
 
-import { fetchReadData, peekOverview } from '../data.js';
+import { fetchReadData } from '../data.js';
 import { buildHomeView } from '../core/home-core.js';
 import { renderHomeShare } from '../core/home-share.js';
-import { shelfCounts, notebookStats, modeLabel, fmtDateTime } from '../core/report-core.js';
+import { modeLabel, fmtDateTime } from '../core/report-core.js';
 import { messageOf, isKeyError } from '../core/errors.js';
 import { esc, stateHtml } from '../ui.js';
 import { cacheGet, cacheSet, getProfile } from '../store.js';
@@ -29,6 +30,22 @@ let mode = 'weekly';
 export function render(root, app) {
   root.innerHTML =
     '<div class="wre-page">' +
+    '  <div class="wre-entries" id="homeEntries">' +
+    '    <button class="wre-entry wre-entry--daily" data-goto="daily">' +
+    '      <span class="wre-entry__main">' +
+    '        <span class="wre-entry__name">每日卡片</span>' +
+    '        <span class="wre-entry__sub">用你的历史划线，重读一段</span>' +
+    '      </span>' +
+    '      <span class="wre-entry__arrow">›</span>' +
+    '    </button>' +
+    '    <button class="wre-entry wre-entry--wander" data-goto="wander">' +
+    '      <span class="wre-entry__main">' +
+    '        <span class="wre-entry__name">灵感漫游</span>' +
+    '        <span class="wre-entry__sub">每周一次，把同主题的划线归档成一组笔记</span>' +
+    '      </span>' +
+    '      <span class="wre-entry__arrow">›</span>' +
+    '    </button>' +
+    '  </div>' +
     '  <div class="wre-modes" id="homeModes">' +
     MODES.map((m) =>
       '<button class="wre-mode' + (m.key === mode ? ' is-active' : '') + '" data-mode="' + m.key + '">' + m.label + '</button>'
@@ -36,6 +53,14 @@ export function render(root, app) {
     '  </div>' +
     '  <div id="homeBody">' + stateHtml('loading', '正在读取你的阅读数据…') + '</div>' +
     '</div>';
+
+  const entriesEl = root.querySelector('#homeEntries');
+  entriesEl.addEventListener('click', (e) => {
+    const go = e.target.closest('[data-goto]');
+    if (go) {
+      app.go(go.getAttribute('data-goto'));
+    }
+  });
 
   const modesEl = root.querySelector('#homeModes');
   modesEl.addEventListener('click', (e) => {
@@ -206,20 +231,6 @@ function bodyHtml(raw, fromCache) {
       '</div>'
     );
   }
-
-  // B 档入口（书架 / 笔记 / 人格）
-  const overview = peekOverview();
-  const counts = overview.ok && overview.shelf ? shelfCounts(overview.shelf) : null;
-  const stats = overview.ok ? notebookStats(overview.notebooks) : null;
-  parts.push(
-    '<div class="wre-card wre-links">' +
-    '<button class="wre-link" data-goto="shelf"><span>📚 书架</span><span class="wre-muted">' + esc(counts ? counts.total + ' 个条目' : '去看看') + '</span></button>' +
-    '<button class="wre-link" data-goto="shelf"><span>📝 笔记</span><span class="wre-muted">' + esc(stats ? stats.totalNoteCount + ' 条' : '去看看') + '</span></button>' +
-    '<button class="wre-link" data-goto="persona"><span>🧬 阅读人格</span><span class="wre-muted">去看看</span></button>' +
-    '<button class="wre-link" data-goto="daily"><span>🗂 每日卡片</span><span class="wre-muted">AI 成文</span></button>' +
-    '<button class="wre-link" data-goto="wander"><span>🧭 灵感漫游</span><span class="wre-muted">AI 串联</span></button>' +
-    '</div>'
-  );
 
   // 分享入口（对齐小程序 share-entry 卡片；有记录才展示）
   if (!view.emptyRecord) {

@@ -187,6 +187,36 @@ html, body {
 }
 .wre-mode.is-active { background: var(--wre-brand); color: #fff; font-weight: 600; }
 
+/* 首页顶部入口：每日卡片（微信绿）/ 灵感漫游（紫），对齐小程序 .daily-entry / .wander-entry */
+.wre-entries { margin-bottom: 12px; }
+.wre-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  color: #fff;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.wre-entry:last-child { margin-bottom: 0; }
+.wre-entry--daily {
+  background: linear-gradient(135deg, #07C160 0%, #34D27B 100%);
+  box-shadow: 0 4px 12px rgba(7, 193, 96, 0.25);
+}
+.wre-entry--wander {
+  background: linear-gradient(135deg, #7C5CFF 0%, #9C86FF 100%);
+  box-shadow: 0 4px 12px rgba(124, 92, 255, 0.25);
+}
+.wre-entry__main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.wre-entry__name { font-size: 17px; font-weight: 700; color: #fff; }
+.wre-entry__sub { margin-top: 4px; font-size: 12px; color: rgba(255, 255, 255, 0.85); }
+.wre-entry__arrow { margin-left: 8px; font-size: 22px; line-height: 1; color: rgba(255, 255, 255, 0.9); }
+
 /* Hero */
 .wre-hero__label { color: var(--wre-muted); font-size: 13px; }
 .wre-hero__cmp { margin: 4px 0; font-size: 13px; }
