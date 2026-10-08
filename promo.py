@@ -32,7 +32,9 @@ OUT_360 = os.path.join(ROOT, "release", "360-素材")
 # 微软 Partner Center / Chrome 商店「上传包」：按槽位分好文件夹，直接拖到对应位置上传
 OUT_MS = os.path.join(ROOT, "release", "微软商店-上传")
 
-ICON = os.path.join(ROOT, "icons", "icon-128.png")
+# 品牌 logo 的矢量母版（蓝圆 + 白 W）。展示图里所有出现 logo 的位置都内联它，
+# 因为是矢量、任意渲染倍率都绝对清晰，彻底摆脱「128px 位图放大发虚」。
+LOGO_SVG = os.path.join(ROOT, "assets", "logo.svg")
 EFF = os.path.join(ROOT, "screenshots", "效果参考图")
 SS = os.path.join(ROOT, "screenshots")
 
@@ -95,24 +97,16 @@ QUALITY = 95      # 内联 JPEG 质量（4:4:4 无色度抽样），偏高减少
 SCALE_HI = 3      # 高倍渲染：Banner / 卡片 / 磁贴，超采样后再缩放，边缘更锐
 STORE_SCALE = 1   # 商店截图：源图已按功能面板裁剪放大，用 1 倍渲染可避免 <img> 先被放大再缩小而发虚
 
-# 图标母版边长：图标源只有 128px，而页面里最大的 logo（大磁贴 78px）×3 倍渲染 = 234 设备像素，
-# 直接用 128 源会被 Chrome 放大发虚；先高质量放大到 LOGO_MASTER 再交给 Chrome 缩小，边缘更实。
-LOGO_MASTER = 384
+# 图标：直接用矢量母版（assets/logo.svg），任何倍率自适应渲染，无需再准备多档位图。
 
 _uri_cache = {}
-_icon_cache = {}
+_logo_cache = {}
 
 
-def _icon_scaled(size):
-    """把 128px 图标按 LANCZOS 缩放/放大到 size×size；放大时补一次轻锐化，抵消发虚。"""
-    if size in _icon_cache:
-        return _icon_cache[size]
-    src = Image.open(ICON).convert("RGBA")
-    im = src.resize((size, size), Image.LANCZOS)
-    if size > src.width:  # 仅放大时锐化；缩小时保持原样，避免过冲
-        im = im.filter(ImageFilter.UnsharpMask(radius=1.6, percent=150, threshold=3))
-    _icon_cache[size] = im
-    return im
+def _svg_uri(path):
+    """把 SVG 内联成 data URI（矢量）；浏览器按目标尺寸实时渲染，任意倍率都清晰。"""
+    with open(path, "rb") as fh:
+        return "data:image/svg+xml;base64," + base64.b64encode(fh.read()).decode()
 
 
 def _encode_uri(im, max_width, key, upscale=False):
@@ -122,7 +116,7 @@ def _encode_uri(im, max_width, key, upscale=False):
         im = im.resize((max_width, round(im.height * max_width / im.width)), Image.LANCZOS)
     elif upscale and im.width < max_width:
         # 源图不够宽、但页面显示尺寸又大于源分辨率时：先用高质量放大补齐 + 轻锐化，
-        # 交给 Chrome 缩小；比让浏览器临时放大更实（同 _icon_scaled 思路）。
+        # 交给 Chrome 缩小；比让浏览器临时放大更实（同矢量 logo 的思路）。
         im = im.resize((max_width, round(im.height * max_width / im.width)), Image.LANCZOS)
         im = im.filter(ImageFilter.UnsharpMask(radius=1.4, percent=120, threshold=2))
     buf = io.BytesIO()
@@ -157,10 +151,22 @@ def uri_crop(path, box, max_width=1800, upscale=False):
 
 
 def icon_uri():
-    """页面内联用的 logo：用高质量放大后的母版，避免在 3 倍渲染里被 Chrome 放大发虚。"""
-    buf = io.BytesIO()
-    _icon_scaled(LOGO_MASTER).save(buf, "PNG")
-    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+    """页面内联用的 logo：直接内联矢量 SVG，任何渲染倍率下都绝对清晰。"""
+    return _svg_uri(LOGO_SVG)
+
+
+def logo_png(size):
+    """把矢量 logo 光栅化成 size×size 的透明 PNG（给需要独立 PNG 的槽位，如商店徽标）。
+
+    先用 2 倍尺寸渲染再 LANCZOS 缩回，边缘最锐。
+    """
+    if size in _logo_cache:
+        return _logo_cache[size]
+    big = size * 2
+    html = page(big, big, '<img src="%s" style="width:100%%;height:100%%;display:block">' % icon_uri())
+    im = _capture(html, big, big, 2, rgba=True).resize((size, size), Image.LANCZOS)
+    _logo_cache[size] = im
+    return im
 
 
 def page(width, height, body, css=""):
@@ -175,39 +181,43 @@ def page(width, height, body, css=""):
     )
 
 
-def render(html, out_path, width, height, scale=2, final=None, sharpen=0):
-    """用 Chrome 无头渲染 HTML 并截图；final 为最终目标尺寸（None 表示保留 scale 倍图）。
-
-    sharpen>0 时在降回 final 尺寸后再做一次轻锐化（UnsharpMask percent=sharpen），
-    抵消缩放带来的轻微发虚——这是纯文字版式提升清晰度最有效的一步。
-    """
+def _capture(html, width, height, scale, rgba=False):
+    """用 Chrome 无头把 HTML 渲染成 PIL 图；rgba=True 时保留透明背景。"""
     tmp = tempfile.mkdtemp(prefix="wre-promo-")
     try:
         html_path = os.path.join(tmp, "a.html")
         with open(html_path, "w", encoding="utf-8") as fh:
             fh.write(html)
         shot_path = os.path.join(tmp, "a.png")
-        subprocess.run(
-            [
-                CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars",
-                "--no-first-run", "--no-default-browser-check", "--force-color-profile=srgb",
-                "--force-device-scale-factor=%d" % scale,
-                "--window-size=%d,%d" % (width, height),
-                "--screenshot=" + shot_path,
-                "file://" + html_path,
-            ],
-            check=True, capture_output=True,
-        )
-        im = Image.open(shot_path).convert("RGB")
-        if final:
-            im = im.resize(final, Image.LANCZOS)
-            if sharpen:
-                im = im.filter(ImageFilter.UnsharpMask(radius=1.1, percent=sharpen, threshold=2))
-        os.makedirs(os.path.dirname(out_path), exist_ok=True)
-        im.save(out_path)
-        print("  ✓ %-46s %dx%d" % (os.path.relpath(out_path, ROOT), im.size[0], im.size[1]))
+        cmd = [
+            CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars",
+            "--no-first-run", "--no-default-browser-check", "--force-color-profile=srgb",
+            "--force-device-scale-factor=%d" % scale,
+            "--window-size=%d,%d" % (width, height),
+        ]
+        if rgba:
+            cmd.append("--default-background-color=00000000")
+        cmd += ["--screenshot=" + shot_path, "file://" + html_path]
+        subprocess.run(cmd, check=True, capture_output=True)
+        return Image.open(shot_path).convert("RGBA" if rgba else "RGB")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+def render(html, out_path, width, height, scale=2, final=None, sharpen=0):
+    """用 Chrome 无头渲染 HTML 并截图；final 为最终目标尺寸（None 表示保留 scale 倍图）。
+
+    sharpen>0 时在降回 final 尺寸后再做一次轻锐化（UnsharpMask percent=sharpen），
+    抵消缩放带来的轻微发虚——这是纯文字版式提升清晰度最有效的一步。
+    """
+    im = _capture(html, width, height, scale)
+    if final:
+        im = im.resize(final, Image.LANCZOS)
+        if sharpen:
+            im = im.filter(ImageFilter.UnsharpMask(radius=1.1, percent=sharpen, threshold=2))
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    im.save(out_path)
+    print("  ✓ %-46s %dx%d" % (os.path.relpath(out_path, ROOT), im.size[0], im.size[1]))
 
 
 # ---------------------------------------------------------------- Banner 1280x400
@@ -594,11 +604,10 @@ def build_ms_upload():
         大促销磁贴    1400x560
         屏幕截图      精确 1280x800 或 640x400，最多 6 张
     """
-    # 1) 扩展徽标 300x300（由 128 图标高质量放大 + 锐化，尽量减少发虚；
-    #    如后续拿到高清源，替换 icons/icon-128.png 后本处自动变清晰）
+    # 1) 扩展徽标 300x300（由矢量母版 assets/logo.svg 光栅化，任意尺寸都清晰）
     d1 = os.path.join(OUT_MS, "1-扩展徽标-300x300")
     os.makedirs(d1, exist_ok=True)
-    _icon_scaled(300).save(os.path.join(d1, "扩展徽标-300x300.png"))
+    logo_png(300).save(os.path.join(d1, "扩展徽标-300x300.png"))
 
     # 2) 小促销磁贴 440x280
     d2 = os.path.join(OUT_MS, "2-小促销磁贴-440x280")
