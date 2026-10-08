@@ -628,9 +628,30 @@ def build_ms_upload():
         _copy(os.path.join(OUT_STORE, fname), os.path.join(d4, label + "-1280x800.png"))
 
 
+def build_icons():
+    """由矢量母版 assets/logo.svg 重新光栅化仓库里的图标本体与小程序头像。
+
+    这些是「真身」logo（扩展图标 / 小程序头像），不再是展示图里的插画；
+    logo 要改只改 assets/logo.svg，重跑本脚本即全部刷新。
+    """
+    targets = [
+        (os.path.join(ROOT, "icons", "icon-16.png"), 16),
+        (os.path.join(ROOT, "icons", "icon-48.png"), 48),
+        (os.path.join(ROOT, "icons", "icon-128.png"), 128),
+        (os.path.join(ROOT, "mobile", "素材", "小程序头像-144x144.png"), 144),
+        (os.path.join(ROOT, "release", "360-素材", "图标-48x48.png"), 48),
+    ]
+    for path, size in targets:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        logo_png(size).save(path)
+        print("  ✓ %-46s %dx%d" % (os.path.relpath(path, ROOT), size, size))
+
+
 def main():
     if not os.path.exists(CHROME):
         raise SystemExit("未找到 Chrome：%s" % CHROME)
+    print("图标本体 → icons/ + mobile/素材/")
+    build_icons()
     print("GitHub 展示图 → screenshots/promo/")
     build_banner()
     build_cards()
