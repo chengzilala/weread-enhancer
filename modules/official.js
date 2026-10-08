@@ -314,6 +314,13 @@
   let draftWrkKey = '';   // 输入框草稿：保存/重渲染后仍保留用户粘贴的微信读书 Key
   let draftAiKey = '';    // 输入框草稿：保留用户粘贴的 DeepSeek Key
   let aiKeyStatus = { hasKey: false, apiKey: '', savedAt: 0 };  // DeepSeek Key 状态（可选）
+  // ---- 账户与多端同步（可选，默认关闭）----
+  let accountStatus = { sync: false, deviceId: '', cloud: null };  // 账户码 + 云端托管状态
+  let accountMessage = '';        // 账户区提示文案
+  let accountReveal = false;      // 是否明文显示账户码
+  let accountLoginMode = 'code';  // 登录方式：'code' 6 位登录码 | 'device' 直接填账户码
+  let accountCodeDraft = '';      // 登录输入框草稿（6 位码 / 账户码）
+  let accountGenCode = null;      // 本机生成的 6 位登录码：{ code, expireAt }
   let aiSummary = null;   // AI 生成的人格化执行摘要（字符串数组，每项一段）
   let aiPersona = null;   // AI 生成的人性化人格分析（[{ title, body }] 分点数组）
   let aiState = 'idle';   // idle | loading | ok | error | skipped
@@ -533,6 +540,19 @@
       };
     }
     return keyStatus;
+  }
+
+  /** 拉取账户与云端同步状态（未启用时只回本机；启用后附带云端托管掩码） */
+  async function refreshAccountStatus() {
+    const result = await sendBg({ type: 'wre-account-status' });
+    if (result && result.ok) {
+      accountStatus = {
+        sync: !!result.sync,
+        deviceId: result.deviceId || '',
+        cloud: result.cloud || null,
+      };
+    }
+    return accountStatus;
   }
 
   async function loadReport(force) {
@@ -1738,6 +1758,77 @@
       sourceNote;
   }
 
+  /** 账户与多端同步区（可选）：账户码即账号，Key 加密托管后可在插件 / 网页版 / 官网共用一份 */
+  function buildAccountHtml() {
+    const acc = accountStatus;
+    let html = '<div class="wre-off-section-title">账户与多端同步（可选）</div>';
+
+    if (!acc.sync) {
+      html +=
+        '<div class="wre-off-note">账户码即账号：把 Key 加密托管到云端后，可在插件 / 网页版 / 官网任意一处登录，' +
+          'Key 与昵称跨设备共用，只在一处填一次。不启用时 Key 只存本机、不上传。</div>' +
+        '<div class="wre-off-set-row"><button class="wre-btn" data-wre-account-enable="1">启用账户与多端同步</button></div>';
+    } else {
+      const id = acc.deviceId || '';
+      const shown = accountReveal ? id : (id.length > 12 ? id.slice(0, 6) + '…' + id.slice(-4) : id);
+      const cloud = acc.cloud;
+      let cloudLine = '云端状态：未取到（可点「刷新状态」重试）';
+      if (cloud) {
+        const parts = [];
+        parts.push(cloud.hasKey ? '已托管 API Key ' + (cloud.masked || '') : '未托管 API Key');
+        parts.push(cloud.hasAiKey ? '已托管 AI Key ' + (cloud.aiMasked || '') : '未托管 AI Key');
+        cloudLine = '云端状态：' + parts.join('　·　');
+      }
+      html +=
+        '<div class="wre-off-note">本机账户码：' + escapeHtml(shown) + '</div>' +
+        '<div class="wre-off-set-row">' +
+          '<button class="wre-btn wre-btn-small" data-wre-account-reveal="1">' + (accountReveal ? '隐藏账户码' : '显示账户码') + '</button>' +
+          '<button class="wre-btn wre-btn-small" data-wre-account-copy="1">复制账户码</button>' +
+          '<button class="wre-btn wre-btn-small" data-wre-account-refresh="1">刷新状态</button>' +
+        '</div>' +
+        '<div class="wre-off-set-status">' + escapeHtml(cloudLine) + '</div>' +
+        '<div class="wre-off-note">跨设备登录：在当前设备生成一次性 6 位登录码，到另一台设备的「账户与多端同步」里输入即可登录同一账户。</div>' +
+        '<div class="wre-off-set-row"><button class="wre-btn wre-btn-small" data-wre-account-gencode="1">生成 6 位登录码</button></div>';
+      if (accountGenCode && accountGenCode.code) {
+        const leftMin = accountGenCode.expireAt ? Math.max(0, Math.round((accountGenCode.expireAt - Date.now()) / 60000)) : 0;
+        html +=
+          '<div class="wre-off-code">' + escapeHtml(accountGenCode.code) + '</div>' +
+          '<div class="wre-off-set-status">约 ' + leftMin + ' 分钟内有效，用完即作废。</div>' +
+          '<div class="wre-off-set-row"><button class="wre-btn wre-btn-small" data-wre-account-copycode="1">复制登录码</button></div>';
+      }
+    }
+
+    // 登录已有账户（两种方式：6 位登录码 / 直接填账户码）
+    const isCode = accountLoginMode === 'code';
+    html +=
+      '<div class="wre-off-note">登录已有账户（当前方式：' + (isCode ? '6 位登录码' : '32 位账户码') +
+        '）：登录后本机 Key 会被云端托管的 Key 覆盖。</div>' +
+      '<div class="wre-off-set-row">' +
+        '<input type="text" id="wre-account-login-input" class="wre-off-input" placeholder="' +
+          (isCode ? '输入 6 位数字登录码' : '粘贴 32 位账户码') +
+          '" autocomplete="off" spellcheck="false" value="' + escapeHtml(accountCodeDraft) + '">' +
+        '<button class="wre-btn wre-btn-small" data-wre-account-login="1">登录</button>' +
+      '</div>' +
+      '<div class="wre-off-set-row">' +
+        '<button class="wre-btn wre-btn-small" data-wre-account-login-mode="' + (isCode ? 'device' : 'code') + '">' +
+          (isCode ? '改用账户码登录' : '改用 6 位登录码登录') + '</button>' +
+      '</div>';
+
+    if (acc.sync) {
+      html +=
+        '<div class="wre-off-set-row">' +
+          '<button class="wre-btn wre-btn-small" data-wre-account-disable="1">关闭同步</button>' +
+          '<button class="wre-btn wre-btn-small" data-wre-account-clearcloud="1">清除云端 Key</button>' +
+          '<button class="wre-btn wre-btn-small" data-wre-account-logout="1">退出账户</button>' +
+        '</div>';
+    }
+
+    if (accountMessage) {
+      html += '<div class="wre-off-set-message">' + escapeHtml(accountMessage) + '</div>';
+    }
+    return html;
+  }
+
   function buildSettingsHtml() {
     const wrkKeyValue = draftWrkKey || keyStatus.apiKey;
     const aiKeyValue = draftAiKey || aiKeyStatus.apiKey;
@@ -1748,7 +1839,12 @@
       keyStatus.skillVersion ? 'skill_version ' + keyStatus.skillVersion : '',
     ].filter(Boolean).join('　·　');
 
-    return '<div class="wre-off-privacy">🔒 Key 只保存在本机浏览器（chrome.storage.local），不会上传给任何人</div>' +
+    const privacyLine = accountStatus.sync
+      ? '☁️ Key 已加密托管到你的云端账户，可在插件 / 网页版 / 官网跨设备同步；可随时清除'
+      : '🔒 Key 只保存在本机浏览器（chrome.storage.local），不会上传给任何人';
+
+    return '<div class="wre-off-privacy">' + privacyLine + '</div>' +
+      buildAccountHtml() +
       '<div class="wre-off-section-title">API Key</div>' +
       '<div class="wre-off-note">获取方式：微信读书 App → 「微信读书 Skill」页面 → 复制 wrk- 开头的 API Key。</div>' +
       '<div class="wre-off-set-row">' +
@@ -2067,6 +2163,58 @@
       openKeyPanel();
       return;
     }
+    // ---- 账户与多端同步 ----
+    if (target.closest('[data-wre-account-enable]')) {
+      enableAccount();
+      return;
+    }
+    if (target.closest('[data-wre-account-disable]')) {
+      disableAccount();
+      return;
+    }
+    if (target.closest('[data-wre-account-logout]')) {
+      logoutAccount();
+      return;
+    }
+    if (target.closest('[data-wre-account-reveal]')) {
+      accountReveal = !accountReveal;
+      renderSettings();
+      return;
+    }
+    if (target.closest('[data-wre-account-copy]')) {
+      copyAccountText(accountStatus.deviceId, '账户码');
+      return;
+    }
+    if (target.closest('[data-wre-account-copycode]')) {
+      copyAccountText(accountGenCode && accountGenCode.code, '登录码');
+      return;
+    }
+    if (target.closest('[data-wre-account-gencode]')) {
+      genAccountCode();
+      return;
+    }
+    if (target.closest('[data-wre-account-clearcloud]')) {
+      clearCloudKeys();
+      return;
+    }
+    if (target.closest('[data-wre-account-refresh]')) {
+      refreshAccount();
+      return;
+    }
+    const loginModeBtn = target.closest('[data-wre-account-login-mode]');
+    if (loginModeBtn) {
+      const input = document.getElementById('wre-account-login-input');
+      if (input) {
+        accountCodeDraft = input.value.trim();
+      }
+      accountLoginMode = loginModeBtn.getAttribute('data-wre-account-login-mode') === 'device' ? 'device' : 'code';
+      renderSettings();
+      return;
+    }
+    if (target.closest('[data-wre-account-login]')) {
+      doAccountLogin();
+      return;
+    }
     if (target.closest('[data-wre-off-toggle-key]')) {
       const btn = target.closest('[data-wre-off-toggle-key]');
       const input = document.getElementById('wre-off-key-input');
@@ -2132,6 +2280,144 @@
     }
   }
 
+  // ---------- 账户与多端同步（可选）操作 ----------
+
+  function copyAccountText(text, label) {
+    if (!text) {
+      accountMessage = '没有可复制的' + label;
+      renderSettings();
+      return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        accountMessage = '已复制' + label + '到剪贴板';
+        renderSettings();
+      }).catch(() => {
+        accountMessage = '复制失败，请手动选择复制';
+        renderSettings();
+      });
+    } else {
+      accountMessage = '当前环境不支持自动复制，请手动选择复制';
+      renderSettings();
+    }
+  }
+
+  function enableAccount() {
+    accountMessage = '正在启用账户与云端同步…';
+    renderSettings();
+    sendBg({ type: 'wre-account-enable' }).then((result) => {
+      if (!result.ok) {
+        accountMessage = '启用失败：' + (result.error || '未知原因');
+        renderSettings();
+        return;
+      }
+      accountMessage = result.pushed ? '已启用，本机 Key 已加密托管到云端' : '已启用（本机暂无可托管的 Key）';
+      refreshAccountStatus().then(() => renderSettings());
+    });
+  }
+
+  function disableAccount() {
+    if (!window.confirm('关闭云端同步？本机 Key 会保留，但不再与云端同步。')) {
+      return;
+    }
+    sendBg({ type: 'wre-account-disable' }).then(() => {
+      accountMessage = '已关闭云端同步（本机 Key 保留）';
+      accountGenCode = null;
+      refreshAccountStatus().then(() => renderSettings());
+    });
+  }
+
+  function logoutAccount() {
+    if (!window.confirm('退出账户？本机 Key 保留、云端托管 Key 不动；之后再用账户码登录可找回。')) {
+      return;
+    }
+    sendBg({ type: 'wre-account-logout' }).then(() => {
+      accountMessage = '已退出账户';
+      accountGenCode = null;
+      accountReveal = false;
+      accountCodeDraft = '';
+      refreshAccountStatus().then(() => renderSettings());
+    });
+  }
+
+  function genAccountCode() {
+    accountMessage = '正在生成登录码…';
+    renderSettings();
+    sendBg({ type: 'wre-account-gencode' }).then((result) => {
+      if (!result.ok) {
+        accountMessage = '生成失败：' + (result.error || '未知原因');
+        renderSettings();
+        return;
+      }
+      accountGenCode = { code: result.code || '', expireAt: result.expireAt || 0 };
+      accountMessage = '已生成一次性 6 位登录码，请在另一台设备输入';
+      renderSettings();
+    });
+  }
+
+  function clearCloudKeys() {
+    if (!window.confirm('清除云端托管的 Key？本机 Key 不受影响，但其他设备将无法再同步到 Key。')) {
+      return;
+    }
+    sendBg({ type: 'wre-account-clearcloud' }).then((result) => {
+      accountMessage = result.ok ? '已清除云端托管的 Key' : '清除失败：' + (result.error || '未知原因');
+      refreshAccountStatus().then(() => renderSettings());
+    });
+  }
+
+  function refreshAccount() {
+    accountMessage = '正在刷新账户状态…';
+    renderSettings();
+    refreshAccountStatus().then(() => {
+      accountMessage = '账户状态已刷新';
+      renderSettings();
+    });
+  }
+
+  function doAccountLogin() {
+    const input = document.getElementById('wre-account-login-input');
+    const value = input ? input.value.trim() : '';
+    accountCodeDraft = value;
+    if (!value) {
+      accountMessage = accountLoginMode === 'code' ? '请输入 6 位登录码' : '请粘贴 32 位账户码';
+      renderSettings();
+      return;
+    }
+    accountMessage = '正在登录并同步云端 Key…';
+    renderSettings();
+    const msg = accountLoginMode === 'code'
+      ? { type: 'wre-account-redeem', code: value }
+      : { type: 'wre-account-login', deviceId: value };
+    sendBg(msg).then((result) => {
+      if (!result.ok) {
+        accountMessage = '登录失败：' + (result.error || '未知原因');
+        renderSettings();
+        return;
+      }
+      const got = [];
+      if (result.hasKey) {
+        got.push('API Key');
+      }
+      if (result.hasAiKey) {
+        got.push('AI Key');
+      }
+      if (got.length) {
+        accountMessage = '登录成功，已从云端拉回 ' + got.join(' / ');
+      } else {
+        accountMessage = result.pulled
+          ? '登录成功（云端暂无已托管的 Key）'
+          : '登录成功，但云端 Key 拉取失败：' + (result.pullError || '未知原因');
+      }
+      accountCodeDraft = '';
+      accountGenCode = null;
+      accountReveal = false;
+      refreshKeyStatus()
+        .then(() => refreshAiKeyStatus())
+        .then(() => refreshAccountStatus())
+        .then(() => renderSettings());
+    });
+  }
+
   function saveKey() {
     const input = document.getElementById('wre-off-key-input');
     const value = input ? input.value.trim() : '';
@@ -2152,7 +2438,12 @@
       }
       settingsMessage = '保存成功，Key 已通过校验';
       renderSettings();
-      refreshKeyStatus().then(() => loadReport(true));
+      refreshKeyStatus()
+        .then(() => refreshAccountStatus())
+        .then(() => {
+          renderSettings();
+          loadReport(true);
+        });
     });
   }
 
@@ -2199,7 +2490,7 @@
       aiSummary = null;
       aiPersona = null;
       aiState = 'idle';
-      refreshAiKeyStatus().then(() => renderSettings());
+      refreshAiKeyStatus().then(() => refreshAccountStatus()).then(() => renderSettings());
     });
   }
 
@@ -2313,9 +2604,12 @@
     const overlay = buildKeyPanel(root);
     overlay.classList.add('wre-visible');
     renderSettings();
-    refreshKeyStatus().then(() => refreshAiKeyStatus()).then(() => {
-      renderSettings();
-    });
+    refreshKeyStatus()
+      .then(() => refreshAiKeyStatus())
+      .then(() => refreshAccountStatus())
+      .then(() => {
+        renderSettings();
+      });
     logOfficial('info', '打开 API Key 设置面板');
   }
 

@@ -9,7 +9,7 @@
  *      完整账户码等同一把钥匙，默认只显示掩码，点「显示完整」才展开。
  */
 
-import { keySave, keyClear, verifyKey, keyGet, profileSave, bindCreate, bindStatus, bindRemove } from '../api.js';
+import { keySave, keyClear, verifyKey, keyGet, profileSave, bindCreate, bindStatus, bindRemove, bindRedeem } from '../api.js';
 import { getMask, setMask, getProfile, setProfile, getDeviceId, setDeviceId, resetDeviceId, readAvatarFile } from '../store.js';
 import { esc, toast, copyText, confirmSignOut } from '../ui.js';
 import { qrSvg } from '../qrcode.js';
@@ -25,6 +25,10 @@ let bindExpire = 0;     // 绑定码过期时间
 let bindLinked = null;  // null=未知 / true=已关联 / false=未关联
 let bindTimer = null;   // 关联状态轮询定时器
 
+// 跨设备登录（H5↔H5）：本设备生成的 6 位登录码
+let syncCode = '';      // 当前展示的 6 位登录码
+let syncExpire = 0;     // 登录码过期时间
+
 export function render(root, app) {
   root.innerHTML = '<div class="wre-page" id="meBody"></div>';
   const body = root.querySelector('#meBody');
@@ -33,6 +37,8 @@ export function render(root, app) {
   bindCode = '';
   bindExpire = 0;
   bindLinked = null;
+  syncCode = '';
+  syncExpire = 0;
   stopPoll();
   paint(body);
   syncFromServer(body);   // 静默与服务端对齐昵称 / 掩码
@@ -109,6 +115,10 @@ function paint(body) {
     '  </div>' +
     '  <input class="wre-input" id="meSync" placeholder="粘贴另一台设备的账户码" />' +
     '  <button class="wre-btn" data-action="restore-device">用账户码登录</button>' +
+    '  <div class="wre-hint">——— 或者用更短的 6 位登录码（同一 WiFi / 两台设备更方便）———</div>' +
+    syncCodeBox() +
+    '  <input class="wre-input" id="meLoginCode" inputmode="numeric" maxlength="6" placeholder="输入另一台设备的 6 位登录码" />' +
+    '  <button class="wre-btn" data-action="redeem-login">用 6 位码登录</button>' +
     '</div>' +
 
     bindCard() +
@@ -189,6 +199,25 @@ function keyForm(kind) {
     '  <input class="wre-input" id="meAi" type="password" autocomplete="off" placeholder="粘贴 sk- 开头的 DeepSeek Key" />' +
     '  <button class="wre-btn" data-action="save-ai">保存 DeepSeek Key</button>' +
     '</div>'
+  );
+}
+
+/** 跨设备登录（H5↔H5）：本设备「6 位登录码」区（已生成 / 未生成 两态） */
+function syncCodeBox() {
+  if (syncCode && Date.now() < syncExpire) {
+    return (
+      '  <div class="wre-code wre-code--bind">' + esc(syncCode) + '</div>' +
+      '  <div class="wre-hint">在另一台设备（网页版）输入这 6 位数字即可登录同一账户（10 分钟内有效）。</div>' +
+      '  <div class="wre-btn-row">' +
+      '    <button class="wre-btn wre-btn--ghost" data-action="gen-sync-code">重新生成</button>' +
+      '  </div>'
+    );
+  }
+  const expired = syncCode && Date.now() >= syncExpire;
+  return (
+    (expired ? '  <div class="wre-hint">登录码已过期，请重新生成。</div>' : '') +
+    '  <button class="wre-btn wre-btn--ghost" data-action="gen-sync-code">生成 6 位登录码</button>' +
+    '  <div class="wre-hint">在本设备生成后，到另一台设备输入这 6 位即可登录同一账户。</div>'
   );
 }
 
@@ -423,6 +452,55 @@ async function onAction(e, body, app) {
     stopPoll();
     paint(body);
     toast('已解除关联');
+    return;
+  }
+
+  if (action === 'gen-sync-code') {
+    const res = await bindCreate();
+    if (!res.ok) {
+      toast(res.error || '生成失败，请稍后重试');
+      return;
+    }
+    syncCode = res.code || '';
+    syncExpire = res.expireAt || 0;
+    paint(body);
+    return;
+  }
+
+  if (action === 'redeem-login') {
+    const input = body.querySelector('#meLoginCode');
+    const code = (input && input.value || '').trim();
+    if (!/^\d{6}$/.test(code)) {
+      toast('请输入 6 位数字登录码');
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = '登录中…';
+    const res = await bindRedeem(code);
+    if (!res.ok) {
+      btn.disabled = false;
+      btn.textContent = '用 6 位码登录';
+      toast(res.error || '登录失败，请稍后重试');
+      return;
+    }
+    const target = res.deviceId || '';
+    if (target === getDeviceId()) {
+      btn.disabled = false;
+      btn.textContent = '用 6 位码登录';
+      toast('这就是当前账户，无需登录');
+      return;
+    }
+    if (!window.confirm(
+      '确定切换到账户 ' + maskCode(target) + ' 吗？\n\n' +
+      '当前账户 ' + maskCode(getDeviceId()) + ' 的数据仍保存在云端，之后用它的账户码可再登回。'
+    )) {
+      btn.disabled = false;
+      btn.textContent = '用 6 位码登录';
+      return;
+    }
+    setDeviceId(target);
+    toast('已登录，正在重载…');
+    setTimeout(() => location.reload(), 600);
     return;
   }
 

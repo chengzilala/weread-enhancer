@@ -27,12 +27,14 @@
  *   - action: 'ai'            —— 用托管 DeepSeek Key 转发（{deviceId, messages}）；
  *   - action: 'keySave'       —— Key 加密托管（{deviceId, apiKey?, aiKey?}，集合 wre_users）；
  *   - action: 'keyGet'        —— 只回「是否已配置 + 掩码 + 昵称」（{deviceId}）；
+ *   - action: 'keyPull'       —— 回传托管 Key 的**明文**（{deviceId}，仅供浏览器插件拉回本机直发）；
  *   - action: 'keyClear'      —— 清除托管 Key（{deviceId}）；
  *   - action: 'profileSave'   —— 保存昵称（{deviceId, nickName}，非敏感，随账户走）；
  *   - action: 'syncGet/Put'   —— 人格结果按 deviceId 云同步；
  *   - action: 'bindCreate'    —— 网页端生成一次性绑定码（{deviceId} → {code, expireAt}）；
  *   - action: 'bindStatus'    —— 网页端查询本账户是否已被小程序绑定（{deviceId} → {linked}）；
  *   - action: 'bindRemove'    —— 网页端解除绑定（{deviceId}）；
+ *   - action: 'bindRedeem'    —— 另一台网页端凭 6 位码换回账户码（{code} → {deviceId}，H5↔H5 跨设备登录）；
  *   - action: 'opsPing'       —— H5 匿名使用量（{deviceId, version}，按 deviceId + 天去重）；
  *   - action: 'opsAdmin'      —— H5 运营看板（{deviceId}，账户码白名单内才下发）。
  *
@@ -810,6 +812,39 @@ async function handleKeyGet(body) {
 }
 
 /**
+ * keyPull：把托管 Key 的**明文**回传给持账户码的端（供浏览器插件「拉回本机 + 后台直发」用）
+ *
+ * 与 keyGet 的区别（安全口径，务必分清）：
+ *   - keyGet 只回掩码，任何持账户码者都拿不到明文；H5 / 官网走 relay，无需明文；
+ *   - keyPull 回明文，供插件把 Key 拉回本机后**直连**网关 / DeepSeek（不依赖服务端中转）。
+ * 代价：持账户码即等同「可抄走 Key」（原本只能「用」Key）。仅插件启用云端同步时调用。
+ */
+async function handleKeyPull(body) {
+  const deviceId = cleanDeviceId(body && body.deviceId);
+  if (!validDeviceId(deviceId)) {
+    return { ok: false, code: 'nodevice', error: '缺少或非法的设备标识' };
+  }
+  if (!KEY_SECRET) {
+    return { ok: false, code: 'nosecret', error: '服务端未配置密钥托管环境变量，暂不可用' };
+  }
+  const doc = await readUserDoc(deviceId);
+  if (!doc) {
+    return { ok: true, apiKey: '', aiKey: '', masked: '', aiMasked: '', nickName: '' };
+  }
+  const apiKey = doc.enc ? decryptSecret(doc.enc) : '';
+  const aiKey = doc.aiEnc ? decryptSecret(doc.aiEnc) : '';
+  console.log('[wereadProxy] keyPull', { device: deviceId.slice(0, 6) + '…', hasKey: !!apiKey, hasAiKey: !!aiKey });
+  return {
+    ok: true,
+    apiKey: apiKey,
+    aiKey: aiKey,
+    masked: doc.masked || '',
+    aiMasked: doc.aiMasked || '',
+    nickName: doc.nickName || '',
+  };
+}
+
+/**
  * profileSave：保存昵称（非敏感展示名，随账户走，换设备可同步）
  *
  * 与 Key 分开：不需要 KEY_SECRET，未托管 Key 的账户也能只存昵称。
@@ -1120,6 +1155,38 @@ async function handleBindRemove(body) {
 }
 
 /**
+ * （H5）bindRedeem：另一台网页端凭 6 位码换回账户码，实现 H5↔H5 跨设备登录
+ *
+ * 与 bindCreate 共用同一套一次性 6 位码会话（存 b_<deviceId>，10 分钟有效）：
+ * 电脑端 bindCreate 生成、手机端 bindRedeem 换回同一 deviceId，手机本地改存该账户码即登录同一账户。
+ * 用后把会话标记为 redeemed（一次性），且不改 status 为 claimed —— 不影响「已关联小程序」的判定。
+ */
+async function handleBindRedeem(body) {
+  const raw = String((body && body.code) || '').trim();
+  if (!/^\d{6}$/.test(raw)) {
+    return { ok: false, code: 'param', error: '请输入 6 位数字登录码' };
+  }
+  const session = await findBindSession(raw);
+  if (!session) {
+    return { ok: false, code: 'nocode', error: '登录码无效或已过期，请在原设备重新生成' };
+  }
+  const deviceId = cleanDeviceId(session.deviceId);
+  if (!validDeviceId(deviceId)) {
+    return { ok: false, code: 'param', error: '账户码格式不正确' };
+  }
+  const doc = Object.assign({}, session);
+  delete doc._id;   // 云开发文档自带 _id，回写时必须剔除，否则报 -501007
+  doc.status = 'redeemed';
+  doc.redeemedAt = Date.now();
+  try {
+    await writeDoc(LINK_COLLECTION, 'b_' + deviceId, doc);
+  } catch (err) {
+    // 一次性标记失败不阻断登录
+  }
+  return { ok: true, deviceId: deviceId };
+}
+
+/**
  * （小程序）accountEnsure：小程序端「我的账户码」
  *
  * 让账户码也能由小程序侧产生（原有流程只能网页端先生成账户码）。
@@ -1313,6 +1380,9 @@ async function handleHttp(event) {
   if (action === 'keyGet') {
     return httpReply(200, await handleKeyGet(body), origin);
   }
+  if (action === 'keyPull') {
+    return httpReply(200, await handleKeyPull(body), origin);
+  }
   if (action === 'keyClear') {
     return httpReply(200, await handleKeyClear(body), origin);
   }
@@ -1336,6 +1406,9 @@ async function handleHttp(event) {
   }
   if (action === 'bindRemove') {
     return httpReply(200, await handleBindRemove(body), origin);
+  }
+  if (action === 'bindRedeem') {
+    return httpReply(200, await handleBindRedeem(body), origin);
   }
   if (action === 'opsPing') {
     return httpReply(200, await handleH5OpsPing(body), origin);

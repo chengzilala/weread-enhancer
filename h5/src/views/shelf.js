@@ -5,11 +5,17 @@
  */
 
 import { fetchOverview } from '../data.js';
-import { shelfCounts, notebookStats } from '../core/report-core.js';
+import { shelfCounts, notebookStats, fmtDateTime } from '../core/report-core.js';
+import { renderShelfShare } from '../core/shelf-share.js';
 import { messageOf, isKeyError } from '../core/errors.js';
 import { esc, stateHtml } from '../ui.js';
+import { getProfile } from '../store.js';
+import { presentShareImage } from '../share.js';
 
 export const title = '书架';
+
+// 分享图需要「当前书架数据」——渲染时留一份
+let lastShelf = null;
 
 export function render(root, app) {
   root.innerHTML = '<div class="wre-page" id="shelfBody">' + stateHtml('loading', '正在读取书架…') + '</div>';
@@ -17,9 +23,24 @@ export function render(root, app) {
   body.addEventListener('click', (e) => {
     if (e.target.closest('[data-action="retry"]')) {
       load(body, app, true);
+      return;
+    }
+    if (e.target.closest('[data-action="share"]')) {
+      doShare();
     }
   });
   load(body, app, false);
+}
+
+function doShare() {
+  if (!lastShelf) {
+    return;
+  }
+  presentShareImage(
+    () => renderShelfShare({ shelf: lastShelf, generatedAt: fmtDateTime(Date.now()) }, getProfile()),
+    { title: '微信悦读', text: '我的书架', link: typeof location !== 'undefined' ? location.href : '' },
+    'shelf-share.png'
+  );
 }
 
 async function load(body, app, force) {
@@ -36,6 +57,7 @@ async function load(body, app, force) {
     }
     return;
   }
+  lastShelf = res.shelf || null;
   body.innerHTML = bodyHtml(res.shelf, res.notebooks, res.fromCache);
 }
 
@@ -116,6 +138,14 @@ function bodyHtml(shelf, notebooks, fromCache) {
 
   if (!parts.length) {
     parts.push('<div class="wre-card"><div class="wre-muted">暂无书架数据。</div></div>');
+  } else if (shelf) {
+    // 分享入口（对齐小程序 share-entry 卡片）
+    parts.push(
+      '<div class="wre-card wre-share-entry">' +
+      '<button class="wre-btn" data-action="share">生成书架分享图</button>' +
+      '<div class="wre-muted">生成后可保存图片，或用系统分享面板转发</div>' +
+      '</div>'
+    );
   }
   return parts.join('');
 }

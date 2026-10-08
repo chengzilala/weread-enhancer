@@ -116,6 +116,11 @@ export function bindRemove() {
   return call({ action: 'bindRemove' });
 }
 
+/** 另一台网页端凭 6 位登录码换回账户码（H5↔H5 跨设备登录，返回 deviceId） */
+export function bindRedeem(code) {
+  return call({ action: 'bindRedeem', code: code || '' });
+}
+
 // ---- H5 匿名使用量 / 运营看板 ----
 export function opsPing(version) {
   return call({ action: 'opsPing', version: version || '' });

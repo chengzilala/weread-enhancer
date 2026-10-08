@@ -406,3 +406,24 @@ export async function presentShareCard(spec, filename) {
   openShareSheet(res.dataUrl, s, filename);
   return { ok: true, dataUrl: res.dataUrl };
 }
+
+/**
+ * 各页面「按小程序同款版式」画好的分享图（renderXxxShare 返回 { ok, dataUrl }）直接预览。
+ * 与 presentShareCard 同一出口，只是绘制由各页专属模块负责。永不 reject。
+ * @param {function|object} draw 绘制结果，或返回绘制结果的函数（可为异步）
+ */
+export async function presentShareImage(draw, spec, filename) {
+  const s = spec || {};
+  let res;
+  try {
+    res = typeof draw === 'function' ? await draw() : draw;
+  } catch (err) {
+    res = { ok: false, error: (err && err.message) || '生成分享图失败' };
+  }
+  if (!res || !res.ok || !res.dataUrl) {
+    toast((res && res.error) || '生成分享图失败');
+    return { ok: false, error: res && res.error };
+  }
+  openShareSheet(res.dataUrl, s, filename);
+  return { ok: true, dataUrl: res.dataUrl };
+}

@@ -13,7 +13,8 @@ import { generatePersonaPortrait } from '../ai.js';
 import { messageOf } from '../core/errors.js';
 import { esc, stateHtml, toast } from '../ui.js';
 import { getMask, getProfile } from '../store.js';
-import { presentShareCard } from '../share.js';
+import { presentShareImage } from '../share.js';
+import { renderPersonaShare } from '../core/persona-share.js';
 import { speakList, ttsSupported } from '../tts.js';
 
 export const title = '阅读人格';
@@ -295,19 +296,11 @@ function doShare() {
   if (!p) {
     return;
   }
-  const profile = getProfile();
-  const dimChips = (p.dims || [])
-    .filter((d) => d.available)
-    .map((d) => d.left.label + ' ' + d.leftPct + '%');
-  presentShareCard({
-    badge: '阅读人格',
-    code: p.code,
-    title: p.name,
-    subtitle: p.tagline,
-    lines: p.oneLiner ? [p.oneLiner] : [],
-    chips: (p.nicknames || []).concat(dimChips),
-    footer: (profile.nickName ? profile.nickName + ' · ' : '') + '微信悦读 · 本机计算',
-  }, 'persona.png');
+  presentShareImage(
+    () => renderPersonaShare(p, getProfile()),
+    { title: '微信悦读', text: '我的阅读人格 ' + (p.name || '') + ' · ' + (p.code || ''), link: typeof location !== 'undefined' ? location.href : '' },
+    'persona.png'
+  );
 }
 
 // ---- H13 朗读 ----

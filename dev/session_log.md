@@ -1673,4 +1673,31 @@
 - **验证**：`python3 web/build.py` → 38 篇 + 6 栏目索引 + H5 39 文件、**0 告警**（v0.27.1）。因报告页需 Key、沙箱无法取数，改用**独立纯 CSS 核验页**（临时引用 `dist/app/assets/app.css`）渲染同结构表格并浏览器实测：7 行均三列等宽单行、蓝条贴行底边（距行底 1px）、宽度随占比成比例（3.7%→16px … 23.2%→100px）、无省略号截断、无横向溢出（`scrollWidth == clientWidth == 671`）。
 - **收尾/上线**：源码提交 `6be7509`（GitHub + Gitee 双推）；构建产物推 `site-dist`（`5521c40..9a0cb46`，快进无强推）；帽子云 `wereadapp` 重新部署成功（commit `9a0cb46`，已标「当前版本」）。线上验证：`/`、`/app/`、`/account/` 均 200；线上 `app/assets/app.css` 已含 `wre-table__bar`、无 `wre-track--slim`，`app/src/views/report.js` 同样命中。待用户在线上（配 Key 后）复核 §四 表格观感。
 
+## 2026-10-08 会话条目：H5↔H5 跨设备登录 —— 新增「6 位登录码」（bindRedeem）
+- **目标**：用户需求「我在电脑上打开网站 h5，然后在手机上打开 h5，如何同步电脑上已有的账户信息」。原「复制 32 位账户码 → 粘贴登录」已可用但 32 位难抄；用户选择「加 6 位码登录」。
+- **已做**：
+  - **云函数** [`wereadProxy/index.js`](file:///Users/Admin/Knowledge/Coding/微信读书插件/mobile/cloudfunctions/wereadProxy/index.js#L1122-L1153)：新增 `handleBindRedeem(body)` —— 凭 6 位码用 `findBindSession` 找回 `deviceId`，标记会话 `status:'redeemed'`（一次性；**不改 `claimed`**，故不影响 `bindStatus` 的「已关联小程序」判定），返回 `{ ok, deviceId }`；`handleHttp` 加路由 `bindRedeem`；头部注释补该 action。
+  - **H5** [`h5/src/api.js`](file:///Users/Admin/Knowledge/Coding/微信读书插件/h5/src/api.js#L119-L122)：加 `bindRedeem(code)` 封装。
+  - **网页版** [`h5/src/views/me.js`](file:///Users/Admin/Knowledge/Coding/微信读书插件/h5/src/views/me.js)：「跨设备登录」卡片加 `syncCodeBox()`（生成 6 位登录码，复用 `bindCreate`）+ 输入框 `#meLoginCode` + `gen-sync-code` / `redeem-login` 两个 action（登录前 `window.confirm` 防呆 + `setDeviceId` + reload）。
+  - **官网** [`web/assets/account.js`](file:///Users/Admin/Knowledge/Coding/微信读书插件/web/assets/account.js)：同上，加 `genSyncCode()` / `redeemCode()` + `syncCodeBox()` + `#acctLoginCode` + `data-act="gen-sync-code"/"redeem"`，并接入 `onKeydown` 回车登录。
+  - **文档** [`plan/账户体系_说明.md`](file:///Users/Admin/Knowledge/Coding/微信读书插件/plan/账户体系_说明.md)：§4 加 `bindRedeem` 行、§5.1 加 6 位登录码说明、§5.4 加「H5↔H5」小节、§9 变更记录。
+- **关键结论**：6 位码会话（`b_<deviceId>`）**一端一码、10 分钟有效、用后即废**；H5 换回账户码后本地改存该码并重载，即与电脑端共用同一份托管 Key / 昵称 / 人格。6 位码与「小程序绑定码」共用同一套会话（`bindCreate`），先被谁用掉谁生效。
+- **产出物（文件）**：`mobile/cloudfunctions/wereadProxy/index.js`、`h5/src/api.js`、`h5/src/views/me.js`、`web/assets/account.js`、`plan/账户体系_说明.md`（+ 构建产物 `web/dist/app/`、`web/dist/assets/account.js`）。
+- **验证**：`python3 web/build.py` 成功、**0 告警**（v0.27.1）；`web/dist` 在 `assets/account.js`、`app/src/api.js`、`app/src/views/me.js` 均命中 `bindRedeem|gen-sync-code|acctLoginCode`；`GetDiagnostics` 无 error。
+- **待办**：**需再次上传云函数**（`bindRedeem` 才生效）；真机/双设备验证「电脑生成 6 位码 → 手机输入 → 登录同一账户」闭环；本次改动**未提交**。
+
+## 2026-10-08 会话条目：浏览器插件接入账户（可选）—— Key 一处填写、插件/H5/官网共用
+- **目标**：用户需求「插件里也有配置 API Key 的地方，能否也在插件注入账户系统，让账户在所有产品中一致，Key 只在一处输入、全部地方同步」。经确认三决策：① Key **纳入云端托管**；② 运行时 **拉回本机 + 后台直发**；③ 接受云端可回**明文 Key**（新增 `keyPull`）。
+- **已做**：
+  - **云函数** [`wereadProxy/index.js`](file:///Users/Admin/Knowledge/Coding/微信读书插件/mobile/cloudfunctions/wereadProxy/index.js#L812-L844)：新增 `handleKeyPull(body)` —— 用 `readUserDoc` + `decryptSecret` 回传托管 Key 的**明文**（`{deviceId} → {apiKey, aiKey, masked, aiMasked, nickName}`）；`handleHttp` 加路由 `keyPull`；头部注释补该 action。日志只记 `hasKey` 布尔与 device 前 6 位。
+  - **插件后台** [`background.js`](file:///Users/Admin/Knowledge/Coding/微信读书插件/background.js)：新增 `CLOUD_ENDPOINT` / `ACCOUNT_KEY='wreAccount'` 常量；`randomHex` / `readAccount` / `writeAccount` / `ensureAccountId` / `callCloud` / `pushKeysToCloud`（`keySave`，best-effort）/ `pullKeysFromCloud`（`keyPull`，覆盖本机 Key 缓存 + 清报告缓存）；8 个 `wre-account-*` 消息：`status` / `enable` / `disable` / `login`（32 位账户码）/ `redeem`（6 位码 → `bindRedeem`）/ `gencode`（`bindCreate`）/ `clearcloud`（`keyClear`）/ `logout`；`wre-official-save`、`wre-ai-save` 成功后追加 `pushKeysToCloud`。
+  - **插件 UI** [`modules/official.js`](file:///Users/Admin/Knowledge/Coding/微信读书插件/modules/official.js)：API Key 面板加「账户与多端同步（可选）」区（启用 / 账户码展示·复制·刷新 / 生成 6 位登录码 / 6 位码与账户码两种登录 / 关闭同步 / 清除云端 Key / 退出账户）；顶部隐私文案改**动态**（未登录＝「🔒 只存本机」、已登录＝「☁️ 已加密托管可跨设备同步」）；新增状态变量 + `refreshAccountStatus()` + `buildAccountHtml()` + 各 `data-wre-account-*` 处理器；[official.css](file:///Users/Admin/Knowledge/Coding/微信读书插件/modules/official.css) 加 `.wre-off-code`（6 位码大字展示）。
+  - **隐私口径**：[release/privacy.md](file:///Users/Admin/Knowledge/Coding/微信读书插件/release/privacy.md) + [web/content/隐私政策.md](file:///Users/Admin/Knowledge/Coding/微信读书插件/web/content/隐私政策.md) 各加「插件账户与多端同步（可选，默认关闭）」小节，并把两处「仅存本机」改为「默认仅存本机（除非主动启用同步）」。
+  - **文档**：[plan/账户体系_说明.md](file:///Users/Admin/Knowledge/Coding/微信读书插件/plan/账户体系_说明.md) §4 加 `keyPull` 行、§5.5 新增「浏览器插件接入账户」、§8 代码索引、§9 变更记录。
+- **关键结论**：账户码在插件端与 H5 / 官网**同构**（32 位十六进制 `deviceId`），存 `chrome.storage.local` 键 `wreAccount`；**默认关闭** —— 未启用时行为与旧版完全一致（Key 只存本机、不联网），老用户无感。安全口径变化：`keyGet` 只回掩码，新增 `keyPull` 回明文，故**启用后持账户码即等同「可抄走 Key」**，做成开关并在隐私政策如实声明。跨端范围**只统一插件/H5/官网的 Key（+昵称）**，小程序不托管 Key。
+- **产出物（文件）**：`mobile/cloudfunctions/wereadProxy/index.js`、`background.js`、`modules/official.js`、`modules/official.css`、`release/privacy.md`、`web/content/隐私政策.md`、`plan/账户体系_说明.md`。
+- **验证**：`GetDiagnostics`（official.js）无 error（仅 2 条既有 Hint）。
+- **待办**：**需再次上传云函数**（`keyPull` 才生效）；插件端真机验证「启用 → 拉回本机 → 直连网关」与「插件生成 6 位码 → H5/官网登录同一账户」闭环；本次改动**未提交**。
+
+
 

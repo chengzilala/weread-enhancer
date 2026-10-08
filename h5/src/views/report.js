@@ -5,10 +5,12 @@
  */
 
 import { fetchReadData, fetchOverview, peekOverview } from '../data.js';
-import { buildReportBlocks, modeLabel } from '../core/report-core.js';
+import { buildReportBlocks, modeLabel, fmtDateTime } from '../core/report-core.js';
+import { renderReportShare } from '../core/report-share.js';
 import { messageOf, isKeyError } from '../core/errors.js';
 import { esc, stateHtml } from '../ui.js';
-import { cacheGet, cacheSet } from '../store.js';
+import { cacheGet, cacheSet, getProfile } from '../store.js';
+import { presentShareImage } from '../share.js';
 
 const MODES = [
   { key: 'weekly', label: '本周' },
@@ -50,10 +52,36 @@ export function render(root, app) {
   body.addEventListener('click', (e) => {
     if (e.target.closest('[data-action="retry"]')) {
       load(root, app, true);
+      return;
+    }
+    if (e.target.closest('[data-action="share"]')) {
+      doShare();
     }
   });
 
   load(root, app, false);
+}
+
+// 分享图需要「当前报告的数据 + 书架/笔记概览」——渲染时留一份
+let lastShare = null;
+
+function doShare() {
+  if (!lastShare) {
+    return;
+  }
+  const payload = lastShare;
+  const label = modeLabel(mode);
+  presentShareImage(
+    () => renderReportShare({
+      data: payload.data,
+      overview: payload.overview,
+      mode: mode,
+      modeLabel: label,
+      generatedAt: fmtDateTime(Date.now()),
+    }, getProfile()),
+    { title: '微信悦读', text: label + '阅读行为报告', link: typeof location !== 'undefined' ? location.href : '' },
+    'report-share.png'
+  );
 }
 
 async function load(root, app, force) {
@@ -62,6 +90,7 @@ async function load(root, app, force) {
   if (!force) {
     const cached = cacheGet(cacheKey, CACHE_TTL_MS);
     if (cached) {
+      lastShare = { data: cached.data, overview: peekOverview() };
       body.innerHTML = blocksHtml(cached.data, cached.overall, true);
       return;
     }
@@ -93,6 +122,7 @@ async function load(root, app, force) {
 
   const payload = { data: res.data, overall: overall };
   cacheSet(cacheKey, payload);
+  lastShare = { data: res.data, overview: overview };
   body.innerHTML = blocksHtml(payload.data, payload.overall, false, overview);
 }
 
@@ -107,6 +137,13 @@ function blocksHtml(raw, overall, fromCache, overview) {
   }
   parts.push(blocks.map(renderBlock).join(''));
   parts.push('<div class="wre-note">本报告在浏览器本机按固定规则计算生成，仅供参考。</div>');
+  // 分享入口（对齐小程序 share-entry 卡片）
+  parts.push(
+    '<div class="wre-card wre-share-entry">' +
+    '<button class="wre-btn" data-action="share">生成报告分享图</button>' +
+    '<div class="wre-muted">生成后可保存图片，或用系统分享面板转发</div>' +
+    '</div>'
+  );
   return parts.join('');
 }
 

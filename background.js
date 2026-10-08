@@ -13,8 +13,10 @@
  *   1. 保存 / 校验 / 清除用户自己的 `wrk-` API Key（chrome.storage.local）
  *   2. 转发网关调用，统一补 Authorization 与 skill_version
  *   3. 统一处理超时 / HTTP 状态 / errcode / upgrade_info
+ *   4. 账户与多端同步（可选，默认关闭）：账户码即账号，Key 加密托管到云函数以便跨端找回
  *
- * 红线：API Key 只在后台读取使用，不写日志（日志里只允许出现掩码）、不外传。
+ * 红线：API Key 只在后台读取使用，不写日志（日志里只允许出现掩码）；
+ *      未启用账户同步时 Key 只存本机、不联网；启用后仅经 HTTPS 提交给用户自建云函数加密托管。
  */
 'use strict';
 
@@ -33,6 +35,12 @@ const DEEPSEEK_TIMEOUT_MS = 30000;      // AI 生成较慢，放宽到 30 秒
 // 配套网站（帮助中心 / 版本检查）：只读一个公开的静态 JSON，不带任何用户数据。
 const SITE_LATEST_URL = 'https://wereadapp-32km31c.maozi.io/api/latest.json';
 const HELP_TIMEOUT_MS = 3000;
+
+// 账户与多端同步（可选，默认关闭）：账户码 deviceId 即账号，Key 由云函数加密托管以便跨端找回。
+// 未启用时行为与旧版完全一致（Key 只存本机 chrome.storage.local，不联网）。
+const CLOUD_ENDPOINT = 'https://cloud1-d4g1dq0sc7f62329d-1500443307.ap-shanghai.app.tcloudbase.com/h5';
+const ACCOUNT_KEY = 'wreAccount';        // { id: 32位账户码, sync: 是否启用云端同步 }
+const CLOUD_TIMEOUT_MS = 10000;
 
 function maskKey(key) {
   if (typeof key !== 'string' || !key) {
@@ -54,6 +62,124 @@ async function readSkillState() {
 async function readAiState() {
   const result = await chrome.storage.local.get([DEEPSEEK_STORAGE_KEY]);
   return result[DEEPSEEK_STORAGE_KEY] || null;
+}
+
+// ---------- 账户与多端同步（可选） ----------
+
+/** 32 位十六进制账户码（等价于 H5 / 官网 store.js 生成的 deviceId） */
+function randomHex(nBytes) {
+  const bytes = new Uint8Array(nBytes);
+  crypto.getRandomValues(bytes);
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 1) {
+    out += bytes[i].toString(16).padStart(2, '0');
+  }
+  return out;
+}
+
+async function readAccount() {
+  const result = await chrome.storage.local.get([ACCOUNT_KEY]);
+  const a = result[ACCOUNT_KEY] || {};
+  return { id: typeof a.id === 'string' ? a.id : '', sync: !!a.sync };
+}
+
+async function writeAccount(patch) {
+  const cur = await readAccount();
+  const next = Object.assign({}, cur, patch || {});
+  await chrome.storage.local.set({ [ACCOUNT_KEY]: next });
+  return next;
+}
+
+/** 账户码不存在时生成一个（不改变 sync 开关） */
+async function ensureAccountId() {
+  const acc = await readAccount();
+  if (acc.id) {
+    return acc.id;
+  }
+  const id = randomHex(16);
+  await writeAccount({ id: id });
+  return id;
+}
+
+/**
+ * 调用云函数 HTTP 网关（POST + JSON）。
+ * 扩展后台 fetch 不受页面 CORS 限制（host_permissions 已含 *.tcloudbase.com），无需预检配合。
+ */
+async function callCloud(action, payload, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs || CLOUD_TIMEOUT_MS);
+  try {
+    const resp = await fetch(CLOUD_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ action: action }, payload || {})),
+      signal: controller.signal,
+    });
+    let raw = '';
+    let data = null;
+    try {
+      raw = await resp.text();
+      data = raw ? JSON.parse(raw) : null;
+    } catch (parseErr) {
+      data = null;
+    }
+    if (!data || typeof data.ok !== 'boolean') {
+      return { ok: false, code: 'empty', error: '云端未返回有效结果（HTTP ' + resp.status + '）' };
+    }
+    return data;
+  } catch (err) {
+    if (err && err.name === 'AbortError') {
+      return { ok: false, code: 'timeout', error: '云端请求超时，请稍后重试' };
+    }
+    return { ok: false, code: 'network', error: '云端服务不可达（检查网络后重试）' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** 把本机已配置的 Key 推送到云端托管（仅在启用同步时；best-effort，失败不影响本机使用） */
+async function pushKeysToCloud() {
+  const acc = await readAccount();
+  if (!acc.sync || !acc.id) {
+    return { ok: false, code: 'off' };
+  }
+  const skill = await readSkillState();
+  const ai = await readAiState();
+  const apiKey = skill && skill.apiKey ? skill.apiKey : '';
+  const aiKey = ai && ai.apiKey ? ai.apiKey : '';
+  if (!apiKey && !aiKey) {
+    return { ok: true, skipped: true };
+  }
+  return await callCloud('keySave', { deviceId: acc.id, apiKey: apiKey, aiKey: aiKey });
+}
+
+/** 从云端把托管 Key 拉回本机（覆盖本机 Key 缓存；供登录 / 启用后对齐） */
+async function pullKeysFromCloud() {
+  const acc = await readAccount();
+  if (!acc.id) {
+    return { ok: false, code: 'noid', error: '尚未启用账户' };
+  }
+  const res = await callCloud('keyPull', { deviceId: acc.id });
+  if (!res.ok) {
+    return res;
+  }
+  const now = Date.now();
+  if (res.apiKey) {
+    await chrome.storage.local.set({
+      [STORAGE_KEY]: { apiKey: res.apiKey, savedAt: now, lastVerifiedAt: now, skillVersion: SKILL_VERSION },
+    });
+    await chrome.storage.local.remove(['wreOfficialReportCache', 'wreOfficialOverviewCache']);
+  } else {
+    await chrome.storage.local.remove([STORAGE_KEY, 'wreOfficialReportCache', 'wreOfficialOverviewCache']);
+  }
+  if (res.aiKey) {
+    await chrome.storage.local.set({
+      [DEEPSEEK_STORAGE_KEY]: { apiKey: res.aiKey, savedAt: now, lastVerifiedAt: now },
+    });
+  } else {
+    await chrome.storage.local.remove([DEEPSEEK_STORAGE_KEY]);
+  }
+  return { ok: true, hasKey: !!res.apiKey, hasAiKey: !!res.aiKey };
 }
 
 /**
@@ -282,8 +408,9 @@ async function handleMessage(message) {
     });
     // 换了 Key，旧的报告与书架/笔记缓存都不能再用
     await chrome.storage.local.remove(['wreOfficialReportCache', 'wreOfficialOverviewCache']);
+    const synced = await pushKeysToCloud();
     logBg('info', '已保存 API Key', { key: maskKey(apiKey) });
-    return { ok: true, hasKey: true, savedAt: now, lastVerifiedAt: now };
+    return { ok: true, hasKey: true, savedAt: now, lastVerifiedAt: now, synced: !!(synced && synced.ok) };
   }
 
   if (type === 'wre-official-clear') {
@@ -336,8 +463,9 @@ async function handleMessage(message) {
     await chrome.storage.local.set({
       [DEEPSEEK_STORAGE_KEY]: { apiKey: apiKey, savedAt: now, lastVerifiedAt: now },
     });
+    const synced = await pushKeysToCloud();
     logBg('info', '已保存 DeepSeek Key', { key: maskKey(apiKey) });
-    return { ok: true, hasKey: true, savedAt: now, lastVerifiedAt: now };
+    return { ok: true, hasKey: true, savedAt: now, lastVerifiedAt: now, synced: !!(synced && synced.ok) };
   }
 
   if (type === 'wre-ai-clear') {
@@ -360,6 +488,101 @@ async function handleMessage(message) {
 
   if (type === 'wre-help-latest') {
     return await fetchSiteLatest();
+  }
+
+  // ---------- 账户与多端同步 ----------
+
+  if (type === 'wre-account-status') {
+    const acc = await readAccount();
+    let cloud = null;
+    if (acc.sync && acc.id) {
+      const res = await callCloud('keyGet', { deviceId: acc.id });
+      if (res.ok) {
+        cloud = {
+          hasKey: !!res.hasKey,
+          masked: res.masked || '',
+          hasAiKey: !!res.hasAiKey,
+          aiMasked: res.aiMasked || '',
+          nickName: res.nickName || '',
+        };
+      }
+    }
+    return { ok: true, sync: acc.sync, deviceId: acc.id, cloud: cloud };
+  }
+
+  if (type === 'wre-account-enable') {
+    const id = await ensureAccountId();
+    await writeAccount({ sync: true });
+    const pushed = await pushKeysToCloud();
+    logBg('info', '已启用账户与云端同步', { device: id.slice(0, 6) + '…', pushed: !!(pushed && pushed.ok) });
+    return { ok: true, deviceId: id, pushed: !!(pushed && pushed.ok) };
+  }
+
+  if (type === 'wre-account-disable') {
+    await writeAccount({ sync: false });
+    logBg('warn', '已关闭云端同步（本机 Key 保留）');
+    return { ok: true };
+  }
+
+  if (type === 'wre-account-login') {
+    const code = String(message.deviceId || '').trim().toLowerCase();
+    if (!/^[0-9a-f]{32}$/.test(code)) {
+      return { ok: false, code: 'format', error: '账户码应为 32 位十六进制字符' };
+    }
+    await writeAccount({ id: code, sync: true });
+    const pulled = await pullKeysFromCloud();
+    return {
+      ok: true,
+      deviceId: code,
+      pulled: !!pulled.ok,
+      hasKey: !!pulled.hasKey,
+      hasAiKey: !!pulled.hasAiKey,
+      pullError: pulled.ok ? '' : (pulled.error || '云端 Key 拉取失败'),
+    };
+  }
+
+  if (type === 'wre-account-redeem') {
+    const code = String(message.code || '').trim();
+    if (!/^\d{6}$/.test(code)) {
+      return { ok: false, code: 'format', error: '请输入 6 位数字登录码' };
+    }
+    const res = await callCloud('bindRedeem', { code: code });
+    if (!res.ok) {
+      return res;
+    }
+    const deviceId = String(res.deviceId || '').toLowerCase();
+    await writeAccount({ id: deviceId, sync: true });
+    const pulled = await pullKeysFromCloud();
+    return {
+      ok: true,
+      deviceId: deviceId,
+      pulled: !!pulled.ok,
+      hasKey: !!pulled.hasKey,
+      hasAiKey: !!pulled.hasAiKey,
+      pullError: pulled.ok ? '' : (pulled.error || '云端 Key 拉取失败'),
+    };
+  }
+
+  if (type === 'wre-account-gencode') {
+    const acc = await readAccount();
+    if (!acc.id) {
+      return { ok: false, code: 'noid', error: '请先启用账户' };
+    }
+    return await callCloud('bindCreate', { deviceId: acc.id });
+  }
+
+  if (type === 'wre-account-clearcloud') {
+    const acc = await readAccount();
+    if (!acc.id) {
+      return { ok: false, code: 'noid', error: '请先启用账户' };
+    }
+    return await callCloud('keyClear', { deviceId: acc.id });
+  }
+
+  if (type === 'wre-account-logout') {
+    await chrome.storage.local.remove([ACCOUNT_KEY]);
+    logBg('warn', '已退出账户（本机 Key 保留，云端 Key 不动）');
+    return { ok: true };
   }
 
   return { ok: false, code: 'unknown', error: '未知的后台请求类型' };

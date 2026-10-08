@@ -567,6 +567,9 @@ html, body {
 .wre-ai-text p:last-child { margin-bottom: 0; }
 
 /* ---- 分享弹层 ---- */
+.wre-share-entry { text-align: center; }
+.wre-share-entry .wre-btn { margin-top: 0; }
+.wre-share-entry .wre-muted { margin-top: 8px; }
 .wre-share-mask {
   position: fixed;
   inset: 0;

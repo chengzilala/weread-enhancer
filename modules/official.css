@@ -349,6 +349,21 @@
   color: var(--wre-text);
 }
 
+/* 一次性 6 位登录码（账户与多端同步） */
+.wre-off-overlay .wre-off-code {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px dashed var(--wre-primary);
+  border-radius: var(--wre-border-radius);
+  text-align: center;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  font-variant-numeric: tabular-nums;
+  color: var(--wre-text);
+  user-select: all;
+}
+
 /* Canvas 图表（原生绘制，面板内显示） */
 .wre-off-overlay .wre-chart {
   margin: 14px 0;

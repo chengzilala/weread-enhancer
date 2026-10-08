@@ -23,7 +23,7 @@ The "Notes" feature reads your own highlights, thoughts and annotations for the 
 
 The "Official Data" feature is **off by default** and requires you to paste **your own** WeRead API Key (a `wrk-` token that you create in the WeRead App on the "WeRead Skill" page).
 
-- The Key is stored **only locally** in `chrome.storage.local` on your own device. It is never sent to the extension's author or any third party.
+- The Key is stored **only locally** in `chrome.storage.local` on your own device. It is never sent to the extension's author or any third party (unless you explicitly enable the optional **Plugin Account Sync** described below).
 - When you open the report, the extension sends the Key and your request **only to WeRead's official gateway `i.weread.qq.com`** (via the extension's background service worker) — the same official service the WeRead App skill uses. No other server is contacted.
 - The report is **generated locally in your browser**; the resulting report is not uploaded anywhere. Exporting simply saves a file to your own computer.
 - You can remove the Key at any time from the "🔑 API Key" menu entry (it is then deleted from local storage together with the report cache).
@@ -33,11 +33,20 @@ The "Official Data" feature is **off by default** and requires you to paste **yo
 
 The "Official Data" report can optionally upgrade its "Executive Summary" with AI-generated wording. This is **off by default** and requires you to paste **your own** DeepSeek API Key (a `sk-` token).
 
-- The Key is stored **only locally** in `chrome.storage.local` and is never sent to the extension's author or any third party.
+- The Key is stored **only locally** in `chrome.storage.local` and is never sent to the extension's author or any third party (unless you explicitly enable the optional **Plugin Account Sync** described below).
 - All report numbers are still computed **locally by fixed rules**; DeepSeek only turns those already-computed facts (plus a small sample of your own highlights/thoughts) into natural-language wording. It never computes the statistics itself.
 - When enabled, the extension sends **only** the following to `api.deepseek.com`: a summary of your shelf/cumulative reading/notes/finish-rate/category preferences, annual trend, and a bounded sample of highlight/thought text from the top few most-annotated books (at most 6 samples per book). Your WeRead `wrk-` Key is **never** sent to DeepSeek.
 - If you do not configure a DeepSeek Key, **no request is ever made to `api.deepseek.com`**, and the report falls back to the rule-based summary.
 - You can remove the DeepSeek Key at any time from the "🔑 API Key" menu entry.
+
+## Plugin Account Sync — optional, off by default
+
+The extension's "🔑 API Key" panel also offers an **optional** "账户与多端同步" (account & cross-device sync) section.
+
+- It is **off by default**. When off, the extension behaves exactly as before: your Keys are stored **only locally** in `chrome.storage.local` and never uploaded.
+- Only if you **explicitly enable it** (or log in on this device with your account code / a 6-digit login code) will your already-configured WeRead and DeepSeek Keys be **encrypted (AES-256-GCM) and hosted** on our self-built cloud function, under the **same account code** shared with the website and web app — so you configure a Key once and it is available on every device.
+- Once enabled, the extension **pulls the hosted Keys back to your device** to call the WeRead official gateway / DeepSeek directly (the same request path as when sync is off — requests still do not pass through the author's server). This also means **anyone holding your account code can retrieve the Key plaintext**, so keep your account code as safe as a password.
+- You can at any time "关闭同步" (turn off sync — local Keys kept, no further syncing), "清除云端 Key" (delete the hosted Keys — local Keys unaffected), or "退出账户" (log out) from the panel. After the hosted Keys are deleted, other devices can no longer sync them.
 
 ## Reading Persona & Share Image — local only
 

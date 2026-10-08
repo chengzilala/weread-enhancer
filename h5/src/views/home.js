@@ -7,10 +7,12 @@
 
 import { fetchReadData, peekOverview } from '../data.js';
 import { buildHomeView } from '../core/home-core.js';
-import { shelfCounts, notebookStats, modeLabel } from '../core/report-core.js';
+import { renderHomeShare } from '../core/home-share.js';
+import { shelfCounts, notebookStats, modeLabel, fmtDateTime } from '../core/report-core.js';
 import { messageOf, isKeyError } from '../core/errors.js';
 import { esc, stateHtml } from '../ui.js';
-import { cacheGet, cacheSet } from '../store.js';
+import { cacheGet, cacheSet, getProfile } from '../store.js';
+import { presentShareImage } from '../share.js';
 
 const MODES = [
   { key: 'weekly', label: '本周' },
@@ -59,6 +61,11 @@ export function render(root, app) {
       load(root, app, true);
       return;
     }
+    const share = e.target.closest('[data-action="share"]');
+    if (share) {
+      doShare();
+      return;
+    }
     const go = e.target.closest('[data-goto]');
     if (go) {
       app.go(go.getAttribute('data-goto'));
@@ -68,12 +75,29 @@ export function render(root, app) {
   load(root, app, false);
 }
 
+// 分享图需要「当前已拿到的那份原始数据」——页面渲染时留一份
+let lastRaw = null;
+
+function doShare() {
+  if (!lastRaw) {
+    return;
+  }
+  const raw = lastRaw;
+  const label = modeLabel(mode);
+  presentShareImage(
+    () => renderHomeShare({ data: raw, mode: mode, modeLabel: label, generatedAt: fmtDateTime(Date.now()) }, getProfile()),
+    { title: '微信悦读', text: label + '阅读数据总览', link: typeof location !== 'undefined' ? location.href : '' },
+    'home-share.png'
+  );
+}
+
 async function load(root, app, force) {
   const body = root.querySelector('#homeBody');
   const cacheKey = 'home_' + mode;
   if (!force) {
     const cached = cacheGet(cacheKey, CACHE_TTL_MS);
     if (cached) {
+      lastRaw = cached;
       body.innerHTML = bodyHtml(cached, true);
       return;
     }
@@ -92,6 +116,7 @@ async function load(root, app, force) {
     return;
   }
   cacheSet(cacheKey, res.data);
+  lastRaw = res.data;
   body.innerHTML = bodyHtml(res.data, false);
 }
 
@@ -195,6 +220,16 @@ function bodyHtml(raw, fromCache) {
     '<button class="wre-link" data-goto="wander"><span>🧭 灵感漫游</span><span class="wre-muted">AI 串联</span></button>' +
     '</div>'
   );
+
+  // 分享入口（对齐小程序 share-entry 卡片；有记录才展示）
+  if (!view.emptyRecord) {
+    parts.push(
+      '<div class="wre-card wre-share-entry">' +
+      '<button class="wre-btn" data-action="share">生成数据分享图</button>' +
+      '<div class="wre-muted">生成后可保存图片，或用系统分享面板转发</div>' +
+      '</div>'
+    );
+  }
 
   return parts.join('');
 }

@@ -13,7 +13,7 @@ import {
   getDeviceId, setDeviceId, resetDeviceId,
   getMask, setMask, getProfile, setProfile, readAvatarFile,
 } from '/app/src/store.js';
-import { keyGet, keySave, keyClear, verifyKey, profileSave, bindCreate, bindStatus, bindRemove } from '/app/src/api.js';
+import { keyGet, keySave, keyClear, verifyKey, profileSave, bindCreate, bindStatus, bindRemove, bindRedeem } from '/app/src/api.js';
 import { qrSvg } from '/app/src/qrcode.js';
 
 const root = document.getElementById('acctRoot');
@@ -26,6 +26,10 @@ let bindCode = '';      // 当前展示的一次性绑定码（6 位）
 let bindExpire = 0;     // 绑定码过期时间
 let bindLinked = null;  // null=未知 / true=已关联 / false=未关联
 let bindTimer = null;   // 关联状态轮询定时器
+
+// 跨设备登录（H5↔H5）：本设备生成的 6 位登录码
+let syncCode = '';      // 当前展示的 6 位登录码
+let syncExpire = 0;     // 登录码过期时间
 
 /** 账户码默认掩码显示（前 4 后 4） */
 function maskCode(id) {
@@ -133,6 +137,13 @@ function render() {
     'spellcheck="false" placeholder="粘贴 32 位账户码">' +
     '<button class="acct-btn" type="button" data-act="restore">用账户码登录</button>' +
     '</div>' +
+    '<p class="acct-hint">——— 也可以用更短的 6 位登录码（两台设备更方便）———</p>' +
+    syncCodeBox() +
+    '<div class="acct-inline">' +
+    '<input class="acct-input" id="acctLoginCode" type="text" inputmode="numeric" maxlength="6" ' +
+    'autocomplete="off" spellcheck="false" placeholder="输入另一台设备的 6 位登录码">' +
+    '<button class="acct-btn" type="button" data-act="redeem">用 6 位码登录</button>' +
+    '</div>' +
     '</section>' +
 
     bindSection() +
@@ -163,6 +174,19 @@ function render() {
 
     '<p class="acct-foot">这是与网页版共用的同一个账户，手机上可打开 ' +
     '<a href="/app/">网页版 →</a></p>';
+}
+
+/** 跨设备登录（H5↔H5）：本设备「6 位登录码」区（已生成 / 未生成 两态） */
+function syncCodeBox() {
+  if (syncCode && Date.now() < syncExpire) {
+    return '<div class="acct-bindcode">' + esc(syncCode) + '</div>' +
+      '<p class="acct-hint">在另一台设备（网页版）输入这 6 位数字即可登录同一账户（10 分钟内有效）。</p>' +
+      '<button class="acct-btn acct-btn--ghost" type="button" data-act="gen-sync-code">重新生成</button>';
+  }
+  const expired = syncCode && Date.now() >= syncExpire;
+  return (expired ? '<p class="acct-hint">登录码已过期，请重新生成。</p>' : '') +
+    '<button class="acct-btn acct-btn--ghost" type="button" data-act="gen-sync-code">生成 6 位登录码</button>' +
+    '<p class="acct-hint">在本设备生成后，到另一台设备输入这 6 位即可登录同一账户。</p>';
 }
 
 /** 关联小程序区块：已关联 / 展示绑定码 / 未关联 三态 */
@@ -246,6 +270,54 @@ async function genBind() {
   bindExpire = res.expireAt || 0;
   render();
   startPoll();
+}
+
+/** 生成 6 位登录码（供另一台网页端凭码登录，H5↔H5） */
+async function genSyncCode() {
+  const res = await bindCreate();
+  if (!res || !res.ok) {
+    toast((res && res.error) || '生成失败，请稍后重试');
+    return;
+  }
+  syncCode = res.code || '';
+  syncExpire = res.expireAt || 0;
+  render();
+}
+
+/** 用另一台设备生成的 6 位登录码登录同一账户（H5↔H5） */
+async function redeemCode() {
+  const input = document.getElementById('acctLoginCode');
+  const code = input ? String(input.value || '').trim() : '';
+  if (!/^\d{6}$/.test(code)) {
+    toast('请输入 6 位数字登录码');
+    return;
+  }
+  toast('登录中…');
+  const res = await bindRedeem(code);
+  if (!res || !res.ok) {
+    toast((res && res.error) || '登录失败，请稍后重试');
+    return;
+  }
+  const target = res.deviceId || '';
+  if (target === getDeviceId()) {
+    toast('这就是当前账户，无需登录');
+    return;
+  }
+  if (!window.confirm(
+    '确定切换到账户 ' + maskCode(target) + ' 吗？\n\n' +
+    '当前账户 ' + maskCode(getDeviceId()) + ' 的数据仍保存在云端，之后用它的账户码可再登回。'
+  )) {
+    return;
+  }
+  if (!setDeviceId(target)) {
+    toast('登录码对应的账户码无效');
+    return;
+  }
+  showCode = false;
+  syncCode = '';
+  syncExpire = 0;
+  await syncFromServer();
+  toast('已登录同一账户');
 }
 
 async function removeBind() {
@@ -435,6 +507,7 @@ function onAction(e) {
   }
   if (act === 'save-key') { saveKey(btn.getAttribute('data-kind')); return; }
   if (act === 'restore') { restoreCode(); return; }
+  if (act === 'redeem') { redeemCode(); return; }
   if (act === 'save-profile') { saveProfile(); return; }
   if (act === 'pick-avatar') {
     const f = document.getElementById('acctAvatarInput');
@@ -444,6 +517,7 @@ function onAction(e) {
   if (act === 'remove-avatar') { removeAvatar(); return; }
   if (act === 'clear-key') { clearKey(); return; }
   if (act === 'gen-bind') { genBind(); return; }
+  if (act === 'gen-sync-code') { genSyncCode(); return; }
   if (act === 'remove-bind') { removeBind(); return; }
   if (act === 'sign-out') { signOut(); return; }
 }
@@ -460,6 +534,8 @@ function onKeydown(e) {
     saveKey(t.id.indexOf('wrk') >= 0 ? 'wrk' : 'ai');
   } else if (t.id === 'acctCodeInput') {
     restoreCode();
+  } else if (t.id === 'acctLoginCode') {
+    redeemCode();
   } else if (t.id === 'acctNickInput') {
     saveProfile();
   }
@@ -478,6 +554,8 @@ if (root) {
   bindCode = '';
   bindExpire = 0;
   bindLinked = null;
+  syncCode = '';
+  syncExpire = 0;
   stopPoll();
   render();
   root.addEventListener('click', onAction);
