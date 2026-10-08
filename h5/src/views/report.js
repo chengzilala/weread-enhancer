@@ -134,7 +134,8 @@ function renderBlock(b) {
         b.head.map((h) => '<span>' + esc(h) + '</span>').join('') + '</div>';
       html += b.rows.map((row, i) => {
         const cells = row.map((c, ci) => '<span' + (ci === 0 ? ' class="wre-table__main"' : '') + '>' + esc(c) + '</span>').join('');
-        const bar = bars ? '<div class="wre-track wre-track--slim"><div class="wre-track__fill" style="width:' + bars[i] + '%"></div></div>' : '';
+        // 占比条：绝对定位在行底部（对齐小程序 .tbl__bar），不参与栅格分列
+        const bar = bars ? '<div class="wre-table__bar" style="width:' + bars[i] + '%"></div>' : '';
         return '<div class="wre-table__row">' + cells + bar + '</div>';
       }).join('');
       return '<div class="wre-card wre-table-card">' + html + '</div>';

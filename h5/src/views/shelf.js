@@ -60,14 +60,7 @@ function bodyHtml(shelf, notebooks, fromCache) {
     );
   }
 
-  // 按官方分组（紧随概览，便于第一时间看到；只读）
-  if (shelf) {
-    const block = groupsHtml(shelf);
-    if (block) {
-      parts.push(block);
-    }
-  }
-
+  // 笔记概览（紧随书架概览，两块数字卡放在一起，避免被下方分组内容压到很下面）
   const stats = notebookStats(notebooks);
   if (stats) {
     parts.push(
@@ -81,6 +74,14 @@ function bodyHtml(shelf, notebooks, fromCache) {
       (stats.truncated ? '<div class="wre-hint">笔记书较多，仅统计最近拉取的部分。</div>' : '') +
       '</div>'
     );
+  }
+
+  // 按官方分组（只读数据，篇幅较长，放在两块数字概览之后）
+  if (shelf) {
+    const block = groupsHtml(shelf);
+    if (block) {
+      parts.push(block);
+    }
   }
 
   // 电子书列表（前 20 本，按最近阅读时间）

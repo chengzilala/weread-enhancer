@@ -1662,4 +1662,15 @@
 - **验证**：`python3 web/build.py` 成功、**0 告警**（v0.26.0）；`GetDiagnostics` 无 error（仅 CommonJS 提示）；`web/dist` 产物含新文案。
 - **待办**：**需再次上传云函数**（`accountEnsure` 才生效，参见上一阶段云函数未部署导致的「未知的 HTTP 操作」）；小程序端真机验证「获取我的账户码 → 网页端粘贴登录」闭环；本次改动**未提交**。
 
+## 2026-10-08 会话条目：H5 报告「阅读时段分布」起错乱修复 —— 表格占比条改为行底绝对定位（对齐小程序）
+- **目标**：用户反馈线上 `/app/#/report`「四、阅读时段分布 从第四段开始，错乱了，你优化下样式排版」（配图：每行蓝条独立占一行、与 3 列表头错位）。
+- **排查**：线上 `app.css` 仍是旧版（含 `.wre-track--slim` + `.wre-table__row .wre-track--slim { grid-column: 1/-1 }`），源码已修但**未提交/未部署**，故用户看到的仍是旧渲染。根因：占比条 `<div class="wre-track wre-track--slim">` 被 `grid-auto-flow: column` 当作行的第 4 个栅格列，与只有 3 列的表头错位；凡「带占比条的表格」（从 §四 阅读时段分布起）整体错乱。
+- **已做**：
+  - `h5/src/views/report.js`：表格行的占比条改 `<div class="wre-table__bar" style="width:{bars[i]}%">`，**绝对定位在行底**（对齐小程序 `.tbl__bar`），不再参与栅格分列。
+  - `h5/assets/app.css`：删除旧 `.wre-track--slim` / `grid-column: 1/-1`；`.wre-table__bar` 改 `position:absolute; left:0; bottom:0; height:2px`；单元格由「nowrap + 省略号截断」改为 `word-break: break-all`（对齐小程序 `.tbl__cell`，长文本折行不截断）；行 `padding` 8px→6px（=12rpx）、表头字号 12px、`align-items: center`，逐项对齐小程序 `.tbl__row`。
+- **关键结论/决定**：报告表格结构统一为「三列等宽单行 + 行底占比条（绝对定位，宽度=占比%）」，与小程序一致。
+- **产出物（文件）**：`h5/src/views/report.js`、`h5/assets/app.css`（+ 构建产物 `web/dist/app/`）。
+- **验证**：`python3 web/build.py` → 38 篇 + 6 栏目索引 + H5 39 文件、**0 告警**（v0.27.1）。因报告页需 Key、沙箱无法取数，改用**独立纯 CSS 核验页**（临时引用 `dist/app/assets/app.css`）渲染同结构表格并浏览器实测：7 行均三列等宽单行、蓝条贴行底边（距行底 1px）、宽度随占比成比例（3.7%→16px … 23.2%→100px）、无省略号截断、无横向溢出（`scrollWidth == clientWidth == 671`）。
+- **待办**：线上仍是旧版 → 需按 `git-sync` / `pack-publish` **提交并重新部署 `/app/`**，用户硬刷新后复核；本次改动**未提交**。
+
 
