@@ -1671,6 +1671,6 @@
 - **关键结论/决定**：报告表格结构统一为「三列等宽单行 + 行底占比条（绝对定位，宽度=占比%）」，与小程序一致。
 - **产出物（文件）**：`h5/src/views/report.js`、`h5/assets/app.css`（+ 构建产物 `web/dist/app/`）。
 - **验证**：`python3 web/build.py` → 38 篇 + 6 栏目索引 + H5 39 文件、**0 告警**（v0.27.1）。因报告页需 Key、沙箱无法取数，改用**独立纯 CSS 核验页**（临时引用 `dist/app/assets/app.css`）渲染同结构表格并浏览器实测：7 行均三列等宽单行、蓝条贴行底边（距行底 1px）、宽度随占比成比例（3.7%→16px … 23.2%→100px）、无省略号截断、无横向溢出（`scrollWidth == clientWidth == 671`）。
-- **待办**：线上仍是旧版 → 需按 `git-sync` / `pack-publish` **提交并重新部署 `/app/`**，用户硬刷新后复核；本次改动**未提交**。
+- **收尾/上线**：源码提交 `6be7509`（GitHub + Gitee 双推）；构建产物推 `site-dist`（`5521c40..9a0cb46`，快进无强推）；帽子云 `wereadapp` 重新部署成功（commit `9a0cb46`，已标「当前版本」）。线上验证：`/`、`/app/`、`/account/` 均 200；线上 `app/assets/app.css` 已含 `wre-table__bar`、无 `wre-track--slim`，`app/src/views/report.js` 同样命中。待用户在线上（配 Key 后）复核 §四 表格观感。
 
 
