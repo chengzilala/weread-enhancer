@@ -7,6 +7,37 @@
   margin-top: 24rpx;
 }
 
+/* 分区小标题（情况一 / 情况二） */
+.link-sec {
+  margin-top: 32rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1F2430;
+}
+
+/* 我的账户码 */
+.link-code {
+  margin-top: 20rpx;
+  padding: 24rpx;
+  background: #F5F6F8;
+  border-radius: 12rpx;
+  font-size: 30rpx;
+  letter-spacing: 1rpx;
+  color: #1F2430;
+  word-break: break-all;
+}
+
+.link-code__ops {
+  display: flex;
+  gap: 32rpx;
+  margin-top: 16rpx;
+}
+
+.link-code__op {
+  font-size: 28rpx;
+  color: #12A150;
+}
+
 .link-input {
   margin-top: 24rpx;
   padding: 24rpx;

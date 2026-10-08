@@ -24,6 +24,9 @@ Page({
     loading: true,
     linked: false,
     deviceMasked: '',
+    myCode: '',
+    myCodeMasked: '',
+    showFull: false,
     code: '',
     busy: false,
     statusText: '',
@@ -38,15 +41,55 @@ Page({
     this.setData({ loading: true });
     const res = await account.bindInfo();
     const ok = !!(res && res.ok);
+    const linked = ok && !!res.linked;
+    const deviceId = linked && res.deviceId ? String(res.deviceId) : '';
     this.setData({
       loading: false,
-      linked: ok && !!res.linked,
-      deviceMasked: ok && res.deviceId ? maskCode(res.deviceId) : '',
+      linked: linked,
+      deviceMasked: deviceId ? maskCode(deviceId) : '',
+      myCode: deviceId,
+      myCodeMasked: deviceId ? maskCode(deviceId) : '',
     });
     // 账户侧已有昵称、本机还没有 → 拉到本机
-    if (ok && res.linked && res.nickName && !store.getProfile().nickName) {
+    if (linked && res.nickName && !store.getProfile().nickName) {
       store.setProfile({ avatarUrl: store.getProfile().avatarUrl, nickName: res.nickName });
     }
+  },
+
+  /** 情况一：小程序先开始用 → 获取本端账户码（供网页端粘贴登录） */
+  async onEnsureCode() {
+    if (this.data.busy) {
+      return;
+    }
+    this.setData({ busy: true });
+    this.setStatus('', '正在生成…');
+    const res = await account.accountEnsure();
+    this.setData({ busy: false });
+    if (!res.ok) {
+      this.setStatus('error', res.error || '获取失败，请重试');
+      return;
+    }
+    this.setStatus('ok', res.created ? '账户码已生成' : '已获取账户码');
+    this.refresh();
+  },
+
+  /** 显示 / 隐藏完整账户码 */
+  onToggleCode() {
+    this.setData({ showFull: !this.data.showFull });
+  },
+
+  /** 复制完整账户码（粘贴到网页端「跨设备登录」） */
+  onCopyCode() {
+    const code = this.data.myCode;
+    if (!code) {
+      return;
+    }
+    wx.setClipboardData({
+      data: code,
+      success: () => {
+        this.setStatus('ok', '账户码已复制，可粘贴到网页端登录');
+      },
+    });
   },
 
   onInput(e) {

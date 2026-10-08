@@ -42,6 +42,15 @@ function bindInfo() {
   return call({ action: 'bindInfo' });
 }
 
+/**
+ * 获取本端账户码（小程序侧发起统一）：
+ * 未分配时由云函数新建账户码并把本机数据迁到该账户码名下，已分配则原样返回（幂等）。
+ * 拿到后可在网页端「跨设备登录」粘贴登录，实现「小程序先、网页后」的统一。
+ */
+function accountEnsure() {
+  return call({ action: 'accountEnsure' });
+}
+
 /** 解除关联（本机数据保留） */
 function bindUnbind() {
   return call({ action: 'bindUnbind' });
@@ -52,4 +61,4 @@ function profilePut(nickName) {
   return call({ action: 'profilePut', nickName: nickName || '' });
 }
 
-module.exports = { bindClaim, bindInfo, bindUnbind, profilePut };
+module.exports = { bindClaim, bindInfo, bindUnbind, profilePut, accountEnsure };

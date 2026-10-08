@@ -121,7 +121,8 @@ function render() {
     '<section class="acct-card">' +
     '<h2 class="acct-card__title">跨设备登录</h2>' +
     '<p class="acct-hint">账户码就是你的账号 + 登录凭证，请自行妥善保存；' +
-    '在别的设备（含手机网页版）填它即可找回 Key 与昵称。</p>' +
+    '在别的设备（含手机网页版）填它即可找回 Key 与昵称。若你先在小程序使用，' +
+    '可在小程序「关联网页账户 → 获取我的账户码」里取到它，粘贴到下方登录即可统一。</p>' +
     '<div class="acct-codebox">' +
     '<code class="acct-codebox__val">' + esc(shownCode) + '</code>' +
     '<button class="acct-link" type="button" data-act="toggle-code">' + (showCode ? '隐藏' : '显示完整') + '</button>' +
@@ -328,6 +329,12 @@ async function restoreCode() {
   }
   if (code === getDeviceId()) {
     toast('这就是当前账户码');
+    return;
+  }
+  if (!window.confirm(
+    '确定切换到账户 ' + maskCode(code) + ' 吗？\n\n' +
+    '当前账户 ' + maskCode(getDeviceId()) + ' 的数据仍保存在云端，之后用它的账户码可再登回。'
+  )) {
     return;
   }
   if (!setDeviceId(code)) {

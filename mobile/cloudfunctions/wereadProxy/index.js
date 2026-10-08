@@ -965,10 +965,16 @@ async function handleH5OpsAdmin(body) {
 //   ② 短码：网页端展示 6 位数字，小程序内手输；
 //   ③ 粘贴：网页端复制 32 位账户码，小程序内粘贴。
 // 三种入口最终都走 bindClaim 建立映射，结果一致。红线：只存映射，不存 Key、不存官方原始数据。
+//   ④ 反向（用户从小程序先开始用）：小程序调 accountEnsure 为自己分配账户码，网页端「用账户码登录」粘贴即统一。
 
 /** 6 位数字绑定码（一次性、10 分钟过期） */
 function genBindCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+/** 32 位十六进制账户码（服务端随机，等价于网页端 CSPRNG 生成的 deviceId） */
+function genDeviceId() {
+  return crypto.randomBytes(16).toString('hex');
 }
 
 /** 云开发集合不存在时建集合（幂等；已存在会抛错，忽略即可） */
@@ -1113,7 +1119,37 @@ async function handleBindRemove(body) {
   return { ok: true };
 }
 
-/**（小程序）bindClaim：认领绑定（6 位绑定码 或 直接粘贴的账户码），建立 openid ↔ deviceId 映射 */
+/**
+ * （小程序）accountEnsure：小程序端「我的账户码」
+ *
+ * 让账户码也能由小程序侧产生（原有流程只能网页端先生成账户码）。
+ * 未分配则新建一个账户码并建立 openid ↔ deviceId 映射，把本机已算好的人格搬到该账户码名下；
+ * 已分配则直接返回（幂等），用户可在网页端「跨设备登录」粘贴此码完成统一。
+ */
+async function handleAccountEnsure() {
+  const ctx = cloud.getWXContext();
+  const openid = ctx && ctx.OPENID;
+  if (!openid) {
+    return { ok: false, code: 'noopenid', error: '未取到用户标识（需已开通云开发）' };
+  }
+  const existing = await resolveLinkDeviceId(openid);
+  if (existing) {
+    return { ok: true, deviceId: existing, created: false };
+  }
+  const deviceId = genDeviceId();
+  const now = Date.now();
+  try {
+    const link = { kind: 'link', openid: openid, deviceId: deviceId, createdAt: now, updatedAt: now, source: 'mp' };
+    await writeDoc(LINK_COLLECTION, 'l_' + openid, link);
+    await writeDoc(LINK_COLLECTION, 'd_' + deviceId, link);
+  } catch (err) {
+    return { ok: false, code: 'save', error: '账户码生成失败，请稍后重试' };
+  }
+  await migratePersonaOnBind(openid, deviceId);
+  return { ok: true, deviceId: deviceId, created: true };
+}
+
+/** （小程序）bindClaim：认领绑定（6 位绑定码 或 直接粘贴的账户码），建立 openid ↔ deviceId 映射 */
 async function handleBindClaim(event) {
   const ctx = cloud.getWXContext();
   const openid = ctx && ctx.OPENID;
@@ -1329,6 +1365,9 @@ exports.main = async (event) => {
   }
   if (action === 'bindInfo') {
     return await handleBindInfo();
+  }
+  if (action === 'accountEnsure') {
+    return await handleAccountEnsure();
   }
   if (action === 'bindUnbind') {
     return await handleBindUnbind();

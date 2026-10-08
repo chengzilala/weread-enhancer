@@ -101,7 +101,7 @@ function paint(body) {
 
     '<div class="wre-card">' +
     '  <div class="wre-card__title">跨设备登录</div>' +
-    '  <div class="wre-muted">账户码就是你的账户身份，不含任何个人信息。换手机时，在新设备输入它即可找回同一份托管 Key 与昵称。</div>' +
+    '  <div class="wre-muted">账户码就是你的账户身份，不含任何个人信息。换设备时输入它即可找回同一份托管 Key 与昵称；若你先在小程序使用，可在小程序「关联网页账户 → 获取我的账户码」里取到它，粘贴到这里登录即可统一。</div>' +
     '  <div class="wre-code">' + esc(showCode ? deviceId : maskCode(deviceId)) + '</div>' +
     '  <div class="wre-btn-row">' +
     '    <button class="wre-btn wre-btn--ghost" data-action="toggle-code">' + (showCode ? '隐藏' : '显示完整') + '</button>' +
@@ -428,15 +428,22 @@ async function onAction(e, body, app) {
 
   if (action === 'restore-device') {
     const input = body.querySelector('#meSync');
-    const code = (input && input.value || '').trim();
+    const code = (input && input.value || '').trim().toLowerCase();
+    if (!/^[0-9a-f]{32}$/.test(code)) {
+      toast('账户码格式不正确（应为 32 位十六进制）');
+      return;
+    }
     if (code === getDeviceId()) {
       toast('这就是当前账户，无需登录');
       return;
     }
-    if (!setDeviceId(code)) {
-      toast('账户码格式不正确（应为 32 位十六进制）');
+    if (!window.confirm(
+      '确定切换到账户 ' + maskCode(code) + ' 吗？\n\n' +
+      '当前账户 ' + maskCode(getDeviceId()) + ' 的数据仍保存在云端，之后用它的账户码可再登回。'
+    )) {
       return;
     }
+    setDeviceId(code);
     toast('已登录，正在重载…');
     setTimeout(() => location.reload(), 600);
     return;

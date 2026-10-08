@@ -1649,4 +1649,17 @@
 - **验证**：与 Python `qrcode` 参考实现**逐位比对**（跨掩码 0–7 + 真实 32 位账户码 + 自动选掩码）**全部一致**；期间定位并修复 `buildBaseMatrix` **漏拼纠错码字**导致 85 处错误（数据循环取到 EC 区越界取 0）；`python3 web/build.py` 成功、`web/dist/app/src/qrcode.js` 已生成（官网导入路径有效）。
 - **待办**：小程序端需在**真机**验证 `wx.scanCode` 扫码→关联闭环；本次改动**未提交**（待用户确认后按 `git-sync` / `pack-publish` 处理）。
 
+## 2026-10-08 会话条目：反向账户统一 —— 小程序侧也能产出账户码（accountEnsure）
+- **目标**：解决「用户**先从小程序开始用**，无法把账户带到网页端」的缺口。原流程只能**网页端发起**（网页先有账户码 → 6 位码/扫码 → 小程序认领）；用户明确要「任何一端开始用都能统一账户」。
+- **已做**：
+  - **云函数** [`wereadProxy/index.js`](file:///Users/Admin/Knowledge/Coding/微信读书插件/mobile/cloudfunctions/wereadProxy/index.js#L1122-L1150)：新增 `genDeviceId()` + `handleAccountEnsure()`（**幂等**：openid 无映射则新建 32 位账户码、写 `l_/d_` 映射、`migratePersonaOnBind` 把本机人格迁入；已有则原样返回）+ 路由 `accountEnsure`。
+  - **小程序** [`shared/account.js`](file:///Users/Admin/Knowledge/Coding/微信读书插件/mobile/miniprogram/shared/account.js)：加 `accountEnsure()` 封装并导出。
+  - **小程序** [`pages/link/index`](file:///Users/Admin/Knowledge/Coding/微信读书插件/mobile/miniprogram/pages/link/index.js)：卡片重写为「**账户统一**」——已有账户码 → 展示（掩码/显示完整）+ 复制 + 解除；未获取 → **情况一**「获取我的账户码」（`onEnsureCode`）/ **情况二** 网页端账户（扫一扫 + 输入码 + 关联）。`index.wxml` 同步重写，`index.wxss` 加 `.link-sec / .link-code / .link-code__ops / .link-code__op`。
+  - **网页端** [`h5/src/views/me.js`](file:///Users/Admin/Knowledge/Coding/微信读书插件/h5/src/views/me.js) + 官网 [`web/assets/account.js`](file:///Users/Admin/Knowledge/Coding/微信读书插件/web/assets/account.js)：跨设备登录文案补「从小程序获取账户码」，`restore-device`/`restoreCode` 切换账户前加 `window.confirm` 防呆（提示旧账户仍在云端可登回）。
+  - **文档** [`plan/账户体系_说明.md`](file:///Users/Admin/Knowledge/Coding/微信读书插件/plan/账户体系_说明.md)：§4 加 `accountEnsure` 行、§5.4 加「反向统一」小节、§8 代码索引、§9 变更记录。
+- **关键结论**：账户码改为**任一端都可产生**；小程序 `accountEnsure` 后 `bindInfo` 即 `linked:true`（自己就是账户主体）；**H5 与官网/桌面网页同用账户码机制**（换设备粘贴即可），真正需反向打通的是**小程序**（openid）。
+- **产出物（文件）**：`mobile/cloudfunctions/wereadProxy/index.js`、`mobile/miniprogram/shared/account.js`、`mobile/miniprogram/pages/link/index.{js,wxml,wxss}`、`h5/src/views/me.js`、`web/assets/account.js`、`plan/账户体系_说明.md`。
+- **验证**：`python3 web/build.py` 成功、**0 告警**（v0.26.0）；`GetDiagnostics` 无 error（仅 CommonJS 提示）；`web/dist` 产物含新文案。
+- **待办**：**需再次上传云函数**（`accountEnsure` 才生效，参见上一阶段云函数未部署导致的「未知的 HTTP 操作」）；小程序端真机验证「获取我的账户码 → 网页端粘贴登录」闭环；本次改动**未提交**。
+
 

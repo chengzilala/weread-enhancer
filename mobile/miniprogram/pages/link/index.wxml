@@ -1,20 +1,31 @@
 <view class="wre-page">
   <view class="wre-card">
-    <view class="wre-title">关联网页账户</view>
-    <view class="wre-muted">关联后，小程序与网页共用同一份阅读人格与昵称；换设备才需重新关联。</view>
+    <view class="wre-title">账户统一</view>
+    <view class="wre-muted">网页端与小程序共用同一份阅读人格与昵称；从任一端开始用，都能在这里打通。</view>
 
     <view class="wre-muted link-loading" wx:if="{{loading}}">查询中…</view>
 
-    <block wx:elif="{{linked}}">
-      <view class="link-state">
-        <text class="link-state__label">微信小程序</text>
-        <text class="link-state__val">已关联</text>
+    <block wx:elif="{{myCode}}">
+      <view class="link-sec">我的账户码</view>
+      <view class="link-code">{{showFull ? myCode : myCodeMasked}}</view>
+      <view class="link-code__ops">
+        <text class="link-code__op" bindtap="onToggleCode">{{showFull ? '隐藏' : '显示完整'}}</text>
+        <text class="link-code__op" bindtap="onCopyCode">复制</text>
       </view>
-      <view class="wre-muted link-hint" wx:if="{{deviceMasked}}">账户码 {{deviceMasked}}</view>
+      <view class="wre-muted link-hint">
+        在网页端「我的账户 → 跨设备登录」粘贴此码登录，两端即统一。账户码等同登录凭证，请勿转发他人。
+      </view>
       <button class="wre-btn wre-btn--ghost" bindtap="onUnbind">解除关联</button>
     </block>
 
     <block wx:else>
+      <view class="link-sec">情况一 · 我先在小程序使用</view>
+      <button class="wre-btn" loading="{{busy}}" bindtap="onEnsureCode">获取我的账户码</button>
+      <view class="wre-muted link-hint">
+        获取后可在网页端粘贴登录；本机已有的阅读人格会一并归入该账户。
+      </view>
+
+      <view class="link-sec">情况二 · 我已有网页端账户</view>
       <button class="wre-btn wre-btn--ghost link-scan" bindtap="onScan">扫一扫</button>
       <input
         class="link-input"
@@ -25,7 +36,7 @@
       />
       <button class="wre-btn" loading="{{busy}}" bindtap="onSubmit">关联</button>
       <view class="wre-muted link-hint">
-        在网页版「我的账户 → 关联微信小程序」里点「生成绑定码」，用上方「扫一扫」扫二维码；也可手动输入 6 位数字，或复制完整账户码粘贴到这里。
+        在网页端「关联微信小程序」里点「生成绑定码」，用上方「扫一扫」扫二维码；也可手动输入 6 位数字，或粘贴完整账户码。
       </view>
     </block>
 
@@ -34,8 +45,8 @@
 
   <view class="wre-card">
     <view class="wre-title">说明</view>
-    <view class="wre-help">1. 关联只建立两端身份映射，不涉及任何 Key。</view>
-    <view class="wre-help">2. 关联后阅读人格与昵称两端共用；「我的纸书」仍按微信账号保存在本机。</view>
+    <view class="wre-help">1. 统一只建立两端身份映射，不涉及任何 Key。</view>
+    <view class="wre-help">2. 统一后阅读人格与昵称两端共用；「我的纸书」仍按微信账号保存在本机。</view>
     <view class="wre-help">3. 可随时解除关联，解除后本机数据保留。</view>
   </view>
 </view>
