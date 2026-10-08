@@ -115,7 +115,7 @@ function paint(body) {
     '  </div>' +
     '  <input class="wre-input" id="meSync" placeholder="粘贴另一台设备的账户码" />' +
     '  <button class="wre-btn" data-action="restore-device">用账户码登录</button>' +
-    '  <div class="wre-hint">——— 或者用更短的 6 位登录码（同一 WiFi / 两台设备更方便）———</div>' +
+    '  <div class="wre-hint">或者用更短的 6 位登录码（同一 WiFi / 两台设备更方便）</div>' +
     syncCodeBox() +
     '  <input class="wre-input" id="meLoginCode" inputmode="numeric" maxlength="6" placeholder="输入另一台设备的 6 位登录码" />' +
     '  <button class="wre-btn" data-action="redeem-login">用 6 位码登录</button>' +
