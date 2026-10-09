@@ -1,7 +1,7 @@
 const store = require('../../shared/store');
 const theme = require('../../shared/theme');
 const data = require('../../shared/data');
-const { buildReportBlocks, fmtDateTime } = require('../../shared/report-core');
+const { buildReportBlocks, fmtDateTime, mainColumnIndex } = require('../../shared/report-core');
 const { fmtDuration } = require('../../shared/format');
 const { renderReportShare } = require('../../shared/report-share');
 const { messageOf, isKeyError } = require('../../shared/errors');
@@ -245,7 +245,14 @@ Page({
 
   render(currentData, overall, overview, fromCache) {
     const d = currentData || {};
-    const blocks = buildReportBlocks(d, this.data.mode, overview, { overall: overall });
+    // 表格块补一个 mainIndex（主列索引）：WXML 用它区分「主列（自适应）/ 数值列（收紧右对齐）」，
+    // 避免所有列等宽把「清晨 06:00–09:00」这类长标签挤成孤字换行。
+    const blocks = buildReportBlocks(d, this.data.mode, overview, { overall: overall }).map((b) => {
+      if (b && b.type === 'table' && Array.isArray(b.head)) {
+        return Object.assign({}, b, { mainIndex: mainColumnIndex(b.head, b.rows || []) });
+      }
+      return b;
+    });
     const meta = [
       ['统计周期', this.modeLabel(this.data.mode)],
       ['生成时间', fmtDateTime(Date.now())],

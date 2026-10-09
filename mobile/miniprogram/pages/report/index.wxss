@@ -127,17 +127,32 @@
   border-bottom: 1rpx solid var(--wre-line);
 }
 
+.tbl__cell {
+  font-size: calc(26rpx * var(--wre-fs));
+  color: var(--wre-text);
+  min-width: 0;
+}
+
+/* 主列：承载描述性文字，自适应占满剩余宽度、允许折行 */
+.tbl__cell--main {
+  flex: 1 1 auto;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+/* 数值 / 序号列：按内容收紧、不换行、右对齐，避免孤字换行与行高忽高忽低 */
+.tbl__cell--num {
+  flex: 0 0 auto;
+  margin-left: 12rpx;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--wre-text-3);
+}
+
 .tbl__row--head .tbl__cell {
   color: var(--wre-muted);
   font-size: calc(24rpx * var(--wre-fs));
   font-weight: 600;
-}
-
-.tbl__cell {
-  flex: 1;
-  font-size: calc(26rpx * var(--wre-fs));
-  color: var(--wre-text);
-  word-break: break-all;
 }
 
 .tbl__bar {

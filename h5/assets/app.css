@@ -496,13 +496,25 @@ html, body {
    表格内边距略小（对齐小程序 .table-card） */
 .wre-table-card { padding: 10px 12px; }
 .wre-table { margin-top: 8px; }
+/* 列宽由 --wre-cols 决定（主列 minmax(0,1fr) 自适应占满，数值列 auto 按内容收紧）。
+   旧版强制等宽 + break-all 会把「清晨 06:00–09:00」这类长标签挤成孤字换行、行高忽高忽低。 */
 .wre-table__head,
-.wre-table__row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: center; gap: 6px; font-size: calc(13px * var(--wre-fs)); padding: 6px 0; border-bottom: 1px solid var(--wre-line); }
+.wre-table__row { display: grid; grid-template-columns: var(--wre-cols, minmax(0, 1fr)); align-items: center; gap: 6px; font-size: calc(13px * var(--wre-fs)); padding: 6px 0; border-bottom: 1px solid var(--wre-line); }
 .wre-table__row { position: relative; }
 .wre-table__head { color: var(--wre-muted); border-bottom: 1px solid var(--wre-line); font-weight: 600; font-size: calc(12px * var(--wre-fs)); }
-/* 单元格长文本自动折行（对齐小程序 .tbl__cell 的 word-break: break-all），不截断 */
-.wre-table__head span, .wre-table__row span { word-break: break-all; }
-.wre-table__main { font-weight: 600; }
+.wre-table__head span, .wre-table__row span { min-width: 0; }
+/* 主列：承载描述性文字，允许折行，占满剩余宽度 */
+.wre-table__main { font-weight: 600; overflow-wrap: anywhere; }
+/* 数值 / 序号列：收紧不换行、右对齐，避免孤字换行与行高抖动 */
+.wre-table__cell { text-align: right; white-space: nowrap; color: var(--wre-text-3); }
+.wre-table__head .wre-table__cell { color: var(--wre-muted); }
+/* 可用 subgrid 时：把列定义提到整张表上，让表头与各数据行共用同一套列宽，
+   数值列左右边界逐行对齐成笔直竖列（不支持 subgrid 的旧内核自动回退为「每行各自栅格」） */
+@supports (grid-template-columns: subgrid) {
+  .wre-table { display: grid; grid-template-columns: var(--wre-cols, minmax(0, 1fr)); column-gap: 6px; }
+  .wre-table__head,
+  .wre-table__row { grid-column: 1 / -1; grid-template-columns: subgrid; gap: 0; }
+}
 /* 行底占比条（对齐小程序 .tbl__bar）：绝对定位，不占栅格列，宽度 = 占比% */
 .wre-table__bar { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--wre-brand); opacity: 0.9; border-radius: 2px; }
 /* 段落 / 列表（已在卡片内，去掉自身外边距；序号用品牌色） */

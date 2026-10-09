@@ -5,7 +5,7 @@
  */
 
 import { fetchReadData, fetchOverview, peekOverview } from '../data.js';
-import { buildReportBlocks, modeLabel, fmtDateTime } from '../core/report-core.js';
+import { buildReportBlocks, modeLabel, fmtDateTime, mainColumnIndex } from '../core/report-core.js';
 import { renderReportShare } from '../core/report-share.js';
 import { messageOf, isKeyError } from '../core/errors.js';
 import { esc, stateHtml } from '../ui.js';
@@ -167,15 +167,22 @@ function renderBlock(b) {
         '<span class="wre-chip wre-chip--soft">' + esc(it.label) + '<em>' + esc(it.value) + '</em></span>').join('') + '</div></div>';
     case 'table': {
       const bars = Array.isArray(b.bars) ? b.bars : null;
-      let html = '<div class="wre-table"><div class="wre-table__head">' +
-        b.head.map((h) => '<span>' + esc(h) + '</span>').join('') + '</div>';
-      html += b.rows.map((row, i) => {
-        const cells = row.map((c, ci) => '<span' + (ci === 0 ? ' class="wre-table__main"' : '') + '>' + esc(c) + '</span>').join('');
+      const head = Array.isArray(b.head) ? b.head : [];
+      const rows = Array.isArray(b.rows) ? b.rows : [];
+      // 主列＝承载文字的那一列（通常第 0 列；若第 0 列只是「排名 / 序号」则取文字最长的一列）。
+      // 主列用 1fr 自适应占满剩余宽度、其余列 auto 按内容收紧并右对齐，
+      // 避免等宽栅格把「清晨 06:00–09:00」这类长文字挤成孤字换行、行高忽高忽低。
+      const mainIdx = mainColumnIndex(head, rows);
+      const cols = head.map((_, i) => (i === mainIdx ? 'minmax(0, 1fr)' : 'auto')).join(' ');
+      const cell = (text, i) => '<span class="' + (i === mainIdx ? 'wre-table__main' : 'wre-table__cell') + '">' + esc(text) + '</span>';
+      let html = '<div class="wre-table__head">' + head.map(cell).join('') + '</div>';
+      html += rows.map((row, i) => {
+        const cells = row.map(cell).join('');
         // 占比条：绝对定位在行底部（对齐小程序 .tbl__bar），不参与栅格分列
         const bar = bars ? '<div class="wre-table__bar" style="width:' + bars[i] + '%"></div>' : '';
         return '<div class="wre-table__row">' + cells + bar + '</div>';
       }).join('');
-      return '<div class="wre-card wre-table-card">' + html + '</div>';
+      return '<div class="wre-card wre-table-card"><div class="wre-table" style="--wre-cols:' + cols + '">' + html + '</div></div>';
     }
     case 'paragraph':
       return '<div class="wre-card"><p class="wre-p">' + esc(b.text) + '</p></div>';

@@ -90,10 +90,10 @@
         <!-- 表格 -->
         <view wx:elif="{{block.type === 'table'}}" class="wre-card table-card">
           <view class="tbl__row tbl__row--head">
-            <text class="tbl__cell" wx:for="{{block.head}}" wx:key="index" wx:for-item="h">{{h}}</text>
+            <text class="tbl__cell {{index === block.mainIndex ? 'tbl__cell--main' : 'tbl__cell--num'}}" wx:for="{{block.head}}" wx:key="index" wx:for-item="h">{{h}}</text>
           </view>
           <view class="tbl__row" wx:for="{{block.rows}}" wx:key="index" wx:for-item="row" wx:for-index="ri">
-            <text class="tbl__cell" wx:for="{{row}}" wx:key="index" wx:for-item="cell">{{cell}}</text>
+            <text class="tbl__cell {{index === block.mainIndex ? 'tbl__cell--main' : 'tbl__cell--num'}}" wx:for="{{row}}" wx:key="index" wx:for-item="cell">{{cell}}</text>
             <view class="tbl__bar" wx:if="{{block.bars}}" style="width: {{block.bars[ri]}}%;"></view>
           </view>
         </view>

@@ -66,6 +66,32 @@ export function modeLabel(currentMode) {
   return found ? found.label : currentMode;
 }
 
+// 选出表格的「主列」：承载描述性文字、需自适应占宽的那一列。
+// 默认第 0 列；若第 0 列只是「排名 / 序号」这类纯序号列，则改用文本量最大的一列（通常是书名 / 作者）。
+// 与小程序 shared/report-core.js 同源，改这里请两端一起改。
+export function mainColumnIndex(head, rows) {
+  if (!head || !head.length) {
+    return 0;
+  }
+  if (/排名|序号|编号/.test(String(head[0] || ''))) {
+    let best = 0;
+    let bestLen = -1;
+    for (let c = 0; c < head.length; c += 1) {
+      let len = 0;
+      for (let r = 0; r < rows.length; r += 1) {
+        const cells = rows[r] || [];
+        len += String(cells[c] == null ? '' : cells[c]).length;
+      }
+      if (len > bestLen) {
+        bestLen = len;
+        best = c;
+      }
+    }
+    return best;
+  }
+  return 0;
+}
+
 // ---- /readdata/detail ----
 /** 分桶明细（升序，含 0 时长桶） */
 export function reportBuckets(data) {
