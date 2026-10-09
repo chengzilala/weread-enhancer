@@ -10,7 +10,7 @@
   flex: 0 0 auto;
   background: #2F6BFF;
   color: #FFFFFF;
-  font-size: 32rpx;
+  font-size: calc(32rpx * var(--wre-fs));
   font-weight: 700;
   letter-spacing: 2rpx;
   padding: 16rpx 20rpx;
@@ -24,14 +24,14 @@
 }
 
 .persona__name {
-  font-size: 34rpx;
+  font-size: calc(34rpx * var(--wre-fs));
   font-weight: 700;
   color: #1F2430;
 }
 
 .persona__tagline {
   margin-top: 6rpx;
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #8A8F99;
   line-height: 1.5;
 }
@@ -50,7 +50,7 @@
 
 .persona__figurename {
   margin-top: 4rpx;
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   line-height: 1.2;
   color: #8A8F99;
 }
@@ -72,14 +72,14 @@
 }
 
 .hero__legend-letter {
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   font-weight: 700;
   color: #2F6BFF;
   margin-right: 8rpx;
 }
 
 .hero__legend-label {
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   color: #4A5060;
 }
 
@@ -90,7 +90,7 @@
 
 .persona__share-hint {
   margin-top: 8rpx;
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #8A8F99;
   text-align: center;
 }
@@ -106,7 +106,7 @@
   padding: 6rpx 20rpx;
   border: 1rpx solid #2F6BFF;
   border-radius: 999rpx;
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #2F6BFF;
   margin: 0 12rpx 12rpx 0;
 }
@@ -118,14 +118,14 @@
   border-left: 4rpx solid #2F6BFF;
   border-radius: 0 16rpx 16rpx 0;
   background: #F5F7FF;
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   line-height: 1.8;
   color: #2A2F3A;
 }
 
 .persona__subtitle {
   margin: 24rpx 0 12rpx;
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   font-weight: 600;
   color: #1F2430;
 }
@@ -136,7 +136,7 @@
 
 .persona__note {
   margin-top: 12rpx;
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   line-height: 1.7;
   color: #8A8F99;
 }
@@ -145,7 +145,7 @@
   margin-top: 24rpx;
   padding-top: 16rpx;
   border-top: 1rpx dashed #E6E9F0;
-  font-size: 22rpx;
+  font-size: calc(22rpx * var(--wre-fs));
   line-height: 1.6;
   color: #A8ADB8;
 }
@@ -160,7 +160,7 @@
 .chip {
   background: #F0F4FF;
   color: #2F6BFF;
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   border-radius: 12rpx;
   padding: 10rpx 20rpx;
   margin: 0 16rpx 16rpx 0;
@@ -178,7 +178,7 @@
 .dim__top {
   display: flex;
   justify-content: space-between;
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #4A5060;
 }
 
@@ -217,7 +217,7 @@
 
 .dim__basis {
   margin-top: 8rpx;
-  font-size: 22rpx;
+  font-size: calc(22rpx * var(--wre-fs));
   color: #8A8F99;
   line-height: 1.6;
 }
@@ -232,13 +232,13 @@
 }
 
 .quote__text {
-  font-size: 27rpx;
+  font-size: calc(27rpx * var(--wre-fs));
   line-height: 1.8;
   color: #2A2F3A;
 }
 
 .quote__src {
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #8A8F99;
   margin-top: 8rpx;
 }
@@ -250,7 +250,7 @@
 
 .words__label {
   margin: 20rpx 0 12rpx;
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   font-weight: 600;
   color: #1F2430;
 }
@@ -264,14 +264,14 @@
 .word-rank {
   flex: 0 0 40rpx;
   text-align: center;
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #A8ADB8;
 }
 
 .word {
   flex: 0 0 auto;
   min-width: 90rpx;
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   font-weight: 600;
   color: #1F2430;
 }
@@ -294,7 +294,7 @@
 .word-count {
   flex: 0 0 60rpx;
   text-align: right;
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #8A8F99;
 }
 
@@ -324,7 +324,7 @@
 
 .emotion-legend {
   margin-top: 8rpx;
-  font-size: 22rpx;
+  font-size: calc(22rpx * var(--wre-fs));
   color: #8A8F99;
 }
 
@@ -346,7 +346,7 @@
 
 .words__catch {
   margin-top: 20rpx;
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   color: #2A2F3A;
 }
 
@@ -357,7 +357,7 @@
 
 .words__catch-src {
   color: #8A8F99;
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
 }
 
 /* 数据不足进度 */
@@ -370,19 +370,19 @@
 
 .progress-k {
   color: #8A8F99;
-  font-size: 27rpx;
+  font-size: calc(27rpx * var(--wre-fs));
 }
 
 .progress-v {
   color: #1F2430;
-  font-size: 27rpx;
+  font-size: calc(27rpx * var(--wre-fs));
   font-weight: 600;
 }
 
 /* 声明 */
 .statement {
   padding: 8rpx 8rpx 24rpx;
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
 }
 
 /* 离屏绘制画布（不参与显示；实际绘制缓冲由 persona-share.js 按高清倍率设置） */
@@ -431,7 +431,7 @@
   flex: 1;
   margin-top: 0;
   margin-right: 16rpx;
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   padding: 0 8rpx;
 }
 

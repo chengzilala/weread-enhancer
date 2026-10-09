@@ -1,7 +1,7 @@
 /* 我的纸书 */
 
 .pb-stat {
-  font-size: 30rpx;
+  font-size: calc(30rpx * var(--wre-fs));
   font-weight: 600;
   margin-bottom: 12rpx;
 }
@@ -15,7 +15,7 @@
   background: #FFFFFF;
   border-radius: 16rpx;
   padding: 20rpx 24rpx;
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   margin-bottom: 24rpx;
   box-sizing: border-box;
   width: 100%;
@@ -37,7 +37,7 @@
   background: #2F6BFF;
   color: #FFFFFF;
   border-radius: 14rpx;
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   line-height: 1;
   height: 76rpx;
   padding: 0 32rpx;
@@ -82,7 +82,7 @@
   align-items: center;
   justify-content: center;
   color: #B6BAC3;
-  font-size: 30rpx;
+  font-size: calc(30rpx * var(--wre-fs));
 }
 
 .pb-info {
@@ -92,7 +92,7 @@
 }
 
 .pb-title {
-  font-size: 30rpx;
+  font-size: calc(30rpx * var(--wre-fs));
   font-weight: 600;
   line-height: 1.4;
   overflow: hidden;
@@ -103,14 +103,14 @@
 }
 
 .pb-author {
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   color: #6B7280;
   margin-top: 6rpx;
 }
 
 .pb-isbn,
 .pb-reading {
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #8A8F99;
   margin-top: 6rpx;
 }
@@ -121,7 +121,7 @@
 
 .pb-tag {
   display: inline-block;
-  font-size: 22rpx;
+  font-size: calc(22rpx * var(--wre-fs));
   color: #8A8F99;
   background: #F0F1F4;
   border-radius: 6rpx;
@@ -156,7 +156,7 @@
 
 .pb-chip {
   display: inline-block;
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   color: #4B5563;
   background: #FFFFFF;
   border: 1rpx solid #E5E7EB;
@@ -189,7 +189,7 @@
 }
 
 .pb-tag-chip {
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #2F6BFF;
   background: #EAF1FF;
   border-radius: 8rpx;
@@ -205,7 +205,7 @@
 .pb-textarea {
   width: 100%;
   min-height: 140rpx;
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   line-height: 1.6;
   background: #F7F8FA;
   border-radius: 12rpx;
@@ -215,7 +215,7 @@
 
 .pb-arrow {
   color: #C4C8D0;
-  font-size: 40rpx;
+  font-size: calc(40rpx * var(--wre-fs));
   margin-left: 12rpx;
 }
 
@@ -229,14 +229,14 @@
 
 .pb-label {
   width: 120rpx;
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   color: #6B7280;
   flex-shrink: 0;
 }
 
 .pb-input {
   flex: 1;
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
 }
 
 /* 关联 */
@@ -248,7 +248,7 @@
 
 .pb-link-title {
   margin-left: 16rpx;
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   font-weight: 600;
 }
 
@@ -268,7 +268,7 @@
 
 .pb-error {
   color: #E5484D;
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
 }
 
 /* 微信读书笔记 */
@@ -279,12 +279,12 @@
 }
 
 .pb-note-line {
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   font-weight: 600;
 }
 
 .pb-note-sub {
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #8A8F99;
   margin-top: 6rpx;
 }
@@ -299,7 +299,7 @@
 }
 
 .pb-note-text {
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   line-height: 1.6;
   color: #2B2F36;
 }

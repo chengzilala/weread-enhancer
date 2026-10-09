@@ -10,7 +10,7 @@
  */
 
 import { keySave, keyClear, verifyKey, keyGet, profileSave, bindCreate, bindStatus, bindRemove, bindRedeem } from '../api.js';
-import { getMask, setMask, getProfile, setProfile, getDeviceId, setDeviceId, resetDeviceId, readAvatarFile } from '../store.js';
+import { getMask, setMask, getProfile, setProfile, getDeviceId, setDeviceId, resetDeviceId, readAvatarFile, getFontScale, applyFontScale, FONT_TIERS } from '../store.js';
 import { esc, toast, copyText, confirmSignOut } from '../ui.js';
 import { qrSvg } from '../qrcode.js';
 
@@ -140,6 +140,12 @@ function paint(body) {
     '</div>' +
 
     '<div class="wre-card">' +
+    '  <div class="wre-card__title">文字大小</div>' +
+    '  <div class="wre-muted">调大后全站文字一起放大，方便在手机上看清；只存本机。</div>' +
+    fsModes() +
+    '</div>' +
+
+    '<div class="wre-card">' +
     '  <div class="wre-card__title">更多</div>' +
     linkRow('🗂 每日卡片 · 往期回顾', 'open-daily') +
     linkRow('🧭 灵感漫游 · 往期归档', 'open-wander') +
@@ -168,6 +174,15 @@ function linkRow(label, action) {
     '  <span class="wre-link__arrow">›</span>' +
     '</button>'
   );
+}
+
+/** 「文字大小」四档切换（小 / 标准 / 大 / 特大；对齐小程序设置页） */
+function fsModes() {
+  const cur = getFontScale();
+  return '<div class="wre-modes">' + FONT_TIERS.map((t) =>
+    '<button class="wre-mode' + (t.value === cur ? ' is-active' : '') + '"' +
+    ' data-action="set-fs" data-value="' + t.value + '">' + esc(t.label) + '</button>'
+  ).join('') + '</div>';
 }
 
 /** 「已连接」列表行 */
@@ -342,6 +357,14 @@ async function onAction(e, body, app) {
   if (action === 'toggle-code') {
     showCode = !showCode;
     paint(body);
+    return;
+  }
+
+  if (action === 'set-fs') {
+    const value = applyFontScale(Number(btn.getAttribute('data-value')));
+    paint(body);
+    const tier = FONT_TIERS.find((t) => t.value === value);
+    toast('文字大小：' + ((tier && tier.label) || '标准'));
     return;
   }
 

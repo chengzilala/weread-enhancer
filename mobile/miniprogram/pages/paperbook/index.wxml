@@ -1,4 +1,4 @@
-<view class="wre-page">
+<view class="wre-page" style="--wre-fs:{{wreFs}}">
   <!-- ========== 列表视图 ========== -->
   <block wx:if="{{view === 'list'}}">
     <view class="wre-card">

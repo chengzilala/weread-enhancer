@@ -10,8 +10,8 @@
 .period__item {
   flex: 1;
   text-align: center;
-  line-height: 68rpx;
-  font-size: 28rpx;
+  line-height: calc(68rpx * var(--wre-fs));
+  font-size: calc(28rpx * var(--wre-fs));
   color: #8A8F99;
   border-radius: 12rpx;
 }
@@ -41,19 +41,19 @@
 }
 
 .metric__value {
-  font-size: 40rpx;
+  font-size: calc(40rpx * var(--wre-fs));
   font-weight: 700;
   color: #2F6BFF;
 }
 
 .metric__label {
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   color: #1F2430;
   margin-top: 8rpx;
 }
 
 .metric__hint {
-  font-size: 22rpx;
+  font-size: calc(22rpx * var(--wre-fs));
   color: #A8ADB8;
   margin-top: 6rpx;
 }
@@ -73,12 +73,12 @@
 }
 
 .hero__label {
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   opacity: 0.88;
 }
 
 .hero__value {
-  font-size: 72rpx;
+  font-size: calc(72rpx * var(--wre-fs));
   font-weight: 700;
   line-height: 1.2;
   margin-top: 8rpx;
@@ -91,13 +91,13 @@
 }
 
 .hero__arrow {
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   font-weight: 700;
   margin-right: 6rpx;
 }
 
 .hero__pct {
-  font-size: 30rpx;
+  font-size: calc(30rpx * var(--wre-fs));
   font-weight: 600;
 }
 
@@ -112,13 +112,13 @@
 }
 
 .hero__cmp-label {
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   opacity: 0.85;
   margin-left: 12rpx;
 }
 
 .hero__word {
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   line-height: 1.6;
   opacity: 0.95;
   margin-top: 18rpx;
@@ -154,7 +154,7 @@
 }
 
 .trend__peak {
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #8A8F99;
   margin-top: 16rpx;
 }
@@ -172,12 +172,12 @@
 }
 
 .rank__name {
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   color: #1F2430;
 }
 
 .rank__val {
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #8A8F99;
 }
 
@@ -210,12 +210,12 @@
 .book__rank {
   width: 44rpx;
   height: 44rpx;
-  line-height: 44rpx;
+  line-height: calc(44rpx * var(--wre-fs));
   text-align: center;
   border-radius: 12rpx;
   background: #F0F4FF;
   color: #2F6BFF;
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   font-weight: 700;
 }
 
@@ -231,7 +231,7 @@
 }
 
 .book__title {
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   color: #1F2430;
   white-space: nowrap;
   overflow: hidden;
@@ -239,13 +239,13 @@
 }
 
 .book__author {
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #8A8F99;
   margin-top: 4rpx;
 }
 
 .book__time {
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   font-weight: 600;
   color: #2F6BFF;
   margin-left: 12rpx;
@@ -274,13 +274,13 @@
 }
 
 .entry__name {
-  font-size: 30rpx;
+  font-size: calc(30rpx * var(--wre-fs));
   font-weight: 600;
   color: #1F2430;
 }
 
 .entry__sub {
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #8A8F99;
   margin-top: 8rpx;
   white-space: nowrap;
@@ -291,7 +291,7 @@
 /* 完整报告入口 */
 .report-link {
   text-align: center;
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   color: #2F6BFF;
   padding: 24rpx 0;
 }
@@ -352,7 +352,7 @@
   flex: 1;
   margin-top: 0;
   margin-right: 16rpx;
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   padding: 0 8rpx;
 }
 
@@ -378,19 +378,19 @@
 }
 
 .daily-entry__name {
-  font-size: 34rpx;
+  font-size: calc(34rpx * var(--wre-fs));
   font-weight: 700;
   color: #FFFFFF;
 }
 
 .daily-entry__sub {
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: rgba(255, 255, 255, 0.85);
   margin-top: 8rpx;
 }
 
 .daily-entry__arrow {
-  font-size: 44rpx;
+  font-size: calc(44rpx * var(--wre-fs));
   line-height: 1;
   color: rgba(255, 255, 255, 0.9);
   margin-left: 16rpx;
@@ -417,7 +417,7 @@
   margin-left: 12rpx;
   background: #FFFFFF;
   color: #7C5CFF;
-  font-size: 20rpx;
+  font-size: calc(20rpx * var(--wre-fs));
   font-weight: 700;
   line-height: 1;
   border-radius: 999rpx;
@@ -464,13 +464,13 @@
 }
 
 .daily-modal__title {
-  font-size: 32rpx;
+  font-size: calc(32rpx * var(--wre-fs));
   font-weight: 700;
   color: #1F2430;
 }
 
 .daily-modal__close {
-  font-size: 44rpx;
+  font-size: calc(44rpx * var(--wre-fs));
   line-height: 1;
   color: #A8ADB8;
   padding: 0 8rpx;
@@ -489,7 +489,7 @@
 }
 
 .daily-modal__err {
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   color: #E54545;
   line-height: 1.7;
   margin-bottom: 24rpx;
@@ -514,13 +514,13 @@
 
 /* 每日卡片内容（弹窗内，口径同每日卡片页） */
 .card__date {
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   color: #8A8F99;
   letter-spacing: 2rpx;
 }
 
 .card__title {
-  font-size: 44rpx;
+  font-size: calc(44rpx * var(--wre-fs));
   font-weight: 700;
   color: #1F2430;
   line-height: 1.5;
@@ -536,7 +536,7 @@
 .card__theme {
   background: #F0F4FF;
   color: #2F6BFF;
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   border-radius: 10rpx;
   padding: 6rpx 16rpx;
   margin: 0 12rpx 12rpx 0;
@@ -551,13 +551,13 @@
 }
 
 .quote__text {
-  font-size: 32rpx;
+  font-size: calc(32rpx * var(--wre-fs));
   line-height: 1.8;
   color: #1F2430;
 }
 
 .quote__from {
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #8A8F99;
   margin-top: 14rpx;
   text-align: right;
@@ -571,7 +571,7 @@
   display: inline-block;
   background: #2F6BFF;
   color: #FFFFFF;
-  font-size: 22rpx;
+  font-size: calc(22rpx * var(--wre-fs));
   font-weight: 600;
   border-radius: 999rpx;
   padding: 4rpx 18rpx;
@@ -579,7 +579,7 @@
 }
 
 .note__text {
-  font-size: 30rpx;
+  font-size: calc(30rpx * var(--wre-fs));
   line-height: 1.9;
   color: #2A2F3A;
   white-space: pre-wrap;
@@ -592,7 +592,7 @@
 }
 
 .related__title {
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   font-weight: 600;
   color: #1F2430;
   margin-bottom: 12rpx;
@@ -620,7 +620,7 @@
 }
 
 .related__text {
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   line-height: 1.8;
   color: #4A5060;
 }
@@ -633,7 +633,7 @@
 }
 
 .related__from {
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #A8ADB8;
   margin-top: 8rpx;
   text-align: right;

@@ -17,8 +17,8 @@
 .period__item {
   flex: 1;
   text-align: center;
-  line-height: 68rpx;
-  font-size: 28rpx;
+  line-height: calc(68rpx * var(--wre-fs));
+  font-size: calc(28rpx * var(--wre-fs));
   color: #8A8F99;
   border-radius: 12rpx;
 }
@@ -38,26 +38,26 @@
 
 .meta__k {
   color: #8A8F99;
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
 }
 
 .meta__v {
   color: #1F2430;
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   max-width: 60%;
   text-align: right;
 }
 
 /* 章节标题 */
 .sec-title {
-  font-size: 32rpx;
+  font-size: calc(32rpx * var(--wre-fs));
   font-weight: 700;
   color: #1F2430;
   margin: 28rpx 8rpx 16rpx;
 }
 
 .sec-title--sub {
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   font-weight: 600;
   color: #4A5060;
   margin: 20rpx 8rpx 12rpx;
@@ -72,12 +72,12 @@
 
 .kv__k {
   color: #8A8F99;
-  font-size: 27rpx;
+  font-size: calc(27rpx * var(--wre-fs));
 }
 
 .kv__v {
   color: #1F2430;
-  font-size: 27rpx;
+  font-size: calc(27rpx * var(--wre-fs));
   font-weight: 500;
   max-width: 60%;
   text-align: right;
@@ -103,13 +103,13 @@
 }
 
 .cards__value {
-  font-size: 36rpx;
+  font-size: calc(36rpx * var(--wre-fs));
   font-weight: 700;
   color: #2F6BFF;
 }
 
 .cards__label {
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #1F2430;
   margin-top: 8rpx;
 }
@@ -129,13 +129,13 @@
 
 .tbl__row--head .tbl__cell {
   color: #8A8F99;
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   font-weight: 600;
 }
 
 .tbl__cell {
   flex: 1;
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   color: #1F2430;
   word-break: break-all;
 }
@@ -164,20 +164,20 @@
 }
 
 .chip__label {
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #8A8F99;
   margin-right: 12rpx;
 }
 
 .chip__value {
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   color: #2F6BFF;
   font-weight: 600;
 }
 
 /* 段落 */
 .para {
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   line-height: 1.8;
   color: #2A2F3A;
 }
@@ -190,14 +190,14 @@
 
 .list__mark {
   color: #2F6BFF;
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   margin-right: 12rpx;
   min-width: 32rpx;
 }
 
 .list__text {
   flex: 1;
-  font-size: 27rpx;
+  font-size: calc(27rpx * var(--wre-fs));
   line-height: 1.8;
   color: #2A2F3A;
 }
@@ -262,7 +262,7 @@
   flex: 1;
   margin-top: 0;
   margin-right: 16rpx;
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   padding: 0 8rpx;
 }
 

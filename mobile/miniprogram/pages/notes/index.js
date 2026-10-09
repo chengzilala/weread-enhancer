@@ -5,6 +5,7 @@ const { messageOf, isKeyError } = require('../../shared/errors');
 
 Page({
   data: {
+    wreFs: 1,
     hasKey: false,
     loading: false,
     error: '',
@@ -17,6 +18,7 @@ Page({
   },
 
   onShow() {
+    this.setData({ wreFs: store.getFontScale() });
     const hasKey = !!store.getKey();
     this.setData({ hasKey });
     if (hasKey) {

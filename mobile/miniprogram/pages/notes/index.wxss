@@ -18,13 +18,13 @@
 }
 
 .card-metric__value {
-  font-size: 38rpx;
+  font-size: calc(38rpx * var(--wre-fs));
   font-weight: 700;
   color: #2F6BFF;
 }
 
 .card-metric__label {
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #8A8F99;
   margin-top: 8rpx;
 }
@@ -39,12 +39,12 @@
 }
 
 .note-item__title {
-  font-size: 30rpx;
+  font-size: calc(30rpx * var(--wre-fs));
   color: #1F2430;
 }
 
 .note-item__author {
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #8A8F99;
   margin-top: 6rpx;
 }
@@ -56,7 +56,7 @@
 }
 
 .tag {
-  font-size: 22rpx;
+  font-size: calc(22rpx * var(--wre-fs));
   color: #2F6BFF;
   background: #F0F4FF;
   border-radius: 999rpx;

@@ -29,6 +29,10 @@ Page({
     myOpenid: '',
     // 是否已关联网页账户（跨端打通）
     linked: false,
+
+    // 文字大小（全局缩放，四档）
+    wreFs: 1,
+    fontTiers: store.FONT_TIERS,
   },
 
   onShow() {
@@ -44,6 +48,7 @@ Page({
       nickName: profile.nickName,
       hasProfile: !!(profile.avatarUrl || profile.nickName),
       showParams: false,
+      wreFs: store.getFontScale(),
       params: this.buildParams(key, profile),
     });
     // 管理员判断：失败静默（非管理员 / 云函数未部署时都不显示入口），同时取回自己的 openid
@@ -77,6 +82,12 @@ Page({
 
   toggleParams() {
     this.setData({ showParams: !this.data.showParams });
+  },
+
+  // ---- 文字大小（四档切换；本机保存，其他页面在 onShow 时套用）----
+  onFontScale(e) {
+    const value = store.setFontScale(Number(e.currentTarget.dataset.value));
+    this.setData({ wreFs: value });
   },
 
   // ---- 本机资料 ----

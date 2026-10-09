@@ -33,6 +33,7 @@ function normalizeBook(book) {
 
 Page({
   data: {
+    wreFs: 1,
     hasKey: false,
     books: [],
     filtered: [],
@@ -61,6 +62,7 @@ Page({
   },
 
   onShow() {
+    this.setData({ wreFs: store.getFontScale() });
     this.setData({ hasKey: !!store.getKey() });
     this.reload();
   },

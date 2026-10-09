@@ -12,24 +12,24 @@
 }
 
 .archive-bar__text {
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   color: #2B4C8C;
 }
 
 .archive-bar__back {
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   font-weight: 600;
   color: #2F6BFF;
 }
 
 .card__date {
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   color: #8A8F99;
   letter-spacing: 2rpx;
 }
 
 .card__title {
-  font-size: 44rpx;
+  font-size: calc(44rpx * var(--wre-fs));
   font-weight: 700;
   color: #1F2430;
   line-height: 1.5;
@@ -45,7 +45,7 @@
 .card__theme {
   background: #F0F4FF;
   color: #2F6BFF;
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   border-radius: 10rpx;
   padding: 6rpx 16rpx;
   margin: 0 12rpx 12rpx 0;
@@ -61,13 +61,13 @@
 }
 
 .quote__text {
-  font-size: 32rpx;
+  font-size: calc(32rpx * var(--wre-fs));
   line-height: 1.8;
   color: #1F2430;
 }
 
 .quote__from {
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #8A8F99;
   margin-top: 14rpx;
   text-align: right;
@@ -82,7 +82,7 @@
   display: inline-block;
   background: #2F6BFF;
   color: #FFFFFF;
-  font-size: 22rpx;
+  font-size: calc(22rpx * var(--wre-fs));
   font-weight: 600;
   border-radius: 999rpx;
   padding: 4rpx 18rpx;
@@ -90,7 +90,7 @@
 }
 
 .note__text {
-  font-size: 30rpx;
+  font-size: calc(30rpx * var(--wre-fs));
   line-height: 1.9;
   color: #2A2F3A;
   white-space: pre-wrap;
@@ -104,7 +104,7 @@
 }
 
 .related__title {
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   font-weight: 600;
   color: #1F2430;
   margin-bottom: 12rpx;
@@ -132,7 +132,7 @@
 }
 
 .related__text {
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   line-height: 1.8;
   color: #4A5060;
 }
@@ -145,7 +145,7 @@
 }
 
 .related__from {
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #A8ADB8;
   margin-top: 8rpx;
   text-align: right;
@@ -153,7 +153,7 @@
 
 .ai-error {
   margin-top: 20rpx;
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #E54545;
   line-height: 1.6;
 }
@@ -177,7 +177,7 @@
   flex: 1;
   margin-top: 0;
   margin-right: 16rpx;
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   padding: 0 8rpx;
 }
 
@@ -202,24 +202,24 @@
 }
 
 .history__date {
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
   color: #8A8F99;
 }
 
 .history__star {
-  font-size: 22rpx;
+  font-size: calc(22rpx * var(--wre-fs));
   color: #2F6BFF;
 }
 
 .history__title {
-  font-size: 30rpx;
+  font-size: calc(30rpx * var(--wre-fs));
   font-weight: 600;
   color: #1F2430;
   margin: 8rpx 0;
 }
 
 .history__quote {
-  font-size: 26rpx;
+  font-size: calc(26rpx * var(--wre-fs));
   color: #8A8F99;
   line-height: 1.7;
   display: -webkit-box;
@@ -239,19 +239,19 @@
 
 .progress-k {
   color: #8A8F99;
-  font-size: 27rpx;
+  font-size: calc(27rpx * var(--wre-fs));
 }
 
 .progress-v {
   color: #1F2430;
-  font-size: 27rpx;
+  font-size: calc(27rpx * var(--wre-fs));
   font-weight: 600;
 }
 
 /* 声明 */
 .statement {
   padding: 8rpx 8rpx 24rpx;
-  font-size: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
 }
 
 /* 离屏绘制画布（不参与显示；实际绘制缓冲由 daily-share.js 按高清倍率设置） */
@@ -300,7 +300,7 @@
   flex: 1;
   margin-top: 0;
   margin-right: 16rpx;
-  font-size: 28rpx;
+  font-size: calc(28rpx * var(--wre-fs));
   padding: 0 8rpx;
 }
 

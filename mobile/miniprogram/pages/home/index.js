@@ -24,6 +24,7 @@ const MODES = [
 
 Page({
   data: {
+    wreFs: 1,
     hasKey: false,
     modes: MODES,
     mode: 'weekly',
@@ -59,6 +60,7 @@ Page({
   },
 
   onShow() {
+    this.setData({ wreFs: store.getFontScale() });
     const hasKey = !!store.getKey();
     this.setData({ hasKey, wanderNew: wanderStore.isNew() });
     if (hasKey) {

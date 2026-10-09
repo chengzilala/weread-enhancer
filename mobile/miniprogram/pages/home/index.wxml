@@ -1,4 +1,4 @@
-<view class="wre-page">
+<view class="wre-page" style="--wre-fs:{{wreFs}}">
   <!-- 分享图绘制画布（移出屏幕外，不可见） -->
   <canvas type="2d" id="shareCanvas" class="share-canvas"></canvas>
 

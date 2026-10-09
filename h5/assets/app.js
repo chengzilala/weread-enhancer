@@ -6,7 +6,7 @@
  */
 
 import { CONFIG } from '../src/config.js';
-import { getMask, setMask } from '../src/store.js';
+import { getMask, setMask, applyFontScale } from '../src/store.js';
 import { keyGet, keySave, verifyKey } from '../src/api.js';
 import { stateHtml, toast } from '../src/ui.js';
 import { setTtsToast } from '../src/tts.js';
@@ -215,5 +215,6 @@ function renderKeyGate(offline) {
 window.addEventListener('hashchange', () => route());
 
 setTtsToast(toast);   // 语音模块复用统一 toast
+applyFontScale();     // 套用本机「文字大小」偏好（index.html 已提前设过，这里兜底）
 renderTabbar();
 route();

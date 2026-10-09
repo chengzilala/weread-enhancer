@@ -9,6 +9,7 @@ const { messageOf, isKeyError } = require('../../shared/errors');
 
 Page({
   data: {
+    wreFs: 1,
     hasKey: false,
     loading: false,
     generating: false,
@@ -28,6 +29,7 @@ Page({
   },
 
   onShow() {
+    this.setData({ wreFs: store.getFontScale() });
     const hasKey = !!store.getKey();
     this.setData({ hasKey, regenLeft: db.regenLeft() });
     if (!hasKey) {

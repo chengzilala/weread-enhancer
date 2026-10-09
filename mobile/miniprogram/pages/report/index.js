@@ -17,6 +17,7 @@ const MODES = [
 
 Page({
   data: {
+    wreFs: 1,
     hasKey: false,
     modes: MODES,
     mode: 'overall',
@@ -34,6 +35,7 @@ Page({
   },
 
   onShow() {
+    this.setData({ wreFs: store.getFontScale() });
     const hasKey = !!store.getKey();
     this.setData({ hasKey });
     if (hasKey) {

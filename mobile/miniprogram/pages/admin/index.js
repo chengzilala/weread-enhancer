@@ -16,6 +16,7 @@ const { fmtDuration, fmtTime } = require('../../shared/format');
 
 Page({
   data: {
+    wreFs: 1,
     loading: true,
     error: '',
     forbidden: false,
@@ -27,6 +28,7 @@ Page({
   },
 
   onShow() {
+    this.setData({ wreFs: store.getFontScale() });
     this.load();
   },
 

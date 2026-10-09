@@ -1,4 +1,4 @@
-<view class="wre-page">
+<view class="wre-page" style="--wre-fs:{{wreFs}}">
   <!-- 我的资料（可选）：仅本机 -->
   <view class="wre-card">
     <view class="wre-title">我的资料（可选）</view>
@@ -20,6 +20,21 @@
     </view>
 
     <button class="wre-btn wre-btn--ghost" wx:if="{{hasProfile}}" bindtap="onClearProfile">清除资料</button>
+  </view>
+
+  <!-- 文字大小（对齐 H5「我的 → 文字大小」） -->
+  <view class="wre-card">
+    <view class="wre-title">文字大小</view>
+    <view class="wre-muted">调大后全站文字一起放大，方便在手机上看清；只存本机。</view>
+    <view class="fs-modes">
+      <view
+        wx:for="{{fontTiers}}"
+        wx:key="key"
+        class="fs-mode {{item.value === wreFs ? 'is-active' : ''}}"
+        data-value="{{item.value}}"
+        bindtap="onFontScale"
+      >{{item.label}}</view>
+    </view>
   </view>
 
   <!-- 微信读书 API Key -->

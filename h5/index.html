@@ -10,6 +10,16 @@
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="assets/icon.svg">
   <link rel="stylesheet" href="assets/app.css">
+  <script>
+    /* 启动即套用「文字大小」偏好，避免首屏字号闪动（档位与 src/store.js 保持一致） */
+    (function () {
+      try {
+        var v = Number(localStorage.getItem('wre_font_scale'));
+        if (v !== 0.9 && v !== 1 && v !== 1.15 && v !== 1.3) { v = 1; }
+        document.documentElement.style.setProperty('--wre-fs', String(v));
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <header class="wre-header">

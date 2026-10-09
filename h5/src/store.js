@@ -285,3 +285,50 @@ export function localRemove(key) {
     // 忽略
   }
 }
+
+// ---- 文字大小（全局缩放；仅本机偏好，改后即刻生效，不改动云端）----
+const FONT_KEY = 'wre_font_scale';
+
+/** 可选档位：小 / 标准 / 大 / 特大（与小程序端保持一致） */
+export const FONT_TIERS = [
+  { key: 'sm', label: '小', value: 0.9 },
+  { key: 'md', label: '标准', value: 1 },
+  { key: 'lg', label: '大', value: 1.15 },
+  { key: 'xl', label: '特大', value: 1.3 },
+];
+
+function normalizeScale(value) {
+  const v = Number(value);
+  return FONT_TIERS.some((t) => t.value === v) ? v : 1;
+}
+
+/** 读取本机保存的文字缩放系数（默认 1 ＝ 标准） */
+export function getFontScale() {
+  try {
+    return normalizeScale(localStorage.getItem(FONT_KEY));
+  } catch (e) {
+    return 1;
+  }
+}
+
+/** 保存文字缩放系数；返回实际生效值 */
+export function setFontScale(value) {
+  const v = normalizeScale(value);
+  try {
+    localStorage.setItem(FONT_KEY, String(v));
+  } catch (e) {
+    // 忽略
+  }
+  return v;
+}
+
+/** 应用文字缩放：写 CSS 变量 --wre-fs（不传参则套用已保存的档位） */
+export function applyFontScale(value) {
+  const v = value === undefined ? getFontScale() : setFontScale(value);
+  try {
+    document.documentElement.style.setProperty('--wre-fs', String(v));
+  } catch (e) {
+    // 忽略
+  }
+  return v;
+}

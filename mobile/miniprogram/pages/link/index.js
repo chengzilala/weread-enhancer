@@ -21,6 +21,7 @@ function extractCode(raw) {
 
 Page({
   data: {
+    wreFs: 1,
     loading: true,
     linked: false,
     deviceMasked: '',
@@ -34,6 +35,7 @@ Page({
   },
 
   onShow() {
+    this.setData({ wreFs: store.getFontScale() });
     this.refresh();
   },
 
