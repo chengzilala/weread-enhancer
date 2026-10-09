@@ -481,12 +481,19 @@ a:hover { text-decoration: underline; }
   line-height: 1.95;
   letter-spacing: 0.02em;
 }
-/* 作者的话里「产品」「永久免费、无广告」加重凸显：字号加大 + 品牌色加粗（只改样式，不改文字） */
+/* 作者的话里「产品」「永久免费、无广告」加重凸显：黑色 + 下划线（只改样式，不改文字） */
 .home .author-band .callout-body strong {
-  color: var(--accent);
+  color: #000;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1.5px;
   font-weight: 800;
   font-size: 1.18em;
   letter-spacing: 0.01em;
+}
+/* 深色模式下纯黑不可读，跟随正文主色 */
+@media (prefers-color-scheme: dark) {
+  .home .author-band .callout-body strong { color: var(--text); }
 }
 /* 前言与 Hero 标题之间：一条居中的细线做过渡，避免上下割裂 */
 .home .doc .callout::after {
