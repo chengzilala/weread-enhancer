@@ -102,6 +102,7 @@ function paint(body) {
     '  <div class="wre-muted">Key 只提交一次给你自己的云函数加密托管，之后本机只带账户码，不再下发明文；可随时清除。</div>' +
     connRow('wrk', '微信读书 Key', mask.hasKey, mask.masked) +
     connRow('ai', 'DeepSeek Key（可选）', mask.hasAiKey, mask.aiMasked) +
+    '  <div class="wre-hint">不知道去哪找 Key？用豆包等 AI 工具搜一句「怎么获取微信读书 / DeepSeek 的 API Key」，跟着做就行，不难。</div>' +
     (openForm ? keyForm(openForm) : '') +
     '</div>' +
 
@@ -197,6 +198,7 @@ function keyForm(kind) {
   return (
     '<div class="wre-form">' +
     '  <input class="wre-input" id="meAi" type="password" autocomplete="off" placeholder="粘贴 sk- 开头的 DeepSeek Key" />' +
+    '  <div class="wre-hint">获取方式：登录 DeepSeek 开放平台 platform.deepseek.com → API Keys → 新建并复制 sk- 开头的 Key（用于 AI 阅读画像）。</div>' +
     '  <button class="wre-btn" data-action="save-ai">保存 DeepSeek Key</button>' +
     '</div>'
   );

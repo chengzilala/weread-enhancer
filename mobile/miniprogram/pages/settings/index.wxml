@@ -105,10 +105,11 @@
 
   <view class="wre-card">
     <view class="wre-title">说明</view>
-    <view class="settings-help">1. API Key 从微信读书 App「微信读书 Skill」页面复制。</view>
+    <view class="settings-help">1. 微信读书 API Key：在微信读书 App →「我」→「微信读书 Skill」页面复制（wrk- 开头）。</view>
     <view class="settings-help">2. Key 只存手机本地，卸载小程序或清理微信缓存后会丢失，需要重新填写。</view>
     <view class="settings-help">3. 清除 Key 后，首页 / 人格 / 报告 / 书架会回到引导状态。</view>
     <view class="settings-help">4. 头像昵称可选，仅存本机、不上传。</view>
     <view class="settings-help">5. 阅读报告、阅读人格、每日卡片、灵感漫游均为本机按固定规则计算与整理，结果只保存在本机（阅读人格可选择存到云端用于换机找回）。</view>
+    <view class="settings-help">6. 找不到 Key 在哪？用豆包等 AI 工具搜一句「怎么获取微信读书 API Key」，跟着做就行，不难。</view>
   </view>
 </view>
