@@ -19,6 +19,18 @@
         document.documentElement.style.setProperty('--wre-fs', String(v));
       } catch (e) {}
     })();
+    /* 启动即套用「外观」偏好，避免首屏明暗闪动（档位与 src/store.js 保持一致：auto|light|dark） */
+    (function () {
+      try {
+        var pref = localStorage.getItem('wre_theme');
+        if (pref !== 'light' && pref !== 'dark') { pref = 'auto'; }
+        var dark = pref === 'dark' ||
+          (pref === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) { meta.setAttribute('content', dark ? '#4E86FF' : '#2F6BFF'); }
+      } catch (e) {}
+    })();
   </script>
 </head>
 <body>

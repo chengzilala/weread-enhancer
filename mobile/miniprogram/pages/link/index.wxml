@@ -1,4 +1,4 @@
-<view class="wre-page" style="--wre-fs:{{wreFs}}">
+<view class="wre-page {{wreDark ? 'wre-dark' : ''}}" style="--wre-fs:{{wreFs}}">
   <view class="wre-card">
     <view class="wre-title">账户统一</view>
     <view class="wre-muted">网页端与小程序共用同一份阅读人格与昵称；从任一端开始用，都能在这里打通。</view>

@@ -332,3 +332,88 @@ export function applyFontScale(value) {
   }
   return v;
 }
+
+// ---- 外观（明暗主题；仅本机偏好，默认跟随系统，可手动切换）----
+const THEME_KEY = 'wre_theme';
+
+/** 可选档位：跟随系统 / 浅色 / 深色（与小程序端保持一致） */
+export const THEME_TIERS = [
+  { key: 'auto', label: '跟随系统' },
+  { key: 'light', label: '浅色' },
+  { key: 'dark', label: '深色' },
+];
+
+function normalizeTheme(value) {
+  return (value === 'light' || value === 'dark') ? value : 'auto';
+}
+
+/** 系统当前是否偏好深色 */
+function prefersDark() {
+  try {
+    return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  } catch (e) {
+    return false;
+  }
+}
+
+/** 读取本机保存的外观偏好（auto / light / dark，默认 auto） */
+export function getTheme() {
+  try {
+    return normalizeTheme(localStorage.getItem(THEME_KEY));
+  } catch (e) {
+    return 'auto';
+  }
+}
+
+/** 保存外观偏好；返回实际生效的偏好值 */
+export function setTheme(value) {
+  const v = normalizeTheme(value);
+  try {
+    localStorage.setItem(THEME_KEY, v);
+  } catch (e) {
+    // 忽略
+  }
+  return v;
+}
+
+/**
+ * 应用外观：把解析后的实际主题写进 <html data-theme>（CSS 变量据此翻转），
+ * 并同步浏览器地址栏 / PWA 的 theme-color。不传参则套用已保存的偏好。
+ * 返回实际保存的偏好值（auto / light / dark）。
+ */
+export function applyTheme(value) {
+  const pref = value === undefined ? getTheme() : setTheme(value);
+  const actual = pref === 'auto' ? (prefersDark() ? 'dark' : 'light') : pref;
+  try {
+    document.documentElement.setAttribute('data-theme', actual);
+  } catch (e) {
+    // 忽略
+  }
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) {
+    meta.setAttribute('content', actual === 'dark' ? '#4E86FF' : '#2F6BFF');
+  }
+  return pref;
+}
+
+/** 监听系统明暗变化：仅当偏好为「跟随系统」时自动跟随（手动档位不受影响） */
+export function watchSystemTheme() {
+  try {
+    if (!window.matchMedia) {
+      return;
+    }
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = function () {
+      if (getTheme() === 'auto') {
+        applyTheme();
+      }
+    };
+    if (mq.addEventListener) {
+      mq.addEventListener('change', handler);
+    } else if (mq.addListener) {
+      mq.addListener(handler);
+    }
+  } catch (e) {
+    // 忽略
+  }
+}

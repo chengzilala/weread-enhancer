@@ -9,7 +9,7 @@
 .card-metric {
   width: 48%;
   box-sizing: border-box;
-  background: #FFFFFF;
+  background: var(--wre-card);
   border-radius: 20rpx;
   padding: 28rpx 20rpx;
   margin-bottom: 24rpx;
@@ -20,12 +20,12 @@
 .card-metric__value {
   font-size: calc(38rpx * var(--wre-fs));
   font-weight: 700;
-  color: #2F6BFF;
+  color: var(--wre-brand);
 }
 
 .card-metric__label {
   font-size: calc(24rpx * var(--wre-fs));
-  color: #8A8F99;
+  color: var(--wre-muted);
   margin-top: 8rpx;
 }
 
@@ -35,8 +35,8 @@
 }
 
 .chip {
-  background: #F0F4FF;
-  color: #2F6BFF;
+  background: var(--wre-brand-soft);
+  color: var(--wre-brand);
   font-size: calc(24rpx * var(--wre-fs));
   border-radius: 999rpx;
   padding: 8rpx 20rpx;
@@ -47,7 +47,7 @@
 .wre-group {
   margin-top: 20rpx;
   padding-top: 16rpx;
-  border-top: 1rpx solid #F0F1F4;
+  border-top: 1rpx solid var(--wre-line);
 }
 
 .wre-group__head {
@@ -60,12 +60,12 @@
 .wre-group__name {
   font-size: calc(26rpx * var(--wre-fs));
   font-weight: 600;
-  color: #1F2430;
+  color: var(--wre-text);
 }
 
 .wre-group__count {
   font-size: calc(22rpx * var(--wre-fs));
-  color: #8A8F99;
+  color: var(--wre-muted);
   flex: none;
 }
 
@@ -87,14 +87,14 @@
   width: 100%;
   height: 210rpx;
   border-radius: 10rpx;
-  background: #F0F1F4;
+  background: var(--wre-line);
 }
 
 .wre-covercell__title {
   margin-top: 8rpx;
   font-size: calc(22rpx * var(--wre-fs));
   line-height: 1.35;
-  color: #1F2430;
+  color: var(--wre-text);
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -106,7 +106,7 @@
   display: flex;
   align-items: center;
   padding: 20rpx 0;
-  border-bottom: 1rpx solid #F0F1F4;
+  border-bottom: 1rpx solid var(--wre-line);
 }
 
 .item:last-child {
@@ -117,7 +117,7 @@
   width: 88rpx;
   height: 118rpx;
   border-radius: 10rpx;
-  background: #F0F1F4;
+  background: var(--wre-line);
   flex-shrink: 0;
 }
 
@@ -129,7 +129,7 @@
 
 .item__title {
   font-size: calc(30rpx * var(--wre-fs));
-  color: #1F2430;
+  color: var(--wre-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -137,7 +137,7 @@
 
 .item__sub {
   font-size: calc(24rpx * var(--wre-fs));
-  color: #8A8F99;
+  color: var(--wre-muted);
   margin-top: 8rpx;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -153,16 +153,16 @@
 
 .tag {
   font-size: calc(20rpx * var(--wre-fs));
-  color: #8A8F99;
-  background: #F5F6F8;
+  color: var(--wre-muted);
+  background: var(--wre-soft);
   border-radius: 6rpx;
   padding: 4rpx 12rpx;
   margin-bottom: 6rpx;
 }
 
 .tag--done {
-  color: #2F6BFF;
-  background: #F0F4FF;
+  color: var(--wre-brand);
+  background: var(--wre-brand-soft);
 }
 
 .more {

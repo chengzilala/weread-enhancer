@@ -1,4 +1,5 @@
 const store = require('../../shared/store');
+const theme = require('../../shared/theme');
 const data = require('../../shared/data');
 const sync = require('../../shared/sync');
 const { AI_ENABLED } = require('../../config');
@@ -11,6 +12,7 @@ const { messageOf, isKeyError } = require('../../shared/errors');
 Page({
   data: {
     wreFs: 1,
+    wreDark: false,
     hasKey: false,
     loading: false,
     error: '',
@@ -26,7 +28,7 @@ Page({
   },
 
   async onShow() {
-    this.setData({ wreFs: store.getFontScale() });
+    this.setData({ wreFs: store.getFontScale(), wreDark: theme.apply() });
     const hasKey = !!store.getKey();
     this.setData({ hasKey });
     if (!hasKey) {

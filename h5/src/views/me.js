@@ -10,7 +10,7 @@
  */
 
 import { keySave, keyClear, verifyKey, keyGet, profileSave, bindCreate, bindStatus, bindRemove, bindRedeem } from '../api.js';
-import { getMask, setMask, getProfile, setProfile, getDeviceId, setDeviceId, resetDeviceId, readAvatarFile, getFontScale, applyFontScale, FONT_TIERS } from '../store.js';
+import { getMask, setMask, getProfile, setProfile, getDeviceId, setDeviceId, resetDeviceId, readAvatarFile, getFontScale, applyFontScale, FONT_TIERS, getTheme, applyTheme, THEME_TIERS } from '../store.js';
 import { esc, toast, copyText, confirmSignOut } from '../ui.js';
 import { qrSvg } from '../qrcode.js';
 
@@ -146,6 +146,12 @@ function paint(body) {
     '</div>' +
 
     '<div class="wre-card">' +
+    '  <div class="wre-card__title">外观</div>' +
+    '  <div class="wre-muted">默认跟随系统明暗；也可手动固定为浅色或深色。只存本机。</div>' +
+    themeModes() +
+    '</div>' +
+
+    '<div class="wre-card">' +
     '  <div class="wre-card__title">更多</div>' +
     linkRow('🗂 每日卡片 · 往期回顾', 'open-daily') +
     linkRow('🧭 灵感漫游 · 往期归档', 'open-wander') +
@@ -182,6 +188,15 @@ function fsModes() {
   return '<div class="wre-modes">' + FONT_TIERS.map((t) =>
     '<button class="wre-mode' + (t.value === cur ? ' is-active' : '') + '"' +
     ' data-action="set-fs" data-value="' + t.value + '">' + esc(t.label) + '</button>'
+  ).join('') + '</div>';
+}
+
+/** 「外观」三档切换（跟随系统 / 浅色 / 深色；对齐小程序设置页） */
+function themeModes() {
+  const cur = getTheme();
+  return '<div class="wre-modes">' + THEME_TIERS.map((t) =>
+    '<button class="wre-mode' + (t.key === cur ? ' is-active' : '') + '"' +
+    ' data-action="set-theme" data-value="' + t.key + '">' + esc(t.label) + '</button>'
   ).join('') + '</div>';
 }
 
@@ -365,6 +380,14 @@ async function onAction(e, body, app) {
     paint(body);
     const tier = FONT_TIERS.find((t) => t.value === value);
     toast('文字大小：' + ((tier && tier.label) || '标准'));
+    return;
+  }
+
+  if (action === 'set-theme') {
+    const pref = applyTheme(btn.getAttribute('data-value'));
+    paint(body);
+    const tier = THEME_TIERS.find((t) => t.key === pref);
+    toast('外观：' + ((tier && tier.label) || '跟随系统'));
     return;
   }
 

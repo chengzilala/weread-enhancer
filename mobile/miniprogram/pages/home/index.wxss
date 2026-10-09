@@ -1,7 +1,7 @@
 /* 周期切换 */
 .period {
   display: flex;
-  background: #FFFFFF;
+  background: var(--wre-card);
   border-radius: 16rpx;
   padding: 8rpx;
   margin-bottom: 24rpx;
@@ -12,13 +12,13 @@
   text-align: center;
   line-height: calc(68rpx * var(--wre-fs));
   font-size: calc(28rpx * var(--wre-fs));
-  color: #8A8F99;
+  color: var(--wre-muted);
   border-radius: 12rpx;
 }
 
 .period__item--active {
-  background: #2F6BFF;
-  color: #FFFFFF;
+  background: var(--wre-brand);
+  color: var(--wre-on-brand);
   font-weight: 600;
 }
 
@@ -32,7 +32,7 @@
 .metric {
   width: 48%;
   box-sizing: border-box;
-  background: #FFFFFF;
+  background: var(--wre-card);
   border-radius: 20rpx;
   padding: 32rpx 24rpx;
   margin-bottom: 24rpx;
@@ -43,18 +43,18 @@
 .metric__value {
   font-size: calc(40rpx * var(--wre-fs));
   font-weight: 700;
-  color: #2F6BFF;
+  color: var(--wre-brand);
 }
 
 .metric__label {
   font-size: calc(26rpx * var(--wre-fs));
-  color: #1F2430;
+  color: var(--wre-text);
   margin-top: 8rpx;
 }
 
 .metric__hint {
   font-size: calc(22rpx * var(--wre-fs));
-  color: #A8ADB8;
+  color: var(--wre-muted);
   margin-top: 6rpx;
 }
 
@@ -64,11 +64,11 @@
 
 /* Hero 主卡 */
 .hero {
-  background: linear-gradient(135deg, #2F6BFF 0%, #5B8CFF 100%);
+  background: linear-gradient(135deg, var(--wre-brand) 0%, #5B8CFF 100%);
   border-radius: 20rpx;
   padding: 40rpx 32rpx;
   margin-bottom: 24rpx;
-  color: #FFFFFF;
+  color: var(--wre-on-brand);
   box-shadow: 0 8rpx 24rpx rgba(47, 107, 255, 0.25);
 }
 
@@ -145,17 +145,17 @@
 .trend__bar {
   width: 62%;
   min-height: 6rpx;
-  background: #C9D8FF;
+  background: var(--wre-bar);
   border-radius: 6rpx;
 }
 
 .trend__bar--on {
-  background: #2F6BFF;
+  background: var(--wre-brand);
 }
 
 .trend__peak {
   font-size: calc(24rpx * var(--wre-fs));
-  color: #8A8F99;
+  color: var(--wre-muted);
   margin-top: 16rpx;
 }
 
@@ -173,24 +173,24 @@
 
 .rank__name {
   font-size: calc(28rpx * var(--wre-fs));
-  color: #1F2430;
+  color: var(--wre-text);
 }
 
 .rank__val {
   font-size: calc(24rpx * var(--wre-fs));
-  color: #8A8F99;
+  color: var(--wre-muted);
 }
 
 .rank__bar {
   height: 12rpx;
-  background: #F0F1F4;
+  background: var(--wre-line);
   border-radius: 8rpx;
   overflow: hidden;
 }
 
 .rank__fill {
   height: 100%;
-  background: #2F6BFF;
+  background: var(--wre-brand);
   border-radius: 8rpx;
 }
 
@@ -199,7 +199,7 @@
   display: flex;
   align-items: center;
   padding: 18rpx 0;
-  border-bottom: 1rpx solid #F0F1F4;
+  border-bottom: 1rpx solid var(--wre-line);
 }
 
 .book:last-child {
@@ -213,15 +213,15 @@
   line-height: calc(44rpx * var(--wre-fs));
   text-align: center;
   border-radius: 12rpx;
-  background: #F0F4FF;
-  color: #2F6BFF;
+  background: var(--wre-brand-soft);
+  color: var(--wre-brand);
   font-size: calc(24rpx * var(--wre-fs));
   font-weight: 700;
 }
 
 .book__rank--1 {
-  background: #2F6BFF;
-  color: #FFFFFF;
+  background: var(--wre-brand);
+  color: var(--wre-on-brand);
 }
 
 .book__main {
@@ -232,7 +232,7 @@
 
 .book__title {
   font-size: calc(28rpx * var(--wre-fs));
-  color: #1F2430;
+  color: var(--wre-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -240,14 +240,14 @@
 
 .book__author {
   font-size: calc(24rpx * var(--wre-fs));
-  color: #8A8F99;
+  color: var(--wre-muted);
   margin-top: 4rpx;
 }
 
 .book__time {
   font-size: calc(26rpx * var(--wre-fs));
   font-weight: 600;
-  color: #2F6BFF;
+  color: var(--wre-brand);
   margin-left: 12rpx;
 }
 
@@ -261,7 +261,7 @@
 
 .entry {
   flex: 1;
-  background: #FFFFFF;
+  background: var(--wre-card);
   border-radius: 20rpx;
   padding: 28rpx 16rpx;
   margin-right: 16rpx;
@@ -276,12 +276,12 @@
 .entry__name {
   font-size: calc(30rpx * var(--wre-fs));
   font-weight: 600;
-  color: #1F2430;
+  color: var(--wre-text);
 }
 
 .entry__sub {
   font-size: calc(24rpx * var(--wre-fs));
-  color: #8A8F99;
+  color: var(--wre-muted);
   margin-top: 8rpx;
   white-space: nowrap;
   overflow: hidden;
@@ -292,7 +292,7 @@
 .report-link {
   text-align: center;
   font-size: calc(28rpx * var(--wre-fs));
-  color: #2F6BFF;
+  color: var(--wre-brand);
   padding: 24rpx 0;
 }
 
@@ -380,7 +380,7 @@
 .daily-entry__name {
   font-size: calc(34rpx * var(--wre-fs));
   font-weight: 700;
-  color: #FFFFFF;
+  color: var(--wre-on-brand);
 }
 
 .daily-entry__sub {
@@ -415,8 +415,8 @@
 
 .wander-entry__badge {
   margin-left: 12rpx;
-  background: #FFFFFF;
-  color: #7C5CFF;
+  background: var(--wre-card);
+  color: var(--wre-wander);
   font-size: calc(20rpx * var(--wre-fs));
   font-weight: 700;
   line-height: 1;
@@ -445,7 +445,7 @@
   max-height: 84%;
   display: flex;
   flex-direction: column;
-  background: #FFFFFF;
+  background: var(--wre-card);
   border-radius: 24rpx;
   overflow: hidden;
 }
@@ -460,19 +460,19 @@
   align-items: center;
   justify-content: space-between;
   padding: 28rpx 32rpx;
-  border-bottom: 1rpx solid #F0F1F4;
+  border-bottom: 1rpx solid var(--wre-line);
 }
 
 .daily-modal__title {
   font-size: calc(32rpx * var(--wre-fs));
   font-weight: 700;
-  color: #1F2430;
+  color: var(--wre-text);
 }
 
 .daily-modal__close {
   font-size: calc(44rpx * var(--wre-fs));
   line-height: 1;
-  color: #A8ADB8;
+  color: var(--wre-muted);
   padding: 0 8rpx;
 }
 
@@ -490,7 +490,7 @@
 
 .daily-modal__err {
   font-size: calc(28rpx * var(--wre-fs));
-  color: #E54545;
+  color: var(--wre-danger);
   line-height: 1.7;
   margin-bottom: 24rpx;
 }
@@ -499,7 +499,7 @@
   display: flex;
   padding: 20rpx 32rpx;
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
-  border-top: 1rpx solid #F0F1F4;
+  border-top: 1rpx solid var(--wre-line);
 }
 
 .daily-modal__foot .wre-btn {
@@ -515,14 +515,14 @@
 /* 每日卡片内容（弹窗内，口径同每日卡片页） */
 .card__date {
   font-size: calc(26rpx * var(--wre-fs));
-  color: #8A8F99;
+  color: var(--wre-muted);
   letter-spacing: 2rpx;
 }
 
 .card__title {
   font-size: calc(44rpx * var(--wre-fs));
   font-weight: 700;
-  color: #1F2430;
+  color: var(--wre-text);
   line-height: 1.5;
   margin: 16rpx 0 12rpx;
 }
@@ -534,8 +534,8 @@
 }
 
 .card__theme {
-  background: #F0F4FF;
-  color: #2F6BFF;
+  background: var(--wre-brand-soft);
+  color: var(--wre-brand);
   font-size: calc(24rpx * var(--wre-fs));
   border-radius: 10rpx;
   padding: 6rpx 16rpx;
@@ -545,20 +545,20 @@
 .quote {
   margin-top: 16rpx;
   padding: 20rpx 24rpx;
-  background: #F7F8FA;
-  border-left: 8rpx solid #2F6BFF;
+  background: var(--wre-card-2);
+  border-left: 8rpx solid var(--wre-brand);
   border-radius: 0 12rpx 12rpx 0;
 }
 
 .quote__text {
   font-size: calc(32rpx * var(--wre-fs));
   line-height: 1.8;
-  color: #1F2430;
+  color: var(--wre-text);
 }
 
 .quote__from {
   font-size: calc(24rpx * var(--wre-fs));
-  color: #8A8F99;
+  color: var(--wre-muted);
   margin-top: 14rpx;
   text-align: right;
 }
@@ -569,8 +569,8 @@
 
 .note__badge {
   display: inline-block;
-  background: #2F6BFF;
-  color: #FFFFFF;
+  background: var(--wre-brand);
+  color: var(--wre-on-brand);
   font-size: calc(22rpx * var(--wre-fs));
   font-weight: 600;
   border-radius: 999rpx;
@@ -581,27 +581,27 @@
 .note__text {
   font-size: calc(30rpx * var(--wre-fs));
   line-height: 1.9;
-  color: #2A2F3A;
+  color: var(--wre-text-body);
   white-space: pre-wrap;
 }
 
 .related {
   margin-top: 32rpx;
   padding-top: 24rpx;
-  border-top: 1rpx solid #F0F1F4;
+  border-top: 1rpx solid var(--wre-line);
 }
 
 .related__title {
   font-size: calc(28rpx * var(--wre-fs));
   font-weight: 600;
-  color: #1F2430;
+  color: var(--wre-text);
   margin-bottom: 12rpx;
 }
 
 .related__item {
   padding: 16rpx 0 16rpx 24rpx;
   position: relative;
-  border-bottom: 1rpx solid #F5F6F8;
+  border-bottom: 1rpx solid var(--wre-line);
 }
 
 .related__item:last-child {
@@ -616,13 +616,13 @@
   width: 12rpx;
   height: 12rpx;
   border-radius: 50%;
-  background: #2F6BFF;
+  background: var(--wre-brand);
 }
 
 .related__text {
   font-size: calc(28rpx * var(--wre-fs));
   line-height: 1.8;
-  color: #4A5060;
+  color: var(--wre-text-3);
 }
 
 .related__text--clamp {
@@ -634,7 +634,7 @@
 
 .related__from {
   font-size: calc(24rpx * var(--wre-fs));
-  color: #A8ADB8;
+  color: var(--wre-muted);
   margin-top: 8rpx;
   text-align: right;
 }

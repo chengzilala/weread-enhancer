@@ -1,4 +1,5 @@
 const store = require('../../shared/store');
+const theme = require('../../shared/theme');
 const data = require('../../shared/data');
 const { buildReportBlocks, fmtDateTime } = require('../../shared/report-core');
 const { fmtDuration } = require('../../shared/format');
@@ -18,6 +19,7 @@ const MODES = [
 Page({
   data: {
     wreFs: 1,
+    wreDark: false,
     hasKey: false,
     modes: MODES,
     mode: 'overall',
@@ -35,7 +37,7 @@ Page({
   },
 
   onShow() {
-    this.setData({ wreFs: store.getFontScale() });
+    this.setData({ wreFs: store.getFontScale(), wreDark: theme.apply() });
     const hasKey = !!store.getKey();
     this.setData({ hasKey });
     if (hasKey) {

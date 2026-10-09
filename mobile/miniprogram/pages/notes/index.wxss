@@ -9,7 +9,7 @@
 .card-metric {
   width: 48%;
   box-sizing: border-box;
-  background: #FFFFFF;
+  background: var(--wre-card);
   border-radius: 20rpx;
   padding: 28rpx 20rpx;
   margin-bottom: 24rpx;
@@ -20,18 +20,18 @@
 .card-metric__value {
   font-size: calc(38rpx * var(--wre-fs));
   font-weight: 700;
-  color: #2F6BFF;
+  color: var(--wre-brand);
 }
 
 .card-metric__label {
   font-size: calc(24rpx * var(--wre-fs));
-  color: #8A8F99;
+  color: var(--wre-muted);
   margin-top: 8rpx;
 }
 
 .note-item {
   padding: 20rpx 0;
-  border-bottom: 1rpx solid #F0F1F4;
+  border-bottom: 1rpx solid var(--wre-line);
 }
 
 .note-item:last-child {
@@ -40,12 +40,12 @@
 
 .note-item__title {
   font-size: calc(30rpx * var(--wre-fs));
-  color: #1F2430;
+  color: var(--wre-text);
 }
 
 .note-item__author {
   font-size: calc(24rpx * var(--wre-fs));
-  color: #8A8F99;
+  color: var(--wre-muted);
   margin-top: 6rpx;
 }
 
@@ -57,8 +57,8 @@
 
 .tag {
   font-size: calc(22rpx * var(--wre-fs));
-  color: #2F6BFF;
-  background: #F0F4FF;
+  color: var(--wre-brand);
+  background: var(--wre-brand-soft);
   border-radius: 999rpx;
   padding: 6rpx 18rpx;
   margin: 0 16rpx 8rpx 0;

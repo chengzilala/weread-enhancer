@@ -12,7 +12,7 @@
 
 /* 搜索框 */
 .pb-search {
-  background: #FFFFFF;
+  background: var(--wre-card);
   border-radius: 16rpx;
   padding: 20rpx 24rpx;
   font-size: calc(28rpx * var(--wre-fs));
@@ -34,8 +34,8 @@
 }
 
 .pb-search-btn {
-  background: #2F6BFF;
-  color: #FFFFFF;
+  background: var(--wre-brand);
+  color: var(--wre-on-brand);
   border-radius: 14rpx;
   font-size: calc(28rpx * var(--wre-fs));
   line-height: 1;
@@ -52,7 +52,7 @@
 
 /* 列表 */
 .pb-list {
-  background: #FFFFFF;
+  background: var(--wre-card);
   border-radius: 20rpx;
   overflow: hidden;
   box-shadow: 0 2rpx 12rpx rgba(31, 36, 48, 0.04);
@@ -62,7 +62,7 @@
   display: flex;
   align-items: center;
   padding: 24rpx 28rpx;
-  border-bottom: 1rpx solid #F0F1F4;
+  border-bottom: 1rpx solid var(--wre-line);
 }
 
 .pb-item:last-child {
@@ -73,7 +73,7 @@
   width: 108rpx;
   height: 148rpx;
   border-radius: 8rpx;
-  background: #F0F1F4;
+  background: var(--wre-line);
   flex-shrink: 0;
 }
 
@@ -81,7 +81,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #B6BAC3;
+  color: var(--wre-muted);
   font-size: calc(30rpx * var(--wre-fs));
 }
 
@@ -104,14 +104,14 @@
 
 .pb-author {
   font-size: calc(26rpx * var(--wre-fs));
-  color: #6B7280;
+  color: var(--wre-text-3);
   margin-top: 6rpx;
 }
 
 .pb-isbn,
 .pb-reading {
   font-size: calc(24rpx * var(--wre-fs));
-  color: #8A8F99;
+  color: var(--wre-muted);
   margin-top: 6rpx;
 }
 
@@ -122,25 +122,25 @@
 .pb-tag {
   display: inline-block;
   font-size: calc(22rpx * var(--wre-fs));
-  color: #8A8F99;
-  background: #F0F1F4;
+  color: var(--wre-muted);
+  background: var(--wre-line);
   border-radius: 6rpx;
   padding: 4rpx 12rpx;
 }
 
 .pb-tag--on {
-  color: #2F6BFF;
-  background: #EAF1FF;
+  color: var(--wre-brand);
+  background: var(--wre-brand-soft);
 }
 
 .pb-tag--status {
-  color: #1A9C6B;
-  background: #E8F7EF;
+  color: var(--wre-tag-fg);
+  background: var(--wre-ok-soft);
 }
 
 .pb-tag--soft {
-  color: #6B7280;
-  background: #F5F6F8;
+  color: var(--wre-text-3);
+  background: var(--wre-soft);
 }
 
 /* 筛选 chips */
@@ -157,18 +157,18 @@
 .pb-chip {
   display: inline-block;
   font-size: calc(26rpx * var(--wre-fs));
-  color: #4B5563;
-  background: #FFFFFF;
-  border: 1rpx solid #E5E7EB;
+  color: var(--wre-text-3);
+  background: var(--wre-card);
+  border: 1rpx solid var(--wre-line);
   border-radius: 100rpx;
   padding: 10rpx 26rpx;
   margin: 0 16rpx 0 0;
 }
 
 .pb-chip--on {
-  color: #FFFFFF;
-  background: #2F6BFF;
-  border-color: #2F6BFF;
+  color: var(--wre-on-brand);
+  background: var(--wre-brand);
+  border-color: var(--wre-brand);
 }
 
 /* 标签编辑 */
@@ -190,15 +190,15 @@
 
 .pb-tag-chip {
   font-size: calc(24rpx * var(--wre-fs));
-  color: #2F6BFF;
-  background: #EAF1FF;
+  color: var(--wre-brand);
+  background: var(--wre-brand-soft);
   border-radius: 8rpx;
   padding: 8rpx 16rpx;
   margin: 0 12rpx 12rpx 0;
 }
 
 .pb-tag-x {
-  color: #8FA9E0;
+  color: var(--wre-disabled);
   margin-left: 10rpx;
 }
 
@@ -207,14 +207,14 @@
   min-height: 140rpx;
   font-size: calc(28rpx * var(--wre-fs));
   line-height: 1.6;
-  background: #F7F8FA;
+  background: var(--wre-card-2);
   border-radius: 12rpx;
   padding: 20rpx;
   box-sizing: border-box;
 }
 
 .pb-arrow {
-  color: #C4C8D0;
+  color: var(--wre-muted);
   font-size: calc(40rpx * var(--wre-fs));
   margin-left: 12rpx;
 }
@@ -224,13 +224,13 @@
   display: flex;
   align-items: center;
   padding: 20rpx 0;
-  border-bottom: 1rpx solid #F0F1F4;
+  border-bottom: 1rpx solid var(--wre-line);
 }
 
 .pb-label {
   width: 120rpx;
   font-size: calc(28rpx * var(--wre-fs));
-  color: #6B7280;
+  color: var(--wre-text-3);
   flex-shrink: 0;
 }
 
@@ -267,7 +267,7 @@
 }
 
 .pb-error {
-  color: #E5484D;
+  color: var(--wre-danger);
   font-size: calc(28rpx * var(--wre-fs));
 }
 
@@ -275,7 +275,7 @@
 .pb-notes {
   margin-top: 20rpx;
   padding-top: 20rpx;
-  border-top: 1rpx solid #F0F1F4;
+  border-top: 1rpx solid var(--wre-line);
 }
 
 .pb-note-line {
@@ -285,13 +285,13 @@
 
 .pb-note-sub {
   font-size: calc(24rpx * var(--wre-fs));
-  color: #8A8F99;
+  color: var(--wre-muted);
   margin-top: 6rpx;
 }
 
 .pb-note-item {
   padding: 18rpx 0;
-  border-bottom: 1rpx solid #F5F6F8;
+  border-bottom: 1rpx solid var(--wre-line);
 }
 
 .pb-note-item:last-child {
@@ -301,7 +301,7 @@
 .pb-note-text {
   font-size: calc(28rpx * var(--wre-fs));
   line-height: 1.6;
-  color: #2B2F36;
+  color: var(--wre-text-body);
 }
 
 /* 底部 */
@@ -310,7 +310,7 @@
 }
 
 .wre-btn--danger {
-  background: #FFFFFF;
-  color: #E5484D;
-  border: 1rpx solid #E5484D;
+  background: var(--wre-card);
+  color: var(--wre-danger);
+  border: 1rpx solid var(--wre-danger);
 }

@@ -1,4 +1,5 @@
 const store = require('../../shared/store');
+const theme = require('../../shared/theme');
 const data = require('../../shared/data');
 const { shelfCounts, shelfCategories, fmtDateTime } = require('../../shared/report-core');
 const { renderShelfShare } = require('../../shared/shelf-share');
@@ -66,6 +67,7 @@ function buildGroups(shelf) {
 Page({
   data: {
     wreFs: 1,
+    wreDark: false,
     hasKey: false,
     loading: false,
     error: '',
@@ -85,7 +87,7 @@ Page({
   },
 
   onShow() {
-    this.setData({ wreFs: store.getFontScale() });
+    this.setData({ wreFs: store.getFontScale(), wreDark: theme.apply() });
     const hasKey = !!store.getKey();
     this.setData({ hasKey });
     if (hasKey) {

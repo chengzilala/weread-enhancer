@@ -16,16 +16,16 @@
     "wre-state": "/components/wre-state/index"
   },
   "window": {
-    "navigationBarBackgroundColor": "#2F6BFF",
+    "navigationBarBackgroundColor": "@navBgColor",
     "navigationBarTitleText": "悦读且住",
-    "navigationBarTextStyle": "white",
-    "backgroundColor": "#F5F6F8"
+    "navigationBarTextStyle": "@navTxtStyle",
+    "backgroundColor": "@bgColor"
   },
   "tabBar": {
-    "color": "#8A8F99",
-    "selectedColor": "#2F6BFF",
-    "backgroundColor": "#FFFFFF",
-    "borderStyle": "black",
+    "color": "@tabFontColor",
+    "selectedColor": "@tabSelectedColor",
+    "backgroundColor": "@tabBgColor",
+    "borderStyle": "@tabBorderStyle",
     "list": [
       { "pagePath": "pages/home/index", "text": "首页" },
       { "pagePath": "pages/persona/index", "text": "人格" },
@@ -34,6 +34,8 @@
       { "pagePath": "pages/settings/index", "text": "我的" }
     ]
   },
+  "darkmode": true,
+  "themeLocation": "theme.json",
   "style": "v2",
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents"

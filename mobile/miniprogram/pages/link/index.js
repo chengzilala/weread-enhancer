@@ -1,5 +1,6 @@
 const account = require('../../shared/account');
 const store = require('../../shared/store');
+const theme = require('../../shared/theme');
 
 /** 账户码掩码：前 4 后 4 */
 function maskCode(id) {
@@ -22,6 +23,7 @@ function extractCode(raw) {
 Page({
   data: {
     wreFs: 1,
+    wreDark: false,
     loading: true,
     linked: false,
     deviceMasked: '',
@@ -35,7 +37,7 @@ Page({
   },
 
   onShow() {
-    this.setData({ wreFs: store.getFontScale() });
+    this.setData({ wreFs: store.getFontScale(), wreDark: theme.apply() });
     this.refresh();
   },
 

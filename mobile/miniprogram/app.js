@@ -1,5 +1,6 @@
 const { CLOUD_ENV } = require('./config');
 const ops = require('./shared/ops');
+const theme = require('./shared/theme');
 
 App({
   onLaunch() {
@@ -11,5 +12,14 @@ App({
     wx.cloud.init(CLOUD_ENV ? { env: CLOUD_ENV, traceUser: false } : { traceUser: false });
     // M13：打开小程序时上报一次使用量（云函数按 openid + 天去重；失败静默，不影响使用）
     ops.ping().catch(() => {});
+    // 外观：仅「跟随系统」时，系统明暗切换后刷新当前页面内容
+    // （导航栏 / tabBar 由 app.json 的 theme.json 自动跟随，无需在这里处理）
+    theme.watch(() => {
+      const pages = getCurrentPages();
+      const cur = pages[pages.length - 1];
+      if (cur && typeof cur.setData === 'function') {
+        cur.setData({ wreDark: theme.isDark() });
+      }
+    });
   },
 });

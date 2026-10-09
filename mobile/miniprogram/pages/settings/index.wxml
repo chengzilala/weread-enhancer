@@ -1,4 +1,4 @@
-<view class="wre-page" style="--wre-fs:{{wreFs}}">
+<view class="wre-page {{wreDark ? 'wre-dark' : ''}}" style="--wre-fs:{{wreFs}}">
   <!-- 我的资料（可选）：仅本机 -->
   <view class="wre-card">
     <view class="wre-title">我的资料（可选）</view>
@@ -33,6 +33,21 @@
         class="fs-mode {{item.value === wreFs ? 'is-active' : ''}}"
         data-value="{{item.value}}"
         bindtap="onFontScale"
+      >{{item.label}}</view>
+    </view>
+  </view>
+
+  <!-- 外观（对齐 H5「我的 → 外观」） -->
+  <view class="wre-card">
+    <view class="wre-title">外观</view>
+    <view class="wre-muted">默认跟随系统明暗；也可手动固定为浅色或深色。只存本机。</view>
+    <view class="theme-modes">
+      <view
+        wx:for="{{themeTiers}}"
+        wx:key="key"
+        class="theme-mode {{item.key === themePref ? 'is-active' : ''}}"
+        data-value="{{item.key}}"
+        bindtap="onTheme"
       >{{item.label}}</view>
     </view>
   </view>

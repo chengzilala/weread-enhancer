@@ -11,6 +11,7 @@
  * 红线：Key 只从 store 取、只经云函数中转；本页不打印 Key。
  */
 const store = require('../../shared/store');
+const theme = require('../../shared/theme');
 const pbStore = require('../../shared/paperbook-store');
 const pbData = require('../../shared/paperbook-data');
 const pbCore = require('../../shared/paperbook-core');
@@ -34,6 +35,7 @@ function normalizeBook(book) {
 Page({
   data: {
     wreFs: 1,
+    wreDark: false,
     hasKey: false,
     books: [],
     filtered: [],
@@ -62,7 +64,7 @@ Page({
   },
 
   onShow() {
-    this.setData({ wreFs: store.getFontScale() });
+    this.setData({ wreFs: store.getFontScale(), wreDark: theme.apply() });
     this.setData({ hasKey: !!store.getKey() });
     this.reload();
   },

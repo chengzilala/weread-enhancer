@@ -1,7 +1,42 @@
-/* 微信悦读 · 移动端全局样式（品牌色与插件 / 官网一致） */
+/* 微信悦读 · 移动端全局样式（品牌色与插件 / 官网 / H5 一致） */
 page {
-  background: #F5F6F8;
-  color: #1F2430;
+  /* 浅色调色板：各页 wxss 统一以 var(--wre-*) 引用；暗色覆盖见下方 .wre-page.wre-dark */
+  --wre-brand: #2F6BFF;
+  --wre-brand-soft: #F0F4FF;
+  --wre-brand-ink: #2B4C8C;
+  --wre-bg: #F5F6F8;
+  --wre-card: #FFFFFF;
+  --wre-card-2: #F7F8FA;
+  --wre-text: #1F2430;
+  --wre-text-body: #2A2F3A;
+  --wre-text-3: #4A5060;
+  --wre-muted: #8A8F99;
+  --wre-line: #F0F1F4;
+  --wre-fill: #EEF1F6;
+  --wre-soft: #F5F6F8;
+  --wre-bar: #C9D8FF;
+  --wre-arrow: #C0C4CC;
+  --wre-danger: #E54545;
+  --wre-tag-fg: #12A150;
+  /* 品牌块上的文字：始终白色（深色下也不变） */
+  --wre-on-brand: #FFFFFF;
+  /* 语义色 */
+  --wre-pos: #07C160;
+  --wre-neu: #9AA0A6;
+  --wre-neg: #E05A5A;
+  /* 页面专用（漫游紫 / 纸书 / 收藏 / 高亮等） */
+  --wre-disabled: #8FA9E0;
+  --wre-ok-soft: #E8F7EF;
+  --wre-star-soft: #FFF6DE;
+  --wre-star-text: #92700B;
+  --wre-wander: #7C5CFF;
+  --wre-wander-soft: #F1EDFF;
+  --wre-wander-soft-2: #E8E3FF;
+  --wre-wander-line: #EDE8FF;
+  --wre-wander-text: #4A3F80;
+
+  background: var(--wre-bg);
+  color: var(--wre-text);
   font-size: calc(28rpx * var(--wre-fs));
   font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, sans-serif;
   /* 全局文字缩放系数（小 0.9 / 标准 1 / 大 1.15 / 特大 1.3）；
@@ -9,13 +44,50 @@ page {
   --wre-fs: 1;
 }
 
+/* 暗色模式：页面根节点加 .wre-dark（由 shared/theme.js 按「跟随系统 / 浅色 / 深色」写入） */
+.wre-page.wre-dark {
+  --wre-brand: #4E86FF;
+  --wre-brand-soft: #1E2A45;
+  --wre-brand-ink: #9FB8FF;
+  --wre-bg: #17181C;
+  --wre-card: #22242A;
+  --wre-card-2: #2A2D34;
+  --wre-text: #E8EAED;
+  --wre-text-body: #DADEE4;
+  --wre-text-3: #C2C6CE;
+  --wre-muted: #9AA0AA;
+  --wre-line: #33363D;
+  --wre-fill: #363A42;
+  --wre-soft: #2A2D34;
+  --wre-bar: #3A4A6B;
+  --wre-arrow: #6B7076;
+  --wre-danger: #FF6B6B;
+  --wre-tag-fg: #4ADE80;
+  --wre-on-brand: #FFFFFF;
+  --wre-pos: #34D27B;
+  --wre-neu: #7A808A;
+  --wre-neg: #FF7A7A;
+  --wre-disabled: #5C6B85;
+  --wre-ok-soft: #17331F;
+  --wre-star-soft: #3A3220;
+  --wre-star-text: #F0C24A;
+  --wre-wander: #9C86FF;
+  --wre-wander-soft: #2A2342;
+  --wre-wander-soft-2: #332B4D;
+  --wre-wander-line: #3A2F55;
+  --wre-wander-text: #C9BFFF;
+}
+
 .wre-page {
   padding: 24rpx;
   box-sizing: border-box;
+  /* 撑满视口并自带主题底色，保证整屏（含内容较短的页）都随主题变色 */
+  min-height: 100vh;
+  background: var(--wre-bg);
 }
 
 .wre-card {
-  background: #FFFFFF;
+  background: var(--wre-card);
   border-radius: 20rpx;
   padding: 32rpx;
   margin-bottom: 24rpx;
@@ -29,7 +101,7 @@ page {
 }
 
 .wre-muted {
-  color: #8A8F99;
+  color: var(--wre-muted);
   font-size: calc(26rpx * var(--wre-fs));
   line-height: 1.9;
 }
@@ -37,7 +109,7 @@ page {
 .wre-big {
   font-size: calc(64rpx * var(--wre-fs));
   font-weight: 700;
-  color: #2F6BFF;
+  color: var(--wre-brand);
 }
 
 /* 按钮 */
@@ -45,8 +117,8 @@ page {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #2F6BFF;
-  color: #FFFFFF;
+  background: var(--wre-brand);
+  color: var(--wre-on-brand);
   border-radius: 14rpx;
   font-size: calc(30rpx * var(--wre-fs));
   line-height: 1;
@@ -59,7 +131,31 @@ page {
 }
 
 .wre-btn--ghost {
-  background: #FFFFFF;
-  color: #2F6BFF;
-  border: 1rpx solid #2F6BFF;
+  background: var(--wre-card);
+  color: var(--wre-brand);
+  border: 1rpx solid var(--wre-brand);
+}
+
+/* 深色模式三档切换（对齐 H5 .wre-modes / .wre-mode，供设置页使用） */
+.theme-modes {
+  display: flex;
+  background: var(--wre-soft);
+  border-radius: 12rpx;
+  padding: 6rpx;
+  margin-top: 20rpx;
+}
+
+.theme-mode {
+  flex: 1;
+  text-align: center;
+  color: var(--wre-muted);
+  border-radius: 8rpx;
+  padding: 14rpx 0;
+  font-size: calc(28rpx * var(--wre-fs));
+}
+
+.theme-mode.is-active {
+  background: var(--wre-brand);
+  color: var(--wre-on-brand);
+  font-weight: 600;
 }

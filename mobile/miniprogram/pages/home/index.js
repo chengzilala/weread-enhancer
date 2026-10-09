@@ -1,4 +1,5 @@
 const store = require('../../shared/store');
+const theme = require('../../shared/theme');
 const data = require('../../shared/data');
 const sync = require('../../shared/sync');
 const { callGateway } = require('../../shared/gateway');
@@ -25,6 +26,7 @@ const MODES = [
 Page({
   data: {
     wreFs: 1,
+    wreDark: false,
     hasKey: false,
     modes: MODES,
     mode: 'weekly',
@@ -60,7 +62,7 @@ Page({
   },
 
   onShow() {
-    this.setData({ wreFs: store.getFontScale() });
+    this.setData({ wreFs: store.getFontScale(), wreDark: theme.apply() });
     const hasKey = !!store.getKey();
     this.setData({ hasKey, wanderNew: wanderStore.isNew() });
     if (hasKey) {

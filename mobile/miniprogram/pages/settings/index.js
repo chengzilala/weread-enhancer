@@ -1,4 +1,5 @@
 const store = require('../../shared/store');
+const theme = require('../../shared/theme');
 const { verifyKey } = require('../../shared/gateway');
 const ops = require('../../shared/ops');
 const account = require('../../shared/account');
@@ -33,6 +34,11 @@ Page({
     // 文字大小（全局缩放，四档）
     wreFs: 1,
     fontTiers: store.FONT_TIERS,
+
+    // 外观（明暗主题；三档，与 H5「我的 → 外观」一致）
+    wreDark: false,
+    themePref: 'auto',
+    themeTiers: theme.THEME_TIERS,
   },
 
   onShow() {
@@ -49,6 +55,8 @@ Page({
       hasProfile: !!(profile.avatarUrl || profile.nickName),
       showParams: false,
       wreFs: store.getFontScale(),
+      wreDark: theme.apply(),
+      themePref: theme.getTheme(),
       params: this.buildParams(key, profile),
     });
     // 管理员判断：失败静默（非管理员 / 云函数未部署时都不显示入口），同时取回自己的 openid
@@ -88,6 +96,12 @@ Page({
   onFontScale(e) {
     const value = store.setFontScale(Number(e.currentTarget.dataset.value));
     this.setData({ wreFs: value });
+  },
+
+  // ---- 外观（三档切换：跟随系统 / 浅色 / 深色；本机保存）----
+  onTheme(e) {
+    const pref = theme.setTheme(e.currentTarget.dataset.value);
+    this.setData({ themePref: pref, wreDark: theme.apply() });
   },
 
   // ---- 本机资料 ----

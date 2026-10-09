@@ -9,6 +9,7 @@
  * 非白名单用户：云函数直接返回 code=forbidden，页面显示「无权限」，前端拿不到任何数字。
  */
 const store = require('../../shared/store');
+const theme = require('../../shared/theme');
 const data = require('../../shared/data');
 const ops = require('../../shared/ops');
 const { notebookStats } = require('../../shared/report-core');
@@ -17,6 +18,7 @@ const { fmtDuration, fmtTime } = require('../../shared/format');
 Page({
   data: {
     wreFs: 1,
+    wreDark: false,
     loading: true,
     error: '',
     forbidden: false,
@@ -28,7 +30,7 @@ Page({
   },
 
   onShow() {
-    this.setData({ wreFs: store.getFontScale() });
+    this.setData({ wreFs: store.getFontScale(), wreDark: theme.apply() });
     this.load();
   },
 

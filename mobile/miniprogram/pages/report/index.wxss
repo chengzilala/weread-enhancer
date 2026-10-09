@@ -8,7 +8,7 @@
 /* 周期切换 */
 .period {
   display: flex;
-  background: #FFFFFF;
+  background: var(--wre-card);
   border-radius: 16rpx;
   padding: 8rpx;
   margin-bottom: 24rpx;
@@ -19,13 +19,13 @@
   text-align: center;
   line-height: calc(68rpx * var(--wre-fs));
   font-size: calc(28rpx * var(--wre-fs));
-  color: #8A8F99;
+  color: var(--wre-muted);
   border-radius: 12rpx;
 }
 
 .period__item--active {
-  background: #2F6BFF;
-  color: #FFFFFF;
+  background: var(--wre-brand);
+  color: var(--wre-on-brand);
   font-weight: 600;
 }
 
@@ -37,12 +37,12 @@
 }
 
 .meta__k {
-  color: #8A8F99;
+  color: var(--wre-muted);
   font-size: calc(26rpx * var(--wre-fs));
 }
 
 .meta__v {
-  color: #1F2430;
+  color: var(--wre-text);
   font-size: calc(26rpx * var(--wre-fs));
   max-width: 60%;
   text-align: right;
@@ -52,14 +52,14 @@
 .sec-title {
   font-size: calc(32rpx * var(--wre-fs));
   font-weight: 700;
-  color: #1F2430;
+  color: var(--wre-text);
   margin: 28rpx 8rpx 16rpx;
 }
 
 .sec-title--sub {
   font-size: calc(28rpx * var(--wre-fs));
   font-weight: 600;
-  color: #4A5060;
+  color: var(--wre-text-3);
   margin: 20rpx 8rpx 12rpx;
 }
 
@@ -71,12 +71,12 @@
 }
 
 .kv__k {
-  color: #8A8F99;
+  color: var(--wre-muted);
   font-size: calc(27rpx * var(--wre-fs));
 }
 
 .kv__v {
-  color: #1F2430;
+  color: var(--wre-text);
   font-size: calc(27rpx * var(--wre-fs));
   font-weight: 500;
   max-width: 60%;
@@ -94,7 +94,7 @@
 .cards__item {
   width: 48%;
   box-sizing: border-box;
-  background: #FFFFFF;
+  background: var(--wre-card);
   border-radius: 20rpx;
   padding: 28rpx 20rpx;
   margin-bottom: 20rpx;
@@ -105,12 +105,12 @@
 .cards__value {
   font-size: calc(36rpx * var(--wre-fs));
   font-weight: 700;
-  color: #2F6BFF;
+  color: var(--wre-brand);
 }
 
 .cards__label {
   font-size: calc(24rpx * var(--wre-fs));
-  color: #1F2430;
+  color: var(--wre-text);
   margin-top: 8rpx;
 }
 
@@ -124,11 +124,11 @@
   position: relative;
   align-items: center;
   padding: 12rpx 0;
-  border-bottom: 1rpx solid #F0F1F4;
+  border-bottom: 1rpx solid var(--wre-line);
 }
 
 .tbl__row--head .tbl__cell {
-  color: #8A8F99;
+  color: var(--wre-muted);
   font-size: calc(24rpx * var(--wre-fs));
   font-weight: 600;
 }
@@ -136,7 +136,7 @@
 .tbl__cell {
   flex: 1;
   font-size: calc(26rpx * var(--wre-fs));
-  color: #1F2430;
+  color: var(--wre-text);
   word-break: break-all;
 }
 
@@ -145,7 +145,7 @@
   left: 0;
   bottom: 0;
   height: 4rpx;
-  background: #2F6BFF;
+  background: var(--wre-brand);
   opacity: 0.9;
   border-radius: 4rpx;
 }
@@ -157,7 +157,7 @@
 }
 
 .chip {
-  background: #F0F4FF;
+  background: var(--wre-brand-soft);
   border-radius: 12rpx;
   padding: 12rpx 20rpx;
   margin: 0 16rpx 16rpx 0;
@@ -165,13 +165,13 @@
 
 .chip__label {
   font-size: calc(24rpx * var(--wre-fs));
-  color: #8A8F99;
+  color: var(--wre-muted);
   margin-right: 12rpx;
 }
 
 .chip__value {
   font-size: calc(26rpx * var(--wre-fs));
-  color: #2F6BFF;
+  color: var(--wre-brand);
   font-weight: 600;
 }
 
@@ -179,7 +179,7 @@
 .para {
   font-size: calc(28rpx * var(--wre-fs));
   line-height: 1.8;
-  color: #2A2F3A;
+  color: var(--wre-text-body);
 }
 
 /* 列表 */
@@ -189,7 +189,7 @@
 }
 
 .list__mark {
-  color: #2F6BFF;
+  color: var(--wre-brand);
   font-size: calc(26rpx * var(--wre-fs));
   margin-right: 12rpx;
   min-width: 32rpx;
@@ -199,7 +199,7 @@
   flex: 1;
   font-size: calc(27rpx * var(--wre-fs));
   line-height: 1.8;
-  color: #2A2F3A;
+  color: var(--wre-text-body);
 }
 
 /* 提示 / 空态 */

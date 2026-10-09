@@ -6,7 +6,7 @@
  */
 
 import { CONFIG } from '../src/config.js';
-import { getMask, setMask, applyFontScale } from '../src/store.js';
+import { getMask, setMask, applyFontScale, applyTheme, watchSystemTheme } from '../src/store.js';
 import { keyGet, keySave, verifyKey } from '../src/api.js';
 import { stateHtml, toast } from '../src/ui.js';
 import { setTtsToast } from '../src/tts.js';
@@ -216,5 +216,7 @@ window.addEventListener('hashchange', () => route());
 
 setTtsToast(toast);   // 语音模块复用统一 toast
 applyFontScale();     // 套用本机「文字大小」偏好（index.html 已提前设过，这里兜底）
+applyTheme();         // 套用本机「外观」偏好（index.html 已提前设过，这里兜底）
+watchSystemTheme();   // 「跟随系统」时，随系统明暗实时切换
 renderTabbar();
 route();
