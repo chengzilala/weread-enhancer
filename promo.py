@@ -571,8 +571,10 @@ def build_360_shots():
             '<div class="w"><div class="bar"><img src="__ICON__"><div class="t">%s</div></div>'
             '<div class="body"><img src="%s"></div></div>'
         ) % (caption, uri_crop(SRC_360[key], box))
+        # 源裁剪约 1526px 宽；渲染倍率必须让「设备像素 ≤ 源像素」才不会先被浏览器放大。
+        # 560 CSS × 2 = 1120 设备像素 < 1526 → 全程只做「缩小」，再叠加轻锐化，小字最实。
         render(page(560, 350, body.replace("__ICON__", icon_uri()), SHOT360_CSS),
-               os.path.join(OUT_360, name), 560, 350, scale=SCALE_HI, final=(560, 350))
+               os.path.join(OUT_360, name), 560, 350, scale=2, final=(560, 350), sharpen=120)
 
 
 # ------------------------------------------- 微软 Partner Center / Chrome 上传包

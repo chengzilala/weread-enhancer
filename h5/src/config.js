@@ -15,4 +15,11 @@ export const CONFIG = {
   RELAY_TIMEOUT_MS: 15000,
   AI_TIMEOUT_MS: 35000,
   DEFAULT_TIMEOUT_MS: 12000,
+
+  /* 四端互联（四端 = 插件官网 / H5 网页版 / 微信小程序 / 作者个人网站）
+   * H5 在浏览器里可自由跳转网页；只有小程序必须在微信里打开，
+   * 故在小程序入口处给「小程序码 + 搜名字」提示，而非链接。 */
+  MINIAPP_NAME: '悦读且住',
+  SITE_URL: 'https://wereadapp-32km31c.maozi.io',
+  PERSONAL_URL: 'https://personalsite-32km31c.maozi.io/',
 };

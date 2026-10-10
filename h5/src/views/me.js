@@ -13,6 +13,7 @@ import { keySave, keyClear, verifyKey, keyGet, profileSave, bindCreate, bindStat
 import { getMask, setMask, getProfile, setProfile, getDeviceId, setDeviceId, resetDeviceId, readAvatarFile, getFontScale, applyFontScale, FONT_TIERS, getTheme, applyTheme, THEME_TIERS } from '../store.js';
 import { esc, toast, copyText, confirmSignOut } from '../ui.js';
 import { qrSvg } from '../qrcode.js';
+import { CONFIG } from '../config.js';
 
 export const title = '我的账户';
 
@@ -152,6 +153,14 @@ function paint(body) {
     '</div>' +
 
     '<div class="wre-card">' +
+    '  <div class="wre-card__title">相关入口</div>' +
+    '  <div class="wre-muted">它们都是同一款「微信悦读」，分工不同，可互相跳转。</div>' +
+    extRow('🌐 官网 · 插件下载与教程', '电脑端插件的安装、使用教程都在这', CONFIG.SITE_URL) +
+    extRow('👤 我的个人网站', '作者的其他作品与文章', CONFIG.PERSONAL_URL) +
+    miniappBlock() +
+    '</div>' +
+
+    '<div class="wre-card">' +
     '  <div class="wre-card__title">更多</div>' +
     linkRow('🗂 每日卡片 · 往期回顾', 'open-daily') +
     linkRow('🧭 灵感漫游 · 往期归档', 'open-wander') +
@@ -179,6 +188,33 @@ function linkRow(label, action) {
     '  <span>' + esc(label) + '</span>' +
     '  <span class="wre-link__arrow">›</span>' +
     '</button>'
+  );
+}
+
+/** 外链行（H5 在浏览器里可自由跳转；新标签打开，避免打断当前页） */
+function extRow(label, desc, href) {
+  return (
+    '<a class="wre-link" href="' + esc(href) + '" target="_blank" rel="noopener">' +
+    '  <span class="wre-link__main">' +
+    '    <span class="wre-link__label">' + esc(label) + '</span>' +
+    (desc ? '    <span class="wre-link__desc">' + esc(desc) + '</span>' : '') +
+    '  </span>' +
+    '  <span class="wre-link__arrow">›</span>' +
+    '</a>'
+  );
+}
+
+/** 小程序入口：网页无法直接唤起小程序，给「小程序码 + 搜名字」提示 */
+function miniappBlock() {
+  const name = CONFIG.MINIAPP_NAME;
+  return (
+    '<div class="wre-qr-block">' +
+    '  <div class="wre-qr-block__title">📱 微信小程序「' + esc(name) + '」</div>' +
+    '  <img class="wre-qr-block__img" src="assets/img/miniapp-qr.png"' +
+    ' alt="微信小程序 ' + esc(name) + ' 小程序码" loading="lazy" />' +
+    '  <div class="wre-hint">小程序只能在微信里打开，网页无法直接跳转。请用微信扫上方小程序码，' +
+    '或在微信「搜一搜」里搜「' + esc(name) + '」，即可进入。</div>' +
+    '</div>'
   );
 }
 

@@ -186,6 +186,7 @@ def collect_pages():
             "description": str(meta.get("description") or ""),
             "tagline": str(meta.get("tagline") or ""),
             "heroTitle": str(meta.get("heroTitle") or ""),
+            "visionText": str(meta.get("visionText") or ""),
             "hero": str(meta.get("hero") or ""),
             "updatedAt": str(meta.get("updatedAt") or ""),
             "reveal": False,
@@ -589,6 +590,8 @@ def render_footer():
     links.append('<a href="/changelog/">更新日志</a>')
     links.append('<a href="/account/">我的账户</a>')
     links.append('<a href="/privacy/">隐私政策</a>')
+    if CONFIG.get("personalSiteUrl"):
+        links.append('<a href="%s" target="_blank" rel="noopener">个人网站</a>' % html.escape(CONFIG["personalSiteUrl"], quote=True))
     links.append('<a href="%s" target="_blank" rel="noopener">GitHub</a>' % CONFIG["repoUrl"])
     if CONFIG.get("giteeUrl"):
         links.append('<a href="%s" target="_blank" rel="noopener">Gitee</a>' % CONFIG["giteeUrl"])
@@ -638,6 +641,20 @@ def home_install_button():
         html.escape(url, quote=True), ext, label)
 
 
+def home_action_item(btn_html, note="", tip=""):
+    """首页 Hero 按钮组的一项：按钮 + 一行小字说明（note） + 悬停提示（tip）。
+
+    note 常显，说明「这是什么、什么时候用」；tip 悬停/聚焦时由 CSS 显示更完整的解释。
+    btn_html 为已生成的按钮标签（<a>/<span>），这里在其开始标签末尾补一个 data-tip 属性。
+    """
+    if tip:
+        idx = btn_html.find(">")
+        if idx != -1:
+            btn_html = btn_html[:idx] + ' data-tip="%s"' % html.escape(tip, quote=True) + btn_html[idx:]
+    note_html = '<span class="home-action-note">%s</span>' % html.escape(note) if note else ""
+    return '<div class="home-action">%s%s</div>' % (btn_html, note_html)
+
+
 # 作者个人名片（跨域 iframe）：名片页自包含、零依赖；高度由名片页 postMessage 自适应
 PS_CARD_URL = "https://personalsite-32km31c.maozi.io/card.html"
 PS_CARD_TEMPLATE = """<div class="ps-card-embed">
@@ -671,21 +688,48 @@ def render_home(page):
                  '<img src="%s" alt="%s" decoding="async" fetchpriority="high"></div>') % (
             html.escape(page["hero"], quote=True), html.escape(title, quote=True))
 
-    # 微信小程序入口（预留：配置 miniappUrl 后变为可点击，否则为占位按钮）
-    miniapp_url = CONFIG.get("miniappUrl") or ""
-    if miniapp_url:
-        miniapp_btn = '<a class="home-btn" href="%s" target="_blank" rel="noopener">微信小程序</a>' % html.escape(miniapp_url, quote=True)
-    else:
-        miniapp_btn = '<span class="home-btn home-btn-soon">微信小程序</span>'
+    # 安装到 Edge（插件）：电脑端入口 —— 按钮 + 一行小字 + 悬停提示
+    install_item = home_action_item(
+        home_install_button(),
+        "电脑浏览器 · 读的时候用",
+        "在电脑浏览器（Edge / Chrome）里安装的插件，管「读的过程」：屏占比、自动阅读、笔记导出、阅读统计、阅读洞察等。",
+    )
 
     # 网页版（H5）入口：配置 appUrl 后出现；与官网同域，线上路径 /app/
     app_url = CONFIG.get("appUrl") or ""
-    app_btn = ('<a class="home-btn" href="%s">H5 移动端</a>' % html.escape(app_url, quote=True)) if app_url else ""
+    app_item = home_action_item(
+        '<a class="home-btn" href="%s">H5 移动端</a>' % html.escape(app_url, quote=True),
+        "手机浏览器 · 读完复盘（带 AI）",
+        "手机浏览器打开就能用，不用安装。管「读完之后」：数据总览、阅读人格、行为报告、每日卡片、灵感漫游，保留 AI 深度解析。",
+    ) if app_url else ""
+
+    # 微信小程序入口（预留：配置 miniappUrl 后变为可点击，否则为占位按钮）
+    miniapp_url = CONFIG.get("miniappUrl") or ""
+    if miniapp_url:
+        miniapp_item = home_action_item(
+            '<a class="home-btn" href="%s" target="_blank" rel="noopener">微信小程序</a>' % html.escape(miniapp_url, quote=True),
+            "微信里 · 读完复盘（无 AI）",
+            "在微信里搜「悦读且住」打开就能用：复盘数据、阅读人格、行为报告，还能管理纸质书。合规精简版，不含 AI。",
+        )
+    else:
+        miniapp_item = home_action_item(
+            '<span class="home-btn home-btn-soon">微信小程序</span>',
+            "即将开放",
+            "微信小程序正在审核上线，敬请期待。想现在就在手机上用，可点旁边的「H5 移动端」。",
+        )
 
     # 开源地址（GitHub / Gitee）：与「安装到 Edge」同排、同款按钮
-    src_links = ['<a class="home-btn" href="%s" target="_blank" rel="noopener">GitHub</a>' % html.escape(CONFIG["repoUrl"], quote=True)]
+    src_items = [home_action_item(
+        '<a class="home-btn" href="%s" target="_blank" rel="noopener">GitHub</a>' % html.escape(CONFIG["repoUrl"], quote=True),
+        "源码仓库",
+        "在 GitHub 上查看或下载源码，反馈问题、提建议也在这里。",
+    )]
     if CONFIG.get("giteeUrl"):
-        src_links.append('<a class="home-btn" href="%s" target="_blank" rel="noopener">Gitee</a>' % html.escape(CONFIG["giteeUrl"], quote=True))
+        src_items.append(home_action_item(
+            '<a class="home-btn" href="%s" target="_blank" rel="noopener">Gitee</a>' % html.escape(CONFIG["giteeUrl"], quote=True),
+            "源码仓库 · 国内更快",
+            "Gitee 是国内的源码镜像，访问和下载更快，适合国内网络。",
+        ))
 
     # 副标：拆成「功能标签（chip）+ 一句结语」——tagline 形如「A、B、C——结语」
     tag_feats, tag_punch = (tagline.split("——", 1) + [""])[:2] if "——" in tagline else (tagline, "")
@@ -714,15 +758,25 @@ def render_home(page):
         '  </div>\n'
         '  %s\n'
         '</section>' % (inline(title, page), sub_html,
-                         home_install_button(), app_btn, miniapp_btn, " ".join(src_links), media)
+                         install_item, app_item, miniapp_item, " ".join(src_items), media)
     )
 
-    # 「关于作者」区块：个人名片 + 作者的话合成一组，置于页面顶部（Hero 之前）
+    # 愿景横幅：品牌绿底 + 白色书法大字，独立一块（参考「让天下没有难做的生意」式标语）
+    vision = ""
+    vision_text = page.get("visionText") or ""
+    if vision_text:
+        vision = (
+            '<section class="home-vision">\n'
+            '  <p class="home-vision__text">%s</p>\n'
+            '</section>\n' % html.escape(vision_text)
+        )
+
+    # 「关于作者」区块：个人名片 + 作者的话合成一组（愿景横幅 + Hero 之后）
     note_block = ('\n' + note_html) if note_html else ''
     author_band = '<section class="author-band">\n%s%s\n</section>\n' % (render_card_embed(), note_block)
 
     body = render_markdown(body_src, page)
-    return author_band + hero + "\n" + body
+    return vision + hero + author_band + "\n" + body
 
 
 # --------------------------------------------------------------------------

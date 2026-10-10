@@ -1,30 +1,30 @@
-/* 微信悦读 · 主页找书入口样式（v0.26.0）
-   作用域：仅 #wre-homeshelf-entry（注入在微信读书主页「继续阅读」栏、官方「我的书架」左侧）。
-   设计目标：与官方「我的书架」（浅蓝描边 chip / 蓝色文字链）**一眼可分**——
-     ① 实心品牌绿填充 + 白字（官方是浅蓝描边 + 蓝字）；
-     ② 圆角矩形（官方是同款圆角胶囊）；
-     ③ 带 🔎 图标；④ 与官方链接拉开间距。
-   用 wre- 前缀防污染；对易被站点样式覆盖的属性加 !important。 */
+/* 微信悦读 · 主页找书入口样式（v0.27.3 修复版）
+   作用域：仅 #wre-homeshelf-entry。
+   定位方式：按钮挂在 document.body 上、position: fixed，由 home-shelf.js 用官方
+     「我的书架」的 getBoundingClientRect() 贴到它左侧——**不改动官方 DOM**，
+     避免破坏官网前端框架渲染、导致官方「我的书架」点不动。
+   视觉：实心品牌绿 + 白字 + 🔎，与官方按钮刻意区分。
+   注：top / left / visibility 交由 JS 控制，故这三项**不加 !important**。 */
 
 #wre-homeshelf-entry.wre-homeshelf-btn {
+  position: fixed !important;
+  visibility: hidden;                              /* 首次定位前先藏，避免闪一下 */
+  z-index: 999990 !important;                      /* 盖在页面内容之上、插件根容器之下 */
   display: inline-flex !important;
   align-items: center !important;
   gap: 4px !important;
-  margin: 0 14px 0 0 !important;
   padding: 5px 12px !important;
   border: none !important;
-  border-radius: 8px !important;                 /* 圆角矩形：与官方胶囊拉开区别 */
-  background: #07c160 !important;                /* 实心品牌绿 */
+  border-radius: 8px !important;                   /* 圆角矩形：与官方胶囊拉开区别 */
+  background: #07c160 !important;                  /* 实心品牌绿 */
   color: #ffffff !important;
   font-size: 13px !important;
   font-weight: 600 !important;
   line-height: 1 !important;
+  white-space: nowrap !important;
   box-shadow: 0 1px 4px rgba(7, 193, 96, 0.35) !important;
   cursor: pointer !important;
   user-select: none !important;
-  vertical-align: middle !important;
-  position: relative !important;
-  z-index: 2 !important;                          /* 盖住官方链接的点击热区，避免点偏 */
   transition: filter 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease !important;
 }
 

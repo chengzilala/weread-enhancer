@@ -1,16 +1,24 @@
 /**
- * 微信悦读 · 主页找书入口（v0.26.0）
+ * 微信悦读 · 主页找书入口（v0.27.3 修复版）
  *
  * 定位：把「找书」（modules/finder.js，本地标签 + 多维搜书）的入口，
  *   从「左下角悬浮球悬停菜单」搬到微信读书**主页**显眼处——
- *   注入到「继续阅读」栏、官方「我的书架」链接**旁边**，点一下即开面板。
+ *   显示在「继续阅读」栏、官方「我的书架」链接**左侧**，点一下即开面板。
+ *
+ * ⚠ 关键修复（v0.27.3）：
+ *   旧实现把按钮 insertBefore 进官方「我的书架」**所在的同一个容器**。
+ *   微信读书主页由前端框架（React/Vue）渲染，往它管理的容器里塞节点会破坏
+ *   其 DOM 复用，导致官方「我的书架」**点不动、打不开**。
+ *   现改为：按钮挂在 document.body 上、position: fixed，用官方链接的
+ *   getBoundingClientRect() 把它「贴」到官方链接左侧的视觉位置；
+ *   全程**不改动官方 DOM 树**（只读位置），因此不可能影响官方按钮。
  *
  * 约定：
- *   1. 只在微信读书**主页**（pathname 为 / 或 /index.html）注入；其它页不动。
- *   2. 旧代码不改：本模块只新增文件，manifest.json 仅多一行 css / 一行 js。
+ *   1. 只在微信读书**主页**（pathname 为 / 或 /index.html）显示；离开主页即移除。
+ *   2. 旧代码不改：只改本文件与 home-shelf.css；finder.js / content.js 零改动。
  *   3. 打开面板靠**程序化点击** finder 自己的菜单入口
  *      （[data-wre-find-entry]），避免改 finder.js 暴露接口。
- *   4. 找不到「我的书架」入口时不注入，仅记日志（不硬塞、不遮挡官方 UI）。
+ *   4. 找不到「我的书架」入口时不显示，仅记日志（不硬塞、不遮挡官方 UI）。
  *
  * 复用 content.js 的全局 log()；样式见 modules/home-shelf.css。
  */
@@ -19,11 +27,15 @@
 
   const BTN_ID = 'wre-homeshelf-entry';
   const FIND_ENTRY_SELECTOR = '[data-wre-find-entry]';
-  const WAIT_ANCHOR_MS = 15000;   // 等主页「我的书架」入口出现的最长时间
-  const WAIT_ENTRY_MS = 5000;     // 点按钮后等 finder 菜单入口就绪的最长时间
+  const WAIT_ENTRY_MS = 5000;      // 点按钮后等 finder 菜单入口就绪的最长时间
   const SHELF_TEXT = '我的书架';
+  const GAP_PX = 10;               // 与官方「我的书架」的水平间距
+  const WATCH_MS = 1200;           // 轮询：官网重渲染 / SPA 切页后自动跟上
 
-  let clickGuardBound = false;    // 捕获阶段点击拦截只绑一次，避免重复触发
+  let anchorEl = null;             // 官方「我的书架」入口（只读位置用，绝不插入其 DOM）
+  let btnEl = null;                // 我们自己的按钮（挂在 body 上）
+  let rafId = 0;
+  let foundLogged = false;
 
   function logHome(level, msg, meta) {
     if (typeof log === 'function') {
@@ -38,7 +50,7 @@
     return p === '' || p === '/' || p === '/index.html';
   }
 
-  // ---------- 定位官方「我的书架」入口 ----------
+  // ---------- 定位官方「我的书架」入口（只查找，不改动） ----------
 
   // 官方主页「继续阅读」栏动作区链接（类名语义化、非哈希，实测：a.wr_index_page_top_section_header_action_link）
   const HOME_ACTION_LINK_SELECTOR = '.wr_index_page_top_section_header_action_link';
@@ -110,10 +122,41 @@
     obs.observe(document.documentElement, { childList: true, subtree: true });
   }
 
-  // ---------- 注入按钮 ----------
+  // ---------- 定位：把按钮贴到官方链接左侧 ----------
 
-  function inject(anchor) {
-    if (document.getElementById(BTN_ID)) {
+  function reposition() {
+    rafId = 0;
+    if (!btnEl) {
+      return;
+    }
+    if (!anchorEl || !anchorEl.isConnected) {
+      anchorEl = null;
+      btnEl.style.visibility = 'hidden';
+      return;
+    }
+    const a = anchorEl.getBoundingClientRect();
+    // 官方入口不在视口内（滚走了）→ 一并把按钮藏起来
+    if (a.width === 0 || a.height === 0 || a.bottom < 0 || a.top > window.innerHeight) {
+      btnEl.style.visibility = 'hidden';
+      return;
+    }
+    const b = btnEl.getBoundingClientRect();
+    btnEl.style.top = Math.round(a.top + (a.height - b.height) / 2) + 'px';
+    btnEl.style.left = Math.round(a.left - GAP_PX - b.width) + 'px';
+    btnEl.style.visibility = 'visible';
+  }
+
+  function scheduleReposition() {
+    if (!btnEl || rafId) {
+      return;
+    }
+    rafId = requestAnimationFrame(reposition);
+  }
+
+  // ---------- 创建按钮（挂在 body 上，脱离官网 DOM 树） ----------
+
+  function ensureBtn() {
+    if (btnEl) {
       return;
     }
     const btn = document.createElement('div');
@@ -124,23 +167,11 @@
     btn.title = '打开找书面板：用标签与多维度搜索，快速找到书架里的书';
     btn.innerHTML = '<span class="wre-homeshelf-ico">🔎</span>找书';
 
-    // 捕获阶段拦截：无论按钮挨着谁、被塞进哪个容器，点它都只开面板、绝不跳转
-    if (!clickGuardBound) {
-      clickGuardBound = true;
-      document.addEventListener('click', (event) => {
-        const target = event.target;
-        if (!target || !target.closest) {
-          return;
-        }
-        if (!target.closest('#' + BTN_ID)) {
-          return;
-        }
-        event.preventDefault();
-        event.stopPropagation();
-        openFinder();
-      }, true);
-    }
-
+    btn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openFinder();
+    });
     btn.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
@@ -148,53 +179,61 @@
       }
     });
 
-    const parent = anchor.parentNode;
-    if (!parent) {
-      return;
-    }
-    parent.insertBefore(btn, anchor);
-    const rect = btn.getBoundingClientRect();
-    logHome('info', '已在主页「我的书架」旁注入找书按钮', {
-      w: Math.round(rect.width), h: Math.round(rect.height),
-      inLink: !!btn.closest('a')
-    });
+    document.body.appendChild(btn);
+    btnEl = btn;
   }
 
-  function tryInject() {
-    if (document.getElementById(BTN_ID)) {
-      return true;
+  function removeBtn() {
+    if (btnEl) {
+      btnEl.remove();
+      btnEl = null;
     }
+    anchorEl = null;
+  }
+
+  function tryPlace() {
     const anchor = findShelfAnchor();
     if (!anchor) {
       return false;
     }
-    inject(anchor);
+    anchorEl = anchor;
+    ensureBtn();
+    scheduleReposition();
+    if (!foundLogged) {
+      foundLogged = true;
+      logHome('info', '主页「我的书架」已定位，找书按钮贴在它左侧（未改动官方 DOM）');
+    }
     return true;
+  }
+
+  // ---------- 轮询：处理官网重渲染 / SPA 切页 ----------
+
+  function watchTick() {
+    if (!isHomePage()) {
+      if (btnEl) {
+        logHome('debug', '离开主页，移除找书按钮');
+        removeBtn();
+      }
+      return;
+    }
+    if (anchorEl && anchorEl.isConnected) {
+      scheduleReposition();
+    } else {
+      tryPlace();
+    }
   }
 
   // ---------- 启动 ----------
 
   function bootstrap() {
     if (!isHomePage()) {
-      logHome('debug', '非主页，跳过找书入口注入', { path: window.location.pathname });
+      logHome('debug', '非主页，跳过找书入口', { path: window.location.pathname });
       return;
     }
-    if (tryInject()) {
-      return;
-    }
-    // 主页内容异步渲染：等「我的书架」入口出现
-    const startedAt = Date.now();
-    const obs = new MutationObserver(() => {
-      if (tryInject()) {
-        obs.disconnect();
-        return;
-      }
-      if (Date.now() - startedAt > WAIT_ANCHOR_MS) {
-        obs.disconnect();
-        logHome('warn', '主页未找到「我的书架」入口，放弃注入');
-      }
-    });
-    obs.observe(document.documentElement, { childList: true, subtree: true });
+    tryPlace();
+    window.addEventListener('scroll', scheduleReposition, true);
+    window.addEventListener('resize', scheduleReposition);
+    setInterval(watchTick, WATCH_MS);
   }
 
   if (document.readyState === 'loading') {

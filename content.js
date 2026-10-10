@@ -918,7 +918,7 @@ function createUI() {
   }
 
   root.innerHTML = `
-    <div class="wre-fab" id="wre-fab"><svg class="wre-fab-logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M7 9 L12 23 L16 14 L20 23 L25 9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div class="wre-fab" id="wre-fab"><svg class="wre-fab-logo" viewBox="0 0 448 448" aria-hidden="true"><circle cx="224" cy="224" r="224" fill="#3B82F6"/><path d="M126 148 L174 300 L224 184 L274 300 L322 148" fill="none" stroke="#FFFFFF" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
 
     <div class="wre-panel-container" id="wre-main-menu">
       <div class="wre-menu-group">设置</div>

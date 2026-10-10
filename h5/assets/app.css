@@ -330,6 +330,34 @@ html, body {
 }
 .wre-link:last-child { border-bottom: 0; }
 
+/* 外链行（<a> 版）：去下划线、继承字色；主区两行（标题 + 说明），右侧箭头 */
+a.wre-link { text-decoration: none; color: var(--wre-text); }
+.wre-link__main { display: flex; flex-direction: column; flex: 1; min-width: 0; margin-right: 12px; }
+.wre-link__label { font-size: calc(15px * var(--wre-fs)); }
+.wre-link__desc { margin-top: 2px; font-size: calc(12px * var(--wre-fs)); color: var(--wre-muted); }
+.wre-link__arrow { color: var(--wre-arrow); font-size: calc(18px * var(--wre-fs)); }
+
+/* 小程序入口块：小程序码 + 「搜名字」提示（网页无法直接唤起小程序，故给码与文字引导） */
+.wre-qr-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 14px 0 2px;
+  margin-top: 6px;
+  border-top: 1px solid var(--wre-line);
+}
+.wre-qr-block__title { font-size: calc(14px * var(--wre-fs)); font-weight: 600; margin-bottom: 10px; }
+.wre-qr-block__img {
+  width: 148px;
+  height: 148px;
+  border-radius: 10px;
+  background: #fff;
+  padding: 6px;
+  box-shadow: 0 1px 6px rgba(31, 36, 48, 0.08);
+}
+.wre-qr-block .wre-hint { margin-top: 10px; text-align: left; }
+
 /* 状态块 */
 .wre-state { text-align: center; padding: 48px 16px; }
 .wre-state__icon { font-size: calc(30px * var(--wre-fs)); }

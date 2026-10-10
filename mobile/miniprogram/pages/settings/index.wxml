@@ -79,6 +79,33 @@
 
   <!-- M15 合规下线：原 Key 输入区块已移除 -->
 
+  <!-- 相关入口：四端互联；小程序内无法直接打开网页，点击为「复制链接 + 弹窗提示」 -->
+  <view class="wre-card">
+    <view class="wre-title">相关入口</view>
+    <view class="wre-muted">它们都是同一款「微信悦读」，分工不同。小程序里不能直接打开网页，点一下会复制链接，再到浏览器粘贴访问即可。</view>
+    <view class="settings-link" bindtap="copySite">
+      <view class="settings-link__main">
+        <text class="settings-link__label">🌐 官网 · 插件下载与教程</text>
+        <text class="settings-link__desc">电脑端插件的安装、使用教程都在这</text>
+      </view>
+      <text class="settings-link__arrow">›</text>
+    </view>
+    <view class="settings-link" bindtap="copyH5">
+      <view class="settings-link__main">
+        <text class="settings-link__label">📱 H5 网页版 · 带 AI 深度解析</text>
+        <text class="settings-link__desc">手机浏览器打开，复制链接后用浏览器访问</text>
+      </view>
+      <text class="settings-link__arrow">›</text>
+    </view>
+    <view class="settings-link" bindtap="copyPersonal">
+      <view class="settings-link__main">
+        <text class="settings-link__label">👤 我的个人网站</text>
+        <text class="settings-link__desc">作者的其他作品与文章</text>
+      </view>
+      <text class="settings-link__arrow">›</text>
+    </view>
+  </view>
+
   <view class="wre-card">
     <view class="wre-title">更多</view>
     <view class="settings-link" bindtap="goPaperbook">

@@ -71,25 +71,12 @@
           '<button class="wre-modal-close" data-wre-support-center-close>&times;</button>' +
         '</div>' +
         '<div class="wre-support-center-tabs">' +
-          '<button class="wre-sc-tab wre-sc-tab-active" data-wre-sc-tab="donate">💗 打赏</button>' +
-          '<button class="wre-sc-tab" data-wre-sc-tab="feedback">💬 反馈</button>' +
+          '<button class="wre-sc-tab wre-sc-tab-active" data-wre-sc-tab="feedback">💬 反馈</button>' +
           '<button class="wre-sc-tab" data-wre-sc-tab="mp">📣 公众号</button>' +
+          '<button class="wre-sc-tab" data-wre-sc-tab="donate">💗 打赏</button>' +
         '</div>' +
         '<div class="wre-modal-body wre-support-center-body">' +
-          '<div class="wre-sc-panel wre-sc-panel-active" data-wre-sc-panel="donate">' +
-            '<p class="wre-sc-tip">如果它帮到了你，欢迎随喜支持一杯咖啡。</p>' +
-            '<div class="wre-sc-codes">' +
-              '<div class="wre-sc-code">' +
-                '<img class="wre-sc-qr" src="' + assetUrl(ASSETS.donateWechat) + '" alt="微信打赏收款码">' +
-                '<span class="wre-sc-label">微信</span>' +
-              '</div>' +
-              '<div class="wre-sc-code">' +
-                '<img class="wre-sc-qr" src="' + assetUrl(ASSETS.donateAlipay) + '" alt="支付宝打赏收款码">' +
-                '<span class="wre-sc-label">支付宝</span>' +
-              '</div>' +
-            '</div>' +
-          '</div>' +
-          '<div class="wre-sc-panel" data-wre-sc-panel="feedback">' +
+          '<div class="wre-sc-panel wre-sc-panel-active" data-wre-sc-panel="feedback">' +
             '<p class="wre-sc-tip">遇到问题或有建议？扫码添加我的微信，直接告诉我。</p>' +
             '<div class="wre-sc-code">' +
               '<img class="wre-sc-qr" src="' + assetUrl(ASSETS.feedbackWechat) + '" alt="微信二维码">' +
@@ -101,6 +88,19 @@
             '<div class="wre-sc-code">' +
               '<img class="wre-sc-qr" src="' + assetUrl(ASSETS.mpQrcode) + '" alt="公众号二维码">' +
               '<span class="wre-sc-label">扫一扫，关注公众号</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="wre-sc-panel" data-wre-sc-panel="donate">' +
+            '<p class="wre-sc-tip">如果它帮到了你，欢迎随喜支持一杯咖啡。</p>' +
+            '<div class="wre-sc-codes">' +
+              '<div class="wre-sc-code">' +
+                '<img class="wre-sc-qr" src="' + assetUrl(ASSETS.donateWechat) + '" alt="微信打赏收款码">' +
+                '<span class="wre-sc-label">微信</span>' +
+              '</div>' +
+              '<div class="wre-sc-code">' +
+                '<img class="wre-sc-qr" src="' + assetUrl(ASSETS.donateAlipay) + '" alt="支付宝打赏收款码">' +
+                '<span class="wre-sc-label">支付宝</span>' +
+              '</div>' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -140,7 +140,7 @@
     }
     const overlay = buildPanel(root);
     overlay.classList.add('wre-visible');
-    switchTab(overlay, 'donate');
+    switchTab(overlay, 'feedback');
     logSupportCenter('info', '打开支持与反馈面板');
   }
 

@@ -36,6 +36,15 @@
 
 * { box-sizing: border-box; }
 
+/* 愿景横幅专用书法字体（Zhi Mang Xing 行书子集，SIL OFL 许可，见 assets/fonts/OFL.txt） */
+@font-face {
+  font-family: "Vision Brush";
+  src: url("/assets/fonts/zhimangxing-subset.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 html { -webkit-text-size-adjust: 100%; }
 
 body {
@@ -339,9 +348,24 @@ a:hover { text-decoration: underline; }
 /* 小程序占位按钮：未配置链接时不可点（外形与悬停效果同按钮组，仅光标不回手型） */
 .home-btn.home-btn-soon { cursor: default; color: var(--text-soft); }
 
+/* 愿景横幅：无底色，白底上直接放深色书法大字（最极简、零割裂） */
+.home .site-body { padding-top: 26px; }
+.home .doc .home-vision {
+  margin: 4px 0 4px;
+  text-align: center;
+}
+.home .doc .home-vision__text {
+  margin: 0;
+  font-family: "Vision Brush", "Kaiti SC", "STKaiti", "KaiTi", "Songti SC", serif;
+  color: var(--text);
+  font-size: clamp(3em, 9vw, 6.5em);
+  line-height: 1;
+  letter-spacing: 0.08em;
+}
+
 /* Hero：主标 + 功能标签 + 结语 + 按钮组 + 主视觉大图（极简高对比：绿色只给按钮） */
 .home-hero {
-  padding: 30px 0 8px;
+  padding: 12px 0 8px;
   text-align: center;
 }
 .home-hero-title {
@@ -377,7 +401,42 @@ a:hover { text-decoration: underline; }
   font-size: 0.98em;
   letter-spacing: 0.06em;
 }
-.home-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 22px 0 0; }
+.home-actions { display: flex; flex-wrap: wrap; gap: 14px 16px; align-items: flex-start; justify-content: center; margin: 22px 0 0; }
+/* 按钮组每一项：按钮 + 一行小字（说明这是什么、什么时候用） */
+.home-action { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+.home-action-note { color: var(--text-soft); font-size: 0.8em; line-height: 1.3; letter-spacing: 0.02em; white-space: nowrap; }
+/* 悬停 / 聚焦提示：读 data-tip，浮在按钮正上方（纯 CSS，无脚本依赖） */
+.home-action [data-tip] { position: relative; }
+.home-action [data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 9px);
+  transform: translateX(-50%) translateY(3px);
+  width: max-content;
+  max-width: 250px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(18, 20, 24, 0.94);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.55;
+  letter-spacing: 0;
+  white-space: normal;
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+  z-index: 30;
+}
+.home-action [data-tip]:hover::after,
+.home-action [data-tip]:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
 .home-btn {
   display: inline-block;
   padding: 10px 22px;

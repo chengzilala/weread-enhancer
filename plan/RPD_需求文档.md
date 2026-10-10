@@ -61,7 +61,7 @@
 ### 3.1 左侧悬浮入口
 
 **需求描述**：
-- 在页面左侧显示一个悬浮图标按钮（FAB，🤖）
+- 在页面左侧显示一个悬浮图标按钮（FAB，品牌 Logo：蓝底白 W，与 `assets/logo.svg` 一致）
 - **鼠标悬停图标即展开主菜单，无需点击**；鼠标移开约 0.25s 后自动收起
 - 支持勿扰模式：平时隐藏，鼠标悬停时显示
 
@@ -944,19 +944,22 @@
 
 **参数 / 实现**
 - 新增文件：`modules/home-shelf.js` + `modules/home-shelf.css`；`manifest.json` 各加一行（css / js）。
-- 定位官方入口三级策略：① `.wr_index_page_top_section_header_action_link` 中文本为「我的书架」的链接（实测类名语义化、非哈希，最稳）→ ② `a[href*="/web/shelf"]` → ③ 全页可见文本兜底；**三级都只认「可见（有宽高）元素」，避免命中隐藏模板里的同名链接**（否则按钮会被注入到看不见的容器）。
-- 主页内容异步渲染：`MutationObserver` 等入口出现（上限 15s），出现即注入一次；`finder` 菜单入口未就绪时点击会等其出现（上限 5s）后自动打开。
+- 定位官方入口三级策略：① `.wr_index_page_top_section_header_action_link` 中文本为「我的书架」的链接（实测类名语义化、非哈希，最稳）→ ② `a[href*="/web/shelf"]` → ③ 全页可见文本兜底；**三级都只认「可见（有宽高）元素」，避免命中隐藏模板里的同名链接**（否则按钮会被贴到看不见的位置）。
+- **v0.27.3 修复（关键）**：旧实现把按钮 `insertBefore` 进官方「我的书架」**所在的同一个容器**；微信读书主页由前端框架渲染，往其管理的容器塞节点会破坏 DOM 复用，导致**官方「我的书架」点不动**。现改为：按钮挂在 `document.body` 上、`position: fixed`，用官方链接的 `getBoundingClientRect()` 把它贴到官方链接**左侧**的视觉位置；**全程不改动官方 DOM 树**（只读位置），因此不可能再影响官方按钮。
+- 跟随方式：`scroll`（捕获）/ `resize` 时 rAF 重新贴位；每 1.2s 轮询一次——官网重渲染导致锚点失效时自动重新定位，离开主页（SPA 切页）自动移除按钮。官方入口滚出视口时按钮自动隐藏。
 
 **边界 / 红线**
-- 找不到「我的书架」入口时**不注入**、只记日志，不硬塞、不遮挡官方 UI。
+- 找不到「我的书架」入口时不显示、只记日志，不硬塞、不遮挡官方 UI。
+- **绝不写入官方 DOM 树**（不 insertBefore / 不 appendChild 到官方容器），只读其位置；这是 v0.27.3 修复的核心红线。
 - 旧代码不改：只新增文件 + `manifest.json` 两行；`content.js` / `finder.js` 零改动。
-- 样式带 `wre-` 前缀、对易被覆盖属性加 `!important`；不含任何网络请求、不新增权限。
+- 样式带 `wre-` 前缀、对易被覆盖属性加 `!important`（`top`/`left`/`visibility` 除外，交由 JS 控制）；不含任何网络请求、不新增权限。
 
 **成功标准**
 1. 登录态下打开主页，「继续阅读」栏「我的书架」左侧出现「🔎 找书」按钮；
 2. 点击后找书面板正常打开（与菜单入口行为一致）；
-3. 非主页（阅读页等）不出现该按钮；
-4. 未找到「我的书架」入口时不报错、不产生残留 DOM。
+3. **官方「我的书架」不受影响，仍可正常点开进书架页**（v0.27.3 修复项）；
+4. 非主页（阅读页等）不出现该按钮；
+5. 未找到「我的书架」入口时不报错、不产生残留 DOM。
 
 > 核验（2026-10-06）：以官方真实类名搭仿真页面，注入位置、容器顺序、点击回调均通过；真实主页因需登录态，由用户硬刷新后确认。
 
@@ -1436,4 +1439,5 @@
 | 2026-10-07 | 找书「含划线/想法正文」由开关改为灰色说明 | 用户反馈「搜我的划线/想法 既然是点击这个才会去搜索，那左边 含划线/想法正文 没有大用，只是提示，这个弄成灰色的，别弄成按钮点击，不然误导」。`modules/finder.js`：`buildNoteSearchHtml` 把可点的 `.wre-find-chip[data-wre-find-content]` 换成不可点的灰色说明 `<span class="wre-find-notegroup-hint">含划线 / 想法正文</span>`，并删除对应的点击切换分支（`ui.withContent` 只由「搜我的划线/想法」按钮置位）；`modules/finder.css` 新增 `.wre-find-notegroup-hint`（虚线灰胶囊、`cursor:default`、`user-select:none`）。顺带把「内容命中是否参与筛选」抽为 `contentSearchCoversCurrent()`（要求命中批次关键词＝当前关键词），`applyFilters` 与空态提示同步改用，避免换词后旧命中残留造成误报 | 11.4 |
 | 2026-10-07 | 找书「加标签」候选由原生 datalist 改为插件自绘下拉 | 用户反馈「优化下，这个标签 显示」（截图：点「+ 加标签」弹出浏览器原生 datalist 候选大白框，样式不可控、又宽又遮挡书卡；经确认即改此项）。`modules/finder.js`：`itemTagsHtml` 去掉 `list="wre-find-tag-suggest"`（改 `autocomplete="off"`），`buildBodyHtml` 删除 `<datalist>`，面板内新增 `.wre-find-tagsuggest` 浮层；新增 `showTagSuggest/hideTagSuggest/positionTagSuggest/moveTagSuggest/submitTagFromInput` 等，复用 overlay 的 `focusin`/`input`/`keydown`/`mousedown`（防失焦）事件：聚焦或输入即按现有标签过滤（排除该书已有标签，最多 8 条），↑↓ 上下选、回车确认、点击即加、Esc 收起；`render`/`renderDynamic`/`closePanel` 及面板滚动时统一收起浮层。`modules/finder.css` 新增 `.wre-find-tagsuggest`（跟随输入框定位、圆角描边、`--wre-*` 变量）与 `.wre-find-tagsuggest-item`（悬停/键盘高亮） | 11.4 |
 | 2026-10-07 | 新建「书架官方分组分类（三端）」需求梳理稿 | 用户问「官方书架分组能不能拿到」→ 插件调试日志实测确认：`/shelf/sync` 顶层 `mp/albums/archive/books`，其中 **`archive[]`（每项 `{name, bookIds[], albumIds[]}`）即官方分组**（实测 24 组 / 709 书），分组是「反着存」的、需反查。据此新建 [RPD_书架官方分组_需求文档.md](./RPD_书架官方分组_需求文档.md)：统一数据模型（三端 `slimShelf()` 增加 `groups` 并反挂到条目）、分端 UI（插件找书面板加「官方分组」筛选 chips + 书卡展示；H5/小程序书架页加「按官方分组」分区 + 「未分组」）、红线（**只读**、无新权限、不影响旧功能）、待确认项（id 口径自检等）。**本轮只梳理需求，未动代码** | 11.4、新文档 |
+| 2026-10-10 | 悬浮球对齐品牌 Logo + logo「W」字形重制（v0.27.4） | ① 用户反馈悬浮球图标的 W 要跟 logo 一致：`content.js` 内联 SVG 由「32×32 深灰 W 折线」换成品牌 Logo 本体（蓝底圆 + 白 W，`viewBox 0 0 448 448`，按原图位移 −32 / −34 使圆铺满画布）；`content.css` 的 `.wre-fab` 去掉自带背景 / 描边 / 字色（改透明 + 圆形投影），`.wre-fab-logo` 由 24px 改为 44px 满铺；交互（勿扰隐藏 / 悬停展开 / 悬停缩放）不变。② 用户又觉原 W（填充轮廓 + 中间闪电折角）不好看，在 4 个备选中选定 **A · 圆润**（圆头笔画 W），据此重制矢量母版 [assets/logo.svg](file:///Users/Admin/Knowledge/Coding/微信读书插件/assets/logo.svg) 的 W 路径（`M158 182 L206 334 L256 218 L306 334 L354 182`，stroke 38 / round），并重跑 `promo.py` 的 `build_icons()` 刷新扩展图标 16 / 48 / 128、小程序头像 144、360 图标 48，重跑 `web/build.py` 刷新站点图标。版本 0.27.3 → 0.27.4 | 3.1 |
 

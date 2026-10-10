@@ -3,7 +3,7 @@ const theme = require('../../shared/theme');
 const { verifyKey } = require('../../shared/gateway');
 const ops = require('../../shared/ops');
 const account = require('../../shared/account');
-const { CLOUD_ENV, PROXY_FUNCTION } = require('../../config');
+const { CLOUD_ENV, PROXY_FUNCTION, LINKS } = require('../../config');
 
 Page({
   data: {
@@ -214,6 +214,41 @@ Page({
 
   goAdmin() {
     wx.navigateTo({ url: '/pages/admin/index' });
+  },
+
+  // ---- 相关入口：小程序内不能直接打开网页，故「复制链接 + 弹窗提示」----
+  copySite() {
+    this.copyLink(LINKS.site, '官网');
+  },
+
+  copyH5() {
+    this.copyLink(LINKS.h5, 'H5 网页版');
+  },
+
+  copyPersonal() {
+    this.copyLink(LINKS.personal, '我的个人网站');
+  },
+
+  copyLink(url, name) {
+    wx.setClipboardData({
+      data: url,
+      success: () => {
+        wx.hideToast(); // 去掉系统自带的「内容已复制」提示，改用自己的弹窗说明
+        wx.showModal({
+          title: '链接已复制',
+          content: name + '的网址已复制。小程序里不能直接打开网页，请打开手机浏览器，把网址粘贴到地址栏访问即可。',
+          showCancel: false,
+          confirmText: '知道了',
+        });
+      },
+      fail: () => {
+        wx.showModal({
+          title: '复制失败',
+          content: '请打开手机浏览器，手动输入：' + url,
+          showCancel: false,
+        });
+      },
+    });
   },
 
   // 复制自己的 openid：用于把本账号加入云函数环境变量 ADMIN_OPENIDS，开启运营看板

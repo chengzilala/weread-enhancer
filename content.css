@@ -21,14 +21,14 @@
   user-select: none;
 }
 
-/* 浮动图标（品牌 W 标志：白底 + 深灰 W，与插件 UI 一致） */
+/* 浮动按钮（品牌 Logo：蓝底白 W，与 assets/logo.svg 一致） */
 .wre-fab {
   width: 44px;
   height: 44px;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
-  background-color: var(--wre-icon-bg);
-  border: 1px solid var(--wre-border);
-  color: var(--wre-text);
+  background: transparent;
   box-shadow: var(--wre-shadow);
   display: flex;
   align-items: center;
@@ -38,10 +38,11 @@
 }
 
 .wre-fab-logo {
-  width: 24px;
-  height: 24px;
+  width: 44px;
+  height: 44px;
   display: block;
   pointer-events: none;
+  border-radius: 50%;
 }
 
 .wre-fab:hover {
