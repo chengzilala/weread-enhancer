@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>账户码、跨设备与关联小程序</title>
+  <meta name="description" content="一个账户码走天下：换手机粘贴即可登录；再和小程序「关联网页账户」，人格与昵称两端同步。">
+  <meta property="og:title" content="账户码、跨设备与关联小程序">
+  <meta property="og:description" content="一个账户码走天下：换手机粘贴即可登录；再和小程序「关联网页账户」，人格与昵称两端同步。">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="微信悦读">
+  <link rel="icon" href="/assets/img/icon-48.png">
+  <link rel="stylesheet" href="/assets/site.css">
+  <noscript><style>.wre-reveal{opacity:1 !important;transform:none !important}</style></noscript>
+</head>
+<body class="has-sidebar">
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="brand" href="/">
+        <img class="brand-icon" src="/assets/img/icon-48.png" alt="">
+        <span class="brand-name">微信悦读</span>
+      </a>
+      <button class="nav-toggle" type="button" aria-label="打开导航" aria-expanded="false">☰</button>
+      <nav class="site-nav">
+      <a href="/">首页</a>
+      <a href="/start/">快速上手</a>
+      <a href="/guide/">功能教程</a>
+      <a href="/tips/">进阶技巧</a>
+      <a href="/h5/">H5 移动端</a>
+      <a href="/miniapp/">微信小程序</a>
+      <a href="/persona/">阅读人格</a>
+      <a href="/thinking/">知识资产</a>
+      <a href="/gallery/">图库</a>
+      <a href="/faq/">常见问题</a>
+      <a href="/changelog/">更新日志</a>
+      <a href="/account/">我的账户</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="site-body">
+    <aside class="site-sidebar">
+  <p class="sidebar-title">H5 移动端</p>
+  <ul class="sidebar-list">
+    <li><a href="/h5/overview/">H5 移动端是什么</a></li>
+    <li><a href="/h5/account/" class="active">账户码、跨设备与关联小程序</a></li>
+    <li><a href="/h5/daily/">每日卡片</a></li>
+    <li><a href="/h5/wander/">灵感漫游</a></li>
+    <li><a href="/h5/share/">朗读与分享</a></li>
+  </ul>
+</aside>
+    <main class="site-main">
+      <article class="doc">
+        <header class="doc-header"><h1>账户码、跨设备与关联小程序</h1></header><p>H5 和官网共用同一套账户，用的不是手机号、也不是微信，而是一串<strong>账户码</strong>。它简单、匿名，但足够你在换设备时找回自己。</p>
+<h2 id="账户码是什么">账户码是什么</h2>
+<p>第一次打开时，页面会在你本机随机生成一串 <strong>32 位账户码</strong>，它同时是你的「账号」和「登录凭证」——记住它，就等于记住了这个账户。</p>
+<p>在「<strong>我的 → 跨设备登录</strong>」里可以：</p>
+<ul><li>「显示完整」：看全码</li><li>「复制」：复制到剪贴板</li><li>默认是掩码显示（前 4 位 + 后 4 位）</li></ul>
+<div class="callout callout-warning"><p class="callout-title">换设备前先存好账户码</p><div class="callout-body"><p>点「退出登录」时，页面会<strong>先弹出账户码让你复制</strong>，确认存好才退。账户码丢了，旧账户里的数据就找不回来了。</p></div></div>
+<h2 id="换设备登录">换设备登录</h2>
+<ol><li>在新设备打开 H5（或官网 <code>/account/</code>）；</li><li>「我的 → 跨设备登录」→ 粘贴旧设备的账户码；</li><li>登录成功后页面自动刷新，数据即恢复。</li></ol>
+<p>官网「我的账户」页与 <code>/app/</code> 是<strong>同一套账户</strong>，两边登录态天然互通，不用来回同步。</p>
+<h2 id="关联微信小程序">关联微信小程序</h2>
+<p>网页和小程序的身份来源不同（网页用账户码，小程序用微信身份），所以第一次要<strong>手动关联一次</strong>，之后长期有效。</p>
+<p><strong>在网页这边操作：</strong></p>
+<ol><li>「我的」→ 找到「关联小程序」；</li><li>点「生成绑定码」，页面给出一个 <strong>6 位数字</strong>（<strong>10 分钟内有效</strong>）；</li><li>打开微信小程序 →「我的 → 关联网页账户」→ 输入这 6 位数字，或直接粘贴完整账户码；</li><li>网页这边会自动轮询，关联成功后状态变成「已关联」。</li></ol>
+<p><strong>关联后有什么变化：</strong></p>
+<ul><li><strong>阅读人格结果</strong>两端互通——手机算过，电脑打开就是「秒显」；</li><li><strong>昵称</strong>两端同步（头像不上传，始终只在本机）；</li><li>只建立一条身份映射，<strong>不搬运你的 Key，也不搬官方原始数据</strong>。</li></ul>
+<p><strong>解除关联：</strong> 网页「我的」里点「解除」，或在小程序「关联网页账户」里解除都可以。<strong>本机数据保留</strong>，只是两端恢复各自独立。</p>
+<h2 id="隐私怎么说">隐私怎么说</h2>
+<ul><li>账户码是<strong>你本机随机生成</strong>的一串字符，不含手机号、微信号等身份信息；</li><li>托管的 Key 是加密存储，可在「我的」里一键清除；</li><li>关联只存「网页账户 ↔ 微信身份」这条映射，不存其他内容。</li></ul>
+<p>详见 <a href="/privacy/">隐私政策</a>。</p>
+<h2 id="相关">相关</h2>
+<ul><li><a href="/guide/api-key/">API Key 使用说明</a>：两把 Key 怎么获取与清除</li><li><a href="/miniapp/link/">关联网页账户</a>：站在小程序视角看同一件事</li><li><a href="/h5/overview/">H5 移动端是什么</a>：先搞清这个栏目整体怎么用</li></ul>
+      </article>
+      <nav class="prev-next"><a class="pn-prev" href="/h5/overview/">← H5 移动端是什么</a><a class="pn-next" href="/h5/daily/">每日卡片 →</a></nav>
+    </main>
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+    <nav class="footer-links"><a href="https://microsoftedge.microsoft.com/addons/detail/%E5%BE%AE%E4%BF%A1%E6%82%A6%E8%AF%BB/nkcckbonpafeclefhlhbencibkaabmgb" target="_blank" rel="noopener">Edge 商店</a> <a href="/changelog/">更新日志</a> <a href="/account/">我的账户</a> <a href="/privacy/">隐私政策</a> <a href="https://personalsite-32km31c.maozi.io/" target="_blank" rel="noopener">个人网站</a> <a href="https://github.com/chengzilala/weread-enhancer" target="_blank" rel="noopener">GitHub</a> <a href="https://gitee.com/chengzila/weread-enhancer" target="_blank" rel="noopener">Gitee</a></nav>
+    <p class="footer-meta">微信悦读 v0.28.0 · MIT License · © 2026</p>
+  </div>
+  </footer>
+
+  <script src="/assets/site.js" defer></script>
+</body>
+</html>

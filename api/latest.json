@@ -1,0 +1,10 @@
+{
+  "latestVersion": "0.28.0",
+  "releasedAt": "2026-10-11",
+  "minSupportedVersion": "0.9.0",
+  "notice": "AI 增强不再只认 DeepSeek，可自选国产大模型。",
+  "changelogUrl": "https://wereadapp-32km31c.maozi.io/changelog/",
+  "storeUrls": {
+    "edge": "https://microsoftedge.microsoft.com/addons/detail/%E5%BE%AE%E4%BF%A1%E6%82%A6%E8%AF%BB/nkcckbonpafeclefhlhbencibkaabmgb"
+  }
+}

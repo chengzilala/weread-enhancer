@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>微信小程序是什么</title>
+  <meta name="description" content="微信里的「悦读且住」小程序：读完之后看数据、看人格、看报告，还能管理你的纸质书。合规精简版，不含 AI。">
+  <meta property="og:title" content="微信小程序是什么">
+  <meta property="og:description" content="微信里的「悦读且住」小程序：读完之后看数据、看人格、看报告，还能管理你的纸质书。合规精简版，不含 AI。">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="微信悦读">
+  <link rel="icon" href="/assets/img/icon-48.png">
+  <link rel="stylesheet" href="/assets/site.css">
+  <noscript><style>.wre-reveal{opacity:1 !important;transform:none !important}</style></noscript>
+</head>
+<body class="has-sidebar">
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="brand" href="/">
+        <img class="brand-icon" src="/assets/img/icon-48.png" alt="">
+        <span class="brand-name">微信悦读</span>
+      </a>
+      <button class="nav-toggle" type="button" aria-label="打开导航" aria-expanded="false">☰</button>
+      <nav class="site-nav">
+      <a href="/">首页</a>
+      <a href="/start/">快速上手</a>
+      <a href="/guide/">功能教程</a>
+      <a href="/tips/">进阶技巧</a>
+      <a href="/h5/">H5 移动端</a>
+      <a href="/miniapp/">微信小程序</a>
+      <a href="/persona/">阅读人格</a>
+      <a href="/thinking/">知识资产</a>
+      <a href="/gallery/">图库</a>
+      <a href="/faq/">常见问题</a>
+      <a href="/changelog/">更新日志</a>
+      <a href="/account/">我的账户</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="site-body">
+    <aside class="site-sidebar">
+  <p class="sidebar-title">微信小程序</p>
+  <ul class="sidebar-list">
+    <li><a href="/miniapp/overview/" class="active">微信小程序是什么</a></li>
+    <li><a href="/miniapp/link/">关联网页账户</a></li>
+    <li><a href="/miniapp/daily-wander/">每日卡片与灵感漫游</a></li>
+    <li><a href="/miniapp/paperbook/">我的纸书</a></li>
+    <li><a href="/miniapp/share/">分享图与转发</a></li>
+  </ul>
+</aside>
+    <main class="site-main">
+      <article class="doc">
+        <header class="doc-header"><h1>微信小程序是什么</h1></header><p>在微信里搜到并打开小程序「<strong>悦读且住</strong>」，就等于把「读完之后」的复盘装进了微信——不用装 App，随手就能看一眼。</p>
+<h2 id="它做什么不做什么">它做什么、不做什么</h2>
+<p><strong>做</strong>：读完之后的数据总览、阅读人格、阅读行为报告、书架、笔记，外加一个别人没有的「<strong>我的纸书</strong>」。</p>
+<p><strong>不做</strong>：屏占比、勿扰、全屏、自动阅读——那些属于「读的过程」，只装在电脑上的<a href="/h5/overview/">浏览器插件</a>里。</p>
+<h2 id="和-h5-的最大差别没有-ai">和 H5 的最大差别：没有 AI</h2>
+<p>为了通过微信审核（个人主体不允许 AI 生成能力），小程序是<strong>合规精简版</strong>：</p>
+<ul><li>小程序内<strong>不含任何 AI 生成</strong>；</li><li>「每日卡片」「灵感漫游」在小程序里是<strong>纯本地排版</strong>——只把你的划线原文按主题摆出来，不做解读、不写文章；</li><li>想体验 AI 成文的版本，请用 <a href="/h5/overview/">H5 移动端</a>（满血版）。</li></ul>
+<table><thead><tr><th></th><th>微信小程序</th><th>H5 移动端</th></tr></thead><tbody><tr><td>打开方式</td><td>微信里</td><td>手机浏览器</td></tr><tr><td>AI 能力</td><td>无（合规精简）</td><td>有</td></tr><tr><td>每日卡片 / 灵感漫游</td><td>纯本地排版</td><td>AI 成文</td></tr><tr><td>我的纸书</td><td><strong>有</strong></td><td>无</td></tr><tr><td>关联网页账户</td><td>有</td><td>有</td></tr></tbody></table>
+<h2 id="开始用">开始用</h2>
+<ol><li>打开小程序，进入底部「<strong>我的</strong>」；</li><li>粘贴 <code>wrk-</code> 开头的微信读书 Key（在微信读书 App 的「微信读书 Skill」页复制）；</li><li>点「保存并校验」，通过后回首页即可。</li></ol>
+<p>Key <strong>只存手机本地</strong>，请求经云函数内存中转，不落库、不记原文。</p>
+<h2 id="页面结构">页面结构</h2>
+<p>底部五栏：<strong>首页 / 人格 / 报告 / 书架 / 我的</strong></p>
+<p>二级页面（从「我的 → 更多」等入口进入）：</p>
+<ul><li><a href="/miniapp/daily-wander/">每日卡片与灵感漫游</a></li><li><a href="/miniapp/paperbook/">我的纸书</a></li><li><a href="/miniapp/link/">关联网页账户</a></li><li>笔记概览</li><li>运营看板（只有作者本人可见）</li></ul>
+<h2 id="换手机怎么找回数据">换手机怎么找回数据</h2>
+<p>小程序默认用微信身份识别你，<strong>换手机、换微信号就找不回来了</strong>。解决办法是关联一次网页账户：之后<strong>阅读人格结果与昵称</strong>会在两端同步（见 <a href="/miniapp/link/">关联网页账户</a>）。</p>
+<h2 id="相关">相关</h2>
+<ul><li><a href="/miniapp/link/">关联网页账户</a>：让手机和网页打通</li><li><a href="/miniapp/paperbook/">我的纸书</a>：给纸质书建个目录</li><li><a href="/h5/overview/">H5 移动端是什么</a>：想看 AI 版就去这边</li></ul>
+      </article>
+      <nav class="prev-next"><span></span><a class="pn-next" href="/miniapp/link/">关联网页账户 →</a></nav>
+    </main>
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+    <nav class="footer-links"><a href="https://microsoftedge.microsoft.com/addons/detail/%E5%BE%AE%E4%BF%A1%E6%82%A6%E8%AF%BB/nkcckbonpafeclefhlhbencibkaabmgb" target="_blank" rel="noopener">Edge 商店</a> <a href="/changelog/">更新日志</a> <a href="/account/">我的账户</a> <a href="/privacy/">隐私政策</a> <a href="https://personalsite-32km31c.maozi.io/" target="_blank" rel="noopener">个人网站</a> <a href="https://github.com/chengzilala/weread-enhancer" target="_blank" rel="noopener">GitHub</a> <a href="https://gitee.com/chengzila/weread-enhancer" target="_blank" rel="noopener">Gitee</a></nav>
+    <p class="footer-meta">微信悦读 v0.28.0 · MIT License · © 2026</p>
+  </div>
+  </footer>
+
+  <script src="/assets/site.js" defer></script>
+</body>
+</html>

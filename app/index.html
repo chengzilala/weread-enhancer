@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2F6BFF">
+  <meta name="description" content="微信悦读 · 手机上打开网页就能看自己的阅读数据、阅读人格与阅读报告。">
+  <title>微信悦读 · 阅读数据</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icon.svg">
+  <link rel="stylesheet" href="assets/app.css">
+  <script>
+    /* 启动即套用「文字大小」偏好，避免首屏字号闪动（档位与 src/store.js 保持一致） */
+    (function () {
+      try {
+        var v = Number(localStorage.getItem('wre_font_scale'));
+        if (v !== 0.9 && v !== 1 && v !== 1.15 && v !== 1.3) { v = 1; }
+        document.documentElement.style.setProperty('--wre-fs', String(v));
+      } catch (e) {}
+    })();
+    /* 启动即套用「外观」偏好，避免首屏明暗闪动（档位与 src/store.js 保持一致：auto|light|dark） */
+    (function () {
+      try {
+        var pref = localStorage.getItem('wre_theme');
+        if (pref !== 'light' && pref !== 'dark') { pref = 'auto'; }
+        var dark = pref === 'dark' ||
+          (pref === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) { meta.setAttribute('content', dark ? '#4E86FF' : '#2F6BFF'); }
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+  <header class="wre-header">
+    <h1 id="headerTitle" class="wre-header__title">微信悦读</h1>
+  </header>
+  <main id="view" class="wre-main"></main>
+  <nav id="tabbar" class="wre-tabbar" aria-label="主导航"></nav>
+  <script type="module" src="assets/app.js"></script>
+  <script src="assets/pwa.js" defer></script>
+</body>
+</html>

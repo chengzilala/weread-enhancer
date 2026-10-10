@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API Key 使用说明：阅读洞察与 AI 的钥匙</title>
+  <meta name="description" content="两把 Key（wrk- 官方 / 国产大模型）的获取、配置、校验、清除与隐私红线；只存本机、不上传。">
+  <meta property="og:title" content="API Key 使用说明：阅读洞察与 AI 的钥匙">
+  <meta property="og:description" content="两把 Key（wrk- 官方 / 国产大模型）的获取、配置、校验、清除与隐私红线；只存本机、不上传。">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="微信悦读">
+  <link rel="icon" href="/assets/img/icon-48.png">
+  <link rel="stylesheet" href="/assets/site.css">
+  <noscript><style>.wre-reveal{opacity:1 !important;transform:none !important}</style></noscript>
+</head>
+<body class="has-sidebar">
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="brand" href="/">
+        <img class="brand-icon" src="/assets/img/icon-48.png" alt="">
+        <span class="brand-name">微信悦读</span>
+      </a>
+      <button class="nav-toggle" type="button" aria-label="打开导航" aria-expanded="false">☰</button>
+      <nav class="site-nav">
+      <a href="/">首页</a>
+      <a href="/start/">快速上手</a>
+      <a href="/guide/">功能教程</a>
+      <a href="/tips/">进阶技巧</a>
+      <a href="/h5/">H5 移动端</a>
+      <a href="/miniapp/">微信小程序</a>
+      <a href="/persona/">阅读人格</a>
+      <a href="/thinking/">知识资产</a>
+      <a href="/gallery/">图库</a>
+      <a href="/faq/">常见问题</a>
+      <a href="/changelog/">更新日志</a>
+      <a href="/account/">我的账户</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="site-body">
+    <aside class="site-sidebar">
+  <p class="sidebar-title">功能教程</p>
+  <ul class="sidebar-list">
+    <li><a href="/guide/screen-ratio/">屏占比调节：让正文更宽</a></li>
+    <li><a href="/guide/auto-read/">自动阅读：让页面自己翻</a></li>
+    <li><a href="/guide/shortcuts/">快捷键：四个键管住全部</a></li>
+    <li><a href="/guide/stats/">阅读统计与导出</a></li>
+    <li><a href="/guide/notes/">笔记增强：划线与想法一键留存</a></li>
+    <li><a href="/guide/official/">阅读洞察：阅读行为报告 · 书架 · 发现</a></li>
+    <li><a href="/guide/api-key/" class="active">API Key 使用说明：阅读洞察与 AI 的钥匙</a></li>
+    <li><a href="/guide/reading-persona/">阅读人格（插件里怎么用）</a></li>
+    <li><a href="/guide/tts/">语音复习：把笔记读出来</a></li>
+    <li><a href="/guide/finder/">本地找书：给书架补上标签与搜索</a></li>
+    <li><a href="/guide/backup/">数据备份与恢复：本机数据一键备份</a></li>
+  </ul>
+</aside>
+    <main class="site-main">
+      <article class="doc">
+        <header class="doc-header"><h1>API Key 使用说明：阅读洞察与 AI 的钥匙</h1></header><p>插件里有两个功能要读「<strong>你自己的</strong>」微信读书数据：阅读洞察（阅读行为报告）、笔记的划线/想法。要拿到这些，得用你自己的 API Key。本篇把两把 Key 一次讲清：怎么来、怎么配、怎么删、有什么风险。</p>
+<blockquote><p>适用插件 <strong>v0.17.0</strong>（以代码为准）</p></blockquote>
+<h2 id="一key-是什么为什么需要">一、Key 是什么，为什么需要</h2>
+<ul><li><strong>微信读书官方 API Key（<code>wrk-</code> 开头）</strong>：插件拿它走微信读书官方网关（<code>i.weread.qq.com</code>）读取你自己的阅读数据。「阅读洞察」的报告、书架、搜书 / 书评 / 推荐，以及「笔记」的划线/想法都依赖它。</li><li>它不是插件账号，也不需要注册。它本质等于<strong>你账号的读取权限</strong>，所以必须只放在你自己这台电脑上。</li></ul>
+<div class="callout callout-warning"><p class="callout-title">一句话记住</p><div class="callout-body"><p>Key 等于你账号的读取权限。只放本机，不发给任何人，不贴到聊天 / 截图 / 仓库。</p></div></div>
+<h2 id="二怎么获取wrk-key">二、怎么获取（<code>wrk-</code> Key）</h2>
+<ol><li>打开<strong>微信读书 App</strong> → 底部「我」 → 右上角「设置」</li><li>在设置列表里找到并进入「<strong>微信读书 Skill</strong>」：</li></ol>
+<p><img src="/assets/img/微信读书Skill入口.png" alt="微信读书Skill入口" loading="lazy"></p>
+<ol><li>进来后往下拉，看「<strong>快速配置</strong>」区。第 ② 步就是「<strong>获取 API Key</strong>」；第 ① 步的安装指令是给 AI 助手装 Skill 用的，插件这里用不到：</li></ol>
+<p><img src="/assets/img/微信读书Skill快速配置.png" alt="微信读书Skill快速配置" loading="lazy"></p>
+<ol><li>点「<strong>复制 Key</strong>」，就得到一段 <code>wrk-</code> 开头的 Key。它默认打码显示，点右侧「👁」可看明文；同一页还有「<strong>重置 Key</strong>」，需要时可换一把新的：</li></ol>
+<p><img src="/assets/img/微信读书Skill获取Key.png" alt="微信读书Skill获取Key" loading="lazy"></p>
+<div class="callout callout-tip"><p class="callout-title">顺带一看</p><div class="callout-body"><p>这个页面顶部的「Skill 能力」列了它对外提供的能力（查看书架 / 阅读统计 / 导出笔记 / 搜索书籍 / 书籍简介 / 好书推荐）——插件里的「阅读洞察」「笔记增强」读的就是这些数据。</p></div></div>
+<h2 id="三怎么在插件里配置">三、怎么在插件里配置</h2>
+<ol><li>点插件悬浮球 → 菜单 →「🔑 API Key」</li><li>把 <code>wrk-</code> Key 粘进输入框（默认是掩码，点「显示」可看明文）</li><li>点「保存并校验」</li></ol>
+<p>「保存并校验」会先探一下网关连通性，再用一个需要登录的轻量接口确认真实有效，<strong>通过后才写入</strong>。</p>
+<p>面板里能看到的按钮与状态：</p>
+<table><thead><tr><th>按钮</th><th>作用</th></tr></thead><tbody><tr><td>显示 / 隐藏</td><td>切换输入框明文 / 掩码</td></tr><tr><td>保存并校验</td><td>校验通过才保存</td></tr><tr><td>清除 Key</td><td>删除本机保存的 Key</td></tr><tr><td>刷新状态</td><td>重新拉取当前状态</td></tr></tbody></table>
+<p>状态字段：已配置 / 未配置 · 保存时间 · 最近校验时间 · skill 版本。</p>
+<h2 id="四可选国产大模型-keyai-增强">四、可选：国产大模型 Key（AI 增强）</h2>
+<ul><li><strong>可选项</strong>，不配不影响其它功能。支持内置 6 家国产提供商：<strong>DeepSeek / 通义千问（阿里百炼）/ Kimi（月之暗面）/ 智谱 GLM / 豆包（火山方舟）/ 硅基流动</strong>，另可自填「自定义端点」（OpenAI 兼容）。<strong>不提供任何国外模型入口</strong>。</li><li>作用：让「阅读洞察」报告的「执行摘要」「人性化人格分析」「阅读人格润色」由你选定的大模型生成；<strong>数字仍然由本机规则计算，不交给 AI 算</strong>。不配则用默认的规则化摘要。</li><li>配置位置：同一个「🔑 API Key」面板里的「AI 增强（国产大模型，可选）」区——选提供商 →（自定义需填 baseURL）→ 填模型名（已预填该家默认，可改）→ 粘贴该家 Key → 点「保存并校验」。也可先点「测试连接」只校验不保存。</li><li><strong>各家的 Key 分别保存</strong>，下拉来回切换不会丢；切换后「生成 AI 解读」用的就是你当前选中的那家。</li><li>平台差异（如通义 <code>compatible-mode/v1</code>、智谱 <code>/api/paas/v4</code>、方舟 <code>/api/v3</code>）由各自 baseURL 吸收，你只要填对 Key 即可。</li></ul>
+<div class="callout callout-warning"><p class="callout-title">隐私必须知道</p><div class="callout-body"><p>启用后，点「生成 AI 解读」时会把「笔记最多的几本书」的划线 / 想法<strong>原文样本</strong>发送给<strong>你所选提供商</strong>的接口用于生成文字。介意就别配，不影响其它功能。</p></div></div>
+<h2 id="五隐私与安全红线">五、隐私与安全（红线）</h2>
+<ul><li>Key 只存在本机 <code>chrome.storage.local</code>：官方 Key 存 <code>wreOfficialSkill</code>，大模型各家 Key 存 <code>wreAiProviders</code>（默认 DeepSeek；旧版单键 <code>wreDeepSeekKey</code> 会自动迁移进来），当前选中项存 <code>wreAiActive</code>，不上传（大模型例外见上）。</li><li>插件日志只输出<strong>掩码</strong>（形如 <code>wrk-****(36)</code>），不打印明文。</li><li>官方提醒：Key 等同账号读取权限，请勿粘贴到聊天、截图或提交到代码仓库；怀疑泄露可在 App 里重置。</li><li><strong>不要把 Key 发给任何人</strong>，包括「帮你配置」的人。</li></ul>
+<h2 id="六常见问题">六、常见问题</h2>
+<table><thead><tr><th>情形</th><th>插件提示（以代码为准）</th><th>你该做什么</th></tr></thead><tbody><tr><td>未配置</td><td>尚未配置 API Key</td><td>去「🔑 API Key」粘贴</td></tr><tr><td>格式不对</td><td>Key 格式不对：应以 <code>wrk-</code> 开头</td><td>确认复制完整、没漏前缀</td></tr><tr><td>无效 / 失效</td><td>API Key 无效或已失效（HTTP 401 / 403）</td><td>回 App 重新获取</td></tr><tr><td>超时</td><td>请求超时（超过 10 秒）</td><td>检查网络后重试</td></tr><tr><td>网络不通</td><td>网络不通或官方网关不可达</td><td>检查网络 / 代理</td></tr><tr><td>网关异常</td><td>官方网关返回异常 / 内容无法解析 / errcode 业务错误</td><td>稍后重试；持续失败走「支持与反馈」</td></tr><tr><td>需要升级</td><td>返回 <code>upgrade_info</code></td><td>更新插件版本</td></tr></tbody></table>
+<h2 id="相关">相关</h2>
+<ul><li><a href="/guide/official/">阅读洞察</a>：配好 Key 后能看什么报告</li><li><a href="/guide/notes/">笔记增强</a>：划线 / 想法也依赖这把 Key</li><li><a href="/faq/">常见问题</a>：其它疑难</li></ul>
+      </article>
+      <nav class="prev-next"><a class="pn-prev" href="/guide/official/">← 阅读洞察：阅读行为报告 · 书架 · 发现</a><a class="pn-next" href="/guide/reading-persona/">阅读人格（插件里怎么用） →</a></nav>
+    </main>
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+    <nav class="footer-links"><a href="https://microsoftedge.microsoft.com/addons/detail/%E5%BE%AE%E4%BF%A1%E6%82%A6%E8%AF%BB/nkcckbonpafeclefhlhbencibkaabmgb" target="_blank" rel="noopener">Edge 商店</a> <a href="/changelog/">更新日志</a> <a href="/account/">我的账户</a> <a href="/privacy/">隐私政策</a> <a href="https://personalsite-32km31c.maozi.io/" target="_blank" rel="noopener">个人网站</a> <a href="https://github.com/chengzilala/weread-enhancer" target="_blank" rel="noopener">GitHub</a> <a href="https://gitee.com/chengzila/weread-enhancer" target="_blank" rel="noopener">Gitee</a></nav>
+    <p class="footer-meta">微信悦读 v0.28.0 · MIT License · © 2026</p>
+  </div>
+  </footer>
+
+  <script src="/assets/site.js" defer></script>
+</body>
+</html>
