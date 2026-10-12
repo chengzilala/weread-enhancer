@@ -14,6 +14,27 @@
   />
 
   <block wx:else>
+    <!-- 归档入口（「我的 → 每日卡片 · 往期回顾」）：直接展示往期回顾列表，不生成今天的卡片 -->
+    <block wx:if="{{archiveMode && !viewingArchive}}">
+      <view class="wre-card">
+        <view class="wre-title">往期回顾</view>
+        <block wx:if="{{history.length}}">
+          <view class="history__item" wx:for="{{history}}" wx:key="id" data-id="{{item.id}}" bindtap="viewCard">
+            <view class="history__head">
+              <text class="history__date">{{item.dateLabel}}</text>
+              <text class="history__star" wx:if="{{item.starred}}">★ 收藏</text>
+            </view>
+            <view class="history__title">{{item.title}}</view>
+            <view class="history__quote">{{item.quote}}</view>
+          </view>
+        </block>
+        <view wx:else class="wre-muted">还没有往期卡片。每天打开一次「每日卡片」，就会在本机攒下一张，这里按日期倒序排好。</view>
+        <button class="wre-btn" bindtap="goToday">看今天的卡片</button>
+      </view>
+      <view class="wre-muted statement">卡片只排布你自己的划线原文、出处，以及按主题规则召回的同主题旧划线；全部在本机排版，只存本机、不上云。</view>
+    </block>
+
+    <block wx:else>
     <!-- 加载中 -->
     <wre-state
       wx:if="{{loading}}"
@@ -59,7 +80,7 @@
       <!-- 往期浏览提示条 -->
       <view class="archive-bar" wx:if="{{viewingArchive}}">
         <text class="archive-bar__text">正在看往期 · {{card.dateLabel}}</text>
-        <text class="archive-bar__back" bindtap="backToToday">回到今天</text>
+        <text class="archive-bar__back" bindtap="backToToday">{{archiveMode ? '回到列表' : '回到今天'}}</text>
       </view>
 
       <view class="wre-card card">
@@ -117,6 +138,7 @@
       </view>
 
       <view class="wre-muted statement">卡片只排布你自己的划线原文、出处，以及按主题规则召回的同主题旧划线；全部在本机排版，只存本机、不上云。</view>
+    </block>
     </block>
   </block>
 

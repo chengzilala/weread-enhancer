@@ -2,6 +2,15 @@
   <!-- 分享图绘制画布（移出屏幕外，不可见） -->
   <canvas type="2d" id="shareCanvas" class="share-canvas"></canvas>
 
+  <!-- 加到手机桌面入口（置顶；点按进入「我的」看分步说明） -->
+  <view class="desktop-entry" bindtap="goSettings">
+    <view class="desktop-entry__main">
+      <view class="desktop-entry__name">📲 加到手机桌面，像 App 一样用</view>
+      <view class="desktop-entry__sub">安卓加到桌面 · iPhone 加到「我的小程序」，步骤在「我的」</view>
+    </view>
+    <view class="desktop-entry__arrow">›</view>
+  </view>
+
   <!-- 无 Key 引导 -->
   <wre-state
     wx:if="{{!hasKey}}"
@@ -233,6 +242,7 @@
     </scroll-view>
     <view class="share-actions">
       <button class="wre-btn" bindtap="shareImage">转发给朋友</button>
+      <button class="wre-btn wre-btn--ghost" bindtap="copyLink">复制分享链接</button>
       <button class="wre-btn wre-btn--ghost" bindtap="saveShare">保存到相册</button>
       <button class="wre-btn wre-btn--ghost" bindtap="closeShare">关闭</button>
     </view>

@@ -1,4 +1,24 @@
 <view class="wre-page {{wreDark ? 'wre-dark' : ''}}" style="--wre-fs:{{wreFs}}">
+  <!-- 加到手机桌面 / 我的小程序：置顶醒目（安卓可加到桌面；iPhone 加到「我的小程序」） -->
+  <view class="wre-card desktop-card">
+    <view class="wre-title">📲 加到手机桌面，像 App 一样用</view>
+    <view class="wre-muted">加到桌面后，从图标一点就直接打开本小程序，不用每次翻微信找入口。安卓手机可以把小程序加到桌面；iPhone 不能把小程序加到桌面，但可以加到「我的小程序」，一样方便。</view>
+    <view class="desktop-guide__group" wx:for="{{desktopGuideGroups}}" wx:key="title">
+      <view class="desktop-guide__group-title">{{item.title}}</view>
+      <view
+        class="desktop-guide__row"
+        wx:for="{{item.steps}}"
+        wx:for-item="step"
+        wx:for-index="idx"
+        wx:key="*this"
+      >
+        <view class="desktop-guide__no">{{idx + 1}}</view>
+        <view class="desktop-guide__text">{{step}}</view>
+      </view>
+    </view>
+    <view class="desktop-guide__tip">若桌面没看到图标，左右翻页找一下，或用桌面搜索「悦读且住」。加到「我的小程序」后，在微信首页下拉就能快速打开。</view>
+  </view>
+
   <!-- 我的资料（可选）：仅本机 -->
   <view class="wre-card">
     <view class="wre-title">我的资料（可选）</view>
@@ -75,6 +95,22 @@
       <button class="wre-btn wre-btn--ghost" wx:if="{{hasKey}}" bindtap="onClear">清除 Key</button>
     </view>
     <view class="settings-status settings-status--{{statusType}}" wx:if="{{statusText}}">{{statusText}}</view>
+
+    <!-- 如何获取 Key：图文说明（对齐 H5「我的 / 配置页」同一份内容），默认收起 -->
+    <view class="key-guide" bindtap="toggleKeyGuide">
+      <text class="key-guide__summary">还不知道去哪拿 Key？点开看 3 步图文说明</text>
+      <text class="key-guide__arrow">{{showKeyGuide ? '▴' : '▾'}}</text>
+    </view>
+    <view wx:if="{{showKeyGuide}}" class="key-guide__body">
+      <view class="key-guide__step" wx:for="{{keyGuideSteps}}" wx:key="no">
+        <view class="key-guide__row">
+          <view class="key-guide__no">{{item.no}}</view>
+          <view class="key-guide__text">{{item.text}}</view>
+        </view>
+        <image class="key-guide__img" src="{{item.img}}" mode="widthFix" lazy-load="{{true}}" />
+      </view>
+      <view class="key-guide__tip">小提示：第 ① 步的安装指令是给 AI 助手用的，这里用不到；只要第 ② 步的 Key 就够了。</view>
+    </view>
   </view>
 
   <!-- M15 合规下线：原 Key 输入区块已移除 -->

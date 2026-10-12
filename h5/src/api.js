@@ -76,6 +76,12 @@ export function ai(messages) {
   return call({ action: 'ai', messages: messages }, CONFIG.AI_TIMEOUT_MS);
 }
 
+/** 朗读合成：由云函数调用 Edge 神经语音，返回 { ok, format, voice, audio(base64) } */
+export function tts(text, opts) {
+  const o = opts || {};
+  return call({ action: 'tts', text: text, voice: o.voice || '' }, CONFIG.TTS.TIMEOUT_MS);
+}
+
 // ---- Key 托管 ----
 export function keySave(apiKey, aiKey) {
   return call({ action: 'keySave', apiKey: apiKey || '', aiKey: aiKey || '' });
@@ -128,4 +134,15 @@ export function opsPing(version) {
 
 export function opsAdmin() {
   return call({ action: 'opsAdmin' });
+}
+
+// ---- 分享短链（H5 / 小程序共用）----
+/** 把分享卡内容存成短码，返回 { ok, code, expireAt }（任何人凭码可只读查看） */
+export function sharePut(kind, payload) {
+  return call({ action: 'sharePut', kind: kind || 'other', payload: payload || {} });
+}
+
+/** 凭短码取回分享内容，返回 { ok, kind, payload, createdAt } */
+export function shareGet(code) {
+  return call({ action: 'shareGet', code: code || '' });
 }

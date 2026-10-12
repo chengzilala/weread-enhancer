@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extensionName__",
-  "version": "0.27.4",
+  "version": "0.28.0",
   "description": "__MSG_extensionDescription__",
   "default_locale": "zh_CN",
   "homepage_url": "https://wereadapp-32km31c.maozi.io",
@@ -16,8 +16,16 @@
   "host_permissions": [
     "https://i.weread.qq.com/*",
     "https://api.deepseek.com/*",
+    "https://dashscope.aliyuncs.com/*",
+    "https://api.moonshot.cn/*",
+    "https://open.bigmodel.cn/*",
+    "https://ark.cn-beijing.volces.com/*",
+    "https://api.siliconflow.cn/*",
     "https://wereadapp-32km31c.maozi.io/*",
     "https://*.tcloudbase.com/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*"
   ],
   "web_accessible_resources": [
     {
@@ -50,7 +58,8 @@
         "modules/home-shelf.css",
         "modules/support-center.css",
         "modules/backup.css",
-        "modules/help.css"
+        "modules/help.css",
+        "modules/reviews.css"
       ],
       "js": [
         "modules/stats.js",
@@ -63,6 +72,7 @@
         "modules/support-center.js",
         "modules/backup.js",
         "modules/help.js",
+        "modules/reviews.js",
         "modules/telemetry.js",
         "content.js"
       ],

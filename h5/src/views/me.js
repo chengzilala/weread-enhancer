@@ -12,8 +12,11 @@
 import { keySave, keyClear, verifyKey, keyGet, profileSave, bindCreate, bindStatus, bindRemove, bindRedeem } from '../api.js';
 import { getMask, setMask, getProfile, setProfile, getDeviceId, setDeviceId, resetDeviceId, readAvatarFile, getFontScale, applyFontScale, FONT_TIERS, getTheme, applyTheme, THEME_TIERS } from '../store.js';
 import { esc, toast, copyText, confirmSignOut } from '../ui.js';
+import { keyGuideHtml } from '../key-guide.js';
 import { qrSvg } from '../qrcode.js';
+import { desktopGuideBodyHtml } from '../desktop-guide.js';
 import { CONFIG } from '../config.js';
+import { openArchive as openDailyArchive } from './daily.js';
 
 export const title = '我的账户';
 
@@ -87,6 +90,8 @@ function paint(body) {
   const hasAvatar = !!profile.avatarUrl;
 
   body.innerHTML =
+    desktopCard() +
+
     '<div class="wre-card">' +
     '  <div class="wre-account">' +
     '    <div class="wre-avatar">' + avatarInner(profile) + '</div>' +
@@ -104,6 +109,7 @@ function paint(body) {
     connRow('wrk', '微信读书 Key', mask.hasKey, mask.masked) +
     connRow('ai', 'DeepSeek Key（可选）', mask.hasAiKey, mask.aiMasked) +
     '  <div class="wre-hint">不知道去哪找 Key？用豆包等 AI 工具搜一句「怎么获取微信读书 / DeepSeek 的 API Key」，跟着做就行，不难。</div>' +
+    keyGuideHtml() +
     (openForm ? keyForm(openForm) : '') +
     '</div>' +
 
@@ -179,6 +185,17 @@ function paint(body) {
     '</div>' +
 
     '<div class="wre-note">微信悦读 H5 · 数据与人格全部在你的浏览器本机计算；Key 由你自建的云函数加密托管，昵称托管后可跨设备同步，两者都能一键清除。</div>';
+}
+
+/** 「加到手机桌面」卡片：置顶，新手也能照做（iOS Safari / 安卓浏览器分步） */
+function desktopCard() {
+  return (
+    '<div class="wre-card wre-card--desktop">' +
+    '  <div class="wre-card__title">📲 加到手机桌面，像 App 一样用</div>' +
+    '  <div class="wre-muted">加到桌面后，从图标点开就是一个独立窗口，没有浏览器地址栏，和 App 几乎一样；网页本身不占内存。</div>' +
+    desktopGuideBodyHtml() +
+    '</div>'
+  );
 }
 
 /** 「更多」列表行（对齐小程序 .settings-link） */
@@ -624,6 +641,7 @@ async function onAction(e, body, app) {
   }
 
   if (action === 'open-daily') {
+    openDailyArchive();   // 直达「往期回顾」列表
     app.go('daily');
     return;
   }

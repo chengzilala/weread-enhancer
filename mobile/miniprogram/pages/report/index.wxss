@@ -133,14 +133,22 @@
   min-width: 0;
 }
 
-/* 主列：承载描述性文字，自适应占满剩余宽度、允许折行 */
+/* 主列：承载描述性文字，占最宽、允许折行 */
 .tbl__cell--main {
-  flex: 1 1 auto;
+  flex: 2.4 1 0;
   font-weight: 600;
   word-break: break-word;
 }
 
-/* 数值 / 序号列：按内容收紧、不换行、右对齐，避免孤字换行与行高忽高忽低 */
+/* 长文本列（作者 / 分类等）：与主列按比例分宽（2.4 : 1），左对齐、允许折行 */
+.tbl__cell--text {
+  flex: 1 1 0;
+  text-align: left;
+  word-break: break-word;
+  color: var(--wre-text);
+}
+
+/* 短数值 / 序号列：按内容收紧、不换行、右对齐，避免孤字换行与行高忽高忽低 */
 .tbl__cell--num {
   flex: 0 0 auto;
   margin-left: 12rpx;

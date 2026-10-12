@@ -9,7 +9,7 @@
  *   1. 主菜单「🪞 阅读洞察」入口
  *   2. 面板：📊 阅读行为报告（时长与天数趋势 / 书架结构 / 知识脉络 / 笔记行为 /
  *      完读率 / 已读完书目 / 周期切换 / 环比 / 导出 Markdown / HTML / PDF）
- *   3. 主菜单「🔑 API Key」独立入口：集中填写微信读书 wrk- Key 与 DeepSeek Key
+ *   3. 主菜单「🔑 API Key」独立入口：集中填写微信读书 wrk- Key 与 AI Key（国产多模型）
  *      （保存即校验 / 清除）；并监听 `wre-open-key-settings` 事件，供其它模块（如笔记）一键跳来配 Key
  *
  * 数据来源：微信读书官方 Agent Skill 网关（经 background.js 转发）：
@@ -52,6 +52,22 @@
     '要求：1) 用中文、第二人称「你」，真诚、克制，像懂他的朋友在说话，不浮夸、不堆形容词；2) 严格基于所给的代码、主称号、四维判定值与证据，不得虚构任何数字，也不得杜撰用户没做过的事；' +
     '3) 结构为两段：第一段用一个生活化的比喻点出这个人格的整体气质（呼应主称号）；第二段结合四维与证据，写出这种气质在真实阅读里的样子；4) 只描述、不评判，不使用任何负向词（如懒惰/浅薄/拖延）；' +
     '5) 不要输出标题、序号或任何 Markdown 符号，直接输出两段正文，段与段之间空一行。';
+  // 智能预设表（与 background.js 的 AI_PROVIDER_PRESETS 保持一致）：一套 OpenAI 兼容内核，加新厂商 = 加一行
+  // 红线：只列国产大模型，不含任何国外模型入口。
+  const AI_PROVIDERS = [
+    { id: 'deepseek', name: 'DeepSeek', model: 'deepseek-chat', hint: 'sk-xxxxxxxx（DeepSeek）', domain: 'api.deepseek.com', site: 'platform.deepseek.com' },
+    { id: 'qwen', name: '通义千问（阿里百炼）', model: 'qwen-plus', hint: 'sk-xxxxxxxx（阿里百炼）', domain: 'dashscope.aliyuncs.com', site: 'bailian.console.aliyun.com' },
+    { id: 'kimi', name: 'Kimi（月之暗面）', model: 'moonshot-v1-8k', hint: 'sk-xxxxxxxx（Moonshot）', domain: 'api.moonshot.cn', site: 'platform.moonshot.cn' },
+    { id: 'glm', name: '智谱 GLM', model: 'glm-4-flash', hint: 'xxxxxx.xxxxxx（智谱）', domain: 'open.bigmodel.cn', site: 'open.bigmodel.cn' },
+    { id: 'doubao', name: '豆包（火山方舟）', model: 'doubao-1-5-lite-32k-250115', hint: '火山方舟 API Key', domain: 'ark.cn-beijing.volces.com', site: 'console.volcengine.com/ark' },
+    { id: 'siliconflow', name: '硅基流动', model: 'Qwen/Qwen2.5-7B-Instruct', hint: 'sk-xxxxxxxx（硅基流动）', domain: 'api.siliconflow.cn', site: 'cloud.siliconflow.cn' },
+    { id: 'custom', name: '自定义端点', model: '', hint: '该服务商的 API Key', domain: '你填写的服务端点', site: '' },
+  ];
+
+  function aiProviderById(id) {
+    return AI_PROVIDERS.filter((p) => p.id === id)[0] || AI_PROVIDERS[0];
+  }
+
   const MODES = [
     { key: 'weekly', label: '本周' },
     { key: 'monthly', label: '本月' },
@@ -310,10 +326,14 @@
   let overviewError = '';
   let keyStatus = { hasKey: false, apiKey: '', savedAt: 0, lastVerifiedAt: 0, skillVersion: '' };
   let settingsMessage = '';
-  let aiSettingsMessage = '';   // DeepSeek Key 区的提示（独立于微信读书 Key 区）
+  let aiSettingsMessage = '';   // AI Key 区的提示（独立于微信读书 Key 区）
   let draftWrkKey = '';   // 输入框草稿：保存/重渲染后仍保留用户粘贴的微信读书 Key
-  let draftAiKey = '';    // 输入框草稿：保留用户粘贴的 DeepSeek Key
-  let aiKeyStatus = { hasKey: false, apiKey: '', savedAt: 0 };  // DeepSeek Key 状态（可选）
+  let draftAiKey = '';    // 输入框草稿：保留用户粘贴的 AI Key
+  let aiKeyStatus = { hasKey: false, apiKey: '', savedAt: 0, lastVerifiedAt: 0 };  // 当前提供商 Key 状态（可选）
+  let aiActive = { providerId: 'deepseek', model: '' };  // 当前激活的提供商 + 模型
+  let aiConfigured = [];      // 已配置 Key 的提供商 id 列表
+  let aiCustomBaseURL = '';   // 自定义端点 baseURL（本机已保存）
+  let draftAiBaseURL = '';    // 自定义端点 baseURL 输入草稿
   // ---- 账户与多端同步（可选，默认关闭）----
   let accountStatus = { sync: false, deviceId: '', cloud: null };  // 账户码 + 云端托管状态
   let accountMessage = '';        // 账户区提示文案
@@ -1670,7 +1690,7 @@
   function buildReportHtml() {
     const privacy = '<div class="wre-off-privacy">🔒 ' +
       (aiKeyStatus.hasKey
-        ? '数字在本机计算；启用 AI 后，划线/想法原文样本会发送给 DeepSeek 生成解读'
+        ? '数字在本机计算；启用 AI 后，划线/想法原文样本会发送给 ' + escapeHtml(aiProviderLabel()) + ' 生成解读'
         : '本报告在本机生成，数据不上传') +
       '</div>';
     const toolbar =
@@ -1722,7 +1742,7 @@
       exportParts.push('书架结构、知识脉络、笔记行为、完读率、已读完书目等章节');
     }
     if (aiState === 'ok') {
-      exportParts.push('DeepSeek AI 生成的人格化执行摘要');
+      exportParts.push(aiProviderLabel() + ' AI 生成的人格化执行摘要');
     }
     if (aiPersona && aiPersona.length) {
       exportParts.push('人性化人格分析');
@@ -1732,15 +1752,15 @@
       : '';
 
     const aiHint = aiState === 'loading'
-      ? '<div class="wre-off-note">🤖 正在用 DeepSeek 生成人格化执行摘要、人性化人格分析与阅读人格润色…</div>'
+      ? '<div class="wre-off-note">🤖 正在用 ' + escapeHtml(aiProviderLabel()) + ' 生成人格化执行摘要、人性化人格分析与阅读人格润色…</div>'
       : (aiState === 'error'
         ? '<div class="wre-off-note">🤖 AI 解读生成失败（' + escapeHtml(aiError) + '），改用规则化摘要。</div>'
         : (aiState === 'ok'
-          ? '<div class="wre-off-note">🤖 已用 DeepSeek 生成人格化执行摘要' + (aiPersona && aiPersona.length ? '与人性化人格分析' : '') + (aiReadingPersona && aiReadingPersona.length ? '与阅读人格润色' : '') + '（导出报告可见）。</div>'
-            + (aiPersonaError ? '<div class="wre-off-note">⚠️ 人性化人格分析未生成：' + escapeHtml(aiPersonaError) + '（不影响报告主体，可在「🔑 API Key」确认 DeepSeek Key 有效后重试）。</div>' : '')
+          ? '<div class="wre-off-note">🤖 已用 ' + escapeHtml(aiProviderLabel()) + ' 生成人格化执行摘要' + (aiPersona && aiPersona.length ? '与人性化人格分析' : '') + (aiReadingPersona && aiReadingPersona.length ? '与阅读人格润色' : '') + '（导出报告可见）。</div>'
+            + (aiPersonaError ? '<div class="wre-off-note">⚠️ 人性化人格分析未生成：' + escapeHtml(aiPersonaError) + '（不影响报告主体，可在「🔑 API Key」确认 ' + escapeHtml(aiProviderLabel()) + ' Key 有效后重试）。</div>' : '')
             + (aiReadingPersonaError ? '<div class="wre-off-note">⚠️ 阅读人格润色未生成：' + escapeHtml(aiReadingPersonaError) + '（不影响判定与词语分析，仍显示规则版文本）。</div>' : '')
           : (aiKeyStatus.hasKey
-            ? '<div class="wre-off-note">🤖 已配置 DeepSeek：点击「生成 AI 解读」才会调用（生成人格化执行摘要、人性化人格分析与阅读人格润色），打开报告不消耗 token。' +
+            ? '<div class="wre-off-note">🤖 已配置 ' + escapeHtml(aiProviderLabel()) + '：点击「生成 AI 解读」才会调用（生成人格化执行摘要、人性化人格分析与阅读人格润色），打开报告不消耗 token。' +
               '<div class="wre-off-ai-run"><button class="wre-btn wre-btn-small" data-wre-off-run-ai="1">🤖 生成 AI 解读</button></div></div>'
             : '')));
 
@@ -1831,7 +1851,11 @@
 
   function buildSettingsHtml() {
     const wrkKeyValue = draftWrkKey || keyStatus.apiKey;
+    const aiProvider = aiProviderById(aiActive.providerId);
     const aiKeyValue = draftAiKey || aiKeyStatus.apiKey;
+    const aiModelValue = aiActive.model || aiProvider.model;
+    const aiBaseValue = draftAiBaseURL || aiCustomBaseURL;
+    const isCustom = aiActive.providerId === 'custom';
     const statusLines = [
       '状态：' + (keyStatus.hasKey ? '已配置' : '未配置'),
       keyStatus.hasKey ? '保存于 ' + fmtDateTime(keyStatus.savedAt) : '',
@@ -1859,19 +1883,41 @@
       '<div class="wre-off-set-status">' + escapeHtml(statusLines) + '</div>' +
       (settingsMessage ? '<div class="wre-off-set-message">' + escapeHtml(settingsMessage) + '</div>' : '') +
       '<div class="wre-off-note">安全提醒：Key 等同你的账号读取权限，请勿粘贴到聊天、截图或提交到代码仓库；怀疑泄露时可在 App 里重置。</div>' +
-      '<div class="wre-off-section-title">AI 增强（DeepSeek，可选）</div>' +
-      '<div class="wre-off-note">可选：接入 DeepSeek 后，可在报告页点「生成 AI 解读」按钮，把「执行摘要」等由 AI 生成人格化文案（数字仍由本机规则计算，不交给 AI 算）。不配置则用默认的规则化摘要。</div>' +
+      '<div class="wre-off-section-title">AI 增强（国产大模型，可选）</div>' +
+      '<div class="wre-off-note">可选：接入一个大模型后，可在报告页点「生成 AI 解读」按钮，把「执行摘要」等由 AI 生成人格化文案（数字仍由本机规则计算，不交给 AI 算）。不配置则用默认的规则化摘要。仅支持国产大模型。</div>' +
       '<div class="wre-off-set-row">' +
-        '<input type="password" id="wre-off-ai-key-input" class="wre-off-input" placeholder="sk-xxxxxxxx（可选）" autocomplete="off" spellcheck="false" value="' + escapeHtml(aiKeyValue) + '">' +
+        '<select id="wre-off-ai-provider" class="wre-off-input">' +
+          AI_PROVIDERS.map((p) =>
+            '<option value="' + p.id + '"' + (p.id === aiActive.providerId ? ' selected' : '') + '>' +
+              escapeHtml(p.name) + (aiConfigured.indexOf(p.id) >= 0 ? '（已配置）' : '') +
+            '</option>'
+          ).join('') +
+        '</select>' +
+      '</div>' +
+      (isCustom
+        ? '<div class="wre-off-set-row">' +
+            '<input type="text" id="wre-off-ai-baseurl" class="wre-off-input" placeholder="https://your-endpoint/v1" autocomplete="off" spellcheck="false" value="' + escapeHtml(aiBaseValue) + '">' +
+          '</div>'
+        : '') +
+      '<div class="wre-off-set-row">' +
+        '<input type="text" id="wre-off-ai-model" class="wre-off-input" placeholder="模型名（可改）" autocomplete="off" spellcheck="false" value="' + escapeHtml(aiModelValue) + '">' +
+      '</div>' +
+      '<div class="wre-off-set-row">' +
+        '<input type="password" id="wre-off-ai-key-input" class="wre-off-input" placeholder="' + escapeHtml(aiProvider.hint) + (aiKeyStatus.hasKey ? '' : '（可选）') + '" autocomplete="off" spellcheck="false" value="' + escapeHtml(aiKeyValue) + '">' +
         '<button type="button" class="wre-btn wre-btn-small" data-wre-off-toggle-aikey="1">显示</button>' +
       '</div>' +
       '<div class="wre-off-set-row">' +
         '<button class="wre-btn" data-wre-off-save-ai="1">保存并校验</button>' +
+        '<button class="wre-btn wre-btn-small" data-wre-off-test-ai="1">测试连接</button>' +
         '<button class="wre-btn" data-wre-off-clear-ai="1">清除 AI Key</button>' +
       '</div>' +
       (aiSettingsMessage ? '<div class="wre-off-set-message">' + escapeHtml(aiSettingsMessage) + '</div>' : '') +
-      '<div class="wre-off-set-status">AI 状态：' + (aiKeyStatus.hasKey ? '已配置（保存于 ' + fmtDateTime(aiKeyStatus.savedAt) + '）' : '未配置') + '</div>' +
-      '<div class="wre-off-note">隐私提醒：点「生成 AI 解读」时，会把「笔记最多几本书」的划线/想法原文样本发送给 DeepSeek（api.deepseek.com）用于生成文字，请知悉。</div>';
+      '<div class="wre-off-set-status">AI 状态：' + (aiKeyStatus.hasKey ? aiProvider.name + ' 已配置（保存于 ' + fmtDateTime(aiKeyStatus.savedAt) + '）' : aiProvider.name + ' 未配置') +
+        (aiConfigured.length > 1 ? '　·　已配置：' + aiConfigured.map((id) => aiProviderById(id).name).join('、') : '') + '</div>' +
+      (aiProvider.site
+        ? '<div class="wre-off-note">去哪拿 Key：' + escapeHtml(aiProvider.name) + ' → ' + escapeHtml(aiProvider.site) + ' 控制台创建 API Key。</div>'
+        : '<div class="wre-off-note">自定义端点：请填写 OpenAI 兼容的 baseURL（形如 https://xxx/v1），首次使用会申请该域名的访问权限。</div>') +
+      '<div class="wre-off-note">隐私提醒：Key 只存本机、只用于你自己的报告生成、不上传；点「生成 AI 解读」时，会把「笔记最多几本书」的划线/想法原文样本发送给 ' + escapeHtml(aiProvider.name) + '（' + escapeHtml(aiProvider.domain) + '）用于生成文字，请知悉。</div>';
   }
 
   // ---------- 面板 ----------
@@ -2154,7 +2200,7 @@
     }
     if (target.closest('[data-wre-off-run-ai]')) {
       if (aiState !== 'loading') {
-        logOfficial('info', '用户点击「生成 AI 解读」，开始调用 DeepSeek');
+        logOfficial('info', '用户点击「生成 AI 解读」，开始调用 ' + aiProviderLabel());
         runAIEnhance();
       }
       return;
@@ -2233,7 +2279,7 @@
       if (input) {
         input.type = input.type === 'password' ? 'text' : 'password';
         btn.textContent = input.type === 'password' ? '显示' : '隐藏';
-        logOfficial('info', '切换 DeepSeek Key 输入框为 ' + (input.type === 'password' ? '掩码' : '明文'));
+        logOfficial('info', '切换 AI Key 输入框为 ' + (input.type === 'password' ? '掩码' : '明文'));
       } else {
         logOfficial('warn', '切换失败：未找到 #wre-off-ai-key-input');
       }
@@ -2249,6 +2295,10 @@
     }
     if (target.closest('[data-wre-off-save-ai]')) {
       saveAiKey();
+      return;
+    }
+    if (target.closest('[data-wre-off-test-ai]')) {
+      testAiKey();
       return;
     }
     if (target.closest('[data-wre-off-clear-ai]')) {
@@ -2270,6 +2320,10 @@
     }
     if (target.id === 'wre-off-search-scope') {
       discover.scope = Number(target.value) || 10;
+      return;
+    }
+    if (target.id === 'wre-off-ai-provider') {
+      selectAiProvider(target.value);
       return;
     }
     if (target.id === 'wre-off-review-type') {
@@ -2463,30 +2517,63 @@
   async function refreshAiKeyStatus() {
     const result = await sendBg({ type: 'wre-ai-status' });
     if (result && result.ok) {
-      aiKeyStatus = { hasKey: result.hasKey, apiKey: result.apiKey || '', savedAt: result.savedAt || 0 };
+      aiKeyStatus = {
+        hasKey: result.hasKey,
+        apiKey: result.apiKey || '',
+        savedAt: result.savedAt || 0,
+        lastVerifiedAt: result.lastVerifiedAt || 0,
+      };
+      aiActive = { providerId: result.providerId || 'deepseek', model: result.model || '' };
+      aiConfigured = Array.isArray(result.configured) ? result.configured : [];
+      aiCustomBaseURL = result.customBaseURL || '';
     }
     return aiKeyStatus;
   }
 
+  /** 当前激活提供商的展示名（用于文案：已配置 X / 发送给 X 生成） */
+  function aiProviderLabel() {
+    return aiProviderById(aiActive.providerId).name;
+  }
+
+  /** 收集 AI 区输入：providerId + model + key + baseURL（自定义时才读 baseURL 输入框） */
+  function readAiFormInputs() {
+    const providerId = aiActive.providerId || 'deepseek';
+    const keyInput = document.getElementById('wre-off-ai-key-input');
+    const modelInput = document.getElementById('wre-off-ai-model');
+    const baseInput = document.getElementById('wre-off-ai-baseurl');
+    return {
+      providerId: providerId,
+      apiKey: keyInput ? keyInput.value.trim() : '',
+      model: modelInput ? modelInput.value.trim() : '',
+      baseURL: baseInput ? baseInput.value.trim() : draftAiBaseURL,
+    };
+  }
+
   function saveAiKey() {
-    const input = document.getElementById('wre-off-ai-key-input');
-    const value = input ? input.value.trim() : '';
-    if (!value) {
-      aiSettingsMessage = '请先粘贴 DeepSeek Key';
+    const form = readAiFormInputs();
+    const provider = aiProviderById(form.providerId);
+    if (!form.apiKey) {
+      aiSettingsMessage = '请先粘贴 ' + provider.name + ' 的 Key';
       renderSettings();
       return;
     }
-    draftAiKey = value;
-    aiSettingsMessage = '正在校验 DeepSeek Key…';
+    if (form.providerId === 'custom' && !form.baseURL) {
+      aiSettingsMessage = '自定义端点需先填写 baseURL（形如 https://xxx/v1）';
+      renderSettings();
+      return;
+    }
+    draftAiKey = form.apiKey;
+    draftAiBaseURL = form.baseURL;
+    aiSettingsMessage = '正在校验 ' + provider.name + ' Key…';
     renderSettings();
-    sendBg({ type: 'wre-ai-save', apiKey: value }).then((result) => {
+    sendBg({ type: 'wre-ai-save', providerId: form.providerId, model: form.model, apiKey: form.apiKey, baseURL: form.baseURL }).then((result) => {
       if (!result.ok) {
         aiSettingsMessage = '保存失败：' + (result.error || '未知原因');
-        logOfficial('warn', 'AI Key 保存失败', { code: result.code });
+        logOfficial('warn', 'AI Key 保存失败', { provider: provider.name, code: result.code });
         renderSettings();
         return;
       }
-      aiSettingsMessage = '保存成功，Key 已通过校验';
+      aiSettingsMessage = '保存成功，' + provider.name + ' Key 已通过校验';
       aiSummary = null;
       aiPersona = null;
       aiState = 'idle';
@@ -2494,16 +2581,58 @@
     });
   }
 
-  function clearAiKey() {
-    if (!window.confirm('确定清除本机保存的 DeepSeek Key？清除后报告将退回规则化摘要。')) {
+  /** 测试连接：只校验，不保存（自定义端点先申请域名权限） */
+  function testAiKey() {
+    const form = readAiFormInputs();
+    const provider = aiProviderById(form.providerId);
+    if (!form.apiKey) {
+      aiSettingsMessage = '请先粘贴 ' + provider.name + ' 的 Key 再测试';
+      renderSettings();
       return;
     }
-    sendBg({ type: 'wre-ai-clear' }).then(() => {
+    if (form.providerId === 'custom' && !form.baseURL) {
+      aiSettingsMessage = '自定义端点需先填写 baseURL';
+      renderSettings();
+      return;
+    }
+    aiSettingsMessage = '正在测试 ' + provider.name + ' 连通性…';
+    renderSettings();
+    const ensurePerm = form.providerId === 'custom'
+      ? sendBg({ type: 'wre-ai-permission', baseURL: form.baseURL })
+      : Promise.resolve({ ok: true });
+    ensurePerm.then((perm) => {
+      if (!perm.ok) {
+        throw new Error(perm.error || '端点授权失败');
+      }
+      return sendBg({ type: 'wre-ai-test', providerId: form.providerId, model: form.model, apiKey: form.apiKey, baseURL: form.baseURL });
+    }).then((result) => {
+      aiSettingsMessage = result.ok ? ('连接正常：' + provider.name + ' Key 有效') : ('测试失败：' + (result.error || '未知原因'));
+      renderSettings();
+    }).catch((err) => {
+      aiSettingsMessage = '测试失败：' + ((err && err.message) ? err.message : '未知原因');
+      renderSettings();
+    });
+  }
+
+  /** 切换提供商：持久化选择并刷新（各提供商 Key 各自保留） */
+  function selectAiProvider(providerId) {
+    draftAiKey = '';
+    draftAiBaseURL = '';
+    aiSettingsMessage = '';
+    sendBg({ type: 'wre-ai-select', providerId: providerId }).then(() => refreshAiKeyStatus()).then(() => renderSettings());
+  }
+
+  function clearAiKey() {
+    const provider = aiProviderById(aiActive.providerId);
+    if (!window.confirm('确定清除本机保存的 ' + provider.name + ' Key？清除后该提供商的 AI 解读不可用，报告将退回规则化摘要。')) {
+      return;
+    }
+    sendBg({ type: 'wre-ai-clear', providerId: aiActive.providerId }).then(() => {
       aiSummary = null;
       aiPersona = null;
       aiState = 'idle';
       draftAiKey = '';
-      aiSettingsMessage = '已清除 AI Key';
+      aiSettingsMessage = '已清除 ' + provider.name + ' Key';
       refreshAiKeyStatus().then(() => renderSettings());
     });
   }
@@ -4639,7 +4768,7 @@
       ['生成时间', fmtDateTime(Date.now())],
       ['skill 版本', keyStatus.skillVersion || '1.0.4'],
       ['分析方法', aiState === 'ok'
-        ? '客观数据本机规则计算，执行摘要由 DeepSeek AI 生成'
+        ? '客观数据本机规则计算，执行摘要由 ' + aiProviderLabel() + ' AI 生成'
         : '基于官方统计与偏好字段的规则化解读（纯本地执行）'],
     ]});
 
@@ -4665,7 +4794,7 @@
       aiSummary.forEach((para) => {
         blocks.push({ type: 'paragraph', text: para });
       });
-      blocks.push({ type: 'note', text: '本执行摘要由 DeepSeek AI 基于本机计算的客观数据与划线/想法原文样本生成；具体数字以正文各章节的规则化统计为准。' });
+      blocks.push({ type: 'note', text: '本执行摘要由 ' + aiProviderLabel() + ' AI 基于本机计算的客观数据与划线/想法原文样本生成；具体数字以正文各章节的规则化统计为准。' });
     } else {
       const summaryData = overallReport || data;
       const summaryInsights = buildInsights(summaryData, overallReport ? 'overall' : currentMode, reportBuckets(summaryData));
@@ -4676,7 +4805,7 @@
       if (aiState === 'error') {
         blocks.push({ type: 'note', text: 'AI 解读生成失败（' + aiError + '），已退回规则化摘要。' });
       } else if (aiState === 'skipped') {
-        blocks.push({ type: 'note', text: '未配置 DeepSeek Key，当前为规则化摘要。在「🔑 API Key」里配置 DeepSeek 后，可在报告页点「生成 AI 解读」，再导出即可带上人格化执行摘要与人性化人格分析。' });
+        blocks.push({ type: 'note', text: '未配置 AI Key（当前：' + aiProviderLabel() + '），当前为规则化摘要。在「🔑 API Key」里配置后，可在报告页点「生成 AI 解读」，再导出即可带上人格化执行摘要与人性化人格分析。' });
       }
     }
 
@@ -4691,7 +4820,7 @@
           blocks.push({ type: 'paragraph', text: point.body });
         }
       });
-      blocks.push({ type: 'note', text: '本段人格分析由 DeepSeek AI 基于本机计算的客观数据与划线/想法原文样本生成，属参考性解读，不构成专业心理或性格鉴定。' });
+      blocks.push({ type: 'note', text: '本段人格分析由 ' + aiProviderLabel() + ' AI 基于本机计算的客观数据与划线/想法原文样本生成，属参考性解读，不构成专业心理或性格鉴定。' });
     }
 
     // 二、数据全景
@@ -5118,7 +5247,7 @@
       '笔记口径：笔记数 = 想法/点评(reviewCount) + 划线(noteCount) + 书签(bookmarkCount)；书签只统计数量、不含内容；「笔记密度」的平均每本分母为「有笔记的书数」（非书架全部书）。',
       '偏好字段：preferCategory / preferAuthor / preferPublisher / preferCp / preferTime 由官方按各周期可得性返回，缺失即不展示对应小节。',
       '建议口径：「十四、阅读规律与建议」为固定规则模板（事实句 + 温和建议），只用本报告已有指标，不编造数据、不下绝对化结论、不含健康/医疗类建议；未配置 AI 时同样生成。',
-      '分析边界：本报告为基于官方统计与偏好字段的规则化解读；「阅读人格画像」的客观标签为按固定阈值的类型归类，「人性化人格分析」为 DeepSeek AI 参考性解读，均不构成性格、价值观等主观判断或专业鉴定。',
+      '分析边界：本报告为基于官方统计与偏好字段的规则化解读；「阅读人格画像」的客观标签为按固定阈值的类型归类，「人性化人格分析」为 ' + aiProviderLabel() + ' AI 参考性解读，均不构成性格、价值观等主观判断或专业鉴定。',
       '分析口径：「一、执行摘要」与「人性化人格分析」固定基于累计（总体）数据（mode=overall），不随上方周期切换变化；正文各章节按所选周期统计。',
       '隐私：报告在浏览器本机生成，数据不上传；API Key 仅保存在本机。',
     ]});

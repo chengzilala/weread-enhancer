@@ -10,6 +10,7 @@ const { ensureTodayCard } = require('../../shared/daily-generate');
 const { MATERIAL_MIN, dateKey } = require('../../shared/daily-core');
 const wanderStore = require('../../shared/wander-store');
 const { messageOf, isKeyError } = require('../../shared/errors');
+const shareEntry = require('../../shared/share-entry');
 
 const CACHE_TTL_MS = 30 * 60 * 1000;
 const CACHE_KEY = 'wre_home_cache';
@@ -205,7 +206,7 @@ Page({
   onShareAppMessage() {
     return {
       title: this.data.shareTitle || '来「悦读且住」，看看你的阅读数据',
-      path: '/pages/home/index',
+      path: shareEntry.forwardPath(this, '/pages/home/index'),
     };
   },
 
@@ -220,6 +221,7 @@ Page({
       const size = renderHomeShare(canvas, this.sharePayload, store.getProfile());
       const tempFilePath = await this.canvasToTemp(canvas, size);
       this.setData({ sharing: false, shareImg: tempFilePath, showShare: true });
+      shareEntry.prepareCode(this);
     } catch (err) {
       this.setData({ sharing: false });
       wx.showToast({ title: (err && err.message) || '生成失败，请重试', icon: 'none' });
@@ -257,6 +259,30 @@ Page({
 
   closeShare() {
     this.setData({ showShare: false });
+  },
+
+  // 通用分享卡（只读分享页 / 复制链接用）
+  buildShareSpec() {
+    const p = this.sharePayload;
+    if (!p) {
+      return null;
+    }
+    const view = buildHomeView(p.data, p.mode);
+    const profile = store.getProfile();
+    return {
+      kind: 'home',
+      badge: '阅读数据',
+      title: (p.modeLabel || '') + '阅读总览',
+      subtitle: '生成于 ' + p.generatedAt,
+      stats: (view.metrics || []).slice(0, 4).map((m) => ({ label: m.label, value: m.value })),
+      lines: (view.trend && view.trend.peak) ? ['峰值：' + view.trend.peak.label + ' · ' + view.trend.peak.time] : [],
+      chips: (view.categories || []).slice(0, 6).map((c) => c.name),
+      footer: (profile.nickName ? profile.nickName + ' · ' : '') + '悦读且住 · 本机计算',
+    };
+  },
+
+  copyLink() {
+    shareEntry.copyLink(this);
   },
 
   // 一键转发分享图给微信好友（无需先保存到相册）

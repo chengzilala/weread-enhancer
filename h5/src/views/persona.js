@@ -296,9 +296,20 @@ function doShare() {
   if (!p) {
     return;
   }
+  const profile = getProfile();
+  const spec = {
+    kind: 'persona',
+    badge: '阅读人格',
+    title: (p.name || '我的阅读人格') + (p.code ? ' · ' + p.code : ''),
+    subtitle: p.tagline || '',
+    lines: [p.oneLiner].filter(Boolean),
+    chips: (p.nicknames || []).slice(0, 6),
+    footer: (profile.nickName ? profile.nickName + ' · ' : '') + '微信悦读 · 本机计算',
+    text: '我的阅读人格 ' + (p.name || '') + ' · ' + (p.code || ''),
+  };
   presentShareImage(
-    () => renderPersonaShare(p, getProfile()),
-    { title: '微信悦读', text: '我的阅读人格 ' + (p.name || '') + ' · ' + (p.code || ''), link: typeof location !== 'undefined' ? location.href : '' },
+    () => renderPersonaShare(p, profile),
+    spec,
     'persona.png'
   );
 }

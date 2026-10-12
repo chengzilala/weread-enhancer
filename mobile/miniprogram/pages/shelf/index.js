@@ -4,9 +4,9 @@ const data = require('../../shared/data');
 const { shelfCounts, shelfCategories, fmtDateTime } = require('../../shared/report-core');
 const { renderShelfShare } = require('../../shared/shelf-share');
 const { messageOf, isKeyError } = require('../../shared/errors');
+const shareEntry = require('../../shared/share-entry');
 
 const SHELF_MAX = 100; // 单次最多渲染的条目数，防超长列表卡顿
-const GROUP_MAX = 12;  // 官方分组视图：每组最多渲染的条目数
 
 function sortTopThenTime(list, timeField) {
   return list.slice().sort((a, b) => {
@@ -18,50 +18,22 @@ function sortTopThenTime(list, timeField) {
   });
 }
 
-// 合并书 + 专辑为统一条目（供官方分组渲染）
-function shelfItemList(shelf) {
-  const books = (shelf.books || []).map((b) => ({
-    id: b.bookId,
-    title: b.title || '未命名',
-    author: b.author || '',
-    cover: b.cover || '',
-    groups: Array.isArray(b.groups) ? b.groups : [],
-  }));
-  const albums = (shelf.albums || []).map((a) => ({
-    id: a.albumId,
-    title: a.name || '未命名',
-    author: a.authorName || '',
-    cover: a.cover || '',
-    groups: Array.isArray(a.groups) ? a.groups : [],
-  }));
-  return books.concat(albums);
-}
-
-// 按官方分组分区：按 archive 原顺序逐组取前 GROUP_MAX 本，末尾追加「未分组」
+// 按官方分组：只取「组名 + 数量」（archive 原顺序），末尾追加「未分组」；不展示组内书目
 function buildGroups(shelf) {
   const groups = Array.isArray(shelf.groups) ? shelf.groups : [];
   if (!groups.length) {
     return { groups: [], ungrouped: null };
   }
-  const items = shelfItemList(shelf);
   const out = [];
   groups.forEach((g) => {
-    const inGroup = items.filter((it) => it.groups.indexOf(g.name) >= 0);
-    if (!inGroup.length) {
-      return;   // 组内为空则整组不渲染
+    const count = Number(g.count) || 0;
+    if (count > 0) {
+      out.push({ name: g.name, count: count });
     }
-    out.push({
-      name: g.name,
-      count: inGroup.length,
-      items: inGroup.slice(0, GROUP_MAX),
-      more: Math.max(0, inGroup.length - GROUP_MAX),
-    });
   });
-  const rest = items.filter((it) => !it.groups.length);
-  const ungrouped = rest.length
-    ? { count: rest.length, items: rest.slice(0, GROUP_MAX), more: Math.max(0, rest.length - GROUP_MAX) }
-    : null;
-  return { groups: out, ungrouped: ungrouped };
+  const countOf = (list) => (Array.isArray(list) ? list : []).filter((it) => !(Array.isArray(it.groups) && it.groups.length)).length;
+  const rest = countOf(shelf.books) + countOf(shelf.albums);
+  return { groups: out, ungrouped: rest ? { count: rest } : null };
 }
 
 Page({
@@ -127,7 +99,7 @@ Page({
       : '来「悦读且住」，看看你的书架';
     return {
       title: title,
-      path: '/pages/shelf/index',
+      path: shareEntry.forwardPath(this, '/pages/shelf/index'),
     };
   },
 
@@ -142,6 +114,7 @@ Page({
       const size = renderShelfShare(canvas, this.sharePayload, store.getProfile());
       const tempFilePath = await this.canvasToTemp(canvas, size);
       this.setData({ sharing: false, shareImg: tempFilePath, showShare: true });
+      shareEntry.prepareCode(this);
     } catch (err) {
       this.setData({ sharing: false });
       wx.showToast({ title: (err && err.message) || '生成失败，请重试', icon: 'none' });
@@ -179,6 +152,35 @@ Page({
 
   closeShare() {
     this.setData({ showShare: false });
+  },
+
+  // 通用分享卡（只读分享页 / 复制链接用）
+  buildShareSpec() {
+    const p = this.sharePayload;
+    if (!p || !p.shelf) {
+      return null;
+    }
+    const counts = shelfCounts(p.shelf) || {};
+    const books = sortTopThenTime(p.shelf.books || [], 'readUpdateTime');
+    const profile = store.getProfile();
+    return {
+      kind: 'shelf',
+      badge: '书架',
+      title: '我的书架',
+      subtitle: '生成于 ' + p.generatedAt,
+      stats: [
+        { label: '条目总数', value: (counts.total || 0) + ' 个' },
+        { label: '电子书', value: (counts.books || 0) + ' 本' },
+        { label: '专辑/有声书', value: (counts.albums || 0) + ' 个' },
+        { label: '已读完', value: (counts.finished || 0) + ' 本' },
+      ],
+      lines: books.slice(0, 3).map((b) => '《' + (b.title || '未命名') + '》' + (b.author ? ' · ' + b.author : '')),
+      footer: (profile.nickName ? profile.nickName + ' · ' : '') + '悦读且住 · 本机计算',
+    };
+  },
+
+  copyLink() {
+    shareEntry.copyLink(this);
   },
 
   // 一键转发分享图给微信好友（无需先保存到相册）

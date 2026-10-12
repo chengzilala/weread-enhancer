@@ -25,12 +25,25 @@ const SKILL_VERSION = '1.0.4';          // 与官方 skill 包 version 对齐，
 const STORAGE_KEY = 'wreOfficialSkill';
 const TIMEOUT_MS = 10000;
 
-// DeepSeek（AI 增强，可选项）：数字本地算、人格化文字交给 DeepSeek 生成。
-const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
-const DEEPSEEK_MODELS_URL = 'https://api.deepseek.com/models';
-const DEEPSEEK_STORAGE_KEY = 'wreDeepSeekKey';
-const DEEPSEEK_MODEL = 'deepseek-chat';
-const DEEPSEEK_TIMEOUT_MS = 30000;      // AI 生成较慢，放宽到 30 秒
+// AI 增强（可选项）：数字本地算、人格化文字交给「用户选定的国产大模型」生成。
+// 架构：一套「OpenAI 兼容」内核 ＋ 预设表 —— 加新厂商 = 加一行预设，不写新分支。
+// 红线：只用国产大模型（不含 OpenAI / Claude / Gemini / OpenRouter 等国外入口）。
+const AI_PROVIDERS_KEY = 'wreAiProviders';  // { [providerId]: { apiKey, baseURL?, savedAt, lastVerifiedAt } }
+const AI_ACTIVE_KEY = 'wreAiActive';        // { providerId, model }
+const DEEPSEEK_STORAGE_KEY = 'wreDeepSeekKey'; // 兼容旧键：读取时自动迁移到 wreAiProviders.deepseek
+const AI_TIMEOUT_MS = 30000;                // AI 生成较慢，放宽到 30 秒
+
+// baseURL 已按公开文档核对，落地前仍以各家官方文档为准（部分存在 /v1 前缀差异）。
+const AI_PROVIDER_PRESETS = {
+  deepseek:    { name: 'DeepSeek',        baseURL: 'https://api.deepseek.com',                              model: 'deepseek-chat' },
+  qwen:        { name: '通义千问（阿里百炼）', baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',    model: 'qwen-plus' },
+  kimi:        { name: 'Kimi（月之暗面）',  baseURL: 'https://api.moonshot.cn/v1',                           model: 'moonshot-v1-8k' },
+  glm:         { name: '智谱 GLM',         baseURL: 'https://open.bigmodel.cn/api/paas/v4',                 model: 'glm-4-flash' },
+  doubao:      { name: '豆包（火山方舟）',  baseURL: 'https://ark.cn-beijing.volces.com/api/v3',            model: 'doubao-1-5-lite-32k-250115' },
+  siliconflow: { name: '硅基流动',         baseURL: 'https://api.siliconflow.cn/v1',                        model: 'Qwen/Qwen2.5-7B-Instruct' },
+  custom:      { name: '自定义端点',       baseURL: '',                                                     model: '' },
+};
+const AI_DEFAULT_PROVIDER = 'deepseek';
 
 // 配套网站（帮助中心 / 版本检查）：只读一个公开的静态 JSON，不带任何用户数据。
 const SITE_LATEST_URL = 'https://wereadapp-32km31c.maozi.io/api/latest.json';
@@ -59,9 +72,61 @@ async function readSkillState() {
   return result[STORAGE_KEY] || null;
 }
 
-async function readAiState() {
-  const result = await chrome.storage.local.get([DEEPSEEK_STORAGE_KEY]);
-  return result[DEEPSEEK_STORAGE_KEY] || null;
+function aiProviderInfo(providerId) {
+  return AI_PROVIDER_PRESETS[providerId] || AI_PROVIDER_PRESETS[AI_DEFAULT_PROVIDER];
+}
+
+/** 解析某提供商的最终调用参数：baseURL（自定义取用户填写）＋ model（取当前激活值或该家默认） */
+function aiResolveEndpoint(providerId, entry, active) {
+  const preset = aiProviderInfo(providerId);
+  const baseURL = providerId === 'custom'
+    ? String((entry && entry.baseURL) || '').replace(/\/+$/, '')
+    : preset.baseURL;
+  const model = (active && active.model) || preset.model;
+  return { name: preset.name, baseURL: baseURL, model: model };
+}
+
+/** 读取多提供商 AI 存储，并把旧版单一 DeepSeek Key 自动迁移进来 */
+async function readAiStore() {
+  const result = await chrome.storage.local.get([AI_PROVIDERS_KEY, AI_ACTIVE_KEY, DEEPSEEK_STORAGE_KEY]);
+  const providers = (result[AI_PROVIDERS_KEY] && typeof result[AI_PROVIDERS_KEY] === 'object')
+    ? result[AI_PROVIDERS_KEY] : {};
+  const active = (result[AI_ACTIVE_KEY] && typeof result[AI_ACTIVE_KEY] === 'object')
+    ? result[AI_ACTIVE_KEY] : {};
+  // 兼容迁移：旧版单一 DeepSeek Key（wreDeepSeekKey）并入 wreAiProviders.deepseek，保留兼容期
+  const legacy = result[DEEPSEEK_STORAGE_KEY];
+  if (legacy && legacy.apiKey && !(providers.deepseek && providers.deepseek.apiKey)) {
+    providers.deepseek = {
+      apiKey: legacy.apiKey,
+      savedAt: legacy.savedAt || 0,
+      lastVerifiedAt: legacy.lastVerifiedAt || 0,
+    };
+    await chrome.storage.local.set({ [AI_PROVIDERS_KEY]: providers });
+    logBg('info', '已把旧 DeepSeek Key 迁移到多模型存储');
+  }
+  const providerId = AI_PROVIDER_PRESETS[active.providerId] ? active.providerId : AI_DEFAULT_PROVIDER;
+  const preset = aiProviderInfo(providerId);
+  const model = (typeof active.model === 'string' && active.model) ? active.model : preset.model;
+  return { providers: providers, providerId: providerId, model: model };
+}
+
+/** 写出某提供商的 Key（顺带在 DeepSeek 时镜像旧键，保留兼容期） */
+async function saveAiKeyForProvider(providerId, apiKey, baseURL, now) {
+  const store = await readAiStore();
+  const providers = store.providers;
+  const entry = Object.assign({}, providers[providerId] || {}, {
+    apiKey: apiKey,
+    savedAt: now,
+    lastVerifiedAt: now,
+  });
+  if (providerId === 'custom' && typeof baseURL === 'string') {
+    entry.baseURL = baseURL;
+  }
+  providers[providerId] = entry;
+  await chrome.storage.local.set({ [AI_PROVIDERS_KEY]: providers });
+  if (providerId === 'deepseek') {
+    await chrome.storage.local.set({ [DEEPSEEK_STORAGE_KEY]: { apiKey: apiKey, savedAt: now, lastVerifiedAt: now } });
+  }
 }
 
 // ---------- 账户与多端同步（可选） ----------
@@ -144,9 +209,10 @@ async function pushKeysToCloud() {
     return { ok: false, code: 'off' };
   }
   const skill = await readSkillState();
-  const ai = await readAiState();
+  const aiStore = await readAiStore();
+  const aiEntry = aiStore.providers[aiStore.providerId];
   const apiKey = skill && skill.apiKey ? skill.apiKey : '';
-  const aiKey = ai && ai.apiKey ? ai.apiKey : '';
+  const aiKey = aiEntry && aiEntry.apiKey ? aiEntry.apiKey : '';
   if (!apiKey && !aiKey) {
     return { ok: true, skipped: true };
   }
@@ -172,12 +238,19 @@ async function pullKeysFromCloud() {
   } else {
     await chrome.storage.local.remove([STORAGE_KEY, 'wreOfficialReportCache', 'wreOfficialOverviewCache']);
   }
+  const aiStore = await readAiStore();
   if (res.aiKey) {
-    await chrome.storage.local.set({
-      [DEEPSEEK_STORAGE_KEY]: { apiKey: res.aiKey, savedAt: now, lastVerifiedAt: now },
-    });
+    const cur = aiStore.providers[aiStore.providerId];
+    await saveAiKeyForProvider(aiStore.providerId, res.aiKey, cur && cur.baseURL, now);
   } else {
-    await chrome.storage.local.remove([DEEPSEEK_STORAGE_KEY]);
+    const providers = aiStore.providers;
+    if (providers[aiStore.providerId]) {
+      delete providers[aiStore.providerId].apiKey;
+      await chrome.storage.local.set({ [AI_PROVIDERS_KEY]: providers });
+    }
+    if (aiStore.providerId === 'deepseek') {
+      await chrome.storage.local.remove([DEEPSEEK_STORAGE_KEY]);
+    }
   }
   return { ok: true, hasKey: !!res.apiKey, hasAiKey: !!res.aiKey };
 }
@@ -259,22 +332,24 @@ async function verifyKey(apiKey) {
 }
 
 /**
- * 调用 DeepSeek chat/completions（OpenAI 兼容格式）。
+ * 调用选定提供商的 chat/completions（OpenAI 兼容格式）。
+ * endpoint: { name, baseURL, model }；差异（/v1、/api/v3 等）已由 baseURL 吸收。
  * 返回 { ok:true, text } 或 { ok:false, code, error, snippet? }
  */
-async function callDeepSeek(messages, apiKey) {
+async function callAi(endpoint, messages, apiKey) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), DEEPSEEK_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+  const name = endpoint.name || 'AI';
 
   try {
-    const resp = await fetch(DEEPSEEK_URL, {
+    const resp = await fetch(endpoint.baseURL + '/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + apiKey,
       },
       body: JSON.stringify({
-        model: DEEPSEEK_MODEL,
+        model: endpoint.model,
         messages: messages,
         temperature: 0.7,
         max_tokens: 2000,
@@ -294,50 +369,90 @@ async function callDeepSeek(messages, apiKey) {
     const snippet = String(raw || '').slice(0, 300);
 
     if (resp.status === 401 || resp.status === 403) {
-      return { ok: false, code: 'auth', error: 'DeepSeek Key 无效或已失效，请在「设置」里重新填写', snippet };
+      return { ok: false, code: 'auth', error: name + ' Key 无效或已失效，请在「🔑 API Key」里重新填写', snippet };
     }
     if (!resp.ok) {
-      return { ok: false, code: 'http', error: 'DeepSeek 返回异常（HTTP ' + resp.status + '）', snippet };
+      return { ok: false, code: 'http', error: name + ' 返回异常（HTTP ' + resp.status + '）', snippet };
     }
     const content = data && data.choices && data.choices[0] &&
       data.choices[0].message && data.choices[0].message.content;
     if (!content) {
-      return { ok: false, code: 'parse', error: 'DeepSeek 返回内容无法解析', snippet };
+      return { ok: false, code: 'parse', error: name + ' 返回内容无法解析', snippet };
     }
-    return { ok: true, text: content, snippet };
+    return { ok: true, text: content, snippet, provider: name, model: endpoint.model };
   } catch (err) {
     if (err && err.name === 'AbortError') {
-      return { ok: false, code: 'timeout', error: 'AI 生成超时（超过 ' + (DEEPSEEK_TIMEOUT_MS / 1000) + ' 秒）' };
+      return { ok: false, code: 'timeout', error: 'AI 生成超时（超过 ' + (AI_TIMEOUT_MS / 1000) + ' 秒）' };
     }
-    return { ok: false, code: 'network', error: '网络不通或 DeepSeek 不可达' };
+    return { ok: false, code: 'network', error: '网络不通或 ' + name + ' 不可达' };
   } finally {
     clearTimeout(timer);
   }
 }
 
-/** 校验 DeepSeek Key：调 models 接口确认身份有效（不消耗推理 token） */
-async function verifyAiKey(apiKey) {
+/** 校验 AI Key：优先调该家 models 接口（不消耗 token）；若该家未提供 models 端点，再退回一次最小 chat 探测 */
+async function verifyAiKey(endpoint, apiKey) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const name = endpoint.name || 'AI';
   try {
-    const resp = await fetch(DEEPSEEK_MODELS_URL, {
+    const resp = await fetch(endpoint.baseURL + '/models', {
       method: 'GET',
       headers: { 'Authorization': 'Bearer ' + apiKey },
       signal: controller.signal,
     });
     if (resp.status === 401 || resp.status === 403) {
-      return { ok: false, code: 'auth', error: 'DeepSeek Key 无效或已失效，请重新填写' };
+      return { ok: false, code: 'auth', error: name + ' Key 无效或已失效，请重新填写' };
+    }
+    if (resp.ok) {
+      logBg('info', 'AI Key 校验通过', { provider: name, key: maskKey(apiKey) });
+      return { ok: true };
+    }
+    // 该家可能未提供 models 端点（如部分国产网关），退回一次最小 chat 探测
+    if (resp.status === 404 || resp.status === 405 || resp.status === 400) {
+      return await probeAiChat(endpoint, apiKey);
+    }
+    return { ok: false, code: 'http', error: name + ' 校验返回异常（HTTP ' + resp.status + '）' };
+  } catch (err) {
+    if (err && err.name === 'AbortError') {
+      return { ok: false, code: 'timeout', error: '校验超时，请检查网络后重试' };
+    }
+    return { ok: false, code: 'network', error: '网络不通或 ' + name + ' 不可达' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** 最小 chat 探测（max_tokens=1）：用于「未提供 models 端点」的提供商做 Key 有效性校验 */
+async function probeAiChat(endpoint, apiKey) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const name = endpoint.name || 'AI';
+  try {
+    const resp = await fetch(endpoint.baseURL + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+      body: JSON.stringify({
+        model: endpoint.model,
+        messages: [{ role: 'user', content: 'ping' }],
+        max_tokens: 1,
+        stream: false,
+      }),
+      signal: controller.signal,
+    });
+    if (resp.status === 401 || resp.status === 403) {
+      return { ok: false, code: 'auth', error: name + ' Key 无效或已失效，请重新填写' };
     }
     if (!resp.ok) {
-      return { ok: false, code: 'http', error: 'DeepSeek 校验返回异常（HTTP ' + resp.status + '）' };
+      return { ok: false, code: 'http', error: name + ' 校验返回异常（HTTP ' + resp.status + '）' };
     }
-    logBg('info', 'DeepSeek Key 校验通过', { key: maskKey(apiKey) });
+    logBg('info', 'AI Key 校验通过（chat 探测）', { provider: name, key: maskKey(apiKey) });
     return { ok: true };
   } catch (err) {
     if (err && err.name === 'AbortError') {
       return { ok: false, code: 'timeout', error: '校验超时，请检查网络后重试' };
     }
-    return { ok: false, code: 'network', error: '网络不通或 DeepSeek 不可达' };
+    return { ok: false, code: 'network', error: '网络不通或 ' + name + ' 不可达' };
   } finally {
     clearTimeout(timer);
   }
@@ -368,6 +483,32 @@ async function fetchSiteLatest() {
     };
   } finally {
     clearTimeout(timer);
+  }
+}
+
+/** 为「自定义端点」动态申请域名访问权限（optional_host_permissions，用到才授权） */
+async function requestAiOriginPermission(baseURL) {
+  if (!baseURL || typeof chrome.permissions === 'undefined') {
+    return { ok: false, code: 'unsupported', error: '当前环境不支持动态申请端点权限' };
+  }
+  let origin = '';
+  try {
+    origin = new URL(baseURL).origin + '/*';
+  } catch (err) {
+    return { ok: false, code: 'format', error: 'baseURL 格式不对（示例：https://api.example.com/v1）' };
+  }
+  try {
+    const has = await chrome.permissions.contains({ origins: [origin] });
+    if (has) {
+      return { ok: true, granted: true };
+    }
+    const granted = await chrome.permissions.request({ origins: [origin] });
+    if (!granted) {
+      return { ok: false, code: 'denied', error: '未获得该端点的访问授权，无法调用自定义端点' };
+    }
+    return { ok: true, granted: true };
+  } catch (err) {
+    return { ok: false, code: 'error', error: '申请端点权限失败：' + (err && err.message ? err.message : '未知错误') };
   }
 }
 
@@ -438,52 +579,99 @@ async function handleMessage(message) {
   }
 
   if (type === 'wre-ai-status') {
-    const ai = await readAiState();
+    const store = await readAiStore();
+    const entry = store.providers[store.providerId];
+    const configured = Object.keys(store.providers).filter((id) => store.providers[id] && store.providers[id].apiKey);
     return {
       ok: true,
-      hasKey: !!(ai && ai.apiKey),
-      apiKey: ai && ai.apiKey ? ai.apiKey : '',
-      savedAt: ai ? ai.savedAt || 0 : 0,
+      hasKey: !!(entry && entry.apiKey),
+      apiKey: entry && entry.apiKey ? entry.apiKey : '',
+      savedAt: entry ? entry.savedAt || 0 : 0,
+      lastVerifiedAt: entry ? entry.lastVerifiedAt || 0 : 0,
+      providerId: store.providerId,
+      model: store.model,
+      customBaseURL: (store.providers.custom && store.providers.custom.baseURL) || '',
+      configured: configured,
     };
   }
 
-  if (type === 'wre-ai-save') {
+  if (type === 'wre-ai-select') {
+    const providerId = AI_PROVIDER_PRESETS[message.providerId] ? message.providerId : AI_DEFAULT_PROVIDER;
+    const preset = aiProviderInfo(providerId);
+    const model = (typeof message.model === 'string' && message.model) ? message.model : preset.model;
+    await chrome.storage.local.set({ [AI_ACTIVE_KEY]: { providerId: providerId, model: model } });
+    logBg('info', '已切换 AI 提供商', { provider: preset.name, model: model });
+    return { ok: true, providerId: providerId, model: model };
+  }
+
+  if (type === 'wre-ai-test') {
+    const providerId = AI_PROVIDER_PRESETS[message.providerId] ? message.providerId : AI_DEFAULT_PROVIDER;
     const apiKey = String(message.apiKey || '').trim();
     if (!apiKey) {
-      return { ok: false, code: 'empty', error: '请先粘贴 DeepSeek Key' };
+      return { ok: false, code: 'empty', error: '请先粘贴 Key' };
     }
-    if (apiKey.indexOf('sk-') !== 0) {
-      return { ok: false, code: 'format', error: 'Key 格式不对：应以 sk- 开头' };
+    const endpoint = aiResolveEndpoint(providerId, { baseURL: message.baseURL }, { model: message.model });
+    if (!endpoint.baseURL) {
+      return { ok: false, code: 'format', error: '请先填写自定义端点的 baseURL' };
     }
-    const verified = await verifyAiKey(apiKey);
+    return await verifyAiKey(endpoint, apiKey);
+  }
+
+  if (type === 'wre-ai-save') {
+    const providerId = AI_PROVIDER_PRESETS[message.providerId] ? message.providerId : AI_DEFAULT_PROVIDER;
+    const preset = aiProviderInfo(providerId);
+    const apiKey = String(message.apiKey || '').trim();
+    if (!apiKey) {
+      return { ok: false, code: 'empty', error: '请先粘贴 ' + preset.name + ' 的 Key' };
+    }
+    const baseURL = String(message.baseURL || '').trim();
+    if (providerId === 'custom' && !baseURL) {
+      return { ok: false, code: 'format', error: '自定义端点需先填写 baseURL（形如 https://xxx/v1）' };
+    }
+    const model = (typeof message.model === 'string' && message.model) ? message.model : preset.model;
+    const verified = await verifyAiKey(aiResolveEndpoint(providerId, { baseURL: baseURL }, { model: model }), apiKey);
     if (!verified.ok) {
       return verified;
     }
     const now = Date.now();
-    await chrome.storage.local.set({
-      [DEEPSEEK_STORAGE_KEY]: { apiKey: apiKey, savedAt: now, lastVerifiedAt: now },
-    });
+    await saveAiKeyForProvider(providerId, apiKey, baseURL, now);
+    await chrome.storage.local.set({ [AI_ACTIVE_KEY]: { providerId: providerId, model: model } });
     const synced = await pushKeysToCloud();
-    logBg('info', '已保存 DeepSeek Key', { key: maskKey(apiKey) });
-    return { ok: true, hasKey: true, savedAt: now, lastVerifiedAt: now, synced: !!(synced && synced.ok) };
+    logBg('info', '已保存 AI Key', { provider: preset.name, key: maskKey(apiKey) });
+    return { ok: true, hasKey: true, savedAt: now, lastVerifiedAt: now, providerId: providerId, model: model, synced: !!(synced && synced.ok) };
   }
 
   if (type === 'wre-ai-clear') {
-    await chrome.storage.local.remove([DEEPSEEK_STORAGE_KEY]);
-    logBg('warn', '已清除 DeepSeek Key');
-    return { ok: true, hasKey: false };
+    const store = await readAiStore();
+    const providerId = AI_PROVIDER_PRESETS[message.providerId] ? message.providerId : store.providerId;
+    const providers = store.providers;
+    if (providers[providerId]) {
+      delete providers[providerId].apiKey;
+      await chrome.storage.local.set({ [AI_PROVIDERS_KEY]: providers });
+    }
+    if (providerId === 'deepseek') {
+      await chrome.storage.local.remove([DEEPSEEK_STORAGE_KEY]);
+    }
+    logBg('warn', '已清除 AI Key', { provider: aiProviderInfo(providerId).name });
+    return { ok: true, hasKey: false, providerId: providerId };
   }
 
   if (type === 'wre-ai-chat') {
-    const ai = await readAiState();
-    if (!ai || !ai.apiKey) {
-      return { ok: false, code: 'nokey', error: '尚未配置 DeepSeek Key' };
+    const store = await readAiStore();
+    const entry = store.providers[store.providerId];
+    const preset = aiProviderInfo(store.providerId);
+    if (!entry || !entry.apiKey) {
+      return { ok: false, code: 'nokey', error: '尚未配置 ' + preset.name + ' 的 Key' };
     }
     const messages = Array.isArray(message.messages) ? message.messages : [];
     if (!messages.length) {
       return { ok: false, code: 'empty', error: '缺少对话内容' };
     }
-    return await callDeepSeek(messages, ai.apiKey);
+    return await callAi(aiResolveEndpoint(store.providerId, entry, { model: store.model }), messages, entry.apiKey);
+  }
+
+  if (type === 'wre-ai-permission') {
+    return await requestAiOriginPermission(message.baseURL);
   }
 
   if (type === 'wre-help-latest') {

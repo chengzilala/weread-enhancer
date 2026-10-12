@@ -22,6 +22,7 @@ Page({
     need: core.MATERIAL_MIN,
     card: null,
     viewingArchive: false,
+    archiveMode: false,   // 从「我的 → 每日卡片 · 往期回顾」进入：直接列历史卡片，不生成今天的
     history: [],
     regenLeft: 0,
     aiError: '',
@@ -30,11 +31,21 @@ Page({
     showShare: false,
   },
 
+  onLoad(options) {
+    // 入口带 ?view=archive 时进入归档模式
+    this.archiveMode = !!(options && options.view === 'archive');
+  },
+
   onShow() {
     this.setData({ wreFs: store.getFontScale(), wreDark: theme.apply() });
     const hasKey = !!store.getKey();
-    this.setData({ hasKey, regenLeft: db.regenLeft() });
+    this.setData({ hasKey, regenLeft: db.regenLeft(), archiveMode: !!this.archiveMode });
     if (!hasKey) {
+      return;
+    }
+    if (this.archiveMode) {
+      // 归档入口：只列本机历史卡片，不自动生成今天的卡片
+      this.loadHistory();
       return;
     }
     this.ensureCard();
@@ -45,9 +56,14 @@ Page({
       wx.stopPullDownRefresh();
       return;
     }
-    // 看往期时下拉 = 回到今天；否则下拉刷新 = 重新生成（会消耗当日次数，与「重新生成」同一口径）
+    // 看往期时下拉 = 回到列表 / 回到今天；归档模式下拉 = 刷新列表；否则下拉刷新 = 重新生成
     if (this.data.viewingArchive) {
       this.backToToday();
+      wx.stopPullDownRefresh();
+      return;
+    }
+    if (this.data.archiveMode) {
+      this.loadHistory();
       wx.stopPullDownRefresh();
       return;
     }
@@ -245,7 +261,21 @@ Page({
     wx.pageScrollTo({ scrollTop: 0, duration: 0 });
   },
 
+  // 归档模式下的「看今天的卡片」：退出归档，回到今日卡片视图
+  goToday() {
+    this.archiveMode = false;
+    this.setData({ archiveMode: false, card: null, viewingArchive: false, error: '', reason: '', aiError: '' });
+    this.ensureCard();
+    wx.pageScrollTo({ scrollTop: 0, duration: 0 });
+  },
+
   backToToday() {
+    // 归档模式：回到往期列表（不生成今天的卡片）
+    if (this.archiveMode) {
+      this.setData({ card: null, viewingArchive: false, aiError: '' });
+      wx.pageScrollTo({ scrollTop: 0, duration: 0 });
+      return;
+    }
     const today = db.getTodayCard();
     if (today) {
       this.setData({ card: core.toView(today), viewingArchive: false, aiError: '' });

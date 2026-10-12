@@ -4,12 +4,17 @@
  * 与小程序 share 模块同思路，但用 DOM canvas 重写（小程序 WXML/canvas 不可直接用）。
  *   1) makeShareCard(spec) → 画一张竖版 PNG（1080 宽、高按内容自适应），返回 dataURL；
  *   2) shareCard(dataUrl, spec) → 优先 Web Share API 直分享，其次下载 PNG；
- *   3) copyLink(url) → 复制页面链接（兜底）。
+ *   3) copyLink(url) → 复制链接（兜底）。
  *
- * 红线：分享图不含账号标识 / 隐私字段；不使用真人照片（纯文字排版）。
+ * 「复制链接」复制的是一条**只读分享短链**：把 spec 里的展示字段上传成短码，
+ * 链接形如 `<站点>/app/#/s/<code>`，别人点开无需配置 Key 就能看到同一张卡片内容。
+ *
+ * 红线：分享图不含账号标识 / 隐私字段；不使用真人照片（纯文字排版）；
+ *       上传的只有卡面上的展示字段（白名单），不含 Key / 原始数据。
  */
 
 import { toast } from './ui.js';
+import { sharePut } from './api.js';
 
 const CARD_W = 1080;
 const PAD = 64;
@@ -338,9 +343,60 @@ export async function copyLink(url) {
   }
 }
 
+/** 分享短链地址：<站点>/<应用路径>#/s/<code>（与 app.js 的只读路由对应） */
+export function shareUrlOf(code) {
+  if (typeof location === 'undefined') {
+    return '';
+  }
+  const base = location.origin + location.pathname.replace(/index\.html?$/i, '');
+  return base + '#/s/' + code;
+}
+
+/** 只挑卡面上的展示字段上传（与云函数白名单一致），不发 Key / 原始数据 */
+function pickPayload(spec) {
+  const s = spec || {};
+  const out = {};
+  ['badge', 'title', 'subtitle', 'footer'].forEach((k) => {
+    if (s[k]) {
+      out[k] = String(s[k]);
+    }
+  });
+  if (Array.isArray(s.stats)) {
+    out.stats = s.stats.map((it) => ({ label: (it && it.label) || '', value: (it && it.value) || '' }));
+  }
+  if (Array.isArray(s.lines)) {
+    out.lines = s.lines.slice();
+  }
+  if (s.quote && s.quote.text) {
+    out.quote = { text: s.quote.text, from: s.quote.from || '' };
+  }
+  if (Array.isArray(s.chips)) {
+    out.chips = s.chips.slice();
+  }
+  return out;
+}
+
+/**
+ * 取回（或首次生成）本次分享的只读短链，写到 spec.shareUrl 缓存起来。
+ * @returns {Promise<{ok:boolean, url?:string, error?:string}>}
+ */
+export async function ensureShareLink(spec) {
+  const s = spec || {};
+  if (s.shareUrl) {
+    return { ok: true, url: s.shareUrl };
+  }
+  const res = await sharePut(s.kind || 'other', pickPayload(s));
+  if (!res || !res.ok || !res.code) {
+    return { ok: false, error: (res && res.error) || '生成分享链接失败' };
+  }
+  s.shareUrl = shareUrlOf(res.code);
+  return { ok: true, url: s.shareUrl };
+}
+
 /**
  * 分享图预览弹层：展示已画好的图，提供「分享 / 保存」「复制链接」「关闭」。
  * 「分享 / 保存」在用户点击时触发，保证仍是用户手势（Web Share 更可靠）。
+ * 「复制链接」会先把卡面内容存成短码，再复制只读分享链接（别人点开即见）。
  * @returns {function} 关闭函数
  */
 export function openShareSheet(dataUrl, spec, filename) {
@@ -351,7 +407,7 @@ export function openShareSheet(dataUrl, spec, filename) {
     '<div class="wre-share-panel">' +
     '  <div class="wre-share-preview"><img src="' + dataUrl + '" alt="分享图预览"></div>' +
     '  <button class="wre-btn" data-share="go">分享 / 保存图片</button>' +
-    '  <button class="wre-btn wre-btn--ghost" data-share="link">复制链接</button>' +
+    '  <button class="wre-btn wre-btn--ghost" data-share="link">复制分享链接</button>' +
     '  <button class="wre-btn wre-btn--ghost" data-share="close">关闭</button>' +
     '</div>';
   document.body.appendChild(mask);
@@ -377,8 +433,18 @@ export function openShareSheet(dataUrl, spec, filename) {
       return;
     }
     if (act === 'link') {
-      const r = await copyLink(s.link || (typeof location !== 'undefined' ? location.href : ''));
-      toast(r.ok ? '链接已复制' : '复制失败，请手动复制');
+      btn.disabled = true;
+      const prev = btn.textContent;
+      btn.textContent = '正在生成链接…';
+      const r = await ensureShareLink(s);
+      btn.disabled = false;
+      btn.textContent = prev;
+      if (!r.ok) {
+        toast(r.error || '生成分享链接失败');
+        return;
+      }
+      const c = await copyLink(r.url);
+      toast(c.ok ? '链接已复制，发给朋友即可打开' : '复制失败，请手动复制：' + r.url);
       return;
     }
     if (act === 'go') {

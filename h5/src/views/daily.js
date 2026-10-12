@@ -18,8 +18,17 @@ import { speakList, ttsSupported } from '../tts.js';
 
 export const title = '每日卡片';
 
+// 「我的 → 每日卡片 · 往期回顾」入口：进入后直达历史列表（不生成今天的卡片）
+let pendingArchive = false;
+
+/** 由「我的」入口调用：下一次进入本页时直接展示往期回顾列表 */
+export function openArchive() {
+  pendingArchive = true;
+}
+
 // 页面状态（模块级，切 Tab 后保留）
 const S = {
+  mode: 'today',            // today=今天卡片视图；archive=往期回顾列表视图
   view: null,
   viewingArchive: false,
   generating: false,
@@ -35,11 +44,18 @@ export function render(root, app) {
   root.innerHTML = '<div class="wre-page"><div id="dailyBody"></div></div>';
   const body = root.querySelector('#dailyBody');
   body.addEventListener('click', (e) => onClick(e, body, app));
+  S.mode = pendingArchive ? 'archive' : 'today';
+  pendingArchive = false;
   S.view = null;
   S.viewingArchive = false;
   S.error = '';
   S.reason = '';
   S.aiError = '';
+  if (S.mode === 'archive') {
+    // 归档模式：只列历史卡片，不自动生成今天的卡片
+    paint(body);
+    return;
+  }
   boost(body, app);
 }
 
@@ -151,11 +167,16 @@ function backHtml() {
 }
 
 function bodyHtml() {
+  // 归档模式：直接展示往期回顾列表（不生成今天的卡片）
+  if (S.mode === 'archive' && !S.viewingArchive) {
+    return archiveListHtml() + statementHtml();
+  }
+  // 今日卡片不可用时，往期回顾列表也要照常显示（本地存档不依赖当日生成）
   if (S.error) {
-    return '<div class="wre-card">' + stateHtml('error', S.error, S.needsKey ? '去配置 Key' : '重试') + '</div>';
+    return '<div class="wre-card">' + stateHtml('error', S.error, S.needsKey ? '去配置 Key' : '重试') + '</div>' + historyHtml();
   }
   if (S.reason === 'material') {
-    return materialHtml();
+    return materialHtml() + historyHtml();
   }
   if (S.view) {
     return archiveBarHtml() + cardHtml(S.view) + actionsHtml(S.view) + historyHtml() + statementHtml();
@@ -170,7 +191,7 @@ function archiveBarHtml() {
   return (
     '<div class="wre-archive-bar">' +
     '<span>正在看往期 · ' + esc(S.view.dateLabel) + '</span>' +
-    '<button class="wre-back__btn" data-action="back-today">回到今天</button>' +
+    '<button class="wre-back__btn" data-action="back-today">' + (S.mode === 'archive' ? '回到列表' : '回到今天') + '</button>' +
     '</div>'
   );
 }
@@ -245,11 +266,12 @@ function actionsHtml(view) {
   return parts.join('');
 }
 
-function historyHtml() {
+/** 本机历史卡片（不含今天），倒序；limit 控制条数 */
+function historyItems(limit) {
   const today = core.dateKey();
-  const list = db.listCards()
+  return db.listCards()
     .filter((c) => c && c.date !== today)
-    .slice(0, 10)
+    .slice(0, limit)
     .map((c) => ({
       id: c.id,
       dateLabel: core.dayLabel(c.createdAt),
@@ -257,6 +279,21 @@ function historyHtml() {
       quote: (c.quote && c.quote.text) || '',
       starred: !!c.starred,
     }));
+}
+
+function historyItemsHtml(list) {
+  return list.map((h) =>
+    '<div class="wre-history" data-archive="' + esc(h.id) + '">' +
+    '<div class="wre-history__head"><span class="wre-history__date">' + esc(h.dateLabel) + '</span>' +
+    (h.starred ? '<span class="wre-history__star">★ 收藏</span>' : '') + '</div>' +
+    '<div class="wre-history__title">' + esc(h.title) + '</div>' +
+    '<div class="wre-history__quote">' + esc(h.quote) + '</div>' +
+    '</div>').join('');
+}
+
+/** 今日卡片视图：卡片下方的「往期回顾」（最多 10 条，无则整块不显示） */
+function historyHtml() {
+  const list = historyItems(10);
   if (!list.length) {
     return '';
   }
@@ -264,14 +301,28 @@ function historyHtml() {
     '<div class="wre-card">' +
     '<div class="wre-card__title wre-card__title--row"><span>往期回顾</span>' +
     '<span class="wre-hint">点开可看整张</span></div>' +
-    list.map((h) =>
-      '<div class="wre-history" data-archive="' + esc(h.id) + '">' +
-      '<div class="wre-history__head"><span class="wre-history__date">' + esc(h.dateLabel) + '</span>' +
-      (h.starred ? '<span class="wre-history__star">★ 收藏</span>' : '') + '</div>' +
-      '<div class="wre-history__title">' + esc(h.title) + '</div>' +
-      '<div class="wre-history__quote">' + esc(h.quote) + '</div>' +
-      '</div>').join('') +
+    historyItemsHtml(list) +
     '</div>'
+  );
+}
+
+/** 归档视图：从「我的」入口直接进入，列出全部历史卡片（无则给空态引导） */
+function archiveListHtml() {
+  const list = historyItems(db.HISTORY_MAX);
+  const head =
+    '<div class="wre-card__title wre-card__title--row"><span>往期回顾</span>' +
+    (list.length ? '<span class="wre-hint">点开可看整张</span>' : '') + '</div>';
+  if (!list.length) {
+    return (
+      '<div class="wre-card">' + head +
+      '<div class="wre-muted">还没有往期卡片。每天打开一次「每日卡片」，就会在本机攒下一张，这里按日期倒序排好。</div>' +
+      '<button class="wre-btn" data-action="go-today">看今天的卡片</button>' +
+      '</div>'
+    );
+  }
+  return (
+    '<div class="wre-card">' + head + historyItemsHtml(list) + '</div>' +
+    '<div class="wre-card"><button class="wre-btn" data-action="go-today">看今天的卡片</button></div>'
   );
 }
 
@@ -345,10 +396,25 @@ function onClick(e, body, app) {
     doTts();
     return;
   }
+  if (action === 'go-today') {
+    S.mode = 'today';
+    S.viewingArchive = false;
+    S.view = null;
+    S.error = '';
+    S.reason = '';
+    boost(body, app);
+    window.scrollTo(0, 0);
+    return;
+  }
   if (action === 'back-today') {
     S.viewingArchive = false;
     S.view = null;
-    boost(body, app);
+    if (S.mode === 'archive') {
+      // 归档模式：回到往期列表（不生成今天的卡片）
+      paint(body);
+    } else {
+      boost(body, app);
+    }
     window.scrollTo(0, 0);
   }
 }
@@ -356,6 +422,7 @@ function onClick(e, body, app) {
 function shareSpec(view) {
   const profile = getProfile();
   return {
+    kind: 'daily',
     badge: '每日卡片',
     title: view.title,
     subtitle: view.dateLabel,

@@ -510,6 +510,7 @@ function shareSpec(v) {
   const profile = getProfile();
   const first = (v.sources && v.sources[0]) || null;
   return {
+    kind: 'wander',
     badge: '灵感漫游',
     title: v.title,
     subtitle: v.weekLabel + (v.theme ? ' · ' + v.theme : ''),

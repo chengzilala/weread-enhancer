@@ -11,8 +11,22 @@
  *   - 切后台 / 关闭页面立即停止。
  */
 
+import {
+  speakList as cloudSpeakList,
+  togglePause as cloudTogglePause,
+  next as cloudNext,
+  prev as cloudPrev,
+  stop as cloudStop,
+  isActive as cloudIsActive,
+  setCloudToast,
+  available as cloudAvailable,
+} from './tts-cloud.js';
+
 const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
-export const ttsSupported = !!(synth && typeof window.SpeechSynthesisUtterance === 'function');
+const systemSupported = !!(synth && typeof window.SpeechSynthesisUtterance === 'function');
+
+/** 是否有可用的朗读方式：云端神经语音（音色更好）或 浏览器系统语音 */
+export const ttsSupported = systemSupported || cloudAvailable();
 
 let queue = [];            // [{ text, label }]
 let index = 0;             // 当前条
@@ -207,15 +221,23 @@ function begin() {
   paintBar();
 }
 
-/** 朗读一个列表；items = [{ text, label }] */
+/** 朗读一个列表；items = [{ text, label }]。优先云语音（音色更好），不可用时回退系统语音 */
 export function speakList(items, opts) {
   const list = (Array.isArray(items) ? items : []).filter((it) => it && String(it.text || '').trim());
-  if (!ttsSupported) {
-    notify('当前浏览器不支持语音朗读');
-    return;
-  }
   if (!list.length) {
     notify('没有可朗读的内容');
+    return;
+  }
+  if (cloudSpeakList(list, opts, () => systemSpeakList(list, opts))) {
+    return;
+  }
+  systemSpeakList(list, opts);
+}
+
+/** 系统语音（Web Speech API）朗读：云语音不可用时的兜底 */
+function systemSpeakList(list, opts) {
+  if (!systemSupported) {
+    notify('当前浏览器不支持语音朗读');
     return;
   }
   const start = Math.max(0, Math.min((opts && opts.start) || 0, list.length - 1));
@@ -237,6 +259,10 @@ export function speakText(text, label) {
 }
 
 export function togglePause() {
+  if (cloudIsActive()) {
+    cloudTogglePause();
+    return;
+  }
   if (!active) {
     return;
   }
@@ -259,6 +285,10 @@ export function togglePause() {
 }
 
 export function next() {
+  if (cloudIsActive()) {
+    cloudNext();
+    return;
+  }
   if (!active) {
     return;
   }
@@ -277,6 +307,10 @@ export function next() {
 }
 
 export function prev() {
+  if (cloudIsActive()) {
+    cloudPrev();
+    return;
+  }
   if (!active) {
     return;
   }
@@ -291,6 +325,10 @@ export function prev() {
 }
 
 export function stop() {
+  if (cloudIsActive()) {
+    cloudStop();
+    return;
+  }
   runToken += 1;
   active = false;
   paused = false;
@@ -308,7 +346,7 @@ export function stop() {
 }
 
 export function isActive() {
-  return active;
+  return cloudIsActive() || active;
 }
 
 function notify(message) {
@@ -317,9 +355,10 @@ function notify(message) {
   }
 }
 
-/** 注入一个 toast 函数（避免 tts 直接依赖 ui.js） */
+/** 注入一个 toast 函数（避免 tts 直接依赖 ui.js）；同时转给云语音模块 */
 export function setTtsToast(fn) {
   toastFn = typeof fn === 'function' ? fn : null;
+  setCloudToast(fn);
 }
 
 // 切后台 / 关页面即停（不做后台常驻播放）

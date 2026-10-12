@@ -1,0 +1,120 @@
+/* 只读分享页（pages/share/index） */
+
+.share-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.share-card__brand {
+  font-size: calc(30rpx * var(--wre-fs));
+  font-weight: 700;
+  color: var(--wre-text);
+}
+
+.share-card__badge {
+  background: var(--wre-brand-soft);
+  color: var(--wre-brand);
+  border-radius: 999rpx;
+  padding: 6rpx 20rpx;
+  font-size: calc(24rpx * var(--wre-fs));
+  font-weight: 600;
+}
+
+.share-card__title {
+  font-size: calc(40rpx * var(--wre-fs));
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--wre-text);
+}
+
+.share-card__sub {
+  margin-top: 8rpx;
+}
+
+.share-card__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+
+.share-card__stat {
+  flex: 1 1 40%;
+  background: var(--wre-card-2);
+  border-radius: 14rpx;
+  padding: 20rpx 22rpx;
+}
+
+.share-card__stat-value {
+  font-size: calc(36rpx * var(--wre-fs));
+  font-weight: 700;
+  color: var(--wre-brand);
+}
+
+.share-card__stat-label {
+  margin-top: 6rpx;
+  color: var(--wre-muted);
+  font-size: calc(24rpx * var(--wre-fs));
+}
+
+.share-card__line {
+  margin-top: 20rpx;
+  color: var(--wre-text-3);
+  font-size: calc(30rpx * var(--wre-fs));
+  line-height: 1.8;
+}
+
+.share-card__quote {
+  margin-top: 24rpx;
+  padding: 24rpx 26rpx;
+  background: var(--wre-card-2);
+  border-left: 6rpx solid var(--wre-brand);
+  border-radius: 12rpx;
+}
+
+.share-card__quote-text {
+  display: block;
+  color: var(--wre-text-body);
+  font-size: calc(32rpx * var(--wre-fs));
+  line-height: 1.8;
+}
+
+.share-card__quote-from {
+  display: block;
+  margin-top: 10rpx;
+  color: var(--wre-muted);
+  font-size: calc(24rpx * var(--wre-fs));
+}
+
+.share-card__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 24rpx;
+}
+
+.share-card__chip {
+  background: var(--wre-brand-soft);
+  color: var(--wre-brand);
+  border-radius: 999rpx;
+  padding: 8rpx 22rpx;
+  font-size: calc(26rpx * var(--wre-fs));
+}
+
+.share-card__footer {
+  margin-top: 28rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid var(--wre-line);
+  color: var(--wre-muted);
+  font-size: calc(24rpx * var(--wre-fs));
+}
+
+.share-open {
+  text-align: center;
+}
+
+.share-open .wre-btn {
+  margin-top: 0;
+}

@@ -577,6 +577,40 @@ def build_360_shots():
                os.path.join(OUT_360, name), 560, 350, scale=2, final=(560, 350), sharpen=120)
 
 
+# ------------------------------- 360 创作者中心（平台实际要求，2026-10 实测）
+# 与旧文档不同：图标 192×192、封面图小图 472×296、市场推荐图 1120×700（1–5 张）。
+# 封面/推荐图与商店截图同为 16:10，直接由 screenshots/store/ 等比缩放，风格一致且最清晰。
+PLAT360_COVER = "store-01-1280x800.png"
+PLAT360_RECOMM = [
+    "store-01-1280x800.png",
+    "store-02-1280x800.png",
+    "store-04-1280x800.png",
+    "store-06-1280x800.png",
+    "store-07-1280x800.png",
+]
+
+
+def _fit(src, dst, size):
+    im = Image.open(src).convert("RGB")
+    tw, th = size
+    if im.width / im.height > tw / th:          # 源更宽 → 左右裁
+        nw = int(round(im.height * tw / th)); x = (im.width - nw) // 2
+        im = im.crop((x, 0, x + nw, im.height))
+    else:                                        # 源更高 → 上下裁
+        nh = int(round(im.width * th / tw)); y = (im.height - nh) // 2
+        im = im.crop((0, y, im.width, y + nh))
+    im.resize((tw, th), Image.LANCZOS).save(dst)
+
+
+def build_360_platform():
+    logo_png(192).save(os.path.join(OUT_360, "图标-192x192.png"))
+    _fit(os.path.join(OUT_STORE, PLAT360_COVER),
+         os.path.join(OUT_360, "封面图小图-472x296.png"), (472, 296))
+    for i, name in enumerate(PLAT360_RECOMM, 1):
+        _fit(os.path.join(OUT_STORE, name),
+             os.path.join(OUT_360, "市场推荐图-%02d-1120x700.png" % i), (1120, 700))
+
+
 # ------------------------------------------- 微软 Partner Center / Chrome 上传包
 
 # 截图槽位「最多 6 张」，这里挑最能代表产品的 6 张（列表顺序 = 上传顺序）。
@@ -664,6 +698,8 @@ def main():
     build_store_shots()
     print("360 商店素材 → release/360-素材/")
     build_360_shots()
+    print("360 创作者中心素材 → release/360-素材/")
+    build_360_platform()
     print("微软 Partner Center 上传包 → release/微软商店-上传/")
     build_ms_upload()
     print("完成。")

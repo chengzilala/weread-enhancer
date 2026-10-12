@@ -205,3 +205,131 @@
 .params__note {
   margin-top: 16rpx;
 }
+
+/* 「如何获取 Key」图文说明（对齐 H5 .wre-guide；默认收起，点标题展开） */
+.key-guide {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24rpx;
+  padding: 22rpx 24rpx;
+  background: var(--wre-card-2);
+  border: 1rpx solid var(--wre-line);
+  border-radius: 24rpx;
+}
+
+.key-guide__summary {
+  flex: 1;
+  font-size: calc(26rpx * var(--wre-fs));
+  font-weight: 600;
+  color: var(--wre-brand);
+}
+
+.key-guide__arrow {
+  flex: none;
+  margin-left: 16rpx;
+  font-size: calc(24rpx * var(--wre-fs));
+  color: var(--wre-muted);
+}
+
+.key-guide__body {
+  margin-top: 8rpx;
+  padding: 0 24rpx 8rpx;
+}
+
+.key-guide__step {
+  margin-top: 24rpx;
+}
+
+.key-guide__row {
+  display: flex;
+  align-items: flex-start;
+}
+
+.key-guide__no {
+  flex: none;
+  width: 40rpx;
+  height: 40rpx;
+  margin-right: 16rpx;
+  border-radius: 50%;
+  background: var(--wre-brand);
+  color: var(--wre-on-brand);
+  font-size: calc(24rpx * var(--wre-fs));
+  font-weight: 700;
+  text-align: center;
+  line-height: 40rpx;
+}
+
+.key-guide__text {
+  flex: 1;
+  font-size: calc(26rpx * var(--wre-fs));
+  line-height: 1.7;
+  color: var(--wre-text-body);
+}
+
+.key-guide__img {
+  display: block;
+  width: 62%;
+  margin: 16rpx 0 0;
+  border: 1rpx solid var(--wre-line);
+  border-radius: 20rpx;
+  background: #fff;
+}
+
+.key-guide__tip {
+  margin-top: 28rpx;
+  font-size: calc(24rpx * var(--wre-fs));
+  line-height: 1.65;
+  color: var(--wre-muted);
+}
+
+/* 「加到手机桌面 / 我的小程序」：置顶卡片，淡品牌底突出显示 */
+.desktop-card {
+  background: var(--wre-brand-soft);
+}
+
+.desktop-guide__group {
+  margin-top: 24rpx;
+}
+
+.desktop-guide__group-title {
+  font-size: calc(28rpx * var(--wre-fs));
+  font-weight: 600;
+  color: var(--wre-text);
+  margin-bottom: 12rpx;
+}
+
+.desktop-guide__row {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 12rpx;
+}
+
+.desktop-guide__no {
+  flex: none;
+  width: 40rpx;
+  height: 40rpx;
+  margin-right: 16rpx;
+  border-radius: 50%;
+  background: var(--wre-brand);
+  color: var(--wre-on-brand);
+  font-size: calc(24rpx * var(--wre-fs));
+  font-weight: 700;
+  text-align: center;
+  line-height: 40rpx;
+}
+
+.desktop-guide__text {
+  flex: 1;
+  font-size: calc(26rpx * var(--wre-fs));
+  line-height: 1.7;
+  color: var(--wre-text-body);
+}
+
+.desktop-guide__tip {
+  margin-top: 28rpx;
+  font-size: calc(24rpx * var(--wre-fs));
+  line-height: 1.65;
+  color: var(--wre-muted);
+}
+

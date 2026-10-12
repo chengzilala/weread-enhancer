@@ -36,9 +36,27 @@ function doShare() {
   if (!lastShelf) {
     return;
   }
+  const counts = shelfCounts(lastShelf) || {};
+  const books = (lastShelf.books || []).slice().sort((a, b) => (b.readUpdateTime || 0) - (a.readUpdateTime || 0));
+  const profile = getProfile();
+  const spec = {
+    kind: 'shelf',
+    badge: '书架',
+    title: '我的书架',
+    subtitle: '生成于 ' + fmtDateTime(Date.now()),
+    stats: [
+      { label: '条目总数', value: (counts.total || 0) + ' 个' },
+      { label: '电子书', value: (counts.books || 0) + ' 本' },
+      { label: '专辑/有声书', value: (counts.albums || 0) + ' 个' },
+      { label: '已读完', value: (counts.finished || 0) + ' 本' },
+    ],
+    lines: books.slice(0, 3).map((b) => '《' + (b.title || '未命名') + '》' + (b.author ? ' · ' + b.author : '')),
+    footer: (profile.nickName ? profile.nickName + ' · ' : '') + '微信悦读 · 本机计算',
+    text: '我的书架',
+  };
   presentShareImage(
-    () => renderShelfShare({ shelf: lastShelf, generatedAt: fmtDateTime(Date.now()) }, getProfile()),
-    { title: '微信悦读', text: '我的书架', link: typeof location !== 'undefined' ? location.href : '' },
+    () => renderShelfShare({ shelf: lastShelf, generatedAt: fmtDateTime(Date.now()) }, profile),
+    spec,
     'shelf-share.png'
   );
 }
@@ -150,69 +168,42 @@ function bodyHtml(shelf, notebooks, fromCache) {
   return parts.join('');
 }
 
-/** 合并书 + 专辑为统一条目（供分组渲染） */
-function shelfItemList(shelf) {
-  const books = (shelf.books || []).map((b) => ({
-    title: b.title,
-    author: b.author,
-    cover: b.cover,
-    groups: Array.isArray(b.groups) ? b.groups : [],
-  }));
-  const albums = (shelf.albums || []).map((a) => ({
-    title: a.name,
-    author: a.authorName,
-    cover: a.cover,
-    groups: Array.isArray(a.groups) ? a.groups : [],
-  }));
-  return books.concat(albums);
-}
-
-/** 按官方分组分区：按 archive 原顺序逐组渲染，末尾追加「未分组」 */
+/** 按官方分组（只读）：只列出每组「组名 + 数量」，不展示组内书目 */
 function groupsHtml(shelf) {
   const groups = Array.isArray(shelf.groups) ? shelf.groups : [];
-  const items = shelfItemList(shelf);
   if (!groups.length) {
     return '';
   }
-  const parts = ['<div class="wre-card"><div class="wre-card__title">按官方分组</div>'];
-  let rendered = false;
+  const rows = [];
   groups.forEach((g) => {
-    const inGroup = items.filter((it) => it.groups.indexOf(g.name) >= 0);
-    if (!inGroup.length) {
-      return;   // 组内为空则整组不渲染
+    const count = Number(g.count) || 0;
+    if (count > 0) {
+      rows.push(groupRowHtml(g.name, count));
     }
-    rendered = true;
-    parts.push(groupSectionHtml(g.name, inGroup));
   });
-  const ungrouped = items.filter((it) => !it.groups.length);
-  if (ungrouped.length) {
-    rendered = true;
-    parts.push(groupSectionHtml('未分组', ungrouped));
+  const ungrouped = ungroupedCount(shelf);
+  if (ungrouped > 0) {
+    rows.push(groupRowHtml('未分组', ungrouped));
   }
-  if (!rendered) {
+  if (!rows.length) {
     return '';
   }
-  parts.push('<div class="wre-hint">官方分组为只读数据，来自你的微信读书官方书架。</div>');
-  parts.push('</div>');
-  return parts.join('');
+  return '<div class="wre-card"><div class="wre-card__title">按官方分组</div>' +
+    '<div class="wre-grouplist">' + rows.join('') + '</div>' +
+    '<div class="wre-hint">官方分组为只读数据，来自你的微信读书官方书架。</div>' +
+    '</div>';
 }
 
-function groupSectionHtml(name, list) {
-  const MAX = 12;
-  const shown = list.slice(0, MAX);
-  const more = list.length - shown.length;
-  return '<div class="wre-group">' +
-    '<div class="wre-group__head"><span class="wre-group__name">' + esc(name) + '</span>' +
-    '<span class="wre-group__count">' + list.length + ' 本</span></div>' +
-    '<div class="wre-covergrid">' +
-    shown.map((it) =>
-      '<div class="wre-covercell">' +
-      (it.cover ? '<img class="wre-covercell__img" loading="lazy" src="' + esc(it.cover) + '" alt="">' : '<div class="wre-covercell__img wre-covercell__img--ph"></div>') +
-      '<div class="wre-covercell__title">' + esc(it.title || '未命名') + '</div>' +
-      '</div>').join('') +
-    '</div>' +
-    (more > 0 ? '<div class="wre-hint">还有 ' + more + ' 本未显示</div>' : '') +
-    '</div>';
+/** 未归入任何官方分组的条目数（书 + 专辑动态计算） */
+function ungroupedCount(shelf) {
+  const countOf = (list) => (Array.isArray(list) ? list : []).filter((it) => !(Array.isArray(it.groups) && it.groups.length)).length;
+  return countOf(shelf.books) + countOf(shelf.albums);
+}
+
+function groupRowHtml(name, count) {
+  return '<div class="wre-grouprow">' +
+    '<span class="wre-grouprow__name">' + esc(name) + '</span>' +
+    '<span class="wre-grouprow__count">' + count + ' 本</span></div>';
 }
 
 function item(label, value) {

@@ -1699,5 +1699,17 @@
 - **验证**：`GetDiagnostics`（official.js）无 error（仅 2 条既有 Hint）。
 - **待办**：**需再次上传云函数**（`keyPull` 才生效）；插件端真机验证「启用 → 拉回本机 → 直连网关」与「插件生成 6 位码 → H5/官网登录同一账户」闭环；本次改动**未提交**。
 
+## 2026-10-11 会话条目：AI 增强多模型支持（全国产）—— 落地 RPD 第 13 章
+- **目标**：用户需求「AI 功能，之前分析过要加入其他 AI key 功能」。把已定稿未开发的第 13 章「多模型支持」落地：AI 增强不再只绑 DeepSeek，用户可自选国产大模型并填自己的 Key。经 AskUserQuestion 确认：① 直接实现；② **不要国外模型**（排除 OpenAI/Claude/Gemini/OpenRouter）；③ **只做插件端**（h5 / 小程序本轮不动）。
+- **已做**：
+  - **后台内核** [`background.js`](file:///Users/Admin/Knowledge/Coding/微信读书插件/background.js)：新增 `AI_PROVIDER_PRESETS`（6 家 + 自定义）与 `AI_PROVIDERS_KEY` / `AI_ACTIVE_KEY` 常量；`callDeepSeek` → 泛化 `callAi(endpoint, messages, key)`，`verifyAiKey` 改多提供商签名并加 `probeAiChat` 兜底（无 `/models` 时退回最小 chat 探测）；新增 `aiResolveEndpoint` / `readAiStore`（含旧键 `wreDeepSeekKey` 自动迁移）/ `saveAiKeyForProvider` / `requestAiOriginPermission`（`chrome.permissions.request` 运行时申请自定义端点域名）。消息处理器改造：`wre-ai-status`（回 `providerId`/`model`/`customBaseURL`/`configured`）、新增 `wre-ai-select` / `wre-ai-test` / `wre-ai-permission`，`wre-ai-save` 按 provider 存储并去掉 `sk-` 硬校验、`wre-ai-chat` 用 active provider；`pushKeysToCloud` / `pullKeysFromCloud` 改读写 `wreAiProviders[activeProvider]`。
+  - **UI** [`modules/official.js`](file:///Users/Admin/Knowledge/Coding/微信读书插件/modules/official.js)：AI 增强区由「单一 DeepSeek Key」改为「提供商下拉 + 模型名 + Key + 保存并校验 / 测试连接 / 清除」；新增前端 `AI_PROVIDERS` 表、`aiProviderLabel` / `selectAiProvider` / `testAiKey` / `readAiFormInputs`；全部 AI 文案的「DeepSeek」改为动态 `aiProviderLabel()`。
+  - **权限** [`manifest.json`](file:///Users/Admin/Knowledge/Coding/微信读书插件/manifest.json)：版本 `0.27.4 → 0.28.0`；`host_permissions` 补 5 家国产域名（dashscope / moonshot / bigmodel / volces / siliconflow），新增 `optional_host_permissions: ["https://*/*"]`（自定义端点用）。
+  - **文档回灌**：[`plan/RPD_需求文档.md`](file:///Users/Admin/Knowledge/Coding/微信读书插件/plan/RPD_需求文档.md) 第 13 章改「已实现（v0.28.0）」+ 功能总览表 + 阶段十六打勾 + 新增 13.6.1 逐家冒烟清单；[`release/privacy.md`](file:///Users/Admin/Knowledge/Coding/微信读书插件/release/privacy.md) 与 [`web/content/隐私政策.md`](file:///Users/Admin/Knowledge/Coding/微信读书插件/web/content/隐私政策.md) 的「AI 增强（DeepSeek）」改「国产大模型」并列 6 家；[`web/content/功能教程/API Key 使用说明.md`](file:///Users/Admin/Knowledge/Coding/微信读书插件/web/content/功能教程/API%20Key%20使用说明.md) 改多模型与存储键；[`web/content/更新日志.md`](file:///Users/Admin/Knowledge/Coding/微信读书插件/web/content/更新日志.md) 加 `v0.28.0`。
+- **关键结论**：一套「OpenAI 兼容内核 + 预设表」，加新厂商＝加一行预设；各家 baseURL 差异（`/v1`、`/api/paas/v4`、`/api/v3`）由 baseURL 吸收，代码不写分支。权限面最小化：内置家只用明确域名，自定义端点走可选权限运行时授权。老用户无感：旧键自动迁移、DeepSeek 保持默认。
+- **产出物（文件）**：`background.js`、`modules/official.js`、`manifest.json`、`plan/RPD_需求文档.md`、`release/privacy.md`、`web/content/隐私政策.md`、`web/content/功能教程/API Key 使用说明.md`、`web/content/更新日志.md`。
+- **验证**：`Grep` 核验 `background.js` 命中 `AI_PROVIDER_PRESETS/callAi/verifyAiKey/probeAiChat/requestAiOriginPermission` 24 处、`official.js` 命中新 DOM id/函数 23 处；`GetDiagnostics` 无新增 error（仅既有 Hint）。
+- **待办**：逐家连通性冒烟（需真机 + 各自真 Key，清单见 RPD 13.6.1）；`README.md` 等描述文案的 DeepSeek 残留（可选）；移动端 h5 / 小程序多模型支持（本轮明确不做）；本次改动**未提交**。
+
 
 

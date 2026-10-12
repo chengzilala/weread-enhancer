@@ -1,0 +1,268 @@
+/**
+ * 微信悦读 · 阅读页评论侧栏样式（v0.28.0）
+ *
+ * 仅在 weread.qq.com 阅读页生效；样式自包含（本地变量 --rv-*），
+ * 明/暗主题通过 .wre-dark 覆盖本地变量实现（参考插件 wr_whiteTheme 判据）。
+ * 所有类名前缀 wre-reviews-，避免污染官方样式。
+ */
+
+#wre-reviews-sidebar {
+  --rv-bg: #ffffff;
+  --rv-text: #333333;
+  --rv-sub: #8a8a8a;
+  --rv-border: #ececec;
+  --rv-hover: #f5f5f5;
+  --rv-tag-bg: #f0f0f0;
+  --rv-abstract-bg: #f7f8fa;
+  --rv-accent: #07c160;
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 340px;
+  max-width: 88vw;
+  z-index: calc(var(--wre-z-index, 999999) - 10);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--rv-text);
+  user-select: text;
+  pointer-events: none;
+}
+
+#wre-reviews-sidebar.wre-dark {
+  --rv-bg: #222222;
+  --rv-text: #e2e2e2;
+  --rv-sub: #9a9a9a;
+  --rv-border: #383838;
+  --rv-hover: #333333;
+  --rv-tag-bg: #333333;
+  --rv-abstract-bg: #2c2c2c;
+}
+
+/* ---------- 面板 ---------- */
+.wre-reviews-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  background: var(--rv-bg);
+  border-left: 1px solid var(--rv-border);
+  box-shadow: -2px 0 12px rgba(0, 0, 0, 0.08);
+  pointer-events: auto;
+  transition: transform 0.22s ease;
+}
+
+.wre-reviews-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--rv-border);
+  flex: 0 0 auto;
+}
+
+.wre-reviews-heading {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.wre-reviews-tools {
+  display: flex;
+  gap: 4px;
+}
+
+.wre-reviews-iconbtn {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--rv-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--rv-text);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.wre-reviews-iconbtn:hover {
+  background: var(--rv-hover);
+}
+
+.wre-reviews-sub {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--rv-sub);
+  border-bottom: 1px solid var(--rv-border);
+  word-break: break-all;
+}
+
+.wre-reviews-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+
+.wre-reviews-privacy {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  font-size: 11px;
+  color: var(--rv-sub);
+  border-top: 1px solid var(--rv-border);
+  text-align: center;
+}
+
+/* ---------- 状态态 ---------- */
+.wre-reviews-state {
+  padding: 28px 18px;
+  text-align: center;
+  color: var(--rv-sub);
+  font-size: 13px;
+}
+
+.wre-reviews-state--error {
+  color: var(--rv-text);
+}
+
+.wre-reviews-retry {
+  display: block;
+  margin: 12px auto 0;
+  padding: 6px 16px;
+  border: 1px solid var(--rv-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--rv-text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.wre-reviews-retry:hover {
+  background: var(--rv-hover);
+}
+
+/* ---------- 评论卡片 ---------- */
+.wre-reviews-item {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--rv-border);
+}
+
+.wre-reviews-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.wre-reviews-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  object-fit: cover;
+  background: var(--rv-tag-bg);
+}
+
+.wre-reviews-avatar--text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--rv-sub);
+}
+
+.wre-reviews-name {
+  font-weight: 500;
+  color: var(--rv-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 150px;
+}
+
+.wre-reviews-time {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--rv-sub);
+  flex: 0 0 auto;
+}
+
+.wre-reviews-content {
+  color: var(--rv-text);
+  word-break: break-word;
+}
+
+.wre-reviews-abstract {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--rv-abstract-bg);
+  color: var(--rv-sub);
+  font-size: 13px;
+  cursor: pointer;
+  border-left: 3px solid var(--rv-border);
+}
+
+.wre-reviews-abstract:hover {
+  background: var(--rv-hover);
+}
+
+.wre-reviews-abstract-label {
+  display: inline-block;
+  margin-right: 6px;
+  color: var(--rv-accent);
+  font-size: 12px;
+}
+
+.wre-reviews-abstract-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+}
+
+.wre-reviews-abstract--open .wre-reviews-abstract-text {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+/* ---------- 折叠态：仅留右侧小标签 ---------- */
+.wre-reviews-tab {
+  display: none;
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  padding: 10px 6px;
+  border: 1px solid var(--rv-border);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  background: var(--rv-bg);
+  color: var(--rv-text);
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  pointer-events: auto;
+  font-size: 15px;
+  writing-mode: vertical-rl;
+  letter-spacing: 2px;
+  align-items: center;
+  gap: 6px;
+}
+
+#wre-reviews-sidebar.wre-collapsed .wre-reviews-panel {
+  transform: translateX(100%);
+}
+
+#wre-reviews-sidebar.wre-collapsed .wre-reviews-tab {
+  display: inline-flex;
+}
+
+/* 收起时只在标签区域可点，避免遮挡正文交互 */
+#wre-reviews-sidebar.wre-collapsed {
+  pointer-events: none;
+}

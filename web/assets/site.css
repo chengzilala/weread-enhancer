@@ -351,7 +351,7 @@ a:hover { text-decoration: underline; }
 /* 愿景横幅：无底色，白底上直接放深色书法大字（最极简、零割裂） */
 .home .site-body { padding-top: 26px; }
 .home .doc .home-vision {
-  margin: 4px 0 4px;
+  margin: 30px 0 40px;
   text-align: center;
 }
 .home .doc .home-vision__text {

@@ -524,18 +524,22 @@ a.wre-link { text-decoration: none; color: var(--wre-text); }
    表格内边距略小（对齐小程序 .table-card） */
 .wre-table-card { padding: 10px 12px; }
 .wre-table { margin-top: 8px; }
-/* 列宽由 --wre-cols 决定（主列 minmax(0,1fr) 自适应占满，数值列 auto 按内容收紧）。
-   旧版强制等宽 + break-all 会把「清晨 06:00–09:00」这类长标签挤成孤字换行、行高忽高忽低。 */
+/* 列宽由 --wre-cols 决定（主列与长文本列按 fr 比例分宽，短数值列 auto 按内容收紧）。
+   旧版把所有非主列设成 auto：长文本列（作者 / 分类）会按 max-content 抢完全部宽度，
+   把主列挤成「一字一行」。现按列型分宽 + 允许折行，避免竖排错乱。 */
 .wre-table__head,
 .wre-table__row { display: grid; grid-template-columns: var(--wre-cols, minmax(0, 1fr)); align-items: center; gap: 6px; font-size: calc(13px * var(--wre-fs)); padding: 6px 0; border-bottom: 1px solid var(--wre-line); }
 .wre-table__row { position: relative; }
 .wre-table__head { color: var(--wre-muted); border-bottom: 1px solid var(--wre-line); font-weight: 600; font-size: calc(12px * var(--wre-fs)); }
 .wre-table__head span, .wre-table__row span { min-width: 0; }
-/* 主列：承载描述性文字，允许折行，占满剩余宽度 */
+/* 主列：承载描述性文字，允许折行，占最宽 */
 .wre-table__main { font-weight: 600; overflow-wrap: anywhere; }
-/* 数值 / 序号列：收紧不换行、右对齐，避免孤字换行与行高抖动 */
+/* 长文本列（作者 / 分类等）：与主列按比例分宽，左对齐、允许折行 */
+.wre-table__text { text-align: left; color: var(--wre-text); overflow-wrap: anywhere; }
+/* 短数值 / 序号列：收紧不换行、右对齐，避免孤字换行与行高抖动 */
 .wre-table__cell { text-align: right; white-space: nowrap; color: var(--wre-text-3); }
-.wre-table__head .wre-table__cell { color: var(--wre-muted); }
+.wre-table__head .wre-table__cell,
+.wre-table__head .wre-table__text { color: var(--wre-muted); }
 /* 可用 subgrid 时：把列定义提到整张表上，让表头与各数据行共用同一套列宽，
    数值列左右边界逐行对齐成笔直竖列（不支持 subgrid 的旧内核自动回退为「每行各自栅格」） */
 @supports (grid-template-columns: subgrid) {
@@ -560,18 +564,12 @@ a.wre-link { text-decoration: none; color: var(--wre-text); }
 .wre-book__title { font-size: calc(14px * var(--wre-fs)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wre-tag { font-size: calc(11px * var(--wre-fs)); color: var(--wre-tag-fg); background: var(--wre-tag-bg); border-radius: 6px; padding: 2px 8px; flex: none; }
 
-/* 官方分组分区（只读；中性灰编号，与绿色标签区分） */
-.wre-group { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--wre-line); }
-.wre-group__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
-.wre-group__name { font-size: calc(13px * var(--wre-fs)); font-weight: 600; color: var(--wre-text); }
-.wre-group__count { font-size: calc(11px * var(--wre-fs)); color: var(--wre-muted); flex: none; }
-
-/* 组内书目：3 列封面网格（封面下写书名，仿官方书架） */
-.wre-covergrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 8px; }
-.wre-covercell { min-width: 0; }
-.wre-covercell__img { display: block; width: 100%; aspect-ratio: 3 / 4; border-radius: 6px; object-fit: cover; background: var(--wre-fill); }
-.wre-covercell__img--ph { display: block; }
-.wre-covercell__title { margin-top: 6px; font-size: calc(12px * var(--wre-fs)); line-height: 1.35; color: var(--wre-text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* 官方分组（只读）：只列出「组名 + 数量」，不展示组内书目 */
+.wre-grouplist { margin-top: 4px; }
+.wre-grouprow { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--wre-line); font-size: calc(13px * var(--wre-fs)); }
+.wre-grouprow:last-child { border-bottom: 0; padding-bottom: 0; }
+.wre-grouprow__name { color: var(--wre-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wre-grouprow__count { color: var(--wre-muted); flex: none; }
 
 /* toast */
 .wre-toast {
@@ -718,6 +716,38 @@ a.wre-link { text-decoration: none; color: var(--wre-text); }
   margin: 0 auto 12px;
   border-radius: 10px;
   box-shadow: 0 4px 16px rgba(31, 36, 48, 0.15);
+}
+
+/* ---- 只读分享页（#/s/<code>）---- */
+.wre-share-detail__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.wre-share-detail__brand { font-weight: 700; font-size: calc(15px * var(--wre-fs)); }
+.wre-share-detail__badge {
+  background: var(--wre-brand-soft);
+  color: var(--wre-brand);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: calc(12px * var(--wre-fs));
+  font-weight: 600;
+}
+.wre-share-detail__title {
+  font-size: calc(22px * var(--wre-fs));
+  font-weight: 700;
+  line-height: 1.35;
+  margin-bottom: 6px;
+}
+.wre-share-detail .wre-grid { margin-top: 14px; }
+.wre-share-detail .wre-chips { margin-top: 14px; }
+.wre-share-detail__footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--wre-line);
+  color: var(--wre-muted);
+  font-size: calc(12px * var(--wre-fs));
 }
 
 /* ---- 语音朗读条 ---- */
@@ -874,3 +904,139 @@ a.wre-link { text-decoration: none; color: var(--wre-text); }
     max-width: calc(var(--wre-shell) - 24px);
   }
 }
+
+/* ---- 引导页（landing）：未配置 Key 时打开网页看到的第一屏 ---- */
+.wre-landing { padding: 6px 12px 28px; }
+.wre-landing__hero { text-align: center; padding: 16px 2px 6px; }
+.wre-landing__title {
+  font-size: calc(23px * var(--wre-fs));
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 0 0 12px;
+  color: var(--wre-text);
+}
+.wre-landing__lead {
+  font-size: calc(14px * var(--wre-fs));
+  line-height: 1.8;
+  color: var(--wre-text-3);
+  margin: 0 0 16px;
+}
+.wre-landing__hero .wre-btn { margin-top: 10px; }
+.wre-landing__hint {
+  margin: 12px 0 0;
+  font-size: calc(12px * var(--wre-fs));
+  line-height: 1.65;
+  color: var(--wre-muted);
+}
+.wre-landing__sec { margin-top: 26px; }
+.wre-landing__sec-title {
+  font-size: calc(17px * var(--wre-fs));
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 12px;
+  padding-left: 10px;
+  border-left: 4px solid var(--wre-brand);
+}
+.wre-landing__grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.wre-landing__card {
+  background: var(--wre-card);
+  border-radius: 14px;
+  padding: 14px 12px;
+  box-shadow: 0 1px 6px rgba(31, 36, 48, 0.04);
+}
+.wre-landing__card-icon { font-size: calc(20px * var(--wre-fs)); line-height: 1; }
+.wre-landing__card-title { font-size: calc(14px * var(--wre-fs)); font-weight: 600; margin-top: 8px; }
+.wre-landing__card-desc { font-size: calc(12px * var(--wre-fs)); line-height: 1.65; color: var(--wre-muted); margin-top: 4px; }
+
+.wre-landing__steps { list-style: none; margin: 0; padding: 0; }
+.wre-landing__step {
+  display: flex;
+  gap: 12px;
+  background: var(--wre-card);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 6px rgba(31, 36, 48, 0.04);
+}
+.wre-landing__step-no {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--wre-brand);
+  color: #fff;
+  font-size: calc(14px * var(--wre-fs));
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wre-landing__step-body { min-width: 0; }
+.wre-landing__step-title { font-size: calc(14px * var(--wre-fs)); font-weight: 600; }
+.wre-landing__step-desc { font-size: calc(12px * var(--wre-fs)); line-height: 1.65; color: var(--wre-muted); margin-top: 4px; }
+
+.wre-landing__cta { text-align: center; margin-top: 28px; }
+
+/* ---- 「如何获取 Key」图文说明（可折叠；landing / 配置页 / 我的 三处共用） ---- */
+.wre-guide {
+  margin-top: 12px;
+  border: 1px solid var(--wre-line);
+  border-radius: 12px;
+  background: var(--wre-card-2);
+  overflow: hidden;
+}
+.wre-guide__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 12px;
+  font-size: calc(13px * var(--wre-fs));
+  font-weight: 600;
+  color: var(--wre-brand);
+  cursor: pointer;
+  list-style: none;
+}
+.wre-guide__summary::-webkit-details-marker { display: none; }
+.wre-guide__summary::after { content: '▾'; color: var(--wre-muted); font-size: calc(12px * var(--wre-fs)); }
+.wre-guide[open] .wre-guide__summary::after { content: '▴'; }
+.wre-guide__body { padding: 0 12px 14px; }
+.wre-guide__step { margin-top: 12px; }
+.wre-guide__row { display: flex; gap: 8px; align-items: flex-start; }
+.wre-guide__no {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--wre-brand);
+  color: #fff;
+  font-size: calc(12px * var(--wre-fs));
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wre-guide__text { flex: 1; min-width: 0; font-size: calc(13px * var(--wre-fs)); line-height: 1.7; color: var(--wre-text-body); }
+.wre-guide__img {
+  display: block;
+  width: 62%;
+  max-width: 220px;
+  margin: 8px 0 0;
+  border: 1px solid var(--wre-line);
+  border-radius: 10px;
+  background: #fff;
+}
+.wre-guide__tip { margin-top: 14px; font-size: calc(12px * var(--wre-fs)); line-height: 1.65; color: var(--wre-muted); }
+
+/* 「加到手机桌面」说明：分组小标题（复用 .wre-guide 的步骤行样式） */
+.wre-guide__group-title {
+  font-size: calc(13px * var(--wre-fs));
+  font-weight: 600;
+  color: var(--wre-text);
+  margin-bottom: 4px;
+}
+/* 首页顶部折叠条：去掉顶部多余间距，与下方入口卡留出间隔 */
+.wre-desktop-slot { margin-bottom: 12px; }
+.wre-desktop-slot .wre-guide { margin-top: 0; }
+/* 「我的」页置顶的桌面安装卡：淡品牌底，与其它卡片区分、突出显示 */
+.wre-card--desktop { background: var(--wre-brand-soft); }

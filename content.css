@@ -1,5 +1,7 @@
-/* 全局变量 */
+/* 全局设计 Token（唯一来源）：各模块只引用 var(--wre-*)，不在此重复定义 */
 :root {
+  --wre-primary: #07c160;      /* 品牌主色 */
+  --wre-primary-soft: #e8f5e9; /* 品牌主色的浅色底（选中态 / 高亮） */
   --wre-bg: #ffffff;
   --wre-border: #e0e0e0;
   --wre-text: #333333;
@@ -9,6 +11,25 @@
   --wre-icon-bg: #ffffff;
   --wre-border-radius: 8px;
   --wre-z-index: 999999;
+}
+
+/* 外观主题档（B 档）：深色只覆盖与浅色不同的值，其余沿用上方默认。
+   data-wre-theme 由 content.js 挂在 <html> 上；「跟随系统」时自动解析为 light / dark。 */
+:root[data-wre-theme="dark"] {
+  --wre-primary: #07c160;
+  --wre-primary-soft: #1e3a29;
+  --wre-bg: #26272b;
+  --wre-border: #3c3d42;
+  --wre-text: #e6e6e8;
+  --wre-text-hover: #ffffff;
+  --wre-hover-bg: #33343a;
+  --wre-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  --wre-icon-bg: #26272b;
+}
+
+/* 深色下仅让插件自身界面的原生控件跟随深色，避免影响官方页面 */
+:root[data-wre-theme="dark"] #we-read-enhancer-root {
+  color-scheme: dark;
 }
 
 /* 根容器，隔离样式防干扰 */
@@ -116,11 +137,6 @@
   justify-content: center;
   align-items: center;
   font-size: 14px;
-}
-
-/* ========== 新增变量 ========== */
-:root {
-  --wre-primary: #07c160;
 }
 
 /* ========== 弹窗样式 ========== */
@@ -332,6 +348,19 @@
   flex-wrap: wrap;
 }
 
+/* 外观主题档（B 档）：三档分段按钮，选中态用品牌绿高亮 */
+.wre-theme-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.wre-theme-btn.wre-theme-active {
+  border-color: var(--wre-primary);
+  background: var(--wre-primary-soft);
+  color: var(--wre-primary);
+  font-weight: 600;
+}
+
 /* ========== 顶部工具栏浮动悬停 ========== */
 body.wre-toolbar-floating .readerTopBar,
 body.wre-toolbar-floating [class*="readerTopBar"] {
@@ -390,7 +419,7 @@ body.wre-toolbar-floating.wre-show-controls [class*="readerControls"] {
 
 .wre-autoread-btn.wre-autoread-active {
   border-color: var(--wre-primary);
-  background: #e8f5e9;
+  background: var(--wre-primary-soft);
   color: var(--wre-primary);
 }
 
@@ -415,7 +444,7 @@ body.wre-toolbar-floating.wre-show-controls [class*="readerControls"] {
 
 .wre-dir-btn.wre-dir-active {
   border-color: var(--wre-primary);
-  background: #e8f5e9;
+  background: var(--wre-primary-soft);
 }
 
 /* ========== 快捷键帮助面板 ========== */

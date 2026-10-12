@@ -10,6 +10,7 @@
     "pages/notes/index",
     "pages/daily/index",
     "pages/wander/index",
+    "pages/share/index",
     "pages/admin/index"
   ],
   "usingComponents": {

@@ -16,6 +16,15 @@ export const CONFIG = {
   AI_TIMEOUT_MS: 35000,
   DEFAULT_TIMEOUT_MS: 12000,
 
+  /* 朗读（H13 升级）：默认用云端 Edge 神经语音（经云函数合成 mp3），
+   * 失败 / 未部署时自动回退系统语音（Web Speech API），用户无感知。
+   * 本机想强制用系统语音：localStorage 设 wre_tts_engine = 'system' 即可。 */
+  TTS: {
+    CLOUD: true,
+    VOICE: 'zh-CN-XiaoxiaoNeural', // 默认音色：晓晓（女声·自然）
+    TIMEOUT_MS: 25000,
+  },
+
   /* 四端互联（四端 = 插件官网 / H5 网页版 / 微信小程序 / 作者个人网站）
    * H5 在浏览器里可自由跳转网页；只有小程序必须在微信里打开，
    * 故在小程序入口处给「小程序码 + 搜名字」提示，而非链接。 */

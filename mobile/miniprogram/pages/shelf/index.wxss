@@ -43,63 +43,39 @@
   margin: 0 16rpx 16rpx 0;
 }
 
-/* 官方分组分区（只读，中性灰，与品牌蓝的标签区分） */
-.wre-group {
-  margin-top: 20rpx;
-  padding-top: 16rpx;
-  border-top: 1rpx solid var(--wre-line);
+/* 官方分组（只读，中性灰）：只列出「组名 + 数量」 */
+.wre-grouplist {
+  margin-top: 8rpx;
 }
 
-.wre-group__head {
+.wre-grouprow {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 4rpx;
+  gap: 20rpx;
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid var(--wre-line);
 }
 
-.wre-group__name {
-  font-size: calc(26rpx * var(--wre-fs));
-  font-weight: 600;
-  color: var(--wre-text);
+.wre-grouprow:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 
-.wre-group__count {
-  font-size: calc(22rpx * var(--wre-fs));
-  color: var(--wre-muted);
-  flex: none;
-}
-
-/* 组内书目：3 列封面网格（封面下写书名，仿官方书架） */
-.wre-covergrid {
-  display: flex;
-  flex-wrap: wrap;
-  margin: -8rpx;
-}
-
-.wre-covercell {
-  width: 33.333%;
-  padding: 8rpx;
-  box-sizing: border-box;
-}
-
-.wre-covercell__img {
-  display: block;
-  width: 100%;
-  height: 210rpx;
-  border-radius: 10rpx;
-  background: var(--wre-line);
-}
-
-.wre-covercell__title {
-  margin-top: 8rpx;
-  font-size: calc(22rpx * var(--wre-fs));
-  line-height: 1.35;
-  color: var(--wre-text);
+.wre-grouprow__name {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
+  font-size: calc(26rpx * var(--wre-fs));
+  color: var(--wre-text);
+}
+
+.wre-grouprow__count {
+  flex: none;
+  font-size: calc(24rpx * var(--wre-fs));
+  color: var(--wre-muted);
 }
 
 .item {

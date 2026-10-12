@@ -19,6 +19,36 @@ Page({
     showParams: false,
     params: [],
 
+    // 「如何获取 Key」图文说明（默认收起；图片走官网 CDN，不占小程序包体）
+    showKeyGuide: false,
+    keyGuideSteps: [
+      { no: 1, text: '打开微信读书 App → 底部「我」→ 右上角「设置」，找到并进入「微信读书 Skill」。', img: LINKS.site + '/app/assets/img/skill-step1.png' },
+      { no: 2, text: '进来后往下拉，看「快速配置」区，第 ② 步就是「获取 API Key」。', img: LINKS.site + '/app/assets/img/skill-step2.png' },
+      { no: 3, text: '点「复制 Key」，就得到一段 wrk- 开头的 Key（默认打码，点右侧「👁」可看明文）。', img: LINKS.site + '/app/assets/img/skill-step3.png' },
+    ],
+
+    // 「加到手机桌面 / 我的小程序」图文说明（置顶常显，分平台分步）
+    desktopGuideGroups: [
+      {
+        title: '安卓手机（华为 / 小米 / OPPO / vivo 等）',
+        steps: [
+          '在微信里打开本小程序，点右上角「···」。',
+          '在弹出的菜单里选「添加到桌面」。',
+          '若弹出权限提示，点「允许」。',
+          '回到手机桌面，就会出现「悦读且住」图标，以后点它即可直接打开。',
+        ],
+      },
+      {
+        title: 'iPhone / iPad',
+        steps: [
+          'iPhone 不能把小程序加到桌面，请改用「添加到我的小程序」。',
+          '在微信里打开本小程序，点右上角「···」。',
+          '在弹出的菜单里选「添加到我的小程序」。',
+          '以后在微信首页往下拉，就能在顶部「我的小程序」里一键打开。',
+        ],
+      },
+    ],
+
     // 本机资料（头像 / 昵称）
     avatarUrl: '',
     nickName: '',
@@ -54,6 +84,7 @@ Page({
       nickName: profile.nickName,
       hasProfile: !!(profile.avatarUrl || profile.nickName),
       showParams: false,
+      showKeyGuide: false,
       wreFs: store.getFontScale(),
       wreDark: theme.apply(),
       themePref: theme.getTheme(),
@@ -90,6 +121,11 @@ Page({
 
   toggleParams() {
     this.setData({ showParams: !this.data.showParams });
+  },
+
+  // 「如何获取 Key」图文说明：默认收起，点一下展开 / 收起
+  toggleKeyGuide() {
+    this.setData({ showKeyGuide: !this.data.showKeyGuide });
   },
 
   // ---- 文字大小（四档切换；本机保存，其他页面在 onShow 时套用）----
@@ -205,7 +241,8 @@ Page({
   },
 
   goDaily() {
-    wx.navigateTo({ url: '/pages/daily/index' });
+    // 直达「往期回顾」列表（不生成今天的卡片）
+    wx.navigateTo({ url: '/pages/daily/index?view=archive' });
   },
 
   goWander() {

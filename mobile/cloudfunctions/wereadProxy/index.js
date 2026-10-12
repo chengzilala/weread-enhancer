@@ -21,10 +21,13 @@
  *  11. action: 'bindInfo'     —— 查询小程序当前是否已关联网页账户（含账户昵称）。
  *  12. action: 'bindUnbind'   —— 小程序端解除关联（把账户侧最新数据回搬本机，保留本机数据）。
  *  13. action: 'profilePut'   —— 小程序端把昵称写入已绑定账户（随账户在网页端可见）。
+ *  14. action: 'sharePut'     —— 生成只读分享短链（H5 与小程序共用，写入集合 `wre_shares`）。
+ *  15. action: 'shareGet'     —— 凭短码取回分享内容（任何人可读，无需 Key / openid）。
  *
  * H5（纯网页 App）走 HTTP 访问服务，`handleHttp` 额外支持：
  *   - action: 'relay'         —— 用托管 Key 走官方网关中转（{deviceId, apiName, params}）；
  *   - action: 'ai'            —— 用托管 DeepSeek Key 转发（{deviceId, messages}）；
+ *   - action: 'tts'           —— 朗读合成：Edge 神经语音，返回 mp3（base64）（{text, voice?}）；
  *   - action: 'keySave'       —— Key 加密托管（{deviceId, apiKey?, aiKey?}，集合 wre_users）；
  *   - action: 'keyGet'        —— 只回「是否已配置 + 掩码 + 昵称」（{deviceId}）；
  *   - action: 'keyPull'       —— 回传托管 Key 的**明文**（{deviceId}，仅供浏览器插件拉回本机直发）；
@@ -36,7 +39,9 @@
  *   - action: 'bindRemove'    —— 网页端解除绑定（{deviceId}）；
  *   - action: 'bindRedeem'    —— 另一台网页端凭 6 位码换回账户码（{code} → {deviceId}，H5↔H5 跨设备登录）；
  *   - action: 'opsPing'       —— H5 匿名使用量（{deviceId, version}，按 deviceId + 天去重）；
- *   - action: 'opsAdmin'      —— H5 运营看板（{deviceId}，账户码白名单内才下发）。
+ *   - action: 'opsAdmin'      —— H5 运营看板（{deviceId}，账户码白名单内才下发）；
+ *   - action: 'sharePut'      —— 生成只读分享短链（{kind, payload} → {code, expireAt}）；
+ *   - action: 'shareGet'      —— 凭短码取回分享内容（{code} → {kind, payload}，任何人可读）。
  *
  * 红线：
  *   1. 不持久化、不记录任何用户的 Key（日志只允许出现掩码）；
@@ -65,14 +70,21 @@
  *      把该地址填进 `h5/src/config.js`。
  *   ⑥ 跨端打通（网页账户码 ↔ 小程序 openid）：新建集合 `wre_links`（权限选「仅管理端可读写」，
  *      只存两端身份映射与一次性绑定码，不含 Key）。函数也会尝试自动创建，但手动建更稳妥。
+ *   ⑦ 分享短链：新建集合 `wre_shares`（权限选「仅管理端可读写」，只存用户主动分享的展示内容，
+ *      含 90 天有效期，不含 Key / openid）。函数也会尝试自动创建，但手动建更稳妥；
+ *      H5 分享页形如 `<H5 站点>/app/#/s/<code>`，小程序转发卡片也落到同一内容。
  *   ⑤ 「我的纸书 → 拍照识码」（M2）走云调用 `img.scanQRCode`，权限已在同目录 `config.json` 声明（随函数一起上传）；
  *      真机使用需在小程序后台《用户隐私保护指引》勾选「摄像头」「相册（仅写入）」。
+ *   ⑦ H5 朗读（Edge 神经语音）新增 npm 依赖 `ws`（见同目录 package.json）：
+ *      上传部署时请选择「云端安装依赖」（或本地 `npm install` 后连同 node_modules 一起上传），
+ *      否则 `require('ws')` 会失败、朗读自动回退系统语音。签名版本号见同目录 edge-tts.js 的 CHROMIUM_VERSION。
  */
 'use strict';
 
 const cloud = require('wx-server-sdk');
 const https = require('https');
 const crypto = require('crypto');
+const edgeTts = require('./edge-tts');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
@@ -136,6 +148,18 @@ const DEVICE_MIN_LEN = 16;   // 前端生成的随机 deviceId 至少 16 位（�
 //   - 红线：只存映射关系，不存 Key、不存官方原始数据；解绑即删除映射。
 const LINK_COLLECTION = 'wre_links';
 const BIND_TTL_MS = 10 * 60 * 1000;   // 绑定码有效期 10 分钟
+
+// 分享短链：把「分享卡内容（展示用、已精简）」按随机短码存一份，供任何人凭码只读查看
+//   - wre_shares：一个短码一个文档 { kind, payload, createdAt, expireAt, owner }
+//   - 红线：只存分享卡上「本来就要公开展示」的内容（标题 / 指标 / 划线原文等），不存 Key、
+//     不存官方接口原始数据；有效期 90 天，过期即不可读（读取时校验，不返回内容）。
+const SHARES_COLLECTION = 'wre_shares';
+const SHARE_TTL_MS = 90 * 24 * 3600 * 1000;   // 90 天
+const SHARE_MAX_BYTES = 16 * 1024;            // 单个分享内容上限（防滥用）
+const SHARE_KINDS = ['home', 'persona', 'report', 'shelf', 'daily', 'wander'];
+// 短码字母表：去掉易混的 0/O/1/l/I，仅小写字母与数字
+const SHARE_CODE_ALPHABET = '23456789abcdefghjkmnpqrstuvwxyz';
+const SHARE_CODE_LEN = 8;
 
 function maskKey(key) {
   if (typeof key !== 'string' || !key) {
@@ -925,6 +949,31 @@ async function handleH5Ai(body) {
   return await handleAi({ apiKey: got.key, messages: body && body.messages });
 }
 
+/**
+ * H5 朗读合成：Edge 神经语音 → mp3（base64 回传）。
+ *
+ * 非官方接口，失败即回错误码，由 H5 回退系统语音；文本上限 TTS_MAX_CHARS 防响应过大。
+ * 红线：只做「文本 → 音频」，不落盘、不记录文本内容。
+ */
+const TTS_MAX_CHARS = 1200;
+async function handleTts(body) {
+  const text = String((body && body.text) || '').trim();
+  if (!text) {
+    return { ok: false, code: 'param', error: '缺少要朗读的文本' };
+  }
+  if (Array.from(text).length > TTS_MAX_CHARS) {
+    return { ok: false, code: 'toolong', error: '文本过长，暂不支持一次朗读' };
+  }
+  const voice = String((body && body.voice) || '').trim() || edgeTts.DEFAULT_VOICE;
+  const res = await edgeTts.synthesize(text, voice, 20000);
+  if (!res.ok) {
+    console.log('[wereadProxy] tts fail', { code: res.code, voice: voice, detail: res.detail || '' });
+    return { ok: false, code: res.code || 'tts', error: res.error || '语音合成失败' };
+  }
+  console.log('[wereadProxy] tts ok', { bytes: res.audio.length, voice: voice });
+  return { ok: true, format: 'mp3', voice: voice, audio: res.audio.toString('base64') };
+}
+
 /** H5 云同步：按 deviceId 隔离，只存人格结果（与小程序 wre_sync 同一集合） */
 async function handleH5Sync(body) {
   const deviceId = cleanDeviceId(body && body.deviceId);
@@ -1325,6 +1374,91 @@ async function handleProfilePut(event) {
   return { ok: true, nickName: nickName };
 }
 
+// ---------- 分享短链：把分享卡内容按随机短码存一份，供任何人凭码只读查看 ----------
+
+/** 随机短码（去掉易混字符；撞码概率极低，由调用方重试兜底） */
+function genShareCode() {
+  let code = '';
+  const bytes = crypto.randomBytes(SHARE_CODE_LEN);
+  for (let i = 0; i < SHARE_CODE_LEN; i += 1) {
+    code += SHARE_CODE_ALPHABET[bytes[i] % SHARE_CODE_ALPHABET.length];
+  }
+  return code;
+}
+
+/** 分享内容入库前做「白名单字段 + 限长 + 限大小」清洗，避免任何多余字段穿透进库 */
+function cleanSharePayload(kind, raw) {
+  const src = raw && typeof raw === 'object' ? raw : {};
+  const str = (v, max) => String(v == null ? '' : v).slice(0, max || 200);
+  const out = { v: 1, kind: kind };
+
+  if (src.badge) out.badge = str(src.badge, 16);
+  if (src.title) out.title = str(src.title, 60);
+  if (src.subtitle) out.subtitle = str(src.subtitle, 60);
+  if (src.footer) out.footer = str(src.footer, 60);
+  if (Array.isArray(src.stats)) {
+    out.stats = src.stats.slice(0, 4).map((s) => ({ label: str(s && s.label, 12), value: str(s && s.value, 20) }));
+  }
+  if (Array.isArray(src.lines)) {
+    out.lines = src.lines.slice(0, 8).map((t) => str(t, 600)).filter(Boolean);
+  }
+  if (src.quote && src.quote.text) {
+    out.quote = { text: str(src.quote.text, 600), from: str(src.quote.from, 60) };
+  }
+  if (Array.isArray(src.chips)) {
+    out.chips = src.chips.slice(0, 12).map((t) => str(t, 24)).filter(Boolean);
+  }
+  return out;
+}
+
+/** sharePut：把分享卡内容存成短码，返回短码（H5 / 小程序共用） */
+async function handleSharePut(body) {
+  const kind = SHARE_KINDS.indexOf(body && body.kind) >= 0 ? body.kind : 'other';
+  const payload = cleanSharePayload(kind, body && body.payload);
+  const size = JSON.stringify(payload).length;
+  if (size > SHARE_MAX_BYTES) {
+    return { ok: false, code: 'toobig', error: '分享内容过大，未生成链接' };
+  }
+  const owner = cleanDeviceId(body && body.deviceId);
+  const now = Date.now();
+  const doc = { kind: kind, payload: payload, createdAt: now, expireAt: now + SHARE_TTL_MS, owner: validDeviceId(owner) ? owner : '' };
+
+  const db = cloud.database();
+  const coll = db.collection(SHARES_COLLECTION);
+  // 极低概率撞码：最多重试 3 次
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const code = genShareCode();
+    try {
+      await coll.doc(code).set({ data: doc });
+      return { ok: true, code: code, expireAt: doc.expireAt };
+    } catch (err) {
+      // 集合不存在：建集合后重试
+      try {
+        await db.createCollection(SHARES_COLLECTION);
+      } catch (err2) {
+        // 已存在：忽略
+      }
+    }
+  }
+  return { ok: false, code: 'save', error: '分享链接生成失败，请稍后重试' };
+}
+
+/** shareGet：凭短码取回分享卡内容（过期 / 不存在统一按未找到，不泄露原因） */
+async function handleShareGet(body) {
+  const code = String((body && body.code) || '').trim().toLowerCase().replace(/[^0-9a-z]/g, '').slice(0, 32);
+  if (!code) {
+    return { ok: false, code: 'param', error: '缺少分享码' };
+  }
+  const doc = await readDoc(SHARES_COLLECTION, code);
+  if (!doc || !doc.payload) {
+    return { ok: false, code: 'notfound', error: '分享已失效或不存在' };
+  }
+  if (doc.expireAt && doc.expireAt < Date.now()) {
+    return { ok: false, code: 'expired', error: '分享已过期' };
+  }
+  return { ok: true, kind: doc.kind || 'other', payload: doc.payload, createdAt: doc.createdAt || 0 };
+}
+
 // HTTP 访问服务响应头（插件以 text/plain 简单请求上报，无需预检；H5 以 application/json + 预检）
 function buildCorsHeaders(origin) {
   const headers = {
@@ -1395,6 +1529,9 @@ async function handleHttp(event) {
   if (action === 'ai') {
     return httpReply(200, await handleH5Ai(body), origin);
   }
+  if (action === 'tts') {
+    return httpReply(200, await handleTts(body), origin);
+  }
   if (action === 'syncGet' || action === 'syncPut') {
     return httpReply(200, await handleH5Sync(body), origin);
   }
@@ -1415,6 +1552,12 @@ async function handleHttp(event) {
   }
   if (action === 'opsAdmin') {
     return httpReply(200, await handleH5OpsAdmin(body), origin);
+  }
+  if (action === 'sharePut') {
+    return httpReply(200, await handleSharePut(body), origin);
+  }
+  if (action === 'shareGet') {
+    return httpReply(200, await handleShareGet(body), origin);
   }
   return httpReply(400, { ok: false, code: 'action', error: '未知的 HTTP 操作' }, origin);
 }
@@ -1465,6 +1608,12 @@ exports.main = async (event) => {
   }
   if (action === 'opsReport') {
     return await handleOpsReport(event);
+  }
+  if (action === 'sharePut') {
+    return await handleSharePut(event);
+  }
+  if (action === 'shareGet') {
+    return await handleShareGet(event);
   }
   return await relayGateway(event);
 };

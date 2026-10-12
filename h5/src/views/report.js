@@ -71,6 +71,33 @@ function doShare() {
   }
   const payload = lastShare;
   const label = modeLabel(mode);
+  const blocks = buildReportBlocks(payload.data, mode, payload.overview || peekOverview(), {});
+  const stats = [];
+  const lines = [];
+  const chips = [];
+  (blocks || []).forEach((b) => {
+    if (b.type === 'cards') {
+      (b.items || []).forEach((it) => stats.push({ label: it.label, value: it.value }));
+    } else if (b.type === 'kv') {
+      (b.rows || []).forEach((r) => stats.push({ label: r[0], value: r[1] }));
+    } else if (b.type === 'chips') {
+      (b.items || []).forEach((it) => chips.push(it.label));
+    } else if (b.type === 'paragraph' && b.text) {
+      lines.push(b.text);
+    }
+  });
+  const profile = getProfile();
+  const spec = {
+    kind: 'report',
+    badge: '阅读报告',
+    title: label + '阅读行为报告',
+    subtitle: '生成于 ' + fmtDateTime(Date.now()),
+    stats: stats.slice(0, 4),
+    lines: lines.slice(0, 3),
+    chips: chips.slice(0, 8),
+    footer: (profile.nickName ? profile.nickName + ' · ' : '') + '微信悦读 · 本机计算',
+    text: label + '阅读行为报告',
+  };
   presentShareImage(
     () => renderReportShare({
       data: payload.data,
@@ -78,8 +105,8 @@ function doShare() {
       mode: mode,
       modeLabel: label,
       generatedAt: fmtDateTime(Date.now()),
-    }, getProfile()),
-    { title: '微信悦读', text: label + '阅读行为报告', link: typeof location !== 'undefined' ? location.href : '' },
+    }, profile),
+    spec,
     'report-share.png'
   );
 }
@@ -135,8 +162,8 @@ function blocksHtml(raw, overall, fromCache, overview) {
   if (fromCache) {
     parts.push('<div class="wre-hint">来自本地缓存（30 分钟内） · 当前周期：' + esc(modeLabel(mode)) + '</div>');
   }
+  // 页脚免责声明由 report-core 的 note 块统一输出（对齐小程序），此处不再重复追加
   parts.push(blocks.map(renderBlock).join(''));
-  parts.push('<div class="wre-note">本报告在浏览器本机按固定规则计算生成，仅供参考。</div>');
   // 分享入口（对齐小程序 share-entry 卡片）
   parts.push(
     '<div class="wre-card wre-share-entry">' +
@@ -170,11 +197,28 @@ function renderBlock(b) {
       const head = Array.isArray(b.head) ? b.head : [];
       const rows = Array.isArray(b.rows) ? b.rows : [];
       // 主列＝承载文字的那一列（通常第 0 列；若第 0 列只是「排名 / 序号」则取文字最长的一列）。
-      // 主列用 1fr 自适应占满剩余宽度、其余列 auto 按内容收紧并右对齐，
-      // 避免等宽栅格把「清晨 06:00–09:00」这类长文字挤成孤字换行、行高忽高忽低。
+      // 其余列按「内容长短」分两类定宽：
+      //   cell＝短列（「3 本」「20.0%」「1」），auto 收紧 + 右对齐 + 不换行；
+      //   text＝长文本列（作者 / 分类等），与主列一起按 fr 比例分宽并允许折行。
+      // 旧版把所有非主列都设成 auto：长文本列会按 max-content 抢完全部宽度，
+      // 把 minmax(0,1fr) 的主列挤成「一字一行」（书名竖排），故改为按列型分宽。
       const mainIdx = mainColumnIndex(head, rows);
-      const cols = head.map((_, i) => (i === mainIdx ? 'minmax(0, 1fr)' : 'auto')).join(' ');
-      const cell = (text, i) => '<span class="' + (i === mainIdx ? 'wre-table__main' : 'wre-table__cell') + '">' + esc(text) + '</span>';
+      const kindOf = (i) => {
+        if (i === mainIdx) {
+          return 'main';
+        }
+        let maxLen = String(head[i] == null ? '' : head[i]).length;
+        for (let r = 0; r < rows.length; r += 1) {
+          const value = String(((rows[r] || [])[i] == null) ? '' : (rows[r] || [])[i]);
+          if (value.length > maxLen) {
+            maxLen = value.length;
+          }
+        }
+        return maxLen <= 6 ? 'cell' : 'text';
+      };
+      const kinds = head.map((_, i) => kindOf(i));
+      const cols = kinds.map((k) => (k === 'cell' ? 'auto' : (k === 'main' ? 'minmax(0, 2.4fr)' : 'minmax(0, 1fr)'))).join(' ');
+      const cell = (text, i) => '<span class="wre-table__' + kinds[i] + '">' + esc(text) + '</span>';
       let html = '<div class="wre-table__head">' + head.map(cell).join('') + '</div>';
       html += rows.map((row, i) => {
         const cells = row.map(cell).join('');

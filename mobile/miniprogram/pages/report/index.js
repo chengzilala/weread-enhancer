@@ -5,6 +5,7 @@ const { buildReportBlocks, fmtDateTime, mainColumnIndex } = require('../../share
 const { fmtDuration } = require('../../shared/format');
 const { renderReportShare } = require('../../shared/report-share');
 const { messageOf, isKeyError } = require('../../shared/errors');
+const shareEntry = require('../../shared/share-entry');
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const CACHE_KEY = 'wre_report_cache';
@@ -15,6 +16,26 @@ const MODES = [
   { key: 'annually', label: '本年' },
   { key: 'overall', label: '累计' },
 ];
+
+// 表格列型：main＝主列（描述性长文本）；num＝短数值列（收紧右对齐、不换行）；
+// text＝长文本列（作者 / 分类等，与主列按比例分宽、允许折行）。
+// 旧版把非主列一律当 num（flex:0 0 auto + nowrap）：长文本列会按内容宽度占满整行，
+// 把主列挤成「一字一行」（书名竖排），故按列型分宽。
+function tableColKinds(head, rows, mainIndex) {
+  return head.map((h, i) => {
+    if (i === mainIndex) {
+      return 'main';
+    }
+    let maxLen = String(h == null ? '' : h).length;
+    for (let r = 0; r < rows.length; r += 1) {
+      const value = String(((rows[r] || [])[i] == null) ? '' : (rows[r] || [])[i]);
+      if (value.length > maxLen) {
+        maxLen = value.length;
+      }
+    }
+    return maxLen <= 6 ? 'num' : 'text';
+  });
+}
 
 Page({
   data: {
@@ -82,7 +103,7 @@ Page({
   onShareAppMessage() {
     return {
       title: this.data.shareTitle || '我的阅读报告，点开看看',
-      path: '/pages/report/index',
+      path: shareEntry.forwardPath(this, '/pages/report/index'),
     };
   },
 
@@ -97,6 +118,7 @@ Page({
       const size = renderReportShare(canvas, this.sharePayload, store.getProfile());
       const tempFilePath = await this.canvasToTemp(canvas, size);
       this.setData({ sharing: false, shareImg: tempFilePath, showShare: true });
+      shareEntry.prepareCode(this);
     } catch (err) {
       this.setData({ sharing: false });
       wx.showToast({ title: (err && err.message) || '生成失败，请重试', icon: 'none' });
@@ -134,6 +156,44 @@ Page({
 
   closeShare() {
     this.setData({ showShare: false });
+  },
+
+  // 通用分享卡（只读分享页 / 复制链接用）
+  buildShareSpec() {
+    const p = this.sharePayload;
+    if (!p) {
+      return null;
+    }
+    const blocks = buildReportBlocks(p.data, p.mode, p.overview, {}) || [];
+    const stats = [];
+    const lines = [];
+    const chips = [];
+    blocks.forEach((b) => {
+      if (b.type === 'cards') {
+        (b.items || []).forEach((it) => stats.push({ label: it.label, value: it.value }));
+      } else if (b.type === 'kv') {
+        (b.rows || []).forEach((r) => stats.push({ label: r[0], value: r[1] }));
+      } else if (b.type === 'chips') {
+        (b.items || []).forEach((it) => chips.push(it.label));
+      } else if (b.type === 'paragraph' && b.text) {
+        lines.push(b.text);
+      }
+    });
+    const profile = store.getProfile();
+    return {
+      kind: 'report',
+      badge: '阅读报告',
+      title: (p.modeLabel || '') + '阅读行为报告',
+      subtitle: '生成于 ' + p.generatedAt,
+      stats: stats.slice(0, 4),
+      lines: lines.slice(0, 3),
+      chips: chips.slice(0, 8),
+      footer: (profile.nickName ? profile.nickName + ' · ' : '') + '悦读且住 · 本机计算',
+    };
+  },
+
+  copyLink() {
+    shareEntry.copyLink(this);
   },
 
   // 一键转发分享图给微信好友（无需先保存到相册）
@@ -245,11 +305,13 @@ Page({
 
   render(currentData, overall, overview, fromCache) {
     const d = currentData || {};
-    // 表格块补一个 mainIndex（主列索引）：WXML 用它区分「主列（自适应）/ 数值列（收紧右对齐）」，
-    // 避免所有列等宽把「清晨 06:00–09:00」这类长标签挤成孤字换行。
+    // 表格块补 colKinds（每列列型）：WXML 按列型区分
+    // 「主列（最宽）/ 长文本列（按比例分宽、可折行）/ 数值列（收紧右对齐）」，
+    // 避免所有非主列都收紧抢占宽度、把主列挤成孤字换行。
     const blocks = buildReportBlocks(d, this.data.mode, overview, { overall: overall }).map((b) => {
       if (b && b.type === 'table' && Array.isArray(b.head)) {
-        return Object.assign({}, b, { mainIndex: mainColumnIndex(b.head, b.rows || []) });
+        const rows = b.rows || [];
+        return Object.assign({}, b, { colKinds: tableColKinds(b.head, rows, mainColumnIndex(b.head, rows)) });
       }
       return b;
     });

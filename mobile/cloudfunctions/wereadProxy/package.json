@@ -4,6 +4,7 @@
   "description": "微信悦读移动端：官方网关中转云函数",
   "main": "index.js",
   "dependencies": {
+    "ws": "^8.18.0",
     "wx-server-sdk": "~2.6.3"
   }
 }

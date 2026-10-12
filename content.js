@@ -16,6 +16,8 @@ const WRE_DEFAULT_STATE = {
   },
   // M13：匿名使用统计（默认开启，可一键关闭；见 modules/telemetry.js）
   telemetryEnabled: true,
+  // 第 16 章 · B 档：插件自身界面外观档位（light 浅色 / dark 深色 / auto 跟随系统）
+  theme: 'auto',
 };
 const WRE_MAX_LOGS = 200;
 
@@ -978,6 +980,16 @@ function createUI() {
           </div>
 
           <div class="wre-setting-item">
+            <label class="wre-setting-label">🎨 外观</label>
+            <div class="wre-theme-toggle" id="wre-theme-toggle">
+              <button class="wre-btn wre-btn-small wre-theme-btn${WRE_STATE.theme === 'light' ? ' wre-theme-active' : ''}" data-theme="light">浅色</button>
+              <button class="wre-btn wre-btn-small wre-theme-btn${WRE_STATE.theme === 'dark' ? ' wre-theme-active' : ''}" data-theme="dark">深色</button>
+              <button class="wre-btn wre-btn-small wre-theme-btn${WRE_STATE.theme !== 'light' && WRE_STATE.theme !== 'dark' ? ' wre-theme-active' : ''}" data-theme="auto">跟随系统</button>
+            </div>
+            <div class="wre-setting-tip">仅调整插件自身界面（面板 / 弹窗 / 统计 / 笔记等）的明暗，不影响阅读页正文与官方样式。</div>
+          </div>
+
+          <div class="wre-setting-item">
             <label class="wre-setting-label">📊 匿名使用统计</label>
             <div class="wre-setting-control" style="justify-content: space-between; align-items: center;">
               <span style="font-size: 12px; color: var(--wre-text); flex: 1; margin-right: 12px;">仅上报「随机匿名标识 + 版本号 + 日期 + 事件名」，不含阅读数据 / 账号 / Key。</span>
@@ -1331,6 +1343,56 @@ function updateTelemetryUI() {
   }
 }
 
+/* ========== 外观主题档（第 16 章 · B 档） ========== */
+
+const WRE_THEME_ATTR = 'data-wre-theme'; // 生效主题挂在 <html> 上，content.css 据此切换 Token
+let wreThemeMedia = null;                // 系统深浅色媒体查询（「跟随系统」时监听其变化）
+
+/** 把偏好解析成实际档位：light / dark 直接用；auto（含缺省）按系统深浅色判定 */
+function resolveEffectiveTheme(pref) {
+  if (pref === 'light' || pref === 'dark') return pref;
+  try {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  } catch (err) {
+    return 'light';
+  }
+}
+
+/** 应用当前主题：把生效档位写到 <html data-wre-theme>，驱动 content.css 的 Token 覆盖 */
+function applyTheme() {
+  const effective = resolveEffectiveTheme(WRE_STATE.theme);
+  document.documentElement.setAttribute(WRE_THEME_ATTR, effective);
+  return effective;
+}
+
+/** 「跟随系统」时监听系统深浅色变化，实时刷新 */
+function watchSystemTheme() {
+  if (wreThemeMedia) return;
+  try {
+    wreThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = () => {
+      if (WRE_STATE.theme !== 'light' && WRE_STATE.theme !== 'dark') applyTheme();
+    };
+    if (typeof wreThemeMedia.addEventListener === 'function') {
+      wreThemeMedia.addEventListener('change', onChange);
+    } else if (typeof wreThemeMedia.addListener === 'function') {
+      wreThemeMedia.addListener(onChange);
+    }
+  } catch (err) {
+    log('warn', '监听系统主题失败', { error: String(err) });
+  }
+}
+
+/** 同步外观设置面板的选中态 */
+function updateThemeUI() {
+  if (!wreRoot) return;
+  const toggle = wreRoot.querySelector('#wre-theme-toggle');
+  if (!toggle) return;
+  toggle.querySelectorAll('.wre-theme-btn').forEach((btn) => {
+    btn.classList.toggle('wre-theme-active', btn.getAttribute('data-theme') === WRE_STATE.theme);
+  });
+}
+
 /* ========== 快捷键系统（阶段四） ========== */
 
 function toggleDndMode() {
@@ -1662,6 +1724,24 @@ function bindEvents(root) {
       log('info', '匿名使用统计开关已切换', { enabled: WRE_STATE.telemetryEnabled });
     });
   }
+
+  // 第 16 章 · B 档：外观主题档切换（浅色 / 深色 / 跟随系统）
+  const themeToggle = root.querySelector('#wre-theme-toggle');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', async (event) => {
+      const btn = event.target.closest('.wre-theme-btn');
+      if (!btn) return;
+      event.stopPropagation();
+      const theme = btn.getAttribute('data-theme');
+      if (!theme || theme === WRE_STATE.theme) return;
+      WRE_STATE.theme = theme;
+      applyTheme();
+      updateThemeUI();
+      await saveState();
+      log('info', '外观主题档已切换', { theme, effective: resolveEffectiveTheme(theme) });
+    });
+    updateThemeUI();
+  }
 }
 
 function handleMenuClick(action) {
@@ -1694,6 +1774,8 @@ function handleMenuClick(action) {
         }
         updateAutoReadUI();
         updateTelemetryUI();
+        applyTheme();
+        updateThemeUI();
       }
       log('warn', '已恢复默认设置', applied);
       break;
@@ -1724,6 +1806,9 @@ function handleMenuClick(action) {
       break;
     case 'help':
       // 帮助中心由 modules/help.js 自行接管（它已绑定自己的 click），同上。
+      break;
+    case 'reviews':
+      // 评论侧栏由 modules/reviews.js 自行接管（它已绑定自己的 click），同上。
       break;
     default:
       log('warn', '该菜单功能尚未实现', { action });
@@ -1773,6 +1858,9 @@ async function applySavedScreenRatioOnInit() {
 async function init() {
   const t0 = performance.now();
   await loadState();
+  // 第 16 章 · B 档：先把外观主题写到 <html>，并监听系统深浅色（选「跟随系统」时实时刷新）
+  applyTheme();
+  watchSystemTheme();
   const t1 = performance.now();
   log('info', '初始化准备应用屏占比', {
     screenRatio: WRE_STATE.screenRatio,

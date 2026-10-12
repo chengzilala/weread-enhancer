@@ -1,0 +1,52 @@
+<view class="wre-page {{wreDark ? 'wre-dark' : ''}}" style="--wre-fs:{{wreFs}}">
+  <!-- 加载中 -->
+  <wre-state wx:if="{{loading}}" type="loading" text="正在打开分享…" />
+
+  <!-- 失效 / 不存在 -->
+  <wre-state
+    wx:elif="{{error}}"
+    type="error"
+    text="{{error}}"
+    action="打开悦读且住"
+    actionType="home"
+    bind:action="onStateAction"
+  />
+
+  <!-- 只读分享卡片 -->
+  <block wx:else>
+    <view class="wre-card share-card">
+      <view class="share-card__top">
+        <text class="share-card__brand">悦读且住</text>
+        <text class="share-card__badge" wx:if="{{payload.badge}}">{{payload.badge}}</text>
+      </view>
+
+      <view class="share-card__title" wx:if="{{payload.title}}">{{payload.title}}</view>
+      <view class="share-card__sub wre-muted" wx:if="{{payload.subtitle}}">{{payload.subtitle}}</view>
+
+      <view class="share-card__stats" wx:if="{{payload && payload.stats && payload.stats.length}}">
+        <view class="share-card__stat" wx:for="{{payload.stats}}" wx:key="index">
+          <view class="share-card__stat-value">{{item.value}}</view>
+          <view class="share-card__stat-label">{{item.label}}</view>
+        </view>
+      </view>
+
+      <view class="share-card__line" wx:for="{{payload.lines}}" wx:key="index">{{item}}</view>
+
+      <view class="share-card__quote" wx:if="{{payload && payload.quote}}">
+        <text class="share-card__quote-text">{{payload.quote.text}}</text>
+        <text class="share-card__quote-from" wx:if="{{payload.quote.from}}">——{{payload.quote.from}}</text>
+      </view>
+
+      <view class="share-card__chips" wx:if="{{payload && payload.chips && payload.chips.length}}">
+        <text class="share-card__chip" wx:for="{{payload.chips}}" wx:key="index">{{item}}</text>
+      </view>
+
+      <view class="share-card__footer" wx:if="{{payload.footer}}">{{payload.footer}}</view>
+    </view>
+
+    <view class="wre-card share-open">
+      <button class="wre-btn" bindtap="goHome">打开悦读且住</button>
+      <view class="wre-muted">这是好友主动分享的卡片 · 只读展示 · 不含 TA 的账号信息</view>
+    </view>
+  </block>
+</view>

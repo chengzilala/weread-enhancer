@@ -3,7 +3,7 @@
 > **文档类型**：商店上架方案 + 归档记录（360 浏览器）
 > **创建日期**：2026-07-07 ｜ **重写为 Mac 版**：2026-09-27
 > **适用设备**：**macOS + Apple Silicon（M 系列芯片）**，360 安全浏览器 macOS 版
-> **对应版本**：v0.8.2（Manifest V3）
+> **对应版本**：v0.27.4（Manifest V3）
 > **关联文档**：`plan/plan_edge_store.md`、`plan/plan_chrome_store.md`、`plan/session_handoff_商店上架.md`
 > **说明**：本版面向「**Mac 用户、从未用过 360 开放平台**」，从装浏览器讲起。360 开放平台较老、Mac 版 UI 与 Windows 有差异，**一切以你屏幕上实际页面为准**。
 > ⚠️ 若你的 360 Mac 版**没有**「开发者模式 / 加载已解压的扩展程序」，说明该版本不支持本地扩展调试，需改到 Windows 环境做（见第五节「不支持时的备选」）。
@@ -90,7 +90,8 @@
 ## 五、第 4 步：实测 MV3 兼容性（关键，先做）
 
 1. 先解压上架包得到干净目录：
-   解压 `release/weread-enhancer-v0.8.2.zip` → 得到含 `manifest.json`、`content.js`、`content.css`、`README.md`、`icons/` 的文件夹。
+   解压 `release/weread-enhancer-v<最新版本>.zip` → 得到含 `manifest.json`、`content.js`、`content.css`、`README.md`、`icons/` 的文件夹。
+   （AI 已备好干净目录：`release/360-扩展目录/`，可直接用。）
 2. 在第四节的扩展管理页 → 点「**加载已解压的扩展程序**」→ 选**那个文件夹**（含 `manifest.json` 的目录）。
 3. 打开 `https://weread.qq.com` 任一书籍页，**逐项验证**：
    - 右上角控制面板出现
@@ -112,15 +113,28 @@
 
 > 前提：第四节能看到「**打包扩展程序**」按钮。
 
+**方式 A（推荐，已实测可用）——Chrome 命令行出 crx：**
+系统装好 Chrome 后，直接命令行打包，**复用已有 `.pem`**（应用 ID 不变）：
+```bash
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  --pack-extension="$PWD/release/360-扩展目录" \
+  --pack-extension-key="$PWD/release/360-扩展目录.pem" \
+  --no-message-box --user-data-dir=/tmp/chrome-pack-360
+# 产物：release/360-扩展目录.crx（生成在扩展目录的上一级）
+```
+> 首次无 `.pem` 时**省略** `--pack-extension-key`，会新生成一个 `.pem`（务必留存）。
+
+**方式 B（手点）——在 360 浏览器里：**
 1. 扩展管理页 → 点「**打包扩展程序**」。
 2. **扩展程序根目录**：填刚解压的干净目录，例如
-   `/Users/Admin/Knowledge/Coding/微信读书插件/release/weread-enhancer-v0.8.2`
+   `release/360-扩展目录`
    （**首次打包，「私有密钥文件」一栏留空**）
 3. 点「确定」→ 在**上一级目录**生成两个文件：
-   - `weread-enhancer-v0.8.2.crx`（扩展包）
-   - `weread-enhancer-v0.8.2.pem`（**私钥**）
+   - `weread-enhancer-v<版本>.crx`（扩展包）
+   - `weread-enhancer-v<版本>.pem`（**私钥**）
 
 > ⚠️⚠️ **`.pem` 是更新版本的命根子**：丢了以后就只能当全新应用重新上架。请把它移到安全位置（如 iCloud 钥匙串 / 加密盘），**绝不提交到 git**、不要发到聊天里。
+> ⚠️ **扩展程序根目录绝不能指项目根**：否则会把 `plan/` `dev/` `.git/` 历史 zip 全打进 crx。
 
 **若 Mac 版没有「打包扩展程序」按钮**：改用 Windows 版 360 浏览器打包，或尝试上传 ZIP 后由平台自动生成 crx（360 文档提到开放平台上传可自动生成 `.crx`，以实际上传页提示为准）。
 
@@ -134,7 +148,7 @@
 
 | 素材 | 格式 / 尺寸 | 必需? | 本项目现状 |
 |---|---|---|---|
-| 应用文件 | `.crx` | ✅ 必需 | 第六节生成（**尚未生成**） |
+| 应用文件 | `.crx` | ✅ 必需 | ✅ 已生成 `release/360上传包/weread-enhancer-v0.27.4.crx`（Chrome 命令行复用 `.pem` 打包） |
 | 功能说明文档 | `.txt` | ✅ 必需 | ✅ `release/360-素材/功能说明.txt` |
 | 详情页展示图标 | PNG **48×48** | ✅ 必需 | ✅ `release/360-素材/图标-48x48.png` |
 | 效果图（截图） | PNG **560×350**，1–5 张 | ✅ 必需 | ✅ `release/360-素材/效果图-01~05-560x350.png`（带品牌蓝标题栏，由 `promo.py` 生成） |
@@ -145,11 +159,24 @@
 > ⚠️ 360 图片尺寸（48×48 / 560×350 / …）与 Chrome/Edge（1280×800 / 440×280）**完全不同**，Edge 截图**不能直接复用**；本项目已按 560×350 单独生成（`release/360-素材/`，跑 `python3 promo.py` 可重新生成）。
 > ℹ️ Edge/Chrome 用 `screenshots/store/`，GitHub README 用 `screenshots/promo/`，三者互不混用。
 
-**组装（Mac 上用访达）：**
-1. 新建一个文件夹（如 `360上传包`）。
-2. 把第六节生成的 `.crx` 放进该文件夹。
-3. 把 `release/360-素材/` 里**全部文件**（功能说明.txt、图标-48x48.png、效果图 01~05）也放进去。
-4. 右键该文件夹 → **「压缩…」** → 得到 `360上传包.zip`，即上传包。
+**组装（AI 已一键完成）：**
+1. 建文件夹 `release/360上传包/`。
+2. 放入 `.crx`。
+3. 放入 `release/360-素材/` 里**全部文件**（功能说明.txt、图标-48x48.png、效果图 01~05）。
+4. 打成**扁平 ZIP**（各文件名直接位于 ZIP 根层，**不是**把文件夹整个压进去）→ 得到上传包。
+
+> ⚠️ **中文文件名必须带 UTF-8 标记**：macOS 自带「压缩」**不带**标记，Windows/GBK 端会乱码。改用 Python 打：
+> ```bash
+> python3 -c "
+> import zipfile, os
+> folder, out = 'release/360上传包', 'release/360上架包-v0.27.4.zip'
+> z = zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED)
+> for n in sorted(os.listdir(folder)):
+>     p = os.path.join(folder, n)
+>     if os.path.isfile(p): z.write(p, n)
+> z.close()"
+> ```
+> ✅ 本版成品：`release/360上架包-v0.27.4.zip`（crx + 功能说明.txt + 图标48 + 效果图01~05，中文名已带 UTF-8 标记）。
 
 ---
 
@@ -165,7 +192,7 @@
 
 ---
 
-## 九、商店 Listing 文案（中文，v0.8.2）
+## 九、商店 Listing 文案（中文，v0.27.4）
 
 | 字段 | 内容 |
 |---|---|
@@ -210,14 +237,19 @@
 | 360 浏览器版本 | ✅ 360Chrome **16.0.1098.0**（macOS / Apple Silicon） |
 | 扩展管理页地址（哪个能打开） | ✅ **`chrome://extensions/`**（实测可用；`se://extensions/` 未采用） |
 | 开发者模式是否可用 | ✅ **可用**（已成功执行「打包扩展程序」，生成 `.crx` + `.pem`） |
-| 360 账号 | （待填，仅记账号，勿记密码） |
+| 360 账号 | ✅ 已开通创作平台账号，账号名「**微信悦读**」（简介已按"定位+作者身份"口径填写；仅记账号，勿记密码） |
 | MV3 兼容性验证结果 | （待填：兼容 / 不兼容；不兼容现象记这里） |
-| `.crx` / `.pem` 生成情况 | ✅ 已生成 `release/weread-enhancer-v0.15.1.crx`（复用同一 `.pem`，应用 ID 不变；pem 已加入 .gitignore） |
-| `.pem` 私钥保存位置 | （待填，勿入 git） |
-| 提交版本 | v0.15.1 |
-| 提交日期 | （待填） |
-| 审核状态 | （待填：审核中 / 通过 / 拒绝） |
+| `.crx` / `.pem` 生成情况 | ✅ 已生成 `release/360上传包/weread-enhancer-v0.27.4.crx`（Chrome 命令行 `--pack-extension` 复用 `release/360-扩展目录.pem`，应用 ID 不变；pem/crx/zip 均已入 .gitignore） |
+| 360 上架包 | ✅ `release/360上架包-v0.27.4.zip`（crx + 功能说明.txt + 图标48 + 效果图01~05；中文名已带 UTF-8 标记） |
+| 创作者中心实际提交物 | ✅ 与旧文档不同：**`.crx` 直接单独上传**（非 ZIP）；图标 **192×192**、封面图小图 **472×296**、市场推荐图 **1120×700**（提交 4 张，满足 1–5）；素材在 `release/360-素材/`，由 `promo.py` 的 `build_360_platform()` 生成 |
+| `.pem` 私钥保存位置 | ⚠️ 当前在项目内 `release/360-扩展目录.pem`（**须移出仓库妥善保存**，勿入 git） |
+| 提交版本 | v0.27.4 |
+| 扩展 ID（创作者中心） | ✅ `fiidojfpifhgajiackccpgaaheiehcjd`（审核通过后详情页形如 `https://ext.se.360.cn/webstore/detail/fiidojfpifhgajiackccpgaaheiehcjd`；当前访问为 404，属正常） |
+| 提交日期 | ✅ **2026-10-11** |
+| 提交平台（实测） | ✅ **360 创作者中心 `creative.360.com`**（**不是**本档第一至八节写的旧平台 `open.chrome.360.cn`；Mac 上实际走的是创作者中心） |
+| 审核状态 | ⏳ **待审核**（2026-10-11 已提交，等平台人工 + 多引擎检测） |
 | 应用中心链接 | （通过后填） |
+| **网站入口（`storeUrls.360`）** | ⏳ **已预留、暂留空**（2026-10-10）：360 审核中、暂无详情页链接，故 `web/site.config.json` 的 `storeUrls.360` 留空。链接到手后**只需两步**：① 填 `storeUrls.360`（形如 `https://ext.se.360.cn/webstore/detail/…`）→ ② 跑 `python3 web/build.py`；内容页 `:::store` 按钮组与页脚会自动出现「安装到 360 / 360 商店」，**首页 Hero 主按钮保持仅 Edge**（用户已确认） |
 | 拒绝原因与修正 | （如有） |
 
 ---

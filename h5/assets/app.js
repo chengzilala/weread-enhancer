@@ -9,8 +9,10 @@ import { CONFIG } from '../src/config.js';
 import { getMask, setMask, applyFontScale, applyTheme, watchSystemTheme } from '../src/store.js';
 import { keyGet, keySave, verifyKey } from '../src/api.js';
 import { stateHtml, toast } from '../src/ui.js';
+import { keyGuideHtml } from '../src/key-guide.js';
 import { setTtsToast } from '../src/tts.js';
 
+import * as welcome from '../src/views/welcome.js';
 import * as home from '../src/views/home.js';
 import * as persona from '../src/views/persona.js';
 import * as report from '../src/views/report.js';
@@ -19,6 +21,7 @@ import * as me from '../src/views/me.js';
 import * as daily from '../src/views/daily.js';
 import * as wander from '../src/views/wander.js';
 import * as admin from '../src/views/admin.js';
+import * as shareView from '../src/views/share.js';
 
 const TABS = [
   { key: 'home', label: '首页', icon: '🏠', view: home },
@@ -35,6 +38,9 @@ const SECONDARY = [
   { key: 'admin', label: '运营看板', view: admin },
 ];
 
+// Key 配置页（未配 Key 时，从引导页「开始使用」进入；配好后再访问则回首页）
+const SETUP_KEY = 'setup';
+
 function findTab(key) {
   return TABS.find((t) => t.key === key) || null;
 }
@@ -44,7 +50,7 @@ function findSecondary(key) {
 }
 
 function isKnown(key) {
-  return !!findTab(key) || !!findSecondary(key);
+  return !!findTab(key) || !!findSecondary(key) || key === SETUP_KEY;
 }
 
 const viewEl = document.getElementById('view');
@@ -118,10 +124,27 @@ function renderSecondary(key) {
   item.view.render(viewEl, app);
 }
 
+/** 只读分享页：隐藏 TabBar，由分享视图自行渲染（免 Key 门槛） */
+function renderShare(code) {
+  current = 'share';
+  setChromeVisible(false);
+  setActiveTab('');
+  headerTitleEl.textContent = shareView.title || '分享';
+  viewEl.scrollTop = 0;
+  window.scrollTo(0, 0);
+  shareView.render(viewEl, app, code);
+}
+
 /** 主路由：先判定「中转地址 / Key」是否就绪，再渲染对应页面 */
 async function route() {
   const hashKey = (location.hash || '').replace(/^#\/?/, '') || 'home';
   current = isKnown(hashKey) ? hashKey : 'home';
+
+  // 只读分享页（#/s/<code>）：别人点开分享链接即进入本页，不设 Key 门槛
+  if (hashKey.indexOf('s/') === 0) {
+    renderShare(hashKey.slice(2));
+    return;
+  }
 
   // 「我的账户」不设 Key 门槛：换设备时，用户正需要先在这里用账户码登录 / 查看自己的账户码
   if (current === 'me') {
@@ -137,7 +160,18 @@ async function route() {
     return;
   }
   if (!state.hasKey) {
-    renderKeyGate(state.offline);
+    // 未配 Key：默认展示引导页（讲清楚这是什么、怎么开始）；
+    // 点「开始使用」后进入 #/setup 配置页填 Key。
+    if (current === SETUP_KEY) {
+      renderKeySetup(state.offline);
+    } else {
+      renderWelcome();
+    }
+    return;
+  }
+  if (current === SETUP_KEY) {
+    // 已配好 Key 就不该停在配置页，回首页
+    renderTab('home');
     return;
   }
   if (findSecondary(current)) {
@@ -161,22 +195,32 @@ async function resolveKeyState() {
   return { ok: false, code: res.code, error: res.error };
 }
 
-// ---- 拦截态：未配置 Key ----
-function renderKeyGate(offline) {
+// ---- 未配置 Key：引导页（landing）----
+function renderWelcome() {
+  setChromeVisible(false);
+  welcome.render(viewEl, app);   // 引导页内部用 app.go('setup') 进入配置页
+}
+
+// ---- 未配置 Key：Key 配置页（含「如何获取 Key」图文说明）----
+function renderKeySetup(offline) {
   setChromeVisible(false);
   viewEl.innerHTML =
     '<div class="wre-page">' +
     '<div class="wre-card">' +
+    '  <button class="wre-back__btn" data-action="back">‹ 返回引导页</button>' +
     '  <div class="wre-card__title">粘贴你的微信读书 API Key</div>' +
-    '  <div class="wre-muted">Key 只提交一次，由你自建的云函数加密托管；之后本机只带随机设备标识，不再保存明文，可随时在「我的账户」里清除。</div>' +
-    '  <div class="wre-hint">获取方式：微信读书 App →「我」→「微信读书 Skill」页面 → 复制 wrk- 开头的 API Key。</div>' +
-    (offline ? '  <div class="wre-hint">上次连接未成功，若已配置过可点下方「重试」。</div>' : '') +
+    '  <div class="wre-muted">Key 只提交一次，由你自己的云函数加密托管；之后本机只带设备标识，不再保存明文，可随时在「我的」里清除。</div>' +
     '  <input class="wre-input" id="gateKey" type="password" autocomplete="off" placeholder="wrk- 开头" />' +
     '  <button class="wre-btn" id="gateKeySave">保存并校验</button>' +
     '  <button class="wre-btn wre-btn--ghost" id="gateAccount">已有账户码？用它登录</button>' +
+    (offline ? '  <div class="wre-hint">上次连接未成功，若已配置过可点下方「重试」。</div>' : '') +
     '  <button class="wre-btn wre-btn--ghost" id="gateRetry">重试</button>' +
+    keyGuideHtml() +
     '</div>' +
     '</div>';
+  viewEl.querySelector('[data-action="back"]').addEventListener('click', () => {
+    location.hash = '#/home';   // 回引导页
+  });
   const saveBtn = viewEl.querySelector('#gateKeySave');
   saveBtn.addEventListener('click', async () => {
     const input = viewEl.querySelector('#gateKey');

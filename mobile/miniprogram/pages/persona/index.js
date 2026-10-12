@@ -8,6 +8,7 @@ const { getReadingPersona, personaYear } = require('../../shared/persona-core');
 const { personaFigureDataUri } = require('../../shared/persona-figure');
 const { renderPersonaShare } = require('../../shared/persona-share');
 const { messageOf, isKeyError } = require('../../shared/errors');
+const shareEntry = require('../../shared/share-entry');
 
 Page({
   data: {
