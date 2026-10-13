@@ -74,7 +74,7 @@ Page({
       : '来「悦读且住」测测你的阅读人格';
     return {
       title: title,
-      path: '/pages/persona/index',
+      path: shareEntry.forwardPath(this, '/pages/persona/index'),
     };
   },
 
@@ -90,6 +90,7 @@ Page({
       const size = renderPersonaShare(canvas, persona, store.getProfile());
       const tempFilePath = await this.canvasToTemp(canvas, size);
       this.setData({ sharing: false, shareImg: tempFilePath, showShare: true });
+      shareEntry.prepareCode(this);
     } catch (err) {
       this.setData({ sharing: false });
       wx.showToast({ title: (err && err.message) || '生成失败，请重试', icon: 'none' });
@@ -127,6 +128,28 @@ Page({
 
   closeShare() {
     this.setData({ showShare: false });
+  },
+
+  // 通用分享卡（只读分享页 / 复制链接用）
+  buildShareSpec() {
+    const p = this.data.persona;
+    if (!p) {
+      return null;
+    }
+    const profile = store.getProfile();
+    return {
+      kind: 'persona',
+      badge: '阅读人格',
+      title: (p.name || '我的阅读人格') + (p.code ? ' · ' + p.code : ''),
+      subtitle: p.tagline || '',
+      lines: p.oneLiner ? [p.oneLiner] : [],
+      chips: (p.nicknames || []).slice(0, 6),
+      footer: (profile.nickName ? profile.nickName + ' · ' : '') + '悦读且住 · 本机计算',
+    };
+  },
+
+  copyLink() {
+    shareEntry.copyLink(this);
   },
 
   // 一键转发分享图给微信好友（无需先保存到相册）

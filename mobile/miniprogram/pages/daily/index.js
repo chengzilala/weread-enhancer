@@ -7,6 +7,7 @@ const dailyData = require('../../shared/daily-data');
 const { generateDailyText } = require('../../shared/daily-ai');
 const { renderDailyShare } = require('../../shared/daily-share');
 const { messageOf, isKeyError } = require('../../shared/errors');
+const shareEntry = require('../../shared/share-entry');
 
 Page({
   data: {
@@ -292,7 +293,7 @@ Page({
     const card = this.data.card;
     return {
       title: card && card.title ? card.title : '我的今日卡片 · 悦读且住',
-      path: '/pages/daily/index',
+      path: shareEntry.forwardPath(this, '/pages/daily/index'),
     };
   },
 
@@ -309,6 +310,7 @@ Page({
       const size = renderDailyShare(canvas, card, store.getProfile());
       const tempFilePath = await this.canvasToTemp(canvas, size);
       this.setData({ sharing: false, shareImg: tempFilePath, showShare: true });
+      shareEntry.prepareCode(this);
     } catch (err) {
       this.setData({ sharing: false });
       wx.showToast({ title: (err && err.message) || '生成失败，请重试', icon: 'none' });
@@ -345,6 +347,33 @@ Page({
 
   closeShare() {
     this.setData({ showShare: false });
+  },
+
+  // 通用分享卡（只读分享页 / 复制链接用）
+  buildShareSpec() {
+    const card = this.data.card;
+    if (!card) {
+      return null;
+    }
+    const quote = card.quote || {};
+    const profile = store.getProfile();
+    return {
+      kind: 'daily',
+      badge: '每日卡片',
+      title: card.title || '',
+      subtitle: card.dateLabel || '',
+      quote: quote.text ? {
+        text: quote.text,
+        from: '《' + (quote.title || '未命名') + '》' + (quote.author ? ' · ' + quote.author : ''),
+      } : null,
+      lines: card.note ? [card.note] : [],
+      chips: (card.themes || []).slice(0, 6),
+      footer: (profile.nickName ? profile.nickName + ' · ' : '') + '悦读且住 · 本机计算',
+    };
+  },
+
+  copyLink() {
+    shareEntry.copyLink(this);
   },
 
   shareImage() {

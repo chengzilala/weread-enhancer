@@ -906,8 +906,85 @@ a.wre-link { text-decoration: none; color: var(--wre-text); }
 }
 
 /* ---- 引导页（landing）：未配置 Key 时打开网页看到的第一屏 ---- */
-.wre-landing { padding: 6px 12px 28px; }
-.wre-landing__hero { text-align: center; padding: 16px 2px 6px; }
+/* 引导页自带顶部导航条，全局蓝色顶栏被隐藏，故这里自己留出刘海安全区 */
+.wre-landing { padding: calc(env(safe-area-inset-top, 0px) + 4px) 12px 28px; }
+.wre-landing__hero { text-align: center; padding: 14px 2px 6px; }
+
+/* 顶部导航条：logo + 名称 + 明暗切换 + 开始使用 */
+.wre-landing__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0 2px;
+  padding: 10px 12px;
+  background: var(--wre-card);
+  border: 1px solid var(--wre-line);
+  border-radius: 14px;
+  box-shadow: 0 1px 6px rgba(31, 36, 48, 0.04);
+}
+.wre-landing__brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.wre-landing__logo {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--wre-brand);
+  color: #fff;
+  font-size: calc(18px * var(--wre-fs));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wre-landing__brand-text { min-width: 0; }
+.wre-landing__brand-name { font-size: calc(15px * var(--wre-fs)); font-weight: 700; line-height: 1.2; color: var(--wre-text); }
+.wre-landing__brand-sub {
+  margin-top: 2px;
+  font-size: calc(11px * var(--wre-fs));
+  color: var(--wre-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wre-landing__nav-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.wre-landing__theme {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--wre-line);
+  background: var(--wre-card-2);
+  border-radius: 50%;
+  font-size: calc(15px * var(--wre-fs));
+  line-height: 1;
+  cursor: pointer;
+}
+.wre-landing__login {
+  height: 34px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--wre-brand);
+  color: #fff;
+  font-size: calc(13px * var(--wre-fs));
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* 「界面示意」预览卡：复用 .wre-grid / .wre-trend 展示用了之后能看到什么 */
+.wre-landing__preview {
+  margin-top: 16px;
+  padding: 14px;
+  background: var(--wre-card);
+  border: 1px solid var(--wre-line);
+  border-radius: 16px;
+  box-shadow: 0 1px 6px rgba(31, 36, 48, 0.04);
+}
+.wre-landing__preview-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.wre-landing__preview-status { font-size: calc(13px * var(--wre-fs)); color: var(--wre-text-3); }
+.wre-landing__dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--wre-tag-fg); vertical-align: middle; }
+.wre-landing__preview-tag { flex: none; padding: 2px 8px; border: 1px solid var(--wre-line); border-radius: 999px; font-size: calc(11px * var(--wre-fs)); color: var(--wre-muted); }
+.wre-landing__unit { margin-left: 3px; font-size: calc(12px * var(--wre-fs)); font-weight: 500; color: var(--wre-muted); }
 .wre-landing__title {
   font-size: calc(23px * var(--wre-fs));
   font-weight: 700;

@@ -22,7 +22,10 @@ const WebSocket = require('ws');
 
 const TRUSTED_CLIENT_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
 const WSS_BASE = 'wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1';
-const CHROMIUM_VERSION = '130.0.2849.68'; // 随 Edge 版本走的签名版本号，失效时可上调
+// 随 Edge 版本走的签名版本号。微软会轮换：版本号过期 → 握手直接 403。
+// 当前对齐官方 edge-tts（CHROMIUM_FULL_VERSION=143.0.3650.75）。失效时上调此值。
+const CHROMIUM_VERSION = '143.0.3650.75';
+const CHROMIUM_MAJOR = CHROMIUM_VERSION.split('.')[0];
 const SEC_MS_GEC_VERSION = '1-' + CHROMIUM_VERSION;
 const OUTPUT_FORMAT = 'audio-24khz-48kbitrate-mono-mp3';
 const WIN_EPOCH = 11644473600; // 1601→1970 的秒数差
@@ -136,10 +139,14 @@ function speakChunk(text, voice, timeoutMs) {
     const ws = new WebSocket(url, {
       lookup: ipv4Lookup, // 锁定 IPv4（云函数多为纯 IPv4 出网）
       headers: {
+        Pragma: 'no-cache',
+        'Cache-Control': 'no-cache',
         Origin: 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold',
+        'Accept-Encoding': 'gzip, deflate, br, zstd',
+        'Accept-Language': 'en-US,en;q=0.9',
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) ' +
-          'Chrome/' + CHROMIUM_VERSION + ' Safari/537.36 Edg/' + CHROMIUM_VERSION,
+          'Chrome/' + CHROMIUM_MAJOR + '.0.0.0 Safari/537.36 Edg/' + CHROMIUM_MAJOR + '.0.0.0',
       },
     });
 

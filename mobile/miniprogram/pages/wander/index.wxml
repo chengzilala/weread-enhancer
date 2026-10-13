@@ -1,3 +1,21 @@
+<!-- 往期归档列表（复用：本期视图底部 / 归档入口 / 本期不可用时） -->
+<template name="wanderHistory">
+  <view class="wre-card" wx:if="{{history.length}}">
+    <view class="history__head-row">
+      <view class="wre-title">往期归档</view>
+      <text class="history__roam" wx:if="{{canRoam}}" bindtap="roam">随机漫游</text>
+    </view>
+    <view class="history__item" wx:for="{{history}}" wx:key="id" data-id="{{item.id}}" bindtap="viewArchive">
+      <view class="history__head">
+        <text class="history__date">{{item.weekLabel}}</text>
+        <text class="history__star" wx:if="{{item.starred}}">★ 收藏</text>
+      </view>
+      <view class="history__title">{{item.title}}</view>
+      <view class="history__theme" wx:if="{{item.theme}}">主题：{{item.theme}}{{item.tierName ? ' · ' + item.tierName + ' 档' : ''}}</view>
+    </view>
+  </view>
+</template>
+
 <view class="wre-page {{wreDark ? 'wre-dark' : ''}}" style="--wre-fs:{{wreFs}}">
   <!-- 分享图绘制画布（移出屏幕外，不可见） -->
   <canvas type="2d" id="shareCanvas" class="share-canvas"></canvas>
@@ -14,6 +32,18 @@
   />
 
   <block wx:else>
+    <!-- 归档入口（「我的 → 灵感漫游 · 往期归档」）：直接展示往期归档，不生成本期 -->
+    <block wx:if="{{archiveMode && !viewingArchive}}">
+      <view class="wre-card" wx:if="{{!history.length}}">
+        <view class="history__head-row"><view class="wre-title">往期归档</view></view>
+        <view class="wre-muted">还没有往期归档。灵感漫游每周一篇，攒下的每一期都会按周排在这里。</view>
+      </view>
+      <template is="wanderHistory" data="{{history, canRoam}}" />
+      <view class="wre-card"><button class="wre-btn" bindtap="goCurrent">看本期</button></view>
+      <view class="wre-muted statement">每期只按主题把你自己的划线 / 想法编排在一起，全部在本机排版；归档与收藏只存本机，不上云。</view>
+    </block>
+
+    <block wx:else>
     <!-- 加载中 -->
     <wre-state
       wx:if="{{loading}}"
@@ -47,7 +77,7 @@
       <!-- 往期浏览提示条 -->
       <view class="archive-bar" wx:if="{{viewingArchive}}">
         <text class="archive-bar__text">正在看往期 · {{issue.weekLabel}}</text>
-        <text class="archive-bar__back" bindtap="backToCurrent">回到本期</text>
+        <text class="archive-bar__back" bindtap="backToCurrent">{{archiveMode ? '回到归档' : '回到本期'}}</text>
       </view>
 
       <view class="wre-card card">
@@ -99,20 +129,7 @@
       </view>
 
       <!-- 往期归档 + 随机漫游 -->
-      <view class="wre-card" wx:if="{{history.length}}">
-        <view class="history__head-row">
-          <view class="wre-title">往期归档</view>
-          <text class="history__roam" wx:if="{{canRoam}}" bindtap="roam">随机漫游</text>
-        </view>
-        <view class="history__item" wx:for="{{history}}" wx:key="id" data-id="{{item.id}}" bindtap="viewArchive">
-          <view class="history__head">
-            <text class="history__date">{{item.weekLabel}}</text>
-            <text class="history__star" wx:if="{{item.starred}}">★ 收藏</text>
-          </view>
-          <view class="history__title">{{item.title}}</view>
-          <view class="history__theme" wx:if="{{item.theme}}">主题：{{item.theme}}{{item.tierName ? ' · ' + item.tierName + ' 档' : ''}}</view>
-        </view>
-      </view>
+      <template is="wanderHistory" data="{{history, canRoam}}" />
 
       <view class="wre-muted statement">每期只按主题把你自己的划线 / 想法编排在一起，全部在本机排版；归档与收藏只存本机，不上云。</view>
     </block>
@@ -156,6 +173,12 @@
       text="{{generating ? '正在编排本期主题合辑…' : '准备中…'}}"
       sub="{{generating ? '正在按主题把你的划线 / 想法编排在一起，稍等片刻' : ''}}"
     />
+
+    <!-- 本期不可用（未解锁 / 素材不足 / 报错）时，往期归档照常可见（本地存档不依赖本期状态） -->
+    <block wx:if="{{!issue && !loading}}">
+      <template is="wanderHistory" data="{{history, canRoam}}" />
+    </block>
+    </block>
   </block>
 
   <!-- 分享图预览弹层 -->
@@ -165,6 +188,7 @@
     </scroll-view>
     <view class="share-actions">
       <button class="wre-btn" bindtap="shareImage">转发给朋友</button>
+      <button class="wre-btn wre-btn--ghost" bindtap="copyLink">复制分享链接</button>
       <button class="wre-btn wre-btn--ghost" bindtap="saveShare">保存到相册</button>
       <button class="wre-btn wre-btn--ghost" bindtap="closeShare">关闭</button>
     </view>

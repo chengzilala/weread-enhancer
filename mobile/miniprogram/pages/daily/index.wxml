@@ -149,6 +149,7 @@
     </scroll-view>
     <view class="share-actions">
       <button class="wre-btn" bindtap="shareImage">转发给朋友</button>
+      <button class="wre-btn wre-btn--ghost" bindtap="copyLink">复制分享链接</button>
       <button class="wre-btn wre-btn--ghost" bindtap="saveShare">保存到相册</button>
       <button class="wre-btn wre-btn--ghost" bindtap="closeShare">关闭</button>
     </view>

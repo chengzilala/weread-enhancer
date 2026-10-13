@@ -17,7 +17,16 @@ import { speakList, ttsSupported } from '../tts.js';
 
 export const title = '灵感漫游';
 
+// 「我的 → 灵感漫游 · 往期归档」入口：进入后直达往期归档列表（不生成本期）
+let pendingArchive = false;
+
+/** 由「我的」入口调用：下一次进入本页时直接展示往期归档列表 */
+export function openArchive() {
+  pendingArchive = true;
+}
+
 const S = {
+  mode: 'current',          // current=本期视图；archive=往期归档列表视图
   view: null,
   viewingArchive: false,
   generating: false,
@@ -37,11 +46,19 @@ export function render(root, app) {
   root.innerHTML = '<div class="wre-page"><div id="wanderBody"></div></div>';
   const body = root.querySelector('#wanderBody');
   body.addEventListener('click', (e) => onClick(e, body, app));
+  S.mode = pendingArchive ? 'archive' : 'current';
+  pendingArchive = false;
   S.view = null;
   S.viewingArchive = false;
   S.error = '';
   S.reason = '';
   S.aiError = '';
+  if (S.mode === 'archive') {
+    // 归档模式：只列往期，不读取 / 生成本期
+    S.loading = false;
+    paint(body);
+    return;
+  }
   S.loading = true;
   boost(body, app);
 }
@@ -191,14 +208,19 @@ function backHtml() {
 }
 
 function bodyHtml() {
+  // 归档模式：直接展示往期归档列表（不读 / 不生成本期）
+  if (S.mode === 'archive' && !S.viewingArchive) {
+    return archiveListHtml() + statementHtml();
+  }
+  // 本期不可用时，往期归档也要照常显示（本地存档不依赖本期状态）
   if (S.error) {
-    return '<div class="wre-card">' + stateHtml('error', S.error, S.needsKey ? '去配置 Key' : '重试') + '</div>';
+    return '<div class="wre-card">' + stateHtml('error', S.error, S.needsKey ? '去配置 Key' : '重试') + '</div>' + historyHtml();
   }
   if (S.progress && !S.progress.unlocked) {
-    return lockHtml(S.progress);
+    return lockHtml(S.progress) + historyHtml();
   }
   if (S.reason === 'material') {
-    return materialHtml();
+    return materialHtml() + historyHtml();
   }
   if (S.view) {
     return archiveBarHtml() + issueHtml(S.view) + actionsHtml(S.view) + historyHtml() + statementHtml();
@@ -257,7 +279,7 @@ function archiveBarHtml() {
   return (
     '<div class="wre-archive-bar">' +
     '<span>正在看往期 · ' + esc(S.view.weekLabel) + '</span>' +
-    '<button class="wre-back__btn" data-action="back-current">回到本期</button>' +
+    '<button class="wre-back__btn" data-action="back-current">' + (S.mode === 'archive' ? '回到归档' : '回到本期') + '</button>' +
     '</div>'
   );
 }
@@ -341,10 +363,12 @@ function actionsHtml(v) {
   return parts.join('');
 }
 
-function historyHtml() {
+/** 本机往期归档（不含本周），倒序；limit 控制条数 */
+function historyItems(limit) {
   const currentWeek = core.weekKey();
-  const list = db.listIssues()
+  return db.listIssues()
     .filter((it) => it && it.week !== currentWeek)
+    .slice(0, limit)
     .map((it) => ({
       id: it.id,
       weekLabel: it.weekLabel || '',
@@ -353,6 +377,21 @@ function historyHtml() {
       tierName: it.tierName || '',
       starred: !!it.starred,
     }));
+}
+
+function historyItemsHtml(list) {
+  return list.map((h) =>
+    '<div class="wre-history" data-archive="' + esc(h.id) + '">' +
+    '<div class="wre-history__head"><span class="wre-history__date">' + esc(h.weekLabel) + '</span>' +
+    (h.starred ? '<span class="wre-history__star">★ 收藏</span>' : '') + '</div>' +
+    '<div class="wre-history__title">' + esc(h.title) + '</div>' +
+    (h.theme ? '<div class="wre-history__theme">主题：' + esc(h.theme) + (h.tierName ? ' · ' + esc(h.tierName) + ' 档' : '') + '</div>' : '') +
+    '</div>').join('');
+}
+
+/** 本期视图：本期下方的「往期归档」列表（无则整块不显示） */
+function historyHtml() {
+  const list = historyItems(20);
   if (!list.length) {
     return '';
   }
@@ -360,14 +399,28 @@ function historyHtml() {
     '<div class="wre-card">' +
     '<div class="wre-card__title wre-card__title--row"><span>往期归档</span>' +
     '<button class="wre-link-inline" data-action="roam">随机漫游</button></div>' +
-    list.slice(0, 20).map((h) =>
-      '<div class="wre-history" data-archive="' + esc(h.id) + '">' +
-      '<div class="wre-history__head"><span class="wre-history__date">' + esc(h.weekLabel) + '</span>' +
-      (h.starred ? '<span class="wre-history__star">★ 收藏</span>' : '') + '</div>' +
-      '<div class="wre-history__title">' + esc(h.title) + '</div>' +
-      (h.theme ? '<div class="wre-history__theme">主题：' + esc(h.theme) + (h.tierName ? ' · ' + esc(h.tierName) + ' 档' : '') + '</div>' : '') +
-      '</div>').join('') +
+    historyItemsHtml(list) +
     '</div>'
+  );
+}
+
+/** 归档视图：从「我的」入口直接进入，列出全部往期（无则给空态引导） */
+function archiveListHtml() {
+  const list = historyItems(30);
+  const head =
+    '<div class="wre-card__title wre-card__title--row"><span>往期归档</span>' +
+    (list.length ? '<button class="wre-link-inline" data-action="roam">随机漫游</button>' : '') + '</div>';
+  if (!list.length) {
+    return (
+      '<div class="wre-card">' + head +
+      '<div class="wre-muted">还没有往期归档。灵感漫游每周一篇，攒下的每一期都会按周排在这里。</div>' +
+      '<button class="wre-btn" data-action="go-current">看本期</button>' +
+      '</div>'
+    );
+  }
+  return (
+    '<div class="wre-card">' + head + historyItemsHtml(list) + '</div>' +
+    '<div class="wre-card"><button class="wre-btn" data-action="go-current">看本期</button></div>'
   );
 }
 
@@ -487,10 +540,27 @@ function handleAction(action, body, app) {
     paint(body);
     return;
   }
+  if (action === 'go-current') {
+    S.mode = 'current';
+    S.viewingArchive = false;
+    S.view = null;
+    S.error = '';
+    S.reason = '';
+    S.progress = null;
+    S.loading = true;
+    boost(body, app);
+    window.scrollTo(0, 0);
+    return;
+  }
   if (action === 'back-current') {
     S.viewingArchive = false;
     S.view = null;
-    boost(body, app);
+    if (S.mode === 'archive') {
+      // 归档模式：回到归档列表（不读 / 不生成本期）
+      paint(body);
+    } else {
+      boost(body, app);
+    }
     window.scrollTo(0, 0);
     return;
   }

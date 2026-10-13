@@ -17,6 +17,7 @@ import { qrSvg } from '../qrcode.js';
 import { desktopGuideBodyHtml } from '../desktop-guide.js';
 import { CONFIG } from '../config.js';
 import { openArchive as openDailyArchive } from './daily.js';
+import { openArchive as openWanderArchive } from './wander.js';
 
 export const title = '我的账户';
 
@@ -647,6 +648,7 @@ async function onAction(e, body, app) {
   }
 
   if (action === 'open-wander') {
+    openWanderArchive();   // 直达「往期归档」列表
     app.go('wander');
     return;
   }

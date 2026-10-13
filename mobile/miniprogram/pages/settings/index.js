@@ -246,7 +246,8 @@ Page({
   },
 
   goWander() {
-    wx.navigateTo({ url: '/pages/wander/index' });
+    // 直达「往期归档」列表（不生成本期）
+    wx.navigateTo({ url: '/pages/wander/index?view=archive' });
   },
 
   goAdmin() {

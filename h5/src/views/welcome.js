@@ -7,13 +7,28 @@
  */
 
 import { CONFIG } from '../config.js';
+import { applyTheme } from '../store.js';
 import { keyGuideHtml } from '../key-guide.js';
 
 export const title = CONFIG.APP_NAME;
 
+/** 当前实际生效的主题（light / dark） */
+function currentTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+
+/** 明暗切换按钮图标：显示当前主题（深色 → 🌙，浅色 → ☀️） */
+function themeIcon(theme) {
+  return theme === 'dark' ? '🌙' : '☀️';
+}
+
 export function render(root, app) {
   root.innerHTML = '<div class="wre-landing" id="welcomeBody">' + html() + '</div>';
   const body = root.querySelector('#welcomeBody');
+  const themeBtn = body.querySelector('[data-action="theme"]');
+  if (themeBtn) {
+    themeBtn.textContent = themeIcon(currentTheme());
+  }
   body.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action]');
     if (!btn) {
@@ -27,8 +42,63 @@ export function render(root, app) {
       if (el && el.scrollIntoView) {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
+    } else if (action === 'theme') {
+      const next = currentTheme() === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+      btn.textContent = themeIcon(next);
     }
   });
+}
+
+/** 顶部导航条：logo + 名称 + 明暗切换 + 开始使用（替代全局蓝色顶栏） */
+function nav() {
+  return (
+    '<header class="wre-landing__nav">' +
+    '  <div class="wre-landing__brand">' +
+    '    <span class="wre-landing__logo">📖</span>' +
+    '    <div class="wre-landing__brand-text">' +
+    '      <div class="wre-landing__brand-name">' + CONFIG.APP_NAME + '</div>' +
+    '      <div class="wre-landing__brand-sub">阅读数据 · 人格 · 报告</div>' +
+    '    </div>' +
+    '  </div>' +
+    '  <div class="wre-landing__nav-actions">' +
+    '    <button class="wre-landing__theme" data-action="theme" aria-label="切换深色 / 浅色">☀️</button>' +
+    '    <button class="wre-landing__login" data-action="start">开始使用</button>' +
+    '  </div>' +
+    '</header>'
+  );
+}
+
+/** 预览卡里的单个指标格 */
+function previewCell(value, label) {
+  return (
+    '<div class="wre-grid__item">' +
+    '  <div class="wre-grid__value">' + value + '</div>' +
+    '  <div class="wre-grid__label">' + label + '</div>' +
+    '</div>'
+  );
+}
+
+/** 「界面示意」预览卡：让没经验的用户一眼看到用了之后是什么样 */
+function preview() {
+  const bars = [42, 68, 55, 80, 62, 100, 74];   // 近 7 天阅读时长示意
+  return (
+    '<section class="wre-landing__preview">' +
+    '  <div class="wre-landing__preview-head">' +
+    '    <span class="wre-landing__preview-status"><i class="wre-landing__dot"></i>本月阅读状态不错</span>' +
+    '    <span class="wre-landing__preview-tag">界面示意</span>' +
+    '  </div>' +
+    '  <div class="wre-grid">' +
+    previewCell('28.5<span class="wre-landing__unit">小时</span>', '本月阅读时长') +
+    previewCell('3<span class="wre-landing__unit">本</span>', '本月读完') +
+    previewCell('12<span class="wre-landing__unit">天</span>', '连续阅读') +
+    previewCell('沉思型', '阅读人格') +
+    '  </div>' +
+    '  <div class="wre-trend">' +
+    bars.map((h) => '<span class="wre-bar' + (h >= 100 ? ' is-peak' : '') + '" style="height:' + h + '%"></span>').join('') +
+    '  </div>' +
+    '</section>'
+  );
 }
 
 function feat(icon, name, desc) {
@@ -55,6 +125,8 @@ function stepRow(no, name, desc) {
 
 function html() {
   return (
+    nav() +
+
     '<section class="wre-landing__hero">' +
     '  <h1 class="wre-landing__title">把你自己的微信读书数据，<br>变成看得懂的阅读报告</h1>' +
     '  <p class="wre-landing__lead">不用注册、不用装软件，用手机浏览器打开就能用。它会读懂你读过什么、怎么读的，' +
@@ -63,6 +135,8 @@ function html() {
     '  <button class="wre-btn wre-btn--ghost" data-action="features">先看看能做什么</button>' +
     '  <p class="wre-landing__hint">只读你自己的数据 · 全程免费 · 随时可清除</p>' +
     '</section>' +
+
+    preview() +
 
     '<section class="wre-landing__sec">' +
     '  <h2 class="wre-landing__sec-title" id="wreLandingFeatures">能做什么</h2>' +

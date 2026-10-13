@@ -54,6 +54,7 @@ function isKnown(key) {
 }
 
 const viewEl = document.getElementById('view');
+const headerEl = document.querySelector('.wre-header');
 const headerTitleEl = document.getElementById('headerTitle');
 const tabbarEl = document.getElementById('tabbar');
 
@@ -101,9 +102,17 @@ function setChromeVisible(visible) {
   headerTitleEl.textContent = visible ? ((findTab(current) || {}).title || CONFIG.APP_NAME) : CONFIG.APP_NAME;
 }
 
+/** 引导页自带顶部导航条，需隐藏全局蓝色顶栏；其余页面恢复显示 */
+function setHeaderVisible(visible) {
+  if (headerEl) {
+    headerEl.style.display = visible ? '' : 'none';
+  }
+}
+
 function renderTab(key) {
   current = key;
   const tab = findTab(key) || TABS[0];
+  setHeaderVisible(true);
   setChromeVisible(true);
   setActiveTab(tab.key);
   headerTitleEl.textContent = tab.view.title || tab.label;
@@ -116,6 +125,7 @@ function renderTab(key) {
 function renderSecondary(key) {
   current = key;
   const item = findSecondary(key);
+  setHeaderVisible(true);
   setChromeVisible(false);
   setActiveTab('');
   headerTitleEl.textContent = item.view.title || item.label;
@@ -127,6 +137,7 @@ function renderSecondary(key) {
 /** 只读分享页：隐藏 TabBar，由分享视图自行渲染（免 Key 门槛） */
 function renderShare(code) {
   current = 'share';
+  setHeaderVisible(true);
   setChromeVisible(false);
   setActiveTab('');
   headerTitleEl.textContent = shareView.title || '分享';
@@ -154,6 +165,7 @@ async function route() {
 
   const state = await resolveKeyState();
   if (!state.ok) {
+    setHeaderVisible(true);
     setChromeVisible(false);
     viewEl.innerHTML = '<div class="wre-page">' + stateHtml('error', state.error || '连接中转服务失败', '重试') + '</div>';
     viewEl.querySelector('[data-action="retry"]').addEventListener('click', () => route());
@@ -197,12 +209,14 @@ async function resolveKeyState() {
 
 // ---- 未配置 Key：引导页（landing）----
 function renderWelcome() {
+  setHeaderVisible(false);   // 引导页自带顶部导航条
   setChromeVisible(false);
   welcome.render(viewEl, app);   // 引导页内部用 app.go('setup') 进入配置页
 }
 
 // ---- 未配置 Key：Key 配置页（含「如何获取 Key」图文说明）----
 function renderKeySetup(offline) {
+  setHeaderVisible(true);
   setChromeVisible(false);
   viewEl.innerHTML =
     '<div class="wre-page">' +

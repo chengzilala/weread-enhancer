@@ -7,6 +7,7 @@ const wanderData = require('../../shared/wander-data');
 const { generateWanderText } = require('../../shared/wander-ai');
 const { renderWanderShare } = require('../../shared/wander-share');
 const { messageOf, isKeyError } = require('../../shared/errors');
+const shareEntry = require('../../shared/share-entry');
 
 Page({
   data: {
@@ -36,6 +37,7 @@ Page({
     // 本期
     issue: null,
     viewingArchive: false,
+    archiveMode: false,   // 从「我的 → 灵感漫游 · 往期归档」进入：直接列往期，不生成本期
     history: [],
     canRoam: false,
     weekLeft: 0,
@@ -50,7 +52,9 @@ Page({
     myTier: '',
   },
 
-  onLoad() {
+  onLoad(options) {
+    // 入口带 ?view=archive 时进入归档模式
+    this.archiveMode = !!(options && options.view === 'archive');
     // 规则弹层要展示三档门槛表，档位定义为静态常量，进页面取一次即可
     this.setData({ tiers: core.TIERS });
   },
@@ -58,8 +62,14 @@ Page({
   onShow() {
     this.setData({ wreFs: store.getFontScale(), wreDark: theme.apply() });
     const hasKey = !!store.getKey();
-    this.setData({ hasKey });
+    this.setData({ hasKey, archiveMode: !!this.archiveMode });
     if (!hasKey) {
+      return;
+    }
+    // 往期归档始终先取一次（本地存档，不依赖本期状态）
+    this.loadHistory();
+    if (this.archiveMode && !this.data.viewingArchive) {
+      // 归档入口：只列往期，不读取 / 不生成本期
       return;
     }
     if (this.data.viewingArchive) {
@@ -74,7 +84,17 @@ Page({
       wx.stopPullDownRefresh();
       return;
     }
-    // 下拉刷新 = 重新生成（消耗本周次数，与「重新生成」同一口径）
+    // 看往期时下拉 = 回到本期 / 归档列表；归档模式下拉 = 刷新列表；否则下拉刷新 = 重新生成
+    if (this.data.viewingArchive) {
+      this.backToCurrent();
+      wx.stopPullDownRefresh();
+      return;
+    }
+    if (this.archiveMode) {
+      this.loadHistory();
+      wx.stopPullDownRefresh();
+      return;
+    }
     this.generate(!!this.data.issue);
   },
 
@@ -333,7 +353,21 @@ Page({
     this.generate(false);
   },
 
+  // 归档模式下的「看本期」：退出归档，回到本期视图
+  goCurrent() {
+    this.archiveMode = false;
+    this.setData({ archiveMode: false, issue: null, viewingArchive: false, error: '', reason: '', aiError: '', progress: null });
+    this.ensureIssue();
+    wx.pageScrollTo({ scrollTop: 0, duration: 0 });
+  },
+
   backToCurrent() {
+    // 归档模式：回到往期归档列表（不读 / 不生成本期）
+    if (this.archiveMode) {
+      this.setData({ viewingArchive: false, issue: null });
+      wx.pageScrollTo({ scrollTop: 0, duration: 0 });
+      return;
+    }
     this.setData({ viewingArchive: false, issue: null });
     this.ensureIssue();
     wx.pageScrollTo({ scrollTop: 0, duration: 0 });
@@ -394,7 +428,7 @@ Page({
     const issue = this.data.issue;
     return {
       title: issue && issue.title ? issue.title : '我的灵感漫游 · 悦读且住',
-      path: '/pages/wander/index',
+      path: shareEntry.forwardPath(this, '/pages/wander/index'),
     };
   },
 
@@ -411,6 +445,7 @@ Page({
       const size = renderWanderShare(canvas, issue, store.getProfile());
       const tempFilePath = await this.canvasToTemp(canvas, size);
       this.setData({ sharing: false, shareImg: tempFilePath, showShare: true });
+      shareEntry.prepareCode(this);
     } catch (err) {
       this.setData({ sharing: false });
       wx.showToast({ title: (err && err.message) || '生成失败，请重试', icon: 'none' });
@@ -447,6 +482,33 @@ Page({
 
   closeShare() {
     this.setData({ showShare: false });
+  },
+
+  // 通用分享卡（只读分享页 / 复制链接用）
+  buildShareSpec() {
+    const v = this.data.issue;
+    if (!v) {
+      return null;
+    }
+    const first = (v.sources && v.sources[0]) || null;
+    const profile = store.getProfile();
+    return {
+      kind: 'wander',
+      badge: '灵感漫游',
+      title: v.title || '',
+      subtitle: (v.weekLabel || '') + (v.tierName ? '　第 ' + v.tierName + ' 档' : ''),
+      lines: v.summary ? [v.summary] : [],
+      quote: first ? {
+        text: first.text,
+        from: '《' + (first.title || '未命名') + '》' + (first.author ? ' · ' + first.author : ''),
+      } : null,
+      chips: (v.sources || []).slice(0, 4).map((s) => '《' + (s.title || '未命名') + '》'),
+      footer: (profile.nickName ? profile.nickName + ' · ' : '') + '悦读且住 · 本机计算',
+    };
+  },
+
+  copyLink() {
+    shareEntry.copyLink(this);
   },
 
   shareImage() {
