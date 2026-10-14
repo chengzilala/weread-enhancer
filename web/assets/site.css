@@ -1,19 +1,20 @@
 /* 微信悦读 · 网站样式（独立站点，不引入插件 wre- 前缀） */
 
 :root {
-  --bg: #ffffff;
-  --bg-soft: #f6f7f9;
+  --bg: #f2f2f2;
+  --bg-soft: #ffffff;
   --bg-card: #ffffff;
-  --text: #23262b;
-  --text-soft: #6b7280;
-  --border: #e6e8ec;
+  --text: #454545;
+  --text-soft: #5f5f5f;
+  --text-muted: #9b9b9b;
+  --border: rgba(0, 0, 0, .1);
   --accent: #1a8917;
   --accent-hover: #146c12;
   --accent-soft: #eaf4ea;
   --code-bg: #f4f5f7;
   --radius: 12px;
-  /* 布局宽度：占窗口 80%，仅超宽屏封顶，避免一行过长 */
-  --max-width: min(1920px, 80vw);
+  /* 布局宽度：参考 flomo，居中 1200 容器；窄屏跟随窗口 */
+  --max-width: min(1200px, 92vw);
   --content-width: 100%;
   /* 正文字号：随窗口轻微放大，窄屏不缩小到难读 */
   --font-base: clamp(16.5px, 0.42vw + 15.3px, 18.5px);
@@ -85,16 +86,33 @@ a:hover { text-decoration: underline; }
 .brand-icon { width: 28px; height: 28px; border-radius: 7px; }
 .brand-name { font-size: 1em; }
 
-.site-nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px 12px; }
-.site-nav a { color: var(--text-soft); font-size: 0.95em; white-space: nowrap; }
+.site-nav { margin-left: auto; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 26px; }
+.site-nav a { color: var(--text-soft); font-size: 15px; white-space: nowrap; }
 .site-nav a:hover { color: var(--accent); text-decoration: none; }
 .site-nav a.active { color: var(--accent); font-weight: 600; }
 
-/* 中等宽度：80vw 容器较窄，进一步收紧导航，尽量单行放下全部栏目 */
-@media (min-width: 861px) and (max-width: 1300px) {
-  .site-nav { gap: 6px 9px; }
-  .site-nav a { font-size: 0.9em; }
+/* 右侧 CTA：登录 + 绿色胶囊「装到 Edge」（flomo 式顶上只留一个主行动） */
+.site-cta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-left: 24px;
+  border-left: 1px solid var(--border);
 }
+.btn {
+  display: inline-block;
+  padding: 10px 24px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  transition: background .18s ease, color .18s ease, transform .18s ease;
+}
+.btn-primary { color: #fff; background: var(--accent); }
+.btn-primary:hover { color: #fff; background: var(--accent-hover); text-decoration: none; transform: translateY(-1px); }
+.btn-ghost { color: var(--text-soft); }
+.btn-ghost:hover { color: var(--accent); text-decoration: none; }
 
 .nav-toggle {
   display: none;
@@ -224,6 +242,32 @@ a:hover { text-decoration: underline; }
 .callout-warning, .callout-caution, .callout-danger { border-left-color: #d9a441; }
 .callout-tip, .callout-hint { border-left-color: #7c9cff; }
 
+/* 「创作手记」：作者自述长文 —— 左侧竖线 + 更松的行距与段距，缓解长文阅读疲劳 */
+.callout-essay {
+  margin: 0 0 30px;
+  padding: 2px 0 2px 22px;
+  background: transparent;
+  border: 0;
+  border-left: 3px solid var(--accent);
+  border-radius: 0;
+}
+.callout-essay .callout-title {
+  margin: 0 0 16px;
+  padding-bottom: 6px;
+  font-size: 1.32em;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+}
+.callout-essay .callout-body p {
+  margin: 0 0 15px;
+  line-height: 2;
+}
+.callout-essay .callout-body p:last-child { margin-bottom: 0; }
+
+@media (max-width: 767px) {
+  .callout-essay { padding-left: 16px; }
+}
+
 /* 卡片列表（栏目索引页）—— 加 .doc 前缀提升优先级，避免被 .doc ul 的 padding-left 顶开 */
 .doc .card-list { margin: 20px 0 0; padding: 0; list-style: none; }
 .doc .card-list li { margin: 0 0 12px; }
@@ -273,7 +317,7 @@ a:hover { text-decoration: underline; }
 /* ---------- 移动端 ---------- */
 @media (max-width: 860px) {
   .site-header-inner { flex-wrap: wrap; }
-  .nav-toggle { display: block; }
+  .nav-toggle { display: block; margin-left: auto; }
   .site-nav {
     display: none;
     flex-basis: 100%;
@@ -283,6 +327,7 @@ a:hover { text-decoration: underline; }
     gap: 4px;
   }
   .site-nav.open { display: flex; }
+  .site-cta { display: none; }
   .site-body { padding-top: 20px; flex-direction: column; gap: 20px; }
   .site-sidebar {
     position: static;

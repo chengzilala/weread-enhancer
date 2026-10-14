@@ -1711,5 +1711,17 @@
 - **验证**：`Grep` 核验 `background.js` 命中 `AI_PROVIDER_PRESETS/callAi/verifyAiKey/probeAiChat/requestAiOriginPermission` 24 处、`official.js` 命中新 DOM id/函数 23 处；`GetDiagnostics` 无新增 error（仅既有 Hint）。
 - **待办**：逐家连通性冒烟（需真机 + 各自真 Key，清单见 RPD 13.6.1）；`README.md` 等描述文案的 DeepSeek 残留（可选）；移动端 h5 / 小程序多模型支持（本轮明确不做）；本次改动**未提交**。
 
+## 2026-10-14 会话条目：H5 桌面端化 —— PWA 安装 + 宽屏两栏布局
+- **目标**：用户问「Windows / Mac 版本的可行性分析，有没有必要做，主要是把 h5 的功能桌面端化」。经 AskUserQuestion 确认：**只做 PWA 桌面化**（不做 Electron / Tauri），随后用户反馈「装成桌面应用后整页被锁成 480px 手机竖列、左右大片留白」，要求修复。
+- **已做**：
+  - **PWA 图标**：`promo.py` 新增 `H5_ASSETS` + `build_h5_icons()`（由矢量母版光栅化 192 / 512 PNG）→ `h5/assets/icon-192.png`、`icon-512.png`；`h5/manifest.webmanifest` 的 `icons` 补 PNG；`h5/index.html` 的 `apple-touch-icon` 由 SVG 改 PNG（Safari 不认 SVG）。
+  - **桌面安装引导**：`h5/src/desktop-guide.js` 增「电脑（Windows / Mac）」分步；`h5/src/views/me.js` 卡片摘要文案同步；官网教程页 `web/content/H5 移动端/加到手机桌面.md` 补电脑章节。
+  - **宽屏两栏布局**：`h5/assets/app.css` 新增桌面档媒体查询——底部五栏 Tab 改造成**左侧固定竖排导航**（含顶部品牌区 `.wre-sidebar__brand`）、顶栏标题左对齐、内容区居中一个易读列；`h5/assets/app.js` 新增 `setAppChrome()`，按当前页面切 `body.wre-app`（引导 / 配置 / 分享页不出现侧栏）。
+  - **本轮修正（用户第二次反馈「拉动窗口后内容被撑长」）**：断点 **1024px → 720px**（Mac 桌面应用窗口常见 ~800px，1024 不达标会回落成手机列）；内容列 `max-width` **920px → 720px 居中**（手机版分段条 / 进度条 / 按钮铺满整行会「被拉长变形」）；TTS 朗读条改为与 720 列居中对齐；`--wre-sidebar-w` 取 `clamp(200px, 20vw, 232px)`。
+- **关键结论**：**不做独立的「电脑版页面」**，同一份代码加响应式，避免双份维护、守住多端一致性。所有改动都关在 `@media (min-width: 720px)` 内、且多限定 `body.wre-app`，**手机（<560px）与 560–719px 档零影响**（顶层仅新增 `.wre-sidebar__brand{display:none}`，该元素在手机底部 Tab 栏本就不显示）。唯一副作用：**768–1023px（典型 iPad 竖屏）由手机列变为两栏**。
+- **产出物（文件）**：`h5/assets/app.css`、`h5/assets/app.js`、`h5/assets/icon-192.png`、`icon-512.png`、`h5/manifest.webmanifest`、`h5/index.html`、`h5/src/desktop-guide.js`、`h5/src/views/me.js`、`promo.py`、`web/content/H5 移动端/加到手机桌面.md`、`plan/RPD_H5移动端_需求文档.md`（§9.12 / §9.13）、`h5/README.md`。
+- **验证**：headless Chrome 实测 390 / 700 / 760 / 1175 / 1440px（390 全宽手机版、700 仍为 480px 手机列、760 起为侧栏两栏、1440 内容列 ~696px 居中）；`python3 web/build.py` **0 告警**（v0.28.2），`web/dist/app/` 已含新样式与新图标。
+- **待办**：本次改动**未提交**；线上 `reader.chesterlee.cn` 需重新构建 + 重新部署才生效（`dist` 已构建好）；版本号未递增（发版走 `pack-publish`）。
+
 
 

@@ -229,7 +229,7 @@ aliases: [屏占比, 宽度]       # Obsidian 别名，同时用于 [[双链]] �
   "releasedAt": "2026-09-29",
   "minSupportedVersion": "0.9.0",
   "notice": "v0.11.0 新增：官方数据阅读行为报告",
-  "changelogUrl": "https://reader.chesterlee.cn/changelog/",
+  "changelogUrl": "https://reader.chesterlee.cn/docs/changelog/",
   "storeUrls": { "edge": "…", "chrome": "…" }
 }
 ```
@@ -676,3 +676,5 @@ python3 web/serve.py    # 本地预览（默认 http://localhost:5173）
 | 2026-10-10 | 十八次修订（v0.18） | **预留 360 商店入口（暂不显示按钮）**：360 应用中心仍在审核、暂无详情页链接，故 `site.config.json` 的 `storeUrls.360` 暂留空，网站**暂不显示** 360 按钮；`build.py` 已内建 360 分支——内容页 `:::store` 按钮组（`render_store_buttons`）与页脚（`render_footer`）在填入链接后会自动出现「安装到 360 / 360 商店」，**首页 Hero 主按钮保持仅 Edge**（已与用户确认）；链接到手后仅需填 `storeUrls.360` + 重新 `python3 web/build.py`，详见 [plan_360_store.md 归档表](./plan_360_store.md) | 3.4、附 C |
 | 2026-10-12 | 十九次修订（v0.19） | **新增《加到手机桌面》教程页 `/desktop/`（跨端，P0）**：手机端 H5 可「添加到主屏幕」（PWA）、微信小程序可「添加到桌面 / 我的小程序」，都是像 App 一样从图标直接打开的用法，很多人不知道——故**单开一篇手把手教程**（iPhone/Safari、安卓 Chrome、微信内打开、小程序安卓/IOS 全覆盖），并**放进顶栏导航第 2 位**（首页之后）＋**首页正文首个区块显著入口**；同步把 `H5 移动端/朗读与分享.md` 的同主题小节收敛为指向本文的短说明（避免两处真相）、在 H5/小程序总览页加交叉链接，并更新 `content/_内容结构说明.md` 的导航↔文件对照表 | 2.1、3.2、3.4、附 C |
 | 2026-10-13 | 二十次修订（v0.20） | **对外地址切换到自有备案域名**：站点主域名由帽子云默认域名 `wereadapp-32km31c.maozi.io` 改为自有域名 `reader.chesterlee.cn`（阿里云备案，直绑帽子云、无需接入备案）；同步 `web/site.config.json`（`baseUrl` / `appUrl` / `personalSiteUrl`）、`h5/src/config.js`、`mobile/miniprogram/config.js`、`web/build.py`（作者名片 iframe 指向 `chesterlee.cn/card.html`）、插件 `manifest.json`（`homepage_url` + 主机权限）、`background.js`、`modules/help.js`、`modules/official.js`（分享图署名）及 README / 隐私政策 / 商店文档 / 营销文案；旧帽子云域名仍可访问，仅作备用 | 1.4、3.1、3.4、3.5、3.10、附 C |
+| 2026-10-14 | 二十一次修订（v0.21） | **「加到手机桌面」由顶栏导航并入「H5 移动端」栏目**：从 `site.config.json` 的 `nav` 移除该入口（顶栏不再单独占位）；源文件由 `content/加到手机桌面.md` 迁入 `content/H5 移动端/加到手机桌面.md`，`slug` 由 `desktop` 改为 `h5/desktop`（网址 `/desktop/` → `/h5/desktop/`），并挂进 H5 栏目（`order: 6`）；站内 `[[加到手机桌面]]` 双链经 `aliases` 自动改指新网址（首页 / H5 / 小程序 / 朗读与分享等 9 个产物页）；同步更新 `content/_内容结构说明.md` 的导航↔文件对照表。**注意：旧网址 `/desktop/` 已不存在** | 2.1、3.2、3.4、附 C |
+| 2026-10-14 | 二十二次修订（v0.22） | **顶栏导航改「核心项平铺 + 更多 ▾」**：13 项在 `min(1920px,80vw)` 容器里放不下会换行，故把低频 6 项（知识资产 / 图库 / 常见问题 / 更新日志 / 打赏 / 我的账户）收进右侧「更多」下拉，常显 7 项（首页 / 快速上手 / 功能教程 / 进阶技巧 / H5 移动端 / 微信小程序 / 阅读人格）；实现用**原生 `<details>`（零依赖、无 JS 也能展开）**——`site.config.json` 的 nav 项加 `"more": true` 即入下拉，`build.py` 的 `render_nav` 据此拆分并渲染 `.nav-more` 面板；`site.css` 加下拉浮层样式（桌面端点空白 / `Esc` 收起由 `site.js` 补 3 行）、`≤860px` 汉堡菜单里改为就地竖向展开；实测桌面 1440 单行不换行、下拉 6 项、无 JS 报错 | 2.1、3.1、4.2、附 C |

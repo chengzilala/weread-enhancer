@@ -661,6 +661,25 @@
 
 ---
 
+### v0.29.0 — 官网改版（flomo 大图流）+ 帮助文档站 `/docs/`（2026-10-14）
+
+> manifest.json 版本号：`0.28.2` → `0.29.0`
+> 站点契约以 `web/site.config.json` 的 `docs.tree` + `web/build.py` 为准
+
+**本版本改动**：
+- **官网首页改版（flomo 风格大图流）**：标题区大留白 + 大图流上下排布，产品价值点 / 功能图 / 四端入口等内容一个不少，呈现更清爽（`web/build.py` 的 `render_home` + `web/assets/site.css` 调色板 flomo 化：底 `#F2F2F2`、品牌绿 `#1a8917`、`max-width:1200px`）
+- **顶栏精简为 4 项**（帮助文档 / 图库 / 关于 / 打赏）+ 右侧「登录」+ 绿色胶囊「装到 Edge」：`site.config.json` 的 `nav` 由 13 项收到 4 项，`render_nav()` 重写输出 `site-nav` + `site-cta`
+- **新增帮助文档站 `/docs/`（VuePress 原味）**：新增 `web/templates/docs.html` + `web/assets/docs.css`；左侧常驻 emoji 目录树（开始 / 功能教程 / 进阶技巧 / H5 / 小程序 / 阅读人格 / 知识资产 / 常见问题 / 更新日志，配置在 `site.config.json` 的 `docs.tree`），正文 740px、底部「上一页 / 下一页」，移动端侧栏变抽屉
+- **官网 / 文档站分家**：新增常量 `SITE_SLUGS`（`""` / `about` / `gallery` / `privacy` / `feedback`）与 `DOCS_DIR = "docs"`，内容页统一输出到 `/docs/…`，仅这 5 个官网页面留在根目录；新增 `render_docs_home()` / `render_docs_layout()` / `render_docs_section_index()` 等
+- **旧地址自动跳转**：为 40 个旧 URL 生成 `<meta http-equiv="refresh">` + `location.replace()` + canonical 的跳转页，保住已发布 / 已收藏链接（`write_redirect()`）
+- **插件**：`modules/help.js` 帮助中心入口由官网根改为 `/docs/`
+- 同步：`web/content/更新日志.md`、`web/content/_内容结构说明.md`（顶栏表 / 帮助文档站目录表）
+- 删除 `web/demo/` 演示目录（选定方案已落地正式站，演示代码不再保留）
+
+**里程碑**：官网完成 flomo 风格改版，帮助内容独立成站，观感对齐 VuePress，且旧链接零失效。
+
+---
+
 ### 还未确认的开发计划
 
 1. 浏览器上架：将主流的浏览器都做，商店上架。
@@ -738,8 +757,8 @@ UI框架       +全部核心模块 +动态感应区   → 最终收敛为       
 
 | 文档/位置 | 版本号 | 说明 |
 |----------|-------|------|
-| manifest.json | `0.28.2` | 当前浏览器实际加载版本（屏占比 + 自动阅读 + 阅读统计 + 笔记增强（含语音复习 `tts.js`「▶ 听」）+ 阅读洞察（原生 Canvas 图表、规律建议、笔记密度、书架 / 发现页签、阅读人格）+ 本地找书 + 数据备份 `backup.js` + 首页书架 `home-shelf.js` + 集中 API Key 入口 + 支持与反馈/帮助中心（含**跳转官网打赏名单**）+ 中英双语 + 匿名使用统计（默认开启可关闭）+ **评论侧栏 `reviews.js`** + **插件界面明暗主题（浅色 / 深色 / 跟随系统）** + **多模型 AI 增强（6 家国产大模型 / 各 Key 分存 / 测试连接 / 自定义端点）**；已移除主题设置） |
+| manifest.json | `0.29.0` | 当前浏览器实际加载版本（屏占比 + 自动阅读 + 阅读统计 + 笔记增强（含语音复习 `tts.js`「▶ 听」）+ 阅读洞察（原生 Canvas 图表、规律建议、笔记密度、书架 / 发现页签、阅读人格）+ 本地找书 + 数据备份 `backup.js` + 首页书架 `home-shelf.js` + 集中 API Key 入口 + 支持与反馈/帮助中心（含**跳转官网打赏名单**，帮助中心入口已改指 `/docs/`）+ 中英双语 + 匿名使用统计（默认开启可关闭）+ **评论侧栏 `reviews.js`** + **插件界面明暗主题（浅色 / 深色 / 跟随系统）** + **多模型 AI 增强（6 家国产大模型 / 各 Key 分存 / 测试连接 / 自定义端点）**；已移除主题设置） |
 | RPD_需求文档.md | `v0.21` | PRD 迭代版本（第 10 章官方数据、第 11 章本地找书、第 12 章评论侧栏〔已实现 v0.28.0〕、第 13 章多模型〔已实现 v0.28.0〕、第 14 章语音复习〔已实现 v0.24.0〕、第 15 章数据备份与恢复〔已实现 v0.25.0〕、第 16 章样式统一配置〔待办·未排期〕） |
-| Git Tag | `v0.28.2` | 最新已打的 Tag（2026-10-14）；v0.20.1 及之前见 [plan_github_versioning.md](./plan_github_versioning.md) |
+| Git Tag | `v0.29.0` | 最新已打的 Tag（2026-10-14）；v0.20.1 及之前见 [plan_github_versioning.md](./plan_github_versioning.md) |
 | release zip | `weread-enhancer-v0.28.0.zip` | 最新上传包（由 `pack.py` 生成） |
 | version_plan.md | `v1.3` | 本文档独立版本 |

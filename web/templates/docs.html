@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{TITLE}}</title>
+  <meta name="description" content="{{DESCRIPTION}}">
+  <meta property="og:title" content="{{TITLE}}">
+  <meta property="og:description" content="{{DESCRIPTION}}">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="{{SITE_NAME}}">
+  <link rel="icon" href="/assets/img/icon-48.png">
+  <link rel="stylesheet" href="/assets/site.css">
+  <link rel="stylesheet" href="/assets/docs.css">
+</head>
+<body class="docs">
+  <header class="navbar">
+    <button class="nav-toggle" type="button" aria-label="目录" aria-expanded="false">☰</button>
+    <a class="logo" href="/docs/">
+      <img src="/assets/img/icon-48.png" alt="">
+      <span>{{SITE_NAME}} · 帮助</span>
+    </a>
+    <a class="navbar-link" href="/">返回官网</a>
+  </header>
+
+  <aside class="sidebar">
+{{DOCS_TREE}}
+  </aside>
+
+  <div class="page">
+    <article class="content doc">
+{{CONTENT}}
+    </article>
+{{PREVNEXT}}
+  </div>
+
+  <script>
+  (function () {
+    var btn = document.querySelector('.nav-toggle');
+    var sb = document.querySelector('.sidebar');
+    if (!btn || !sb) return;
+    btn.addEventListener('click', function () {
+      var open = sb.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    sb.addEventListener('click', function (e) {
+      if (e.target.tagName === 'A') sb.classList.remove('open');
+    });
+  })();
+  </script>
+</body>
+</html>

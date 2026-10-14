@@ -97,13 +97,13 @@
 ├── README.md              # 📖 项目首页
 ├── .gitignore
 │
-├── web/                   # 🌐 配套网站（文档站，见下方「配套网站」）
+├── web/                   # 🌐 配套网站（官网 + 帮助文档站，见下方「配套网站」）
 │   ├── content/           #    文章源（Obsidian vault，唯一事实源）
 │   ├── donate.json        #    打赏名单数据（作者手动登记，构建时渲染 /donate/ 页）
-│   ├── assets/            #    站点 CSS / JS / 图片
-│   ├── templates/         #    页面骨架
-│   ├── site.config.json   #    站点名 / 导航 / 栏目 / 商店链接
-│   ├── build.py           #    一键构建：content/*.md → dist/ + dist/api/latest.json
+│   ├── assets/            #    站点 CSS / JS / 图片（官网 site.css + 文档站 docs.css）
+│   ├── templates/         #    页面骨架（官网 layout.html + 文档站 docs.html）
+│   ├── site.config.json   #    站点名 / 导航 / 栏目 / 文档站目录树 / 商店链接
+│   ├── build.py           #    一键构建：content/*.md → dist/（官网留根、其余进 /docs/）+ dist/api/latest.json
 │   ├── serve.py           #    本地预览（零依赖）
 │   ├── admin.py           #    打赏登记本地后台（浏览器表单增删改，写 donate.json）
 │   ├── vercel.json        #    Vercel 海外镜像配置（可选，主站已迁帽子云）
@@ -158,9 +158,12 @@
 └── inbox/                 # 📥 待归类
 ```
 
-## 配套网站（文档站）
+## 配套网站（官网 + 帮助文档站）
 
-插件配套一个对外网站（教程 / 技巧 / 阅读方法论 / FAQ / 更新日志），源码在 `web/`。
+插件配套一个对外网站，源码在 `web/`，分两部分：
+
+- **官网**（flomo 风格大图流）：首页 / 图库 / 关于 / 打赏 / 隐私 / 反馈等少数页面留在根目录
+- **帮助文档站**（VuePress 原味，`/docs/`）：教程 / 技巧 / 阅读方法论 / FAQ / 更新日志等全部内容页，左栏 emoji 目录树 + 底「上一页 / 下一页」；目录树配置在 `site.config.json` 的 `docs.tree`
 
 - 文章源在 `web/content/`，可直接用 Obsidian 打开为 vault 编辑（front-matter 即 Obsidian 属性，支持 `[[双链]]`、`![[图片]]`、callout）
 - 构建与预览（零第三方依赖，本机 Python 3.9 即可）：

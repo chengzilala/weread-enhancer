@@ -82,7 +82,8 @@
   }
 
   function openHelp() {
-    const url = SITE_BASE + '/';
+    // 网站改版后，帮助内容统一在 /docs/（帮助文档站）
+    const url = SITE_BASE + '/docs/';
     logHelp('info', '打开帮助中心', { url });
     const win = window.open(url, '_blank');
     if (!win) {

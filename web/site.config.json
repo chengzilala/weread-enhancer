@@ -9,21 +9,26 @@
   "personalSiteUrl": "https://chesterlee.cn/",
   "issuesUrl": "https://github.com/chengzilala/weread-enhancer/issues",
   "minSupportedVersion": "0.9.0",
+  "docs": {
+    "basePath": "/docs/",
+    "title": "微信悦读 · 帮助",
+    "tree": [
+      { "title": "🚀 开始", "items": [ { "slug": "start" } ] },
+      { "title": "📖 功能教程", "section": "guide" },
+      { "title": "🧠 进阶技巧", "section": "tips" },
+      { "title": "📱 H5 移动端", "section": "h5" },
+      { "title": "💬 微信小程序", "section": "miniapp" },
+      { "title": "✨ 阅读人格", "section": "persona" },
+      { "title": "📚 知识资产", "section": "thinking" },
+      { "title": "❓ 常见问题", "items": [ { "slug": "faq" } ] },
+      { "title": "🧾 更新日志", "items": [ { "slug": "changelog" } ] }
+    ]
+  },
   "nav": [
-    { "title": "首页", "url": "/" },
-    { "title": "加到手机桌面", "url": "/desktop/" },
-    { "title": "快速上手", "url": "/start/" },
-    { "title": "功能教程", "url": "/guide/" },
-    { "title": "进阶技巧", "url": "/tips/" },
-    { "title": "H5 移动端", "url": "/h5/" },
-    { "title": "微信小程序", "url": "/miniapp/" },
-    { "title": "阅读人格", "url": "/persona/" },
-    { "title": "知识资产", "url": "/thinking/" },
+    { "title": "帮助文档", "url": "/docs/" },
     { "title": "图库", "url": "/gallery/" },
-    { "title": "常见问题", "url": "/faq/" },
-    { "title": "更新日志", "url": "/changelog/" },
-    { "title": "打赏", "url": "/donate/" },
-    { "title": "我的账户", "url": "/account/" }
+    { "title": "关于", "url": "/about/" },
+    { "title": "打赏", "url": "/donate/" }
   ],
   "sections": [
     {

@@ -53,6 +53,11 @@ GALLERY_THUMB_DIR = "thumbs"
 GALLERY_THUMB_MAX = 1400
 GALLERY_THUMB_QUALITY = 82
 
+# 帮助文档站：除这几个「官网页面」留在根目录外，其余内容页统一挂到 /docs/ 下
+# （参考 flomo 101：官网只讲「是什么」，用法教程独立成一个文档站）
+SITE_SLUGS = {"", "about", "gallery", "privacy", "feedback"}
+DOCS_DIR = "docs"
+
 CALLOUT_TITLES = {
     "note": "说明",
     "info": "说明",
@@ -62,6 +67,7 @@ CALLOUT_TITLES = {
     "caution": "注意",
     "important": "重要",
     "danger": "警告",
+    "essay": "创作手记",
 }
 
 
@@ -171,8 +177,10 @@ def collect_pages():
 
         text = src.read_text(encoding="utf-8")
         meta, body = parse_front_matter(text)
-        slug = meta.get("slug") or rel.with_suffix("").as_posix()
-        out_file, url = slug_to_dist(slug)
+        base_slug = str(meta.get("slug") or rel.with_suffix("").as_posix()).strip("/")
+        # 内容页统一进 /docs/；官网页面（首页 / 关于 / 图库 / 隐私 / 反馈）留在根目录
+        out_slug = base_slug if base_slug in SITE_SLUGS else "%s/%s" % (DOCS_DIR, base_slug)
+        out_file, url = slug_to_dist(out_slug)
         folder = rel.parent.as_posix()
         if folder == ".":
             folder = ""
@@ -181,7 +189,8 @@ def collect_pages():
             "rel": rel.as_posix(),
             "stem": src.stem,
             "title": str(meta.get("title") or src.stem),
-            "slug": str(slug).strip("/"),
+            "slug": out_slug,
+            "base_slug": base_slug,
             "url": url,
             "out_file": out_file,
             "order": meta.get("order") if isinstance(meta.get("order"), int) else 999,
@@ -202,6 +211,11 @@ def collect_pages():
     return pages
 
 
+def section_url(sec):
+    """栏目索引页地址（帮助文档站内，如 /docs/guide/）"""
+    return "/%s/%s/" % (DOCS_DIR, sec["key"])
+
+
 def build_link_index(pages):
     """可被 [[双链]] 命中的名字：文件名 / slug / slug 末段 / 别名 / 栏目名"""
     index = {}
@@ -211,8 +225,8 @@ def build_link_index(pages):
             if key:
                 index[key] = p["url"]
     for sec in CONFIG["sections"]:
-        index[sec["title"].lower()] = "/%s/" % sec["key"]
-        index[sec["key"].lower()] = "/%s/" % sec["key"]
+        index[sec["title"].lower()] = section_url(sec)
+        index[sec["key"].lower()] = section_url(sec)
     return index
 
 
@@ -319,7 +333,7 @@ def render_store_buttons():
         items.append('<a class="home-btn%s" href="%s" target="_blank" rel="noopener">%s</a>' % (
             primary, html.escape(url, quote=True), label))
     if not items:
-        items.append('<a class="home-btn home-btn-primary" href="/start/">安装插件</a>')
+        items.append('<a class="home-btn home-btn-primary" href="/docs/start/">安装插件</a>')
     return '<div class="home-actions store-actions">%s</div>' % " ".join(items)
 
 
@@ -533,11 +547,25 @@ def render_list(items, page):
 # --------------------------------------------------------------------------
 
 def render_nav(current_url):
-    parts = []
+    """顶栏：主导航（site.config.json 的 nav，flomo 式少链接）+「登录」+ 绿色胶囊「装到 Edge」"""
+    links = []
     for item in CONFIG["nav"]:
         active = ' class="active"' if item["url"] == current_url else ""
-        parts.append('<a href="%s"%s>%s</a>' % (item["url"], active, html.escape(item["title"])))
-    return "\n      ".join(parts)
+        links.append('<a href="%s"%s>%s</a>' % (
+            item["url"], active, html.escape(item["title"])))
+    nav = "\n      ".join(links)
+
+    stores = CONFIG.get("storeUrls") or {}
+    store_url = stores.get("edge") or "/docs/start/"
+    store_label = "装到 Edge" if stores.get("edge") else "安装插件"
+    store_ext = ' target="_blank" rel="noopener"' if store_url.startswith("http") else ""
+    return (
+        '<nav class="site-nav">\n      %s\n      </nav>\n'
+        '      <div class="site-cta">\n'
+        '        <a class="btn btn-ghost" href="/account/">登录</a>\n'
+        '        <a class="btn btn-primary" href="%s"%s>%s</a>\n'
+        '      </div>' % (nav, html.escape(store_url, quote=True), store_ext, store_label)
+    )
 
 
 def render_sidebar(page):
@@ -588,8 +616,9 @@ def render_footer():
             links.append('<a href="%s" target="_blank" rel="noopener">%s</a>' % (
                 html.escape(stores[key], quote=True), label))
     if not links:
-        links.append('<a href="/start/">安装插件</a>')
-    links.append('<a href="/changelog/">更新日志</a>')
+        links.append('<a href="/docs/start/">安装插件</a>')
+    links.append('<a href="/docs/">帮助文档</a>')
+    links.append('<a href="/docs/changelog/">更新日志</a>')
     links.append('<a href="/account/">我的账户</a>')
     links.append('<a href="/privacy/">隐私政策</a>')
     if CONFIG.get("personalSiteUrl"):
@@ -630,13 +659,193 @@ def article_header(page):
 
 
 # --------------------------------------------------------------------------
+# 三·五、帮助文档站（/docs/）——VuePress 原味：顶栏 + 左栏目录树 + 正文单栏 + 上/下页
+# --------------------------------------------------------------------------
+
+def write_page(out_file, html_text, url):
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    out_file.write_text(html_text, encoding="utf-8")
+    GENERATED_URLS.add(url)
+
+
+def page_by_base_slug(slug):
+    slug = str(slug).strip("/")
+    return next((p for p in PAGES if p["base_slug"] == slug), None)
+
+
+def section_pages(sec):
+    return sorted(
+        [p for p in PAGES if not p["draft"] and p["section"] and p["section"]["key"] == sec["key"]],
+        key=lambda x: (x["order"], x["title"]),
+    )
+
+
+def docs_tree_html(current_url):
+    """左侧目录树：按 site.config.json 的 docs.tree 分组渲染（section 展开为栏目全部页面）"""
+    tree = (CONFIG.get("docs") or {}).get("tree") or []
+    groups = []
+
+    def link(p):
+        active = ' class="active"' if p["url"] == current_url else ""
+        return '  <a href="%s"%s>%s</a>' % (p["url"], active, html.escape(p["title"]))
+
+    for grp in tree:
+        sec_key = grp.get("section")
+        if sec_key:
+            sec = next((s for s in CONFIG["sections"] if s["key"] == sec_key), None)
+            if sec:
+                url = section_url(sec)
+                active = ' class="active"' if current_url == url else ""
+                head = '<a href="%s"%s>%s</a>' % (url, active, html.escape(grp.get("title") or sec["title"]))
+                items = [link(p) for p in section_pages(sec)]
+            else:
+                head, items = html.escape(grp.get("title") or ""), []
+        else:
+            head = html.escape(grp.get("title") or "")
+            items = [link(p) for p in
+                     (page_by_base_slug(it.get("slug")) for it in (grp.get("items") or [])) if p]
+        groups.append(
+            '  <div class="docs-group">\n    <p class="docs-group-title">%s</p>\n%s\n  </div>' % (
+                head, "\n".join(items))
+        )
+
+    home_cls = "docs-home active" if current_url == "/docs/" else "docs-home"
+    home = '  <a class="%s" href="/docs/">帮助文档首页</a>' % home_cls
+    return '<nav class="docs-tree">\n%s\n%s\n</nav>' % (home, "\n".join(groups))
+
+
+def docs_flat_pages():
+    """按目录树顺序摊平的文档页（用于「上一页 / 下一页」）"""
+    tree = (CONFIG.get("docs") or {}).get("tree") or []
+    out = []
+    for grp in tree:
+        sec_key = grp.get("section")
+        if sec_key:
+            sec = next((s for s in CONFIG["sections"] if s["key"] == sec_key), None)
+            if sec:
+                out.extend(section_pages(sec))
+        else:
+            for it in (grp.get("items") or []):
+                p = page_by_base_slug(it.get("slug"))
+                if p:
+                    out.append(p)
+    return out
+
+
+def render_docs_prev_next(page):
+    flat = docs_flat_pages()
+    urls = [p["url"] for p in flat]
+    if page["url"] not in urls:
+        return ""
+    idx = urls.index(page["url"])
+    prev_page = flat[idx - 1] if idx > 0 else None
+    next_page = flat[idx + 1] if idx < len(flat) - 1 else None
+    if not prev_page and not next_page:
+        return ""
+    left = ('<a class="prev" href="%s">%s</a>' % (prev_page["url"], html.escape(prev_page["title"]))
+            if prev_page else "<span></span>")
+    right = ('<a class="next" href="%s">%s</a>' % (next_page["url"], html.escape(next_page["title"]))
+             if next_page else "<span></span>")
+    return '<nav class="pager">%s%s</nav>' % (left, right)
+
+
+def render_docs_layout(page, content_html):
+    layout = (TEMPLATES / "docs.html").read_text(encoding="utf-8")
+    docs_title = (CONFIG.get("docs") or {}).get("title") or "帮助文档"
+    tokens = {
+        "{{SITE_NAME}}": html.escape(CONFIG["siteName"]),
+        "{{TITLE}}": html.escape("%s · %s" % (page["title"], docs_title)),
+        "{{DESCRIPTION}}": html.escape(page.get("description") or CONFIG["siteDescription"], quote=True),
+        "{{DOCS_TREE}}": docs_tree_html(page["url"]),
+        "{{CONTENT}}": content_html,
+        "{{PREVNEXT}}": render_docs_prev_next(page),
+    }
+    for key, val in tokens.items():
+        layout = layout.replace(key, val)
+    return layout
+
+
+def render_docs_home():
+    """帮助文档站首页 /docs/：一句话介绍 + 从哪里开始 + 常用链接"""
+    sec_url = {s["key"]: section_url(s) for s in CONFIG["sections"]}
+    stores = CONFIG.get("storeUrls") or {}
+    edge = stores.get("edge") or "/docs/start/"
+    content = "\n".join([
+        '<header class="doc-header"><h1>微信悦读 · 帮助文档</h1></header>',
+        '<p>微信悦读是微信读书的阅读增强工具：桌面插件 + H5 网页版 + 微信小程序。这里把它「怎么用」，一篇一篇讲清楚。</p>',
+        '<div class="callout callout-tip"><p class="callout-title">提示</p><div class="callout-body">'
+        '<p>第一次来？建议从 <a href="/docs/start/">快速上手</a> 开始，两分钟就能装好。</p></div></div>',
+        '<h2>从哪里开始</h2>',
+        '<ul>',
+        '<li><a href="/docs/start/">快速上手</a> —— 把它装到浏览器里，并确认能用。</li>',
+        '<li><a href="%s">功能教程</a> —— 按模块分篇，一篇讲清一个功能怎么用。</li>' % sec_url.get("guide", "/docs/guide/"),
+        '<li><a href="%s">H5 移动端</a> / <a href="%s">微信小程序</a> —— 手机上怎么看数据、看人格、生成分享图。</li>'
+        % (sec_url.get("h5", "/docs/h5/"), sec_url.get("miniapp", "/docs/miniapp/")),
+        '<li><a href="%s">阅读人格</a> —— 从你真正读过的书里，算出你的「读书人」代码。</li>' % sec_url.get("persona", "/docs/persona/"),
+        '<li><a href="%s">知识资产</a> —— 不装插件也值得看的阅读方法。</li>' % sec_url.get("thinking", "/docs/thinking/"),
+        '</ul>',
+        '<h2>常用链接</h2>',
+        '<ul>',
+        '<li><a href="%s" target="_blank" rel="noopener">装到 Edge（加载项商店）</a></li>' % html.escape(edge, quote=True),
+        '<li><a href="/app/">H5 网页版</a></li>',
+        '<li><a href="/docs/changelog/">更新日志</a></li>',
+        '<li><a href="/feedback/">反馈建议</a></li>',
+        '</ul>',
+    ])
+    page = {
+        "title": "帮助文档",
+        "url": "/docs/",
+        "description": "微信悦读的使用教程：装好、用起来、读完复盘。左边是目录，右边只讲一件事。",
+        "section": None,
+        "updatedAt": "",
+    }
+    out_file, url = slug_to_dist(DOCS_DIR)
+    write_page(out_file, render_docs_layout(page, content), url)
+
+
+def render_docs_section_index(sec):
+    """栏目索引页（/docs/<key>/）：栏目名 + 说明 + 该栏目下所有文章卡片"""
+    page = {
+        "title": sec["title"],
+        "url": section_url(sec),
+        "description": sec["description"],
+        "section": sec,
+        "updatedAt": "",
+    }
+    desc = '<p class="docs-sec-desc">%s</p>' % html.escape(sec["description"]) if sec.get("description") else ""
+    content = '<header class="doc-header"><h1>%s</h1></header>%s%s' % (
+        html.escape(sec["title"]), desc, render_section_index(sec))
+    out_file, url = slug_to_dist("%s/%s" % (DOCS_DIR, sec["key"]))
+    write_page(out_file, render_docs_layout(page, content), url)
+    sec["url"] = url
+
+
+def write_redirect(old_url, new_url, title="页面已迁移"):
+    """为旧地址写一个「自动跳转」页（meta refresh + JS），保住已发布/已收藏的链接"""
+    out_file = DIST / old_url.strip("/") / "index.html"
+    target = CONFIG["baseUrl"].rstrip("/") + new_url
+    html_text = (
+        '<!doctype html>\n<html lang="zh-CN">\n<head>\n<meta charset="utf-8">\n'
+        '<meta name="robots" content="noindex,follow">\n'
+        '<meta http-equiv="refresh" content="0; url=%s">\n'
+        '<link rel="canonical" href="%s">\n'
+        '<title>%s</title>\n'
+        '<script>location.replace("%s");</script>\n'
+        '</head>\n<body>\n<p>页面已迁移到 <a href="%s">%s</a>。</p>\n</body>\n</html>\n' % (
+            new_url, html.escape(target, quote=True), html.escape(title),
+            new_url, new_url, new_url)
+    )
+    write_page(out_file, html_text, old_url)
+
+
+# --------------------------------------------------------------------------
 # 首页落地页（大图 · 极简 · 顺滑）——Hero + 功能大图区
 # --------------------------------------------------------------------------
 
 def home_install_button():
     """首页「安装」按钮：有商店链接则跳商店，否则回退到快速上手"""
     stores = CONFIG.get("storeUrls") or {}
-    url = stores.get("edge") or "/start/"
+    url = stores.get("edge") or "/docs/start/"
     label = "安装到 Edge" if stores.get("edge") else "安装插件"
     ext = ' target="_blank" rel="noopener"' if url.startswith("http") else ""
     return '<a class="home-btn home-btn-primary" href="%s"%s>%s</a>' % (
@@ -705,6 +914,13 @@ def render_home(page):
         "手机浏览器打开就能用，不用安装。管「读完之后」：数据总览、阅读人格、行为报告、每日卡片、灵感漫游，保留 AI 深度解析。",
     ) if app_url else ""
 
+    # 桌面版：把「微信悦读」装成桌面应用的手把手教程（电脑 / 手机都覆盖）
+    desktop_item = home_action_item(
+        '<a class="home-btn" href="/docs/h5/desktop/">桌面版</a>',
+        "电脑 / 手机 · 装成 App",
+        "把手上的「微信悦读」装到桌面、像 App 一样用：电脑（Windows / Mac）装成桌面应用，手机 H5 与微信小程序也能加到桌面，桌面图标一点就开。含 Windows / Mac、iPhone、安卓全步骤。",
+    )
+
     # 微信小程序入口（预留：配置 miniappUrl 后变为可点击，否则为占位按钮）
     miniapp_url = CONFIG.get("miniappUrl") or ""
     if miniapp_url:
@@ -756,11 +972,11 @@ def render_home(page):
         '  <div class="home-hero-text">\n'
         '    <h1 class="home-hero-title">%s</h1>\n'
         '%s'
-        '    <div class="home-actions">%s%s%s%s</div>\n'
+        '    <div class="home-actions">%s%s%s%s%s</div>\n'
         '  </div>\n'
         '  %s\n'
         '</section>' % (inline(title, page), sub_html,
-                         install_item, app_item, miniapp_item, " ".join(src_items), media)
+                         install_item, app_item, desktop_item, miniapp_item, " ".join(src_items), media)
     )
 
     # 愿景横幅：品牌绿底 + 白色书法大字，独立一块（参考「让天下没有难做的生意」式标语）
@@ -965,7 +1181,7 @@ def parse_changelog_latest():
     版本号不在这里取——全站版本号只有一个事实源，就是仓库根 manifest.json
     （页脚、dist/api/latest.json 都用它），所以不做「更新日志 vs manifest」的一致性校验。
     """
-    page = next((p for p in PAGES if p["slug"] == "changelog"), None)
+    page = next((p for p in PAGES if p["base_slug"] == "changelog"), None)
     fallback = (VERSION, date.today().isoformat(), "")
     if not page:
         warn("未找到「更新日志.md」，latest.json 的更新说明留空")
@@ -1000,7 +1216,7 @@ def write_latest_json():
         "releasedAt": released,
         "minSupportedVersion": CONFIG.get("minSupportedVersion", ""),
         "notice": notice or ("v%s 已发布" % version),
-        "changelogUrl": CONFIG["baseUrl"].rstrip("/") + "/changelog/",
+        "changelogUrl": CONFIG["baseUrl"].rstrip("/") + "/docs/changelog/",
         "storeUrls": stores,
     }
     out = DIST / "api" / "latest.json"
@@ -1113,7 +1329,7 @@ def check_duplicates():
             warn("slug 重复：%s 与 %s 都指向 %s" % (p["rel"], seen[p["url"]], p["url"]))
         else:
             seen[p["url"]] = p["rel"]
-        if p["slug"] not in ("", "/") and not p["description"]:
+        if p["base_slug"] not in ("", "/") and not p["description"]:
             warn("缺 description：%s" % p["rel"])
 
 
@@ -1158,40 +1374,28 @@ def build():
     generate_thumbnails()
     copy_app()
 
-    # 1) 文章页
+    # 1) 页面：官网页（含首页）用 layout.html；帮助文档页用 docs.html（VuePress 版式）
     # 部分页面名已由顶部导航体现，正文区不再重复输出大标题
     no_main_title = {"gallery", "faq", "changelog", "start"}
     for p in PAGES:
-        if p["slug"] == "":
+        if p["base_slug"] == "":
             # 首页：大图落地页（Hero + 功能大图区 + CTA），开启滚动渐入
             p["reveal"] = True
-            content = render_home(p)
-            extra_class = "home"
-        else:
+            html_text = render_layout(p, render_home(p), extra_class="home")
+        elif p["base_slug"] in SITE_SLUGS:
             body_html = render_markdown(p["body"], p)
-            content = ("" if p["slug"] in no_main_title else article_header(p)) + body_html
-            extra_class = "has-sidebar" if p["section"] else ""
-        html_text = render_layout(p, content, extra_class=extra_class)
-        p["out_file"].parent.mkdir(parents=True, exist_ok=True)
-        p["out_file"].write_text(html_text, encoding="utf-8")
-        GENERATED_URLS.add(p["url"])
+            content = ("" if p["base_slug"] in no_main_title else article_header(p)) + body_html
+            html_text = render_layout(p, content, extra_class="has-sidebar" if p["section"] else "")
+        else:
+            # 帮助文档页（/docs/…）：标题 + 正文
+            content = article_header(p) + render_markdown(p["body"], p)
+            html_text = render_docs_layout(p, content)
+        write_page(p["out_file"], html_text, p["url"])
 
-    # 2) 栏目索引页
+    # 2) 帮助文档站：栏目索引页 + 文档站首页
     for sec in CONFIG["sections"]:
-        out_file, url = slug_to_dist(sec["key"])
-        page = {
-            "title": sec["title"],
-            "url": url,
-            "description": sec["description"],
-            "section": sec,
-            "updatedAt": "",
-        }
-        content = render_section_index(sec)
-        html_text = render_layout(page, content, extra_class="has-sidebar")
-        out_file.parent.mkdir(parents=True, exist_ok=True)
-        out_file.write_text(html_text, encoding="utf-8")
-        GENERATED_URLS.add(url)
-        sec["url"] = url
+        render_docs_section_index(sec)
+    render_docs_home()
 
     # 2.5) 官网「我的账户」页（与 /app/ 网页版共用同一套账户）
     render_account_page()
@@ -1199,9 +1403,19 @@ def build():
     # 2.6) 官网「打赏名单」页（数据源 web/donate.json）
     render_donate_page()
 
+    # 2.7) 旧地址 -> /docs/ 新地址：自动跳转，保住已发布/已收藏的链接
+    for p in PAGES:
+        if p["base_slug"] and p["base_slug"] not in SITE_SLUGS:
+            old_url = "/%s/" % p["base_slug"]
+            if old_url != p["url"]:
+                write_redirect(old_url, p["url"], p["title"])
+    for sec in CONFIG["sections"]:
+        old_url = "/%s/" % sec["key"]
+        if old_url != section_url(sec):
+            write_redirect(old_url, section_url(sec), sec["title"])
+
     # 3) 公告、死链检查
     latest = write_latest_json()
-    GENERATED_URLS.update(["/privacy/", "/changelog/", "/about/", "/feedback/", "/faq/", "/start/", "/donate/"])
     check_dead_links()
 
     # 4) 摘要
