@@ -1,6 +1,6 @@
 /* 微信悦读 · 帮助文档站（/docs/）—— VuePress 1.x 默认主题「原味」
    参考 https://help.flomoapp.com/（flomo 101）：顶栏、左栏常驻目录树、
-   正文单栏 740px、底部「上一页 / 下一页」。
+   正文占满右侧余宽、底部「上一页 / 下一页」。
    本文件在 site.css 之后加载：先复用全站正文样式（.doc / .callout / .card），
    再把调色板与骨架换成 VuePress 观感并覆盖为浅色（文档站不跟随系统深色）。 */
 
@@ -18,7 +18,6 @@
   --code-bg: #f8f8f8;
   --navbar-h: 3.6rem;
   --sidebar-w: 20rem;
-  --content-max: 740px;
 }
 
 body.docs {
@@ -117,8 +116,7 @@ body.docs {
 .page { padding-top: var(--navbar-h); padding-left: var(--sidebar-w); }
 
 .content {
-  max-width: var(--content-max);
-  margin: 0 auto;
+  max-width: none;
   padding: 2rem 2.5rem 3rem;
 }
 .content h1 { margin: 0 0 1rem; font-size: 2rem; font-weight: 600; line-height: 1.3; }
@@ -135,6 +133,12 @@ body.docs {
 .content li { margin: .3rem 0; }
 .content a { color: var(--accent); }
 .content a:hover { text-decoration: underline; }
+/* 正文按钮（内容里写 `:::store` 的胶囊按钮）：恢复自身配色，
+   否则会被上面的 `.content a` 覆盖成绿字绿底（文字与底色同色、看不见）。 */
+.content .home-btn { color: var(--text); }
+.content .home-btn:hover { color: #fff; }
+.content .home-btn-primary,
+.content .home-btn-primary:hover { color: #fff; }
 .content img { border: 1px solid var(--border); border-radius: 4px; }
 .content blockquote {
   margin: 1rem 0;
@@ -162,8 +166,7 @@ body.docs {
 
 /* ---------- 上一页 / 下一页 ---------- */
 .pager {
-  max-width: var(--content-max);
-  margin: 0 auto;
+  max-width: none;
   padding: 1.4rem 2.5rem 3.5rem;
   display: flex;
   justify-content: space-between;
