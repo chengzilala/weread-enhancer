@@ -7,7 +7,7 @@
 <p>
   <a href="https://microsoftedge.microsoft.com/addons/detail/%E5%BE%AE%E4%BF%A1%E6%82%A6%E8%AF%BB/nkcckbonpafeclefhlhbencibkaabmgb"><img src="https://img.shields.io/badge/Microsoft%20Edge-立即安装-2F6BFF?logo=microsoftedge&logoColor=white" alt="从 Microsoft Edge 加载项商店安装"></a>
   <a href="https://reader.chesterlee.cn"><img src="https://img.shields.io/badge/官网-reader.chesterlee.cn-2F6BFF" alt="访问官网"></a>
-  <img src="https://img.shields.io/badge/许可-MIT-2F6BFF" alt="MIT License">
+  <img src="https://img.shields.io/badge/许可-GPLv3-2F6BFF" alt="GPL-3.0 License">
   <img src="https://img.shields.io/badge/隐私-不收集任何数据-2F6BFF" alt="隐私声明">
 </p>
 
@@ -181,4 +181,8 @@ python3 web/serve.py    # 本地预览：http://localhost:5173
 
 ## 开源许可
 
-MIT License
+本项目采用 **GPL-3.0** 许可，完整协议见 [LICENSE](LICENSE)。
+
+Copyright (C) 2026 chengzilala
+
+你可以自由使用、修改、分发本项目；但**基于本项目的衍生作品（修改版 / 再分发版）必须同样以 GPL-3.0 开源**，不得闭源或据为己有。

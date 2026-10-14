@@ -32,7 +32,7 @@
 | flomo101 `about-101` | `/thinking/` 内「阅读 101」系列 | 与知识资产同栏目，不单开 |
 | 常见问题 `faq` | `/faq/` | |
 | 在线反馈 `community/wechat-group` | `/feedback/` | 放联系入口 |
-| 关于 `about-us/*` | `/about/` | 项目由来 + MIT 许可 |
+| 关于 `about-us/*` | `/about/` | 项目由来 + GPL-3.0 许可 |
 | 法务 `legal/` + `privacy.html` | `/privacy/` | 与 `release/privacy.md` 同步 |
 | （flomo 无） | `/changelog/` 更新日志 | 本站额外需要，兼作版本公告源 |
 | （flomo 无） | `/gallery/` **图库（界面图库）** | 本站额外需要，分组展示真实界面截图 + 站点宣传图 + 商店尺寸件（见 3.9） |
@@ -184,7 +184,7 @@ aliases: [屏占比, 宽度]       # Obsidian 别名，同时用于 [[双链]] �
 | `/persona/` | **阅读人格栏目** | 见 3.10：是什么 / 四维详解 / 16 型图鉴 / 分享图与隐私 |
 | `/faq/` | 常见问题 | 安装失败、统计为空、Key 无效等 |
 | `/changelog/` | 更新日志 | 每个版本一节；最新一节供 `latest.json` 提取 |
-| `/about/` | 关于 | 项目由来、开源许可（MIT） |
+| `/about/` | 关于 | 项目由来、开源许可（GPL-3.0） |
 | `/privacy/` | 隐私政策 | 与 `release/privacy.md` 同步（单一事实源） |
 | `/account/` | **我的账户** | 与网页版 `/app/` **共用同一套账户与登录系统**（同域名同 origin、同一 localStorage、同一份 `/app/src/` 账户实现）：身份头（昵称首字头像 / 账户码 / 退出登录）、已连接 Key 状态与更换、跨设备登录、**关联网页账户（生成 6 位短码 / 查看关联状态 / 解绑）**、昵称、清除云端 Key |
 | `/feedback/` | 反馈 | 问题反馈 / 联系方式入口 |

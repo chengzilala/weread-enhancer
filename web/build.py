@@ -600,7 +600,7 @@ def render_footer():
     return (
         '<div class="footer-inner">\n'
         '    <nav class="footer-links">%s</nav>\n'
-        '    <p class="footer-meta">%s v%s · MIT License · © %s</p>\n'
+        '    <p class="footer-meta">%s v%s · GPL-3.0 License · © %s</p>\n'
         '  </div>' % (
             " ".join(links), html.escape(CONFIG["siteName"]), VERSION, date.today().year)
     )
