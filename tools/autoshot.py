@@ -37,7 +37,7 @@ PROFILE = os.path.join(ROOT, ".autoshot", "chrome-profile")
 OUT_DIR = os.path.join(ROOT, "screenshots", "auto")
 DEFAULT_URL = "https://weread.qq.com/"
 # 配套网站（「帮助中心」跳转目标，用于给「帮助中心」出一张真实图）
-SITE_URL = "https://wereadapp-32km31c.maozi.io"
+SITE_URL = "https://reader.chesterlee.cn"
 
 # 测试用浏览器（Chrome for Testing）：官方明确它仍支持 --load-extension
 CFT_VERSION = "154.0.8037.92"

@@ -838,3 +838,70 @@ body.wre-lb-open { overflow: hidden; }
   .acct-inline { flex-wrap: wrap; }
   .acct-inline .acct-btn { width: 100%; }
 }
+
+/* ---------- 打赏名单页（/donate/） ---------- */
+.donate-lead { color: var(--text-soft); margin: 0 0 22px; }
+
+/* 顶部两个汇总卡：累计金额 / 打赏笔数 */
+.donate-stats { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 30px; }
+.donate-stat {
+  flex: 1 1 160px;
+  padding: 18px 20px;
+  text-align: center;
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.donate-stat__num { display: block; font-size: 1.9em; font-weight: 700; line-height: 1.2; color: var(--accent); }
+.donate-stat__label { color: var(--text-soft); font-size: 0.9em; }
+
+/* 收款码 */
+.donate-codes { display: flex; flex-wrap: wrap; justify-content: center; gap: 24px; margin: 18px 0 8px; }
+.donate-code { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.donate-code img {
+  width: 210px;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+}
+.donate-code span { color: var(--text-soft); font-size: 0.9em; }
+
+/* 名单 */
+.donate-note { color: var(--text-soft); font-size: 0.9em; }
+.donate-list { list-style: none; margin: 18px 0 0; padding: 0; }
+.donate-item {
+  display: flex;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.donate-item:last-child { border-bottom: 0; }
+.donate-avatar {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 1.05em;
+  font-weight: 600;
+}
+.donate-main { flex: 1; min-width: 0; }
+.donate-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.donate-name { font-weight: 600; }
+.donate-amount { color: var(--accent); font-weight: 700; white-space: nowrap; }
+.donate-date { margin-top: 3px; color: var(--text-soft); font-size: 0.85em; }
+.donate-msg { margin: 6px 0 0; color: var(--text-soft); }
+
+.donate-empty {
+  margin: 24px 0;
+  padding: 28px 20px;
+  text-align: center;
+  color: var(--text-soft);
+  background: var(--bg-soft);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}

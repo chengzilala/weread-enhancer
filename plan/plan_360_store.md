@@ -200,7 +200,7 @@
 | **简短描述** | 增强微信读书网页版：屏占比、自动阅读、快捷键、勿扰与全屏、阅读统计、笔记聚合导出、官方阅读数据报告与帮助中心 |
 | **分类** | 生产力 / 辅助工具（以平台可选项为准） |
 | **隐私政策 URL** | `https://github.com/chengzilala/weread-enhancer/blob/main/release/privacy.md` |
-| **主页 URL** | `https://wereadapp-32km31c.maozi.io` |
+| **主页 URL** | `https://reader.chesterlee.cn` |
 | **支持邮箱** | 2195542745@qq.com |
 
 **详细描述（中文）**：
@@ -243,12 +243,13 @@
 | 360 上架包 | ✅ `release/360上架包-v0.27.4.zip`（crx + 功能说明.txt + 图标48 + 效果图01~05；中文名已带 UTF-8 标记） |
 | 创作者中心实际提交物 | ✅ 与旧文档不同：**`.crx` 直接单独上传**（非 ZIP）；图标 **192×192**、封面图小图 **472×296**、市场推荐图 **1120×700**（提交 4 张，满足 1–5）；素材在 `release/360-素材/`，由 `promo.py` 的 `build_360_platform()` 生成 |
 | `.pem` 私钥保存位置 | ⚠️ 当前在项目内 `release/360-扩展目录.pem`（**须移出仓库妥善保存**，勿入 git） |
-| 提交版本 | v0.27.4 |
+| 提交版本 | v0.27.4（首次上架）｜**v0.28.0（更新提交）** |
+| 更新提交（v0.28.0） | ✅ **2026-10-13** 经创作者中心「更新扩展」提交：crx 版本 **0.28.0**（附件哈希 `bb7617fbc70986a9b7b37cd85eeb0bcf.crx`），当前状态「审核中」；版本号与主版本 `manifest.json` / Edge 保持一致；更新表单仅需重传 crx（图标/封面/推荐图沿用，无需重传），无「版本说明」字段 |
 | 扩展 ID（创作者中心） | ✅ `fiidojfpifhgajiackccpgaaheiehcjd`（审核通过后详情页形如 `https://ext.se.360.cn/webstore/detail/fiidojfpifhgajiackccpgaaheiehcjd`；当前访问为 404，属正常） |
 | 提交日期 | ✅ **2026-10-11** |
 | 提交平台（实测） | ✅ **360 创作者中心 `creative.360.com`**（**不是**本档第一至八节写的旧平台 `open.chrome.360.cn`；Mac 上实际走的是创作者中心） |
-| 审核状态 | ⏳ **待审核**（2026-10-11 已提交，等平台人工 + 多引擎检测） |
-| 应用中心链接 | （通过后填） |
+| 审核状态 | ✅ **已上线**（2026-10-13 创作者中心后台状态变为绿色「已上线」）｜⚠️ 商店前台暂未同步：`ext.se.360.cn` 按名称/ID 均搜不到，「应用中心链接」暂不可用 |
+| 应用中心链接 | ⏳ **待前台同步**。正确格式已确认（对照已上架扩展验证）：`https://ext.se.360.cn/webstore/detail/<扩展ID>`，即 `https://ext.se.360.cn/webstore/detail/fiidojfpifhgajiackccpgaaheiehcjd`；当前访问会跳转至 360 浏览器官网（ID 未收录）。待前台收录后回填并核实 |
 | **网站入口（`storeUrls.360`）** | ⏳ **已预留、暂留空**（2026-10-10）：360 审核中、暂无详情页链接，故 `web/site.config.json` 的 `storeUrls.360` 留空。链接到手后**只需两步**：① 填 `storeUrls.360`（形如 `https://ext.se.360.cn/webstore/detail/…`）→ ② 跑 `python3 web/build.py`；内容页 `:::store` 按钮组与页脚会自动出现「安装到 360 / 360 商店」，**首页 Hero 主按钮保持仅 Edge**（用户已确认） |
 | 拒绝原因与修正 | （如有） |
 

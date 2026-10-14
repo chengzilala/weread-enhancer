@@ -54,6 +54,10 @@ Page({
     nickName: '',
     hasProfile: false,
 
+    // 打赏支持：两条收款码（走官网 CDN，不占小程序包体）
+    donateWechat: LINKS.site + '/app/assets/img/donate/wechat.png',
+    donateAlipay: LINKS.site + '/app/assets/img/donate/alipay.png',
+
     // 管理员看板入口（M13）：由云函数判定，仅你的账号显示
     isAdmin: false,
     // 自己的 openid（M13）：用于自助配置云函数环境变量 ADMIN_OPENIDS，仅自己可见
@@ -265,6 +269,10 @@ Page({
 
   copyPersonal() {
     this.copyLink(LINKS.personal, '我的个人网站');
+  },
+
+  copyDonate() {
+    this.copyLink(LINKS.donate, '打赏名单');
   },
 
   copyLink(url, name) {

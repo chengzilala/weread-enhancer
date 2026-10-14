@@ -6,7 +6,7 @@
 
 <p>
   <a href="https://microsoftedge.microsoft.com/addons/detail/%E5%BE%AE%E4%BF%A1%E6%82%A6%E8%AF%BB/nkcckbonpafeclefhlhbencibkaabmgb"><img src="https://img.shields.io/badge/Microsoft%20Edge-立即安装-2F6BFF?logo=microsoftedge&logoColor=white" alt="从 Microsoft Edge 加载项商店安装"></a>
-  <a href="https://wereadapp-32km31c.maozi.io"><img src="https://img.shields.io/badge/官网-wereadapp--32km31c.maozi.io-2F6BFF" alt="访问官网"></a>
+  <a href="https://reader.chesterlee.cn"><img src="https://img.shields.io/badge/官网-reader.chesterlee.cn-2F6BFF" alt="访问官网"></a>
   <img src="https://img.shields.io/badge/许可-MIT-2F6BFF" alt="MIT License">
   <img src="https://img.shields.io/badge/隐私-不收集任何数据-2F6BFF" alt="隐私声明">
 </p>
@@ -99,11 +99,13 @@
 │
 ├── web/                   # 🌐 配套网站（文档站，见下方「配套网站」）
 │   ├── content/           #    文章源（Obsidian vault，唯一事实源）
+│   ├── donate.json        #    打赏名单数据（作者手动登记，构建时渲染 /donate/ 页）
 │   ├── assets/            #    站点 CSS / JS / 图片
 │   ├── templates/         #    页面骨架
 │   ├── site.config.json   #    站点名 / 导航 / 栏目 / 商店链接
 │   ├── build.py           #    一键构建：content/*.md → dist/ + dist/api/latest.json
 │   ├── serve.py           #    本地预览（零依赖）
+│   ├── admin.py           #    打赏登记本地后台（浏览器表单增删改，写 donate.json）
 │   ├── vercel.json        #    Vercel 海外镜像配置（可选，主站已迁帽子云）
 │   └── dist/              #    构建产物（不入库）
 │
@@ -169,7 +171,9 @@ python3 web/serve.py    # 本地预览：http://localhost:5173
 ```
 
 - `web/dist/api/latest.json` 的版本号在构建时自动读仓库根 `manifest.json`，是插件「版本提示」的单一事实源
-- 线上地址：https://wereadapp-32km31c.maozi.io（帽子云静态托管，国内可直连）；部署方式见 `plan/session_handoff_网站帽子云部署.md`
+- 站内「打赏名单」页（`/donate/`）由 `web/donate.json` 渲染，公开列出每一笔打赏（插件 / H5 / 小程序均可跳转至此），让打赏透明可查
+- 登记打赏不必手改 JSON：运行 `python3 web/admin.py`，在浏览器里用表单添加 / 修改 / 删除，点页面上的「重新构建网站」即更新本地站点（该工具只在本机运行，不会随官网发布）
+- 线上地址：https://reader.chesterlee.cn（新域名；旧域名 https://wereadapp-32km31c.maozi.io 仍可访问，仅作备用）（帽子云静态托管，国内可直连）；部署方式见 `plan/session_handoff_网站帽子云部署.md`
 
 ## 隐私声明
 

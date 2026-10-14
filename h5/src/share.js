@@ -15,6 +15,7 @@
 
 import { toast } from './ui.js';
 import { sharePut } from './api.js';
+import { CONFIG } from './config.js';
 
 const CARD_W = 1080;
 const PAD = 64;
@@ -343,12 +344,13 @@ export async function copyLink(url) {
   }
 }
 
-/** 分享短链地址：<站点>/<应用路径>#/s/<code>（与 app.js 的只读路由对应） */
+/** 分享短链地址：<站点>/<应用路径>#/s/<code>（与 app.js 的只读路由对应）
+ *  站点固定用 config.SITE_URL（正式域名），避免从备用/旧域名打开时把旧域名分享出去。 */
 export function shareUrlOf(code) {
   if (typeof location === 'undefined') {
     return '';
   }
-  const base = location.origin + location.pathname.replace(/index\.html?$/i, '');
+  const base = (CONFIG.SITE_URL || location.origin) + location.pathname.replace(/index\.html?$/i, '');
   return base + '#/s/' + code;
 }
 

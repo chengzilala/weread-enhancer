@@ -1,12 +1,12 @@
 {
   "siteName": "微信悦读",
   "siteDescription": "微信悦读是微信读书的阅读增强工具：桌面插件（屏占比调节、自动阅读、阅读统计、笔记增强、阅读洞察）＋ H5 网页版 ＋ 微信小程序。这里是它的使用教程、移动端说明与阅读方法论。",
-  "baseUrl": "https://wereadapp-32km31c.maozi.io",
+  "baseUrl": "https://reader.chesterlee.cn",
   "repoUrl": "https://github.com/chengzilala/weread-enhancer",
   "giteeUrl": "https://gitee.com/chengzila/weread-enhancer",
   "miniappUrl": "",
-  "appUrl": "https://wereadapp-32km31c.maozi.io/app/",
-  "personalSiteUrl": "https://personalsite-32km31c.maozi.io/",
+  "appUrl": "https://reader.chesterlee.cn/app/",
+  "personalSiteUrl": "https://chesterlee.cn/",
   "issuesUrl": "https://github.com/chengzilala/weread-enhancer/issues",
   "minSupportedVersion": "0.9.0",
   "nav": [
@@ -22,6 +22,7 @@
     { "title": "图库", "url": "/gallery/" },
     { "title": "常见问题", "url": "/faq/" },
     { "title": "更新日志", "url": "/changelog/" },
+    { "title": "打赏", "url": "/donate/" },
     { "title": "我的账户", "url": "/account/" }
   ],
   "sections": [

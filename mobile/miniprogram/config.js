@@ -21,8 +21,9 @@ module.exports = {
   SITE_NAME: '微信悦读',
   MINIAPP_NAME: '悦读且住',
   LINKS: {
-    site: 'https://wereadapp-32km31c.maozi.io',              // 官网（插件下载与教程）
-    h5: 'https://wereadapp-32km31c.maozi.io/app/',           // H5 网页版（满血版，带 AI）
-    personal: 'https://personalsite-32km31c.maozi.io/',      // 作者个人网站
+    site: 'https://reader.chesterlee.cn',              // 官网（插件下载与教程）
+    h5: 'https://reader.chesterlee.cn/app/',           // H5 网页版（满血版，带 AI）
+    donate: 'https://reader.chesterlee.cn/donate/',    // 打赏名单（公开透明的打赏记录）
+    personal: 'https://chesterlee.cn/',      // 作者个人网站
   },
 };

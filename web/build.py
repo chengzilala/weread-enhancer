@@ -36,6 +36,8 @@ APP = ROOT / "h5"          # 网页版（H5 移动端）源码，与官网同域
 APP_DIR = "app"            # 拷贝到 dist 下的子目录名（线上即 /app/）
 APP_SKIP = {"README.md"}   # 只给开发者看，不上线
 
+DONATE_JSON = WEB / "donate.json"   # 打赏名单数据（作者手动维护，字段说明见文件内 _readme）
+
 CONFIG = {}
 LINK_INDEX = {}
 VERSION = ""
@@ -656,7 +658,7 @@ def home_action_item(btn_html, note="", tip=""):
 
 
 # 作者个人名片（跨域 iframe）：名片页自包含、零依赖；高度由名片页 postMessage 自适应
-PS_CARD_URL = "https://personalsite-32km31c.maozi.io/card.html"
+PS_CARD_URL = "https://chesterlee.cn/card.html"
 PS_CARD_TEMPLATE = """<div class="ps-card-embed">
 <iframe id="ps-card" src="__URL__" title="张诚 · Chester 名片" style="width:100%;border:0;display:block;height:360px" loading="lazy"></iframe>
 <script>
@@ -825,6 +827,135 @@ def render_account_page():
     out_file, url = slug_to_dist("account")
     out_file.parent.mkdir(parents=True, exist_ok=True)
     out_file.write_text(render_layout(page, content, extra_class="has-account"), encoding="utf-8")
+    GENERATED_URLS.add(url)
+
+
+# --------------------------------------------------------------------------
+# 打赏名单页（/donate/）——数据源 web/donate.json，作者手动登记
+# --------------------------------------------------------------------------
+
+DONATE_AVATAR_COLORS = ["#1a8917", "#2f6bff", "#e8663d", "#8a5cf6", "#0ea5a5", "#d9a441", "#d64545", "#5fbf5c"]
+
+
+def fmt_amount(value):
+    """金额格式化：整数不带小数，带小数最多两位并去掉末尾 0"""
+    try:
+        n = float(value)
+    except (TypeError, ValueError):
+        return "0"
+    if abs(n - round(n)) < 1e-9:
+        return str(int(round(n)))
+    return ("%.2f" % n).rstrip("0").rstrip(".")
+
+
+def avatar_color(name):
+    """按昵称稳定取一个首字圆标底色（同一昵称颜色固定，匿名时同样稳定）"""
+    n = 0
+    for ch in str(name):
+        n = (n * 31 + ord(ch)) & 0x7FFFFFFF
+    return DONATE_AVATAR_COLORS[n % len(DONATE_AVATAR_COLORS)]
+
+
+def load_donate():
+    if not DONATE_JSON.exists():
+        warn("未找到 donate.json，打赏名单页将显示为空")
+        return {}
+    try:
+        return load_json(DONATE_JSON)
+    except Exception as e:  # noqa: BLE001 —— 数据文件坏了不应中断整站构建
+        warn("donate.json 解析失败：%s" % e)
+        return {}
+
+
+def render_donate_list(records):
+    """打赏名单：按日期倒序，每条含首字圆标 / 昵称 / 金额 / 日期 / 留言，支持匿名"""
+    if not records:
+        return '<p class="donate-empty">还没有打赏记录。欢迎成为第一位支持者 ❤</p>'
+    rows = []
+    for r in sorted(records, key=lambda x: str(x.get("date") or ""), reverse=True):
+        anon = r.get("anonymous") is True
+        name = "匿名读者" if anon else (str(r.get("name") or "").strip() or "读者")
+        amount = fmt_amount(r.get("amount"))
+        date = str(r.get("date") or "").strip()
+        msg = str(r.get("message") or "").strip()
+        initial = "匿" if anon else (name[:1] or "读")
+        meta = '<div class="donate-date">%s</div>' % html.escape(date) if date else ""
+        message = '<p class="donate-msg">%s</p>' % html.escape(msg) if msg else ""
+        rows.append(
+            '<li class="donate-item">'
+            '<span class="donate-avatar" style="background:{color}">{initial}</span>'
+            '<div class="donate-main">'
+            '<div class="donate-head"><span class="donate-name">{name}</span>'
+            '<span class="donate-amount">￥{amount}</span></div>'
+            '{meta}{message}'
+            '</div></li>'.format(
+                color=avatar_color(name), initial=html.escape(initial),
+                name=html.escape(name), amount=html.escape(amount),
+                meta=meta, message=message)
+        )
+    return '<ul class="donate-list">%s</ul>' % "".join(rows)
+
+
+def render_donate_page():
+    """官网「打赏名单」页：公开登记每一笔打赏（累积金额 / 笔数 / 名单）＋ 收款码
+
+    数据全在 web/donate.json，由作者收到打赏后手动登记；本页只读取、渲染，不做任何网络请求。
+    """
+    data = load_donate()
+    records = data.get("records") or []
+    total = 0.0
+    for r in records:
+        try:
+            total += float(r.get("amount") or 0)
+        except (TypeError, ValueError):
+            pass
+    note = str(data.get("note") or "本名单由作者手动登记，每一笔打赏都会记上，欢迎监督。")
+    updated = str(data.get("updatedAt") or "")
+
+    page = {
+        "title": "打赏名单",
+        "url": "/donate/",
+        "description": "微信悦读的打赏记录：所有支持都公开登记——谁支持了、支持了多少，一目了然。",
+        "section": None,
+        "updatedAt": updated,
+    }
+
+    stats = (
+        '<div class="donate-stats">'
+        '<div class="donate-stat"><span class="donate-stat__num">￥%s</span>'
+        '<span class="donate-stat__label">累计打赏</span></div>'
+        '<div class="donate-stat"><span class="donate-stat__num">%d</span>'
+        '<span class="donate-stat__label">打赏笔数</span></div>'
+        '</div>' % (html.escape(fmt_amount(total)), len(records))
+    )
+
+    pay = (
+        '<h2>随喜支持</h2>'
+        '<p>如果「微信悦读」帮到了你，欢迎扫码随喜，金额随意。收到后我会把每一笔都记进下面的名单里，做到公开透明。</p>'
+        '<div class="donate-codes">'
+        '<div class="donate-code"><img src="/assets/img/donate/wechat.png" alt="微信收款码" loading="lazy"><span>微信</span></div>'
+        '<div class="donate-code"><img src="/assets/img/donate/alipay.png" alt="支付宝收款码" loading="lazy"><span>支付宝</span></div>'
+        '</div>'
+    )
+
+    note_line = html.escape(note)
+    if updated:
+        note_line += "（更新于 %s）" % html.escape(updated)
+
+    content = (
+        article_header(page)
+        + '<p class="donate-lead">谢谢每一个支持「微信悦读」的人。这里把收到的每一笔打赏都公开记下来——'
+        + '谁支持了、支持了多少，清清楚楚。产品永久免费、无广告，打赏纯属随喜。</p>'
+        + stats
+        + pay
+        + '<h2>打赏名单</h2>'
+        + '<p class="donate-note">' + note_line + '</p>'
+        + render_donate_list(records)
+    )
+
+    out_file, url = slug_to_dist("donate")
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    out_file.write_text(render_layout(page, content, extra_class="has-donate"), encoding="utf-8")
     GENERATED_URLS.add(url)
 
 
@@ -1065,9 +1196,12 @@ def build():
     # 2.5) 官网「我的账户」页（与 /app/ 网页版共用同一套账户）
     render_account_page()
 
+    # 2.6) 官网「打赏名单」页（数据源 web/donate.json）
+    render_donate_page()
+
     # 3) 公告、死链检查
     latest = write_latest_json()
-    GENERATED_URLS.update(["/privacy/", "/changelog/", "/about/", "/feedback/", "/faq/", "/start/"])
+    GENERATED_URLS.update(["/privacy/", "/changelog/", "/about/", "/feedback/", "/faq/", "/start/", "/donate/"])
     check_dead_links()
 
     # 4) 摘要

@@ -167,6 +167,8 @@ function paint(body) {
     miniappBlock() +
     '</div>' +
 
+    donateCard() +
+
     '<div class="wre-card">' +
     '  <div class="wre-card__title">更多</div>' +
     linkRow('🗂 每日卡片 · 往期回顾', 'open-daily') +
@@ -232,6 +234,27 @@ function miniappBlock() {
     ' alt="微信小程序 ' + esc(name) + ' 小程序码" loading="lazy" />' +
     '  <div class="wre-hint">小程序只能在微信里打开，网页无法直接跳转。请用微信扫上方小程序码，' +
     '或在微信「搜一搜」里搜「' + esc(name) + '」，即可进入。</div>' +
+    '</div>'
+  );
+}
+
+/** 「打赏支持」卡片：两条收款码 + 跳转公开打赏名单（对齐插件支持中心 / 小程序设置页） */
+function donateCard() {
+  return (
+    '<div class="wre-card">' +
+    '  <div class="wre-card__title">💗 打赏支持</div>' +
+    '  <div class="wre-muted">如果它帮到了你，欢迎随喜支持一杯咖啡。每一笔打赏都会公开登记在名单里，欢迎监督。</div>' +
+    '  <div class="wre-donate">' +
+    '    <div class="wre-donate__code">' +
+    '      <img class="wre-donate__qr" src="assets/img/donate/wechat.png" alt="微信打赏收款码" loading="lazy" />' +
+    '      <span class="wre-donate__label">微信</span>' +
+    '    </div>' +
+    '    <div class="wre-donate__code">' +
+    '      <img class="wre-donate__qr" src="assets/img/donate/alipay.png" alt="支付宝打赏收款码" loading="lazy" />' +
+    '      <span class="wre-donate__label">支付宝</span>' +
+    '    </div>' +
+    '  </div>' +
+    '  <a class="wre-btn wre-btn--ghost wre-donate__list" href="' + esc(CONFIG.DONATE_URL) + '" target="_blank" rel="noopener">查看打赏名单 →</a>' +
     '</div>'
   );
 }

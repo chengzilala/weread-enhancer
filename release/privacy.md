@@ -8,7 +8,7 @@ This extension does **not collect, store, or transmit any personal data or brows
 
 - No analytics, tracking, or advertising SDKs are included. The anonymous usage counter is **self-built** (our own function + database) and carries **no third-party code**.
 - No data is sent to any server other than the domains described below (WeRead's own gateway, our own anonymous-counter endpoint, and — only if you opt in to the optional AI enhancement — the API of the domestic AI model you choose).
-- The extension also makes a single, anonymous GET request to its companion website (`wereadapp-32km31c.maozi.io`) to check whether a newer version is available. This request carries no user data or identifiers, is cached locally for 24 hours, and is silently ignored on failure.
+- The extension also makes a single, anonymous GET request to its companion website (`reader.chesterlee.cn`) to check whether a newer version is available. This request carries no user data or identifiers, is cached locally for 24 hours, and is silently ignored on failure.
 - No cookies are created or read beyond what the extension needs to function.
 
 ## Reading Notes / Highlights
@@ -79,12 +79,12 @@ The extension requests the following permissions:
 - **host permission for `https://i.weread.qq.com/*`**: Required only to send your own request to WeRead's official data gateway when you use the optional "Official Data" feature. No other host is accessed.
 - **host permissions for the built-in AI providers** (`https://api.deepseek.com/*`, `https://dashscope.aliyuncs.com/*`, `https://api.moonshot.cn/*`, `https://open.bigmodel.cn/*`, `https://ark.cn-beijing.volces.com/*`, `https://api.siliconflow.cn/*`): Required only to send the bounded summary/sample described above to the AI provider you selected when you opt in to the optional AI enhancement. No request is made to any of these hosts unless you have configured that provider's Key.
 - **optional host permission (`https://*/*`)**: Used only for a **custom OpenAI-compatible endpoint** you enter yourself. The permission for that specific domain is requested **at runtime** and only when you save/test the custom endpoint; it is never granted automatically and no other host is accessed.
-- **host permission for `https://wereadapp-32km31c.maozi.io/*`**: Required only to read the public version file (`/api/latest.json`) for the version-update hint. No user data is sent to this host.
+- **host permission for `https://reader.chesterlee.cn/*`**: Required only to read the public version file (`/api/latest.json`) for the version-update hint. No user data is sent to this host.
 - **host permission for `https://*.tcloudbase.com/*`**: Required only to send the anonymous "active" event described above to our self-built counter endpoint (a WeRead-Enhancer cloud function). If you turn the anonymous usage counter off, no request is ever made to this host.
 
 ## Scope
 
-This extension only runs on `weread.qq.com` and does not interact with any other websites. The only external domains it can contact are `i.weread.qq.com` (WeRead's own official gateway, for the optional "Official Data" feature), the domestic AI provider(s) you select (for the optional AI enhancement — built-in: `api.deepseek.com`, `dashscope.aliyuncs.com`, `api.moonshot.cn`, `open.bigmodel.cn`, `ark.cn-beijing.volces.com`, `api.siliconflow.cn`; or a custom endpoint you authorize at runtime), `wereadapp-32km31c.maozi.io` (the companion website, for the anonymous version check), and `*.tcloudbase.com` (our own anonymous-usage-counter endpoint; no request is made if you turn the counter off).
+This extension only runs on `weread.qq.com` and does not interact with any other websites. The only external domains it can contact are `i.weread.qq.com` (WeRead's own official gateway, for the optional "Official Data" feature), the domestic AI provider(s) you select (for the optional AI enhancement — built-in: `api.deepseek.com`, `dashscope.aliyuncs.com`, `api.moonshot.cn`, `open.bigmodel.cn`, `ark.cn-beijing.volces.com`, `api.siliconflow.cn`; or a custom endpoint you authorize at runtime), `reader.chesterlee.cn` (the companion website, for the anonymous version check), and `*.tcloudbase.com` (our own anonymous-usage-counter endpoint; no request is made if you turn the counter off).
 
 ## Contact
 

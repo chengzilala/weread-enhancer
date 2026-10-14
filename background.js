@@ -46,7 +46,7 @@ const AI_PROVIDER_PRESETS = {
 const AI_DEFAULT_PROVIDER = 'deepseek';
 
 // 配套网站（帮助中心 / 版本检查）：只读一个公开的静态 JSON，不带任何用户数据。
-const SITE_LATEST_URL = 'https://wereadapp-32km31c.maozi.io/api/latest.json';
+const SITE_LATEST_URL = 'https://reader.chesterlee.cn/api/latest.json';
 const HELP_TIMEOUT_MS = 3000;
 
 // 账户与多端同步（可选，默认关闭）：账户码 deviceId 即账号，Key 由云函数加密托管以便跨端找回。

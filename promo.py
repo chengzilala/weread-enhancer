@@ -405,7 +405,7 @@ def build_share():
         '<div class="feats">%s</div></div>'
         '<div class="foot">'
         '<div class="row">Edge 商店搜索 <span class="k">微信悦读</span> 即可安装</div>'
-        '<div class="meta">官网 wereadapp-32km31c.maozi.io · MIT 开源 · 不收集任何数据</div>'
+        '<div class="meta">官网 reader.chesterlee.cn · MIT 开源 · 不收集任何数据</div>'
         '</div></div>'
     ) % (chips, feats)
     body = (body.replace("__ICON__", icon_uri())

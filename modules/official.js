@@ -1616,7 +1616,7 @@
     ctx.fillStyle = LINE;
     ctx.fillRect(PAD, y, MAXW, 1);
     y += 44;
-    lineDraw('微信悦读 · wereadapp-32km31c.maozi.io', 28, ACCENT, '700');
+    lineDraw('微信悦读 · reader.chesterlee.cn', 28, ACCENT, '700');
     y += 6;
     lineDraw('基于我的微信读书数据生成', 24, INK2, '400');
 

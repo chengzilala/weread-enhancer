@@ -76,7 +76,7 @@ Edge 商店要求提供隐私政策链接。创建一个简单的策略页面，
 | **支持语言**       | 中文（简体）                                                                        |
 | **分类**         | 生产力 / 辅助功能                                                                    |
 | **隐私政策 URL**   | `https://github.com/chengzilala/weread-enhancer/blob/main/release/privacy.md` |
-| **网站 URL**     | `https://wereadapp-32km31c.maozi.io`                                          |
+| **网站 URL**     | `https://reader.chesterlee.cn`                                          |
 | **支持邮箱**       | 2195542745@qq.com                                                             |
 
 **详细描述文案（中文）**：
@@ -291,7 +291,7 @@ The extension is open source: https://github.com/chengzilala/weread-enhancer
 | 本次要点 | 追平功能：阅读统计与导出、笔记增强、官方数据阅读行为报告（含可选 DeepSeek AI 解读）、帮助中心、支持与反馈；**移除主题设置** |
 | 审核状态 | ✅ **已上架** |
 
-### v0.15.1｜本次
+### v0.15.1
 | 项 | 记录 |
 |---|---|
 | 提交版本 | **v0.15.1** |
@@ -299,17 +299,33 @@ The extension is open source: https://github.com/chengzilala/weread-enhancer
 | 提交包 | `release/weread-enhancer-v0.15.1.zip`（由 `pack.py` 自动打包，22 个运行文件） |
 | 上次商店版本 | v0.15.0 |
 | 本次要点 | 重新打包提交：排查商店版功能异常（本地版正常、商店版异常），用 `pack.py` 确保包内含 `background.js` / `modules/` / `assets/` 全部运行文件 |
-| 审核状态 | ⏳ **待提交**（用户在 Partner Center 上传 zip 并提交后更新此状态） |
+| 审核状态 | ✅ 已上架（其间版本 v0.16–v0.27.x 未在本表逐条记录） |
 
-### ⏭️ 下一步（更新至最新版）
-> 截至 2026-10-06，代码最新版为 **v0.20.1**（较商店已上架 v0.15.0 落后 5 个小版本）。建议直接用 `python3 pack.py` 生成最新包，在 Partner Center **一次性提交更新**（无需逐版追），本次要点：阅读人格（读书人版）/ 书架 / 发现页签、本地找书、中英双语。
+### （线上现状，2026-10-14 读取）
+| 项 | 记录 |
+|---|---|
+| 线上已发布版本 | **v0.27.1（Live）** |
+| 在审版本 | v0.27.4（本次操作时被取消，见下） |
+
+### v0.28.0｜本次 · 已提交审核
+| 项 | 记录 |
+|---|---|
+| 提交版本 | **v0.28.0** |
+| 提交日期 | 2026-10-14 |
+| 提交包 | `release/weread-enhancer-v0.28.0.zip`（`pack.py` 打包，36 个运行文件） |
+| 上次商店版本 | v0.27.1（Live） |
+| 处理动作 | ① 取消在审的 v0.27.4 → 该提交转为草稿；② 把草稿包替换为 v0.28.0（已验证）；③ 修正隐私页：`storage` 理由（原被一段旧英文功能清单污染、顶满 1000 字）+ 主机权限理由（补全新增的 `dashscope/moonshot/bigmodel/volces/siliconflow`、`*.tcloudbase.com`、可选 `https://*/*`）；④ 单一用途描述「DeepSeek Key」→「自选 AI 模型 Key」；⑤ 商店描述 DeepSeek → 多模型表述（中 1 处 / 英 2 处）；⑥ 提交页「认证说明」选「无需测试凭据」 |
+| 审核状态 | ⏳ **正在审阅（In review）**，预计 7 个工作日内反馈 |
+
+### ⏭️ 下一步
+> v0.28.0 已提交审核（2026-10-14）。审核通过后自动成为线上版本；若被打回，按反馈修正后重新提交。继续发新版时，记得先按最新 `manifest.json` 核对隐私页主机权限理由是否覆盖全部域名。
 
 ---
 
 ## 十、Edge 后台「隐私」页填写文案（v0.19.0 · 可直接复制）
 
 > 用途：Partner Center → 扩展 → **隐私**页，逐字复制下面各框内容即可。
-> 事实依据（以代码为准）：`manifest.json` 权限仅 `storage`；主机权限 3 条——`https://i.weread.qq.com/*`、`https://api.deepseek.com/*`、`https://wereadapp-32km31c.maozi.io/*`；生效域名仅 `weread.qq.com`；全部 JS 随包分发、**无远程代码**。
+> 事实依据（以代码为准）：`manifest.json` 权限仅 `storage`；主机权限 3 条——`https://i.weread.qq.com/*`、`https://api.deepseek.com/*`、`https://reader.chesterlee.cn/*`；生效域名仅 `weread.qq.com`；全部 JS 随包分发、**无远程代码**。
 > 每框限 1000 字符（英文按字符计，中文按字计，均远低于上限）。
 
 ### 10.1 单一用途描述（Single purpose）
@@ -364,7 +380,7 @@ Optional. Used only when the user enters their OWN DeepSeek API key and clicks "
 可选权限。仅在用户填写自己的 DeepSeek API Key 并点击「生成 AI 解读」时使用。后台脚本会调用 https://api.deepseek.com 生成可读文字，仅为此目的发送用户本人笔记的一小段样本。未填 Key 或未点击时，不会发起任何请求。
 ```
 
-### 10.5 权限理由 —— 主机权限 https://wereadapp-32km31c.maozi.io/*
+### 10.5 权限理由 —— 主机权限 https://reader.chesterlee.cn/*
 
 **English（推荐直接粘贴）**
 ```
@@ -386,7 +402,7 @@ Used only to (1) silently check the companion website's version file (GET /api/l
 1) weread.qq.com（content_scripts）：在微信读书阅读页注入扩展自绘的控制面板与阅读辅助功能。
 2) i.weread.qq.com：当用户填写自己的微信读书 API Key 并打开「笔记/阅读洞察」时，后台脚本调用官方网关（POST /api/agent/gateway）读取用户本人的划线、想法、书架与阅读数据，并在本地展示/导出。
 3) api.deepseek.com：可选；仅在用户填写自己的 DeepSeek Key 并点击 AI 按钮时，用其本人笔记生成可读摘要。
-4) wereadapp-32km31c.maozi.io：仅静默检查版本文件（GET /api/latest.json，缓存 24 小时）与在用户点击时打开配套帮助页。
+4) reader.chesterlee.cn：仅静默检查版本文件（GET /api/latest.json，缓存 24 小时）与在用户点击时打开配套帮助页。
 不向开发者回传任何数据；无分析、无跟踪、无广告；无远程代码。
 ```
 
@@ -396,7 +412,7 @@ Host permissions serve only the extension's single purpose on WeRead (weread.qq.
 1) weread.qq.com (content_scripts): inject the extension's own control panel and reading aids into the WeRead reader pages.
 2) i.weread.qq.com: when the user enters their OWN WeRead API key and opens Notes/Insights, the service worker calls the official gateway (POST /api/agent/gateway) to read the user's OWN highlights, thoughts, shelf and reading data, shown/exported locally.
 3) api.deepseek.com: optional; only when the user adds their OWN DeepSeek key and clicks the AI button, to generate a readable summary of their own notes.
-4) wereadapp-32km31c.maozi.io: only a silent version check (GET /api/latest.json, cached 24h) and opening companion Help pages on user click.
+4) reader.chesterlee.cn: only a silent version check (GET /api/latest.json, cached 24h) and opening companion Help pages on user click.
 No data is sent to the developer; no analytics, tracking, or ads; no remote code.
 ```
 
@@ -415,7 +431,7 @@ WeRead Enhancer runs ONLY on weread.qq.com and injects a self-drawn control pane
 - storage: saves the user's own preferences/caches locally (chrome.storage.local); no data leaves the device.
 - i.weread.qq.com: used only when the user enters their OWN WeRead API key and opens Notes/Insights, to read the user's OWN data via the official gateway; requests are user-initiated only.
 - api.deepseek.com: optional; used only when the user adds their OWN DeepSeek key and clicks the AI button.
-- wereadapp-32km31c.maozi.io: only a silent version check (/api/latest.json) and opening Help pages on user click.
+- reader.chesterlee.cn: only a silent version check (/api/latest.json) and opening Help pages on user click.
 No remote code, analytics, tracking, or ads. All JavaScript ships inside the package.
 
 How to test: install, open any book on https://weread.qq.com, then use the floating entry (bottom-right) or the panel (top-right) to adjust screen ratio / start auto reading / press "?" for the help panel. Notes and Insights require the user's own WeRead API key.

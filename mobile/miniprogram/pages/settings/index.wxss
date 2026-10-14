@@ -62,6 +62,35 @@
   font-size: calc(36rpx * var(--wre-fs));
 }
 
+/* 打赏支持：两条收款码并排（对齐 H5 .wre-donate） */
+.donate-codes {
+  display: flex;
+  justify-content: center;
+  gap: 40rpx;
+  flex-wrap: wrap;
+  margin-top: 24rpx;
+}
+
+.donate-code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.donate-qr {
+  width: 264rpx;
+  height: 264rpx;
+  border-radius: 16rpx;
+  border: 1rpx solid var(--wre-line);
+  background: #fff;
+}
+
+.donate-label {
+  margin-top: 12rpx;
+  font-size: calc(24rpx * var(--wre-fs));
+  color: var(--wre-muted);
+}
+
 /* 文字大小（四档切换，对齐 H5 .wre-modes / .wre-mode） */
 .fs-modes {
   display: flex;

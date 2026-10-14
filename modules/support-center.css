@@ -78,3 +78,23 @@
   font-size: 13px;
   color: #999;
 }
+
+/* 打赏名单跳转按钮 */
+.wre-sc-donate-link {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 9px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--wre-primary);
+  background: transparent;
+  border: 1px solid var(--wre-primary);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.wre-sc-donate-link:hover {
+  color: #fff;
+  background: var(--wre-primary);
+}

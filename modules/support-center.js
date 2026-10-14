@@ -10,6 +10,8 @@
 (function () {
   'use strict';
 
+  const SITE_BASE = 'https://reader.chesterlee.cn';
+
   const ASSETS = {
     donateWechat: 'assets/donate/wechat.png',
     donateAlipay: 'assets/donate/alipay.png',
@@ -91,7 +93,7 @@
             '</div>' +
           '</div>' +
           '<div class="wre-sc-panel" data-wre-sc-panel="donate">' +
-            '<p class="wre-sc-tip">如果它帮到了你，欢迎随喜支持一杯咖啡。</p>' +
+            '<p class="wre-sc-tip">如果它帮到了你，欢迎随喜支持一杯咖啡。<br>每一笔打赏都会公开登记在下方名单里。</p>' +
             '<div class="wre-sc-codes">' +
               '<div class="wre-sc-code">' +
                 '<img class="wre-sc-qr" src="' + assetUrl(ASSETS.donateWechat) + '" alt="微信打赏收款码">' +
@@ -102,6 +104,7 @@
                 '<span class="wre-sc-label">支付宝</span>' +
               '</div>' +
             '</div>' +
+            '<button class="wre-sc-donate-link" data-wre-donate-list>查看打赏名单 →</button>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -119,9 +122,22 @@
     tabs.forEach((tab) => {
       tab.addEventListener('click', () => switchTab(overlay, tab.getAttribute('data-wre-sc-tab')));
     });
+    const donateLink = overlay.querySelector('[data-wre-donate-list]');
+    if (donateLink) {
+      donateLink.addEventListener('click', openDonateList);
+    }
 
     root.appendChild(overlay);
     return overlay;
+  }
+
+  function openDonateList() {
+    const url = SITE_BASE + '/donate/';
+    logSupportCenter('info', '打开打赏名单', { url });
+    const win = window.open(url, '_blank');
+    if (!win) {
+      window.location.href = url;
+    }
   }
 
   function switchTab(overlay, key) {
