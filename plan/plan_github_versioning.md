@@ -4,7 +4,7 @@
 - 仓库名称：weread-enhancer
 - 可见性：private
 - 本地目录：/Users/Admin/Knowledge/Coding/微信读书插件
-- 当前归档版本：v0.28.0（2026-10-11；**多模型 AI 增强**（6 家国产大模型 + 各 Key 分存 + 测试连接 + 自定义端点）+ **评论侧栏** `reviews.js`（阅读页按章节看公开评论，免 Key / 免权限 / 只读）+ **插件界面明暗主题**（`content.css` 全局 `--wre-*` 设计 Token）+ **H5 云端语音** `tts-cloud.js` 与云函数 `edge-tts` + H5 引导页与「如何获取 Key」图文 + 灵感漫游「往期归档」直达）
+- 当前归档版本：v0.28.2（2026-10-14；**域名切换自有域名**（官网 / H5 / 小程序 / 扩展统一改用 `reader.chesterlee.cn` / `chesterlee.cn`，原 `*.maozi.io` 降为备用）+ **打赏公开名单**（官网 `/donate/` 页 + 本地登记后台 `web/admin.py` + `web/donate.json` + 收款码图；四端加跳转入口）+ H5 分享短链固定用正式域名）
 
 ## 归档历史（Git Tags）
 
@@ -38,6 +38,7 @@
 | v0.27.1 | ca230c0 | 2026-10-08 | **图标本体重制**：扩展图标 `icons/icon-16/48/128.png`、小程序头像 `mobile/素材/小程序头像-144x144.png`、360 图标 `release/360-素材/图标-48x48.png` 均由矢量母版 `assets/logo.svg` 重新光栅化（更清晰）；`promo.py` 新增 `build_icons()` 一键刷新；manifest 落到 `0.27.1` |
 | v0.27.4 | c08c75f | 2026-10-08 | 一个提交归档 v0.27.1 之后累积：**品牌视觉统一**（`assets/logo.svg` 改为蓝底白 W 圆标；插件浮动按钮由 24px 白底 W 改为 44px 圆形蓝底白 W；图标 / 小程序头像 / 360 与微软商店素材 / 网站图库全部由矢量母版重出）+ **四端互联**（插件官网 / H5 / 小程序 / 作者个人网站：两端 `config` 增链接常量、小程序 settings 与 H5「我的」加四端入口与小程序码、官网页脚加「个人网站」）+ **网站标题字体** `zhimangxing` 子集（附 OFL）+ 首页 Hero 改「按钮 + 常显小字 + 悬停提示」+ 支持中心默认标签改「反馈」+ 主页找书入口修复；另含此前未打 tag 的「文字大小四档」「外观明暗主题」「阅读报告表格排版修复」；manifest 落到 `0.27.4` |
 | v0.28.0 | 6a06660 | 2026-10-11 | **多模型 AI 增强**：AI 增强支持 6 家国产大模型（DeepSeek 默认 / 通义千问 / Kimi / 智谱 GLM / 豆包 / 硅基流动），各 Key 分别保存、可「测试连接」、可填任意 OpenAI 兼容端点；**评论侧栏**新模块 `modules/reviews.js`（阅读页右侧按当前章节展示微信读书公开评论，复用同源 Cookie，免 Key / 免权限 / 只读不落盘）；**插件界面明暗主题**（`content.css` 顶部统一 `--wre-*` 设计 Token，浅色 / 深色 / 跟随系统）；**H5 云端语音** `h5/src/tts-cloud.js` + 云函数 `edge-tts`（Edge 神经语音合成 mp3，失败回退系统语音）；H5 引导页（独立导航 + ☀️/🌙 切换）与「如何获取 Key」图文；灵感漫游「往期归档」直达；云函数 `edge-tts` 签名版本对齐 `143.0.3650.75` 修复 403 握手 |
+| v0.28.2 | d0cf1b9 | 2026-10-14 | **域名切换自有域名**：官网 / H5 / 小程序 / 扩展统一改用 `reader.chesterlee.cn`（官网 / H5）与 `chesterlee.cn`（作者站），原 `*.maozi.io` 降为备用；**打赏公开名单**：官网新增 `/donate/` 页（`web/build.py` 新增 `render_donate_page()` / `load_donate()` / `fmt_amount()` / `avatar_color()`）+ 本地登记后台 `web/admin.py` + 数据 `web/donate.json` + 收款码图（`web|h5/assets/img/donate/`）；插件 `modules/support-center.js`、H5「我的」、小程序 `pages/settings/*` 均加跳转入口；`fix(h5)` 分享短链 `shareUrlOf` 固定用 `config.SITE_URL`；manifest 落到 `0.28.2` |
 
 **未打 Tag 的版本**：
 - v0.8.0（无独立提交）：商店追平版，改动未单独提交，已并入 v0.8.1 提交 `aecf919`；因无独立 commit，不单独补 tag。
