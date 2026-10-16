@@ -95,7 +95,7 @@ function doShare() {
     stats: stats.slice(0, 4),
     lines: lines.slice(0, 3),
     chips: chips.slice(0, 8),
-    footer: (profile.nickName ? profile.nickName + ' · ' : '') + '微信悦读 · 本机计算',
+    footer: (profile.nickName ? profile.nickName + ' · ' : '') + '微信悦读 · reader.chesterlee.cn',
     text: label + '阅读行为报告',
   };
   presentShareImage(

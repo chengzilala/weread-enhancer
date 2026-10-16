@@ -2,7 +2,8 @@
  * 灵感漫游（H12）· 本机存储 + 每周频率限制
  *
  * 来源：mobile/miniprogram/shared/wander-store.js（逐字移植，wx 存储 → localStorage）。
- * 只存本机、不上云；换机 / 清缓存即丢失。
+ * 本机为唯一数据源；同时静默备份到云端（集合 `wre_udata` 的 wander 分区，按账户码隔离），
+ * 换机 / 清缓存 / 退出登录后可拉回。
  * 存储键：
  *   - wre_wander_issues：往期归档（每周一期，最多 HISTORY_MAX 期，可回看 / 收藏 / 随机漫游）
  *   - wre_wander_used  ：已用素材集合（{hashKey: ts}，用于跨期不重复）
@@ -11,6 +12,7 @@
 
 import { localGet, localSet } from '../store.js';
 import { hashKey, weekKey } from './wander-core.js';
+import * as api from '../api.js';
 
 const ISSUES_KEY = 'wre_wander_issues';
 const USED_KEY = 'wre_wander_used';
@@ -45,10 +47,12 @@ export function markUsed(list) {
     }
   });
   writeJson(USED_KEY, used);
+  backupSilent();
 }
 
 export function resetUsed() {
   writeJson(USED_KEY, {});
+  backupSilent();
 }
 
 // ---- 每周「生成」限流（周键为周一日期）----
@@ -72,6 +76,7 @@ export function bumpWeek() {
   const quota = getQuota();
   quota.used += 1;
   writeJson(QUOTA_KEY, quota);
+  backupSilent();
   return quota.used;
 }
 
@@ -90,6 +95,7 @@ export function saveIssue(issue) {
   const issues = listIssues().filter((item) => item && item.week !== issue.week);
   issues.unshift(issue);
   writeJson(ISSUES_KEY, { issues: issues.slice(0, HISTORY_MAX) });
+  backupSilent();
 }
 
 export function getWeekIssue() {
@@ -138,6 +144,7 @@ export function starIssue(id) {
     }
   });
   writeJson(ISSUES_KEY, { issues: issues });
+  backupSilent();
   return starred;
 }
 
@@ -156,3 +163,48 @@ export function markSeen() {
     writeJson(SEEN_KEY, current.id);
   }
 }
+
+// ---- 云端备份 / 恢复（换机 / 清缓存 / 退出登录后拉回；失败静默）----
+
+/** 备份快照：一次性打包三类本机数据 */
+function cloudSnapshot() {
+  return { issues: listIssues(), used: getUsed(), quota: getQuota(), seen: readJson(SEEN_KEY, '') };
+}
+
+/** 静默备份（不 await；失败不打扰用户） */
+function backupSilent() {
+  try {
+    api.udataPut('wander', cloudSnapshot()).catch(() => {});
+  } catch (e) {
+    // 中转服务不可用等情况忽略
+  }
+}
+
+/** 从云端恢复（仅本机无归档时写入，避免覆盖本机较新数据）→ { ok, restored, count } */
+function restoreFromCloud() {
+  return api.udataGet('wander').then((res) => {
+    if (!res || !res.ok || !res.value) {
+      return { ok: false, code: (res && res.code) || 'empty' };
+    }
+    const v = res.value;
+    if (!v || !Array.isArray(v.issues) || !v.issues.length) {
+      return { ok: false, code: 'empty' };
+    }
+    if (listIssues().length) {
+      return { ok: true, restored: false, count: 0 };
+    }
+    writeJson(ISSUES_KEY, { issues: v.issues.slice(0, HISTORY_MAX) });
+    if (v.used && typeof v.used === 'object') {
+      writeJson(USED_KEY, v.used);
+    }
+    if (v.quota && v.quota.week) {
+      writeJson(QUOTA_KEY, v.quota);
+    }
+    if (v.seen) {
+      writeJson(SEEN_KEY, v.seen);
+    }
+    return { ok: true, restored: true, count: v.issues.length };
+  });
+}
+
+export { backupSilent, restoreFromCloud };

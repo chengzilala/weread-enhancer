@@ -26,6 +26,16 @@ release/360-扩展目录/
 # 各渠道「按帖子分好」的发帖文件夹（由母版图复制生成、可随时重建，不入库）
 marketing/**/帖子/
 
+# 软著登记时填写的个人信息（含身份证号等，绝不可入库）
+marketing/软著申请/form_data.json
+marketing/软著申请/申请信息清单.md
+
+# 软著生成产物（PDF/HTML，由 gen_materials.py 随时重建，不入库）
+marketing/软著申请/输出/
+
+# 抓图/发帖临时文件
+tools/_zhihu_tmp.py
+
 # Trae 本地配置（规则/技能副本由「AI协作规划库」母本同步生成，不入库）
 .trae/
 .pai/

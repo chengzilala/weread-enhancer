@@ -1,7 +1,7 @@
 /**
  * 微信悦读 · 阅读页评论侧栏（v0.28.0）
  *
- * 定位：读书时「边读边看别人怎么说」——在阅读页右侧挂一个可折叠侧栏，
+ * 定位：读书时「边读边看别人怎么说」——在阅读页右侧挂一个侧栏，
  *       按「当前章节」展示微信读书公开评论（头像 / 昵称 / 时间 / 正文 + 可展开引用原文）。
  *
  * 数据来源：微信读书**同源网页接口**（复用登录 Cookie，免 API Key、免新增权限）。
@@ -28,7 +28,7 @@
   const REFRESH_DEBOUNCE = 500;
 
   let enabled = true;      // 是否在阅读页显示侧栏（持久化）
-  let collapsed = false;   // 本次会话内是否收起（仅留右侧小标签）
+  let collapsed = false;   // 本次会话内是否收起（收起后从主菜单「💭 评论」重新展开）
   let sidebar = null;
   let reqSeq = 0;          // 请求序号：拦截旧任务，防止章节快速切换时错乱
   let lastKey = '';        // bookId|chapterUid：相同则不重复拉取
@@ -396,7 +396,6 @@
     el.id = 'wre-reviews-sidebar';
     el.className = 'wre-reviews-sidebar';
     el.innerHTML =
-      '<button class="wre-reviews-tab" data-wre-reviews-expand title="展开评论侧栏">💭<span>评论</span></button>' +
       '<div class="wre-reviews-panel">' +
         '<div class="wre-reviews-header">' +
           '<span class="wre-reviews-heading">💭 评论</span>' +
@@ -423,6 +422,16 @@
     sidebar.classList.toggle('wre-dark', isDark);
   }
 
+  // 面板顶部避让阅读页顶栏：实测顶栏高度写入 CSS 变量，避免面板头部被顶栏压住
+  function syncTopOffset() {
+    if (!sidebar) {
+      return;
+    }
+    const bar = document.querySelector('.readerTopBar');
+    const height = bar ? Math.round(bar.getBoundingClientRect().height) : 0;
+    sidebar.style.setProperty('--wre-rv-top', (height > 0 ? height : 0) + 'px');
+  }
+
   function mountSidebar() {
     if (!enabled || !isReaderPage()) {
       return;
@@ -435,7 +444,16 @@
       logReviews('info', '已挂载评论侧栏');
     }
     sidebar.classList.toggle('wre-collapsed', collapsed);
+    syncTopOffset();
     applyTheme();
+  }
+
+  // 收起 / 展开面板（收起后由主菜单「💭 评论」重新展开）
+  function setCollapsed(value) {
+    collapsed = !!value;
+    if (sidebar) {
+      sidebar.classList.toggle('wre-collapsed', collapsed);
+    }
   }
 
   function unmountSidebar() {
@@ -515,13 +533,7 @@
       return;
     }
     if (target.closest('[data-wre-reviews-collapse]')) {
-      collapsed = true;
-      sidebar.classList.add('wre-collapsed');
-      return;
-    }
-    if (target.closest('[data-wre-reviews-expand]')) {
-      collapsed = false;
-      sidebar.classList.remove('wre-collapsed');
+      setCollapsed(true);
       return;
     }
     if (target.closest('[data-wre-reviews-refresh]')) {
@@ -626,7 +638,7 @@
     item.setAttribute('data-wre-reviews-entry', '1');
     item.innerHTML = '<span class="wre-menu-icon">💭</span>评论';
     item.addEventListener('click', () => {
-      toggleEnabled();
+      onMenuEntryClick();
     });
     const anchor = menu.querySelector('[data-wre-notes-entry]') ||
       menu.querySelector('[data-action="read-settings"]');
@@ -660,8 +672,18 @@
     }
   }
 
-  function toggleEnabled() {
-    setEnabled(!enabled);
+  // 主菜单「💭 评论」入口：未开启 → 开启并展开；已收起 → 展开；已展开 → 关闭
+  function onMenuEntryClick() {
+    if (!enabled) {
+      setEnabled(true);
+      return;
+    }
+    if (collapsed) {
+      setCollapsed(false);
+      logReviews('info', '由主菜单展开评论侧栏');
+      return;
+    }
+    setEnabled(false);
   }
 
   // ---------- 启动 ----------
@@ -690,6 +712,7 @@
     }
 
     startObservers();
+    window.addEventListener('resize', syncTopOffset);
     scheduleRefresh();
   }
 

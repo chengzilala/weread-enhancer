@@ -2,25 +2,8 @@
   <!-- 分享图绘制画布（移出屏幕外，不可见） -->
   <canvas type="2d" id="shareCanvas" class="share-canvas"></canvas>
 
-  <!-- 加到手机桌面入口（置顶；点按进入「我的」看分步说明） -->
-  <view class="desktop-entry" bindtap="goSettings">
-    <view class="desktop-entry__main">
-      <view class="desktop-entry__name">📲 加到手机桌面，像 App 一样用</view>
-      <view class="desktop-entry__sub">安卓加到桌面 · iPhone 加到「我的小程序」，步骤在「我的」</view>
-    </view>
-    <view class="desktop-entry__arrow">›</view>
-  </view>
-
-  <!-- 无 Key 引导 -->
-  <wre-state
-    wx:if="{{!hasKey}}"
-    type="nokey"
-    text="还没有配置微信读书 API Key"
-    sub="配置后即可查看你的阅读数据"
-    action="去配置 Key"
-    actionType="settings"
-    bind:action="onStateAction"
-  />
+  <!-- 无 Key 引导：介绍页（对齐 H5 引导页） -->
+  <wre-landing wx:if="{{!hasKey}}" bind:action="onStateAction" />
 
   <block wx:else>
     <!-- 每日卡片入口（置顶） -->

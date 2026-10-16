@@ -12,7 +12,6 @@ import { renderHomeShare } from '../core/home-share.js';
 import { modeLabel, fmtDateTime } from '../core/report-core.js';
 import { messageOf, isKeyError } from '../core/errors.js';
 import { esc, stateHtml } from '../ui.js';
-import { desktopGuideHtml } from '../desktop-guide.js';
 import { cacheGet, cacheSet, getProfile } from '../store.js';
 import { presentShareImage } from '../share.js';
 
@@ -31,7 +30,6 @@ let mode = 'weekly';
 export function render(root, app) {
   root.innerHTML =
     '<div class="wre-page">' +
-    '<div class="wre-desktop-slot">' + desktopGuideHtml() + '</div>' +
     '  <div class="wre-entries" id="homeEntries">' +
     '    <button class="wre-entry wre-entry--daily" data-goto="daily">' +
     '      <span class="wre-entry__main">' +
@@ -121,7 +119,7 @@ function doShare() {
     stats: (view.metrics || []).slice(0, 4).map((m) => ({ label: m.label, value: m.value })),
     lines: (view.trend && view.trend.peak) ? ['峰值：' + view.trend.peak.label + ' · ' + view.trend.peak.time] : [],
     chips: (view.categories || []).slice(0, 6).map((c) => c.name),
-    footer: (profile.nickName ? profile.nickName + ' · ' : '') + '微信悦读 · 本机计算',
+    footer: (profile.nickName ? profile.nickName + ' · ' : '') + '微信悦读 · reader.chesterlee.cn',
     text: label + '阅读数据总览',
   };
   presentShareImage(

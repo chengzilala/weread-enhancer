@@ -487,6 +487,19 @@ body.wre-toolbar-floating.wre-show-controls [class*="readerControls"] {
   white-space: nowrap;
 }
 
+/* 分组标题行（插件快捷键 / 微信读书原生） */
+.wre-shortcuts-table tr.wre-shortcuts-group > td {
+  padding: 6px 12px;
+  width: auto;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  background: var(--wre-hover-bg);
+  text-align: left;
+  white-space: normal;
+}
+
 .wre-shortcuts-table .wre-shortcut-key {
   display: inline-block;
   padding: 2px 8px;

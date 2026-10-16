@@ -1,0 +1,101 @@
+/**
+ * 微信悦读 · 笔记同步模块样式（v0.30.0）
+ * 前缀统一 wre-sync-，避免与页面 / 其它模块样式冲突。
+ */
+
+#wre-sync-notes-modal.wre-sync-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.42);
+}
+
+#wre-sync-notes-modal .wre-sync-card {
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  overflow: auto;
+  background: #fff;
+  color: #1f2329;
+  border-radius: 14px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+#wre-sync-notes-modal .wre-sync-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  font-weight: 600;
+  border-bottom: 1px solid #eef0f3;
+}
+
+#wre-sync-notes-modal .wre-sync-close {
+  border: 0;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  color: #8a9099;
+}
+
+#wre-sync-notes-modal .wre-sync-body {
+  padding: 14px 16px;
+}
+
+#wre-sync-notes-modal .wre-sync-book {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+#wre-sync-notes-modal .wre-sync-source {
+  color: #8a9099;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+#wre-sync-notes-modal .wre-sync-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+#wre-sync-notes-modal .wre-sync-tip {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #f6f8f6;
+  border-radius: 8px;
+  color: #4c5561;
+  font-size: 12px;
+}
+
+#wre-sync-notes-modal .wre-sync-tip code {
+  background: #e9efe9;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+#wre-sync-notes-modal .wre-sync-status {
+  margin-top: 10px;
+  min-height: 18px;
+  color: #2b8a3e;
+  font-size: 12px;
+}
+
+#wre-sync-notes-modal .wre-sync-status.is-error {
+  color: #d64545;
+}
+
+#wre-sync-notes-modal .wre-sync-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #eef0f3;
+}

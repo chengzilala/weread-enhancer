@@ -1,9 +1,16 @@
 const store = require('../../shared/store');
 const theme = require('../../shared/theme');
 const { verifyKey } = require('../../shared/gateway');
+const keyvault = require('../../shared/keyvault');
 const ops = require('../../shared/ops');
 const account = require('../../shared/account');
 const { CLOUD_ENV, PROXY_FUNCTION, LINKS } = require('../../config');
+
+/** 账户码掩码：前 4 后 4 */
+function maskCode(id) {
+  const v = String(id || '');
+  return v.length > 8 ? v.slice(0, 4) + '····' + v.slice(-4) : v;
+}
 
 Page({
   data: {
@@ -14,6 +21,15 @@ Page({
     saving: false,
     statusText: '',
     statusType: '', // ok | error
+    signingOut: false,
+
+    // 用户凭证（账户码 + 云端托管 Key）
+    hosted: false,        // 云端是否已加密托管 Key（本机没 Key 时可「恢复账号」）
+    myCode: '',           // 账户码（明文，仅本机内存；用于保存凭证 / 复制）
+    myCodeMasked: '',
+    showCode: false,
+    codeBusy: false,
+    restoring: false,
 
     // 参数详情（默认收起，点「参数详情」展开）
     showParams: false,
@@ -27,7 +43,8 @@ Page({
       { no: 3, text: '点「复制 Key」，就得到一段 wrk- 开头的 Key（默认打码，点右侧「👁」可看明文）。', img: LINKS.site + '/app/assets/img/skill-step3.png' },
     ],
 
-    // 「加到手机桌面 / 我的小程序」图文说明（置顶常显，分平台分步）
+    // 「加到手机桌面 / 我的小程序」图文说明（默认收起，点标题展开，分平台分步）
+    showDesktopGuide: false,
     desktopGuideGroups: [
       {
         title: '安卓手机（华为 / 小米 / OPPO / vivo 等）',
@@ -80,7 +97,7 @@ Page({
     const profile = store.getProfile();
     this.setData({
       hasKey: !!key,
-      masked: key ? store.maskKey(key) : '',
+      masked: key ? store.maskKey(key) : store.getKeyMask(),
       input: '',
       statusText: '',
       statusType: '',
@@ -89,11 +106,25 @@ Page({
       hasProfile: !!(profile.avatarUrl || profile.nickName),
       showParams: false,
       showKeyGuide: false,
+      showDesktopGuide: false,
+      showCode: false,
       wreFs: store.getFontScale(),
       wreDark: theme.apply(),
       themePref: theme.getTheme(),
       params: this.buildParams(key, profile),
     });
+    // 云端托管状态：本机没 Key 时用云端掩码展示，并决定是否显示「恢复账号」
+    keyvault
+      .info()
+      .then((r) => {
+        if (!r || !r.ok) {
+          return;
+        }
+        const hosted = !!r.hasKey;
+        store.setCredentialMeta({ masked: r.masked || '', hosted: hosted });
+        this.setData({ hosted: hosted, masked: key ? store.maskKey(key) : (r.masked || '') });
+      })
+      .catch(() => {});
     // 管理员判断：失败静默（非管理员 / 云函数未部署时都不显示入口），同时取回自己的 openid
     ops
       .whoami()
@@ -102,11 +133,18 @@ Page({
         this.setData({ isAdmin: !!info.admin, myOpenid: info.openid || '' });
       })
       .catch(() => {});
-    // 关联状态：失败静默
+    // 关联状态 + 账户码（凭证）：失败静默
+    this.refreshCode();
+  },
+
+  /** 取回关联状态与账户码（凭证） */
+  refreshCode() {
     account
       .bindInfo()
       .then((r) => {
-        this.setData({ linked: !!(r && r.ok && r.linked) });
+        const linked = !!(r && r.ok && r.linked);
+        const deviceId = linked && r.deviceId ? String(r.deviceId) : '';
+        this.setData({ linked: linked, myCode: deviceId, myCodeMasked: deviceId ? maskCode(deviceId) : '' });
       })
       .catch(() => {});
   },
@@ -115,7 +153,7 @@ Page({
   buildParams(key, profile) {
     const nick = profile.nickName || (profile.avatarUrl ? '已设置头像' : '');
     return [
-      { label: '微信读书 Key', value: key ? store.maskKey(key) : '未配置' },
+      { label: '微信读书 Key', value: key ? store.maskKey(key) : (store.getKeyMask() || '未配置') },
       { label: '头像昵称', value: nick || '未设置' },
       { label: '云开发环境', value: CLOUD_ENV || '（默认环境）' },
       { label: '云函数', value: PROXY_FUNCTION },
@@ -130,6 +168,11 @@ Page({
   // 「如何获取 Key」图文说明：默认收起，点一下展开 / 收起
   toggleKeyGuide() {
     this.setData({ showKeyGuide: !this.data.showKeyGuide });
+  },
+
+  // 「加到手机桌面 / 我的小程序」分步说明：默认收起，点一下展开 / 收起
+  toggleDesktopGuide() {
+    this.setData({ showDesktopGuide: !this.data.showDesktopGuide });
   },
 
   // ---- 文字大小（四档切换；本机保存，其他页面在 onShow 时套用）----
@@ -220,12 +263,156 @@ Page({
     this.setData({ hasKey: true, masked: store.maskKey(key), input: '' });
     this.setStatus('ok', '已保存并校验通过，回到首页即可查看数据');
     wx.showToast({ title: '保存成功', icon: 'success' });
+    // 云端加密托管（用户凭证）：失败不阻断本机使用，仅提示
+    keyvault
+      .save(key)
+      .then((r) => {
+        if (r && r.ok) {
+          store.setCredentialMeta({ masked: r.masked || store.maskKey(key), hosted: true });
+          this.setData({ hosted: true });
+        }
+      })
+      .catch(() => {});
   },
 
   onClear() {
     store.clearKey();
-    this.setData({ hasKey: false, masked: '', input: '' });
-    this.setStatus('', '已清除 Key');
+    store.clearCredentialMeta();
+    this.setData({ hasKey: false, masked: '', input: '', hosted: false });
+    this.setStatus('', '已清除 Key（含云端托管）');
+    keyvault.clear().catch(() => {});
+  },
+
+  // ---- 用户凭证：账户码 + 云端托管 Key（换机 / 重装 / 退出后凭它恢复账号）----
+
+  /** 显示 / 隐藏完整账户码 */
+  onToggleCode() {
+    this.setData({ showCode: !this.data.showCode });
+  },
+
+  /** 复制账户码（凭证）：建议用户存到备忘录等安全处 */
+  onCopyCode() {
+    const code = this.data.myCode;
+    if (!code) {
+      return;
+    }
+    wx.setClipboardData({
+      data: code,
+      success: () => wx.showToast({ title: '凭证已复制，请妥善保存', icon: 'success' }),
+    });
+  },
+
+  /** 生成 / 获取本端账户码 */
+  async onEnsureCode() {
+    if (this.data.codeBusy) {
+      return;
+    }
+    this.setData({ codeBusy: true });
+    const res = await account.accountEnsure();
+    this.setData({ codeBusy: false });
+    if (!res || !res.ok) {
+      this.setStatus('error', (res && res.error) || '获取失败，请重试');
+      return;
+    }
+    this.refreshCode();
+    wx.showToast({ title: '账户码已生成', icon: 'success' });
+  },
+
+  /** 一键恢复账号：从云端拉回托管的 Key（换机 / 重装微信 / 退出登录后） */
+  async onRestoreAccount() {
+    if (this.data.restoring) {
+      return;
+    }
+    this.setData({ restoring: true });
+    const res = await keyvault.pull();
+    this.setData({ restoring: false });
+    if (!res || !res.ok || !res.apiKey) {
+      this.setStatus('error', (res && res.error) || '云端没有可恢复的 Key');
+      return;
+    }
+    store.setKey(res.apiKey);
+    store.setCredentialMeta({ masked: res.masked || store.maskKey(res.apiKey), hosted: true });
+    this.setData({ hasKey: true, masked: store.maskKey(res.apiKey), hosted: true });
+    this.setStatus('ok', '已从云端恢复账号，正在回到首页…');
+    wx.showToast({ title: '已恢复', icon: 'success' });
+    setTimeout(() => {
+      wx.switchTab({ url: '/pages/home/index' });
+    }, 700);
+  },
+
+  // ---- 退出登录：清空本机数据，云端账号与数据保留（下次可「恢复账号」）----
+
+  onSignOut() {
+    wx.showModal({
+      title: '确认退出登录？',
+      content: '将清除本机保存的 API Key、头像昵称，以及本机缓存（每日卡片 / 灵感漫游 / 纸书归档等）。云端账号与数据会保留，下次可用「我的凭证」一键恢复。此操作不可撤销；「外观」与「文字大小」会保留。',
+      confirmText: '退出登录',
+      confirmColor: '#E54545',
+      success: (r) => {
+        if (r.confirm) {
+          this.doSignOut();
+        }
+      },
+    });
+  },
+
+  async doSignOut() {
+    if (this.data.signingOut) {
+      return;
+    }
+    this.setData({ signingOut: true });
+
+    // 只清本机：云端账号、托管 Key、用户数据都不动（下次可「恢复账号」）
+
+    // 1. 删除本机头像文件（若有）
+    const avatar = this.data.avatarUrl;
+    if (avatar && avatar.indexOf('wxfile://') === 0) {
+      wx.getFileSystemManager().unlink({ filePath: avatar, fail() {} });
+    }
+
+    // 2. 清空本机所有 wre_ 前缀数据；保留「外观 / 文字大小」两个设备偏好
+    const KEEP = ['wre_theme', 'wre_font_scale'];
+    try {
+      const info = wx.getStorageInfoSync();
+      (info.keys || []).forEach((k) => {
+        if (k.indexOf('wre_') === 0 && KEEP.indexOf(k) < 0) {
+          wx.removeStorageSync(k);
+        }
+      });
+    } catch (e) {
+      // 取不到键列表时退化为逐个清除关键项
+      store.clearKey();
+      store.clearProfile();
+      store.clearCredentialMeta();
+    }
+
+    this.setData({
+      signingOut: false,
+      hasKey: false,
+      masked: '',
+      input: '',
+      avatarUrl: '',
+      nickName: '',
+      hasProfile: false,
+      statusText: '',
+      statusType: '',
+    });
+    // 云端托管状态仍在 → 重新拉一次，好让「恢复账号」入口显示出来
+    keyvault
+      .info()
+      .then((r) => {
+        if (r && r.ok) {
+          store.setCredentialMeta({ masked: r.masked || '', hosted: !!r.hasKey });
+          this.setData({ hosted: !!r.hasKey, masked: r.masked || '' });
+        }
+      })
+      .catch(() => {});
+    this.refreshCode();
+
+    wx.showToast({ title: '已退出登录', icon: 'success' });
+    setTimeout(() => {
+      wx.switchTab({ url: '/pages/home/index' });
+    }, 600);
   },
 
   // ---- 页面跳转 ----

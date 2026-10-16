@@ -1013,19 +1013,15 @@ function createUI() {
               <tr><th>快捷键</th><th>功能</th><th>状态</th></tr>
             </thead>
             <tbody>
-              <tr>
-                <td><span class="wre-shortcut-key">←</span><span class="wre-shortcut-sep">/</span><span class="wre-shortcut-key">→</span></td>
-                <td>上一页 / 下一页</td>
-                <td>启用</td>
-              </tr>
+              <tr class="wre-shortcuts-group"><td colspan="3">插件快捷键</td></tr>
               <tr>
                 <td><span class="wre-shortcut-key">Space</span></td>
-                <td>播放 / 暂停自动阅读</td>
+                <td>开始 / 暂停自动阅读（按设定节奏自动往下翻页）</td>
                 <td id="wre-shortcut-autoread-status">启用</td>
               </tr>
               <tr>
                 <td><span class="wre-shortcut-key">D</span></td>
-                <td>开启 / 关闭勿扰模式</td>
+                <td>开启 / 关闭勿扰模式（隐藏悬浮图标）</td>
                 <td id="wre-shortcut-dnd-status">启用</td>
               </tr>
               <tr>
@@ -1038,9 +1034,20 @@ function createUI() {
                 <td>显示 / 隐藏此帮助面板</td>
                 <td>启用</td>
               </tr>
+              <tr class="wre-shortcuts-group"><td colspan="3">微信读书原生（插件不拦截）</td></tr>
+              <tr>
+                <td><span class="wre-shortcut-key">←</span><span class="wre-shortcut-sep">/</span><span class="wre-shortcut-key">→</span></td>
+                <td>上一页 / 下一页</td>
+                <td>官方原生</td>
+              </tr>
+              <tr>
+                <td><span class="wre-shortcut-key">Esc</span></td>
+                <td>退出全屏（屏占比自动恢复）</td>
+                <td>官方原生</td>
+              </tr>
             </tbody>
           </table>
-          <div class="wre-shortcuts-footer">提示：快捷键仅在微信读书网页内生效，输入框中不触发</div>
+          <div class="wre-shortcuts-footer">提示：快捷键仅在微信读书网页内生效，输入框中不触发；Ctrl / Alt / Cmd 组合键同样不触发</div>
         </div>
       </div>
     </div>
@@ -1080,10 +1087,11 @@ function createUI() {
               <tr><th>快捷键</th><th>功能</th></tr>
             </thead>
             <tbody>
-              <tr><td><span class="wre-shortcut-key">Space</span></td><td>播放 / 暂停自动阅读</td></tr>
+              <tr><td><span class="wre-shortcut-key">Space</span></td><td>开始 / 暂停自动阅读</td></tr>
               <tr><td><span class="wre-shortcut-key">D</span></td><td>开启 / 关闭勿扰模式</td></tr>
               <tr><td><span class="wre-shortcut-key">F</span></td><td>进入 / 退出全屏模式</td></tr>
               <tr><td><span class="wre-shortcut-key">?</span></td><td>显示全部快捷键</td></tr>
+              <tr><td><span class="wre-shortcut-key">←</span><span class="wre-shortcut-sep">/</span><span class="wre-shortcut-key">→</span></td><td>上一页 / 下一页（微信读书原生）</td></tr>
             </tbody>
           </table>
           <p style="font-size:12px;color:var(--wre-text);margin:12px 0 0;line-height:1.6;">

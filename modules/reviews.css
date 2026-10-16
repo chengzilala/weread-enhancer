@@ -15,10 +15,12 @@
   --rv-tag-bg: #f0f0f0;
   --rv-abstract-bg: #f7f8fa;
   --rv-accent: #07c160;
+  /* 顶部避让阅读页顶栏（否则面板头部会被顶栏压住）；由 reviews.js 实测顶栏高度写入 */
+  --wre-rv-top: 0px;
   position: fixed;
-  top: 0;
+  top: var(--wre-rv-top);
   right: 0;
-  height: 100vh;
+  height: calc(100vh - var(--wre-rv-top));
   width: 340px;
   max-width: 88vw;
   z-index: calc(var(--wre-z-index, 999999) - 10);
@@ -231,38 +233,11 @@
   overflow: visible;
 }
 
-/* ---------- 折叠态：仅留右侧小标签 ---------- */
-.wre-reviews-tab {
-  display: none;
-  position: absolute;
-  top: 50%;
-  right: 0;
-  transform: translateY(-50%);
-  padding: 10px 6px;
-  border: 1px solid var(--rv-border);
-  border-right: none;
-  border-radius: 8px 0 0 8px;
-  background: var(--rv-bg);
-  color: var(--rv-text);
-  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.08);
-  cursor: pointer;
-  pointer-events: auto;
-  font-size: 15px;
-  writing-mode: vertical-rl;
-  letter-spacing: 2px;
-  align-items: center;
-  gap: 6px;
+/* ---------- 收起态：面板滑出视口，由主菜单「💭 评论」重新展开 ---------- */
+#wre-reviews-sidebar.wre-collapsed {
+  pointer-events: none;
 }
 
 #wre-reviews-sidebar.wre-collapsed .wre-reviews-panel {
   transform: translateX(100%);
-}
-
-#wre-reviews-sidebar.wre-collapsed .wre-reviews-tab {
-  display: inline-flex;
-}
-
-/* 收起时只在标签区域可点，避免遮挡正文交互 */
-#wre-reviews-sidebar.wre-collapsed {
-  pointer-events: none;
 }

@@ -124,6 +124,8 @@ html, body {
 }
 .wre-tab__icon { font-size: calc(18px * var(--wre-fs)); line-height: 1; }
 .wre-tab.is-active { color: var(--wre-brand); font-weight: 600; }
+/* 侧栏品牌区：仅桌面两栏布局显示（移动端隐藏，见文末 ≥1024px 媒体查询） */
+.wre-sidebar__brand { display: none; }
 
 /* 卡片 */
 .wre-card {
@@ -926,6 +928,102 @@ a.wre-donate__list { text-decoration: none; }
   }
 }
 
+/* ---- 桌面两栏（≥720px）：左侧固定导航栏 + 右侧内容自适应，像桌面应用 ----
+   仅在「应用内」生效（body.wre-app，由 app.js 按当前页面切换）：
+   引导页 / 配置页 / 分享页仍保持居中的单列，不出现侧栏。
+   断点取 720px（而非更高）：Mac / Windows 上「装成桌面应用」后的窗口常见在
+   800px 上下，若断点过高，窗口不达标就会落回上面的 480px 手机竖列，观感像手机。 */
+@media (min-width: 720px) {
+  /* 侧栏宽度随窗口自适应：窄窗口收一点，宽窗口保持 232px */
+  :root { --wre-sidebar-w: clamp(200px, 20vw, 232px); }
+
+  body.wre-app { background: var(--wre-bg); }
+
+  /* 顶部蓝栏 + 内容区：整体右移，给左侧栏让位 */
+  body.wre-app .wre-header,
+  body.wre-app .wre-main {
+    max-width: none;
+    margin-left: var(--wre-sidebar-w);
+    margin-right: 0;
+  }
+  body.wre-app .wre-header {
+    padding-left: 24px;
+    padding-right: 24px;
+    box-shadow: 0 1px 0 rgba(31, 36, 48, 0.08);
+  }
+  body.wre-app .wre-header__title { text-align: left; }
+  body.wre-app .wre-main {
+    background: var(--wre-bg);
+    min-height: calc(100vh - 50px);
+    padding-bottom: 28px;
+    box-shadow: none;
+  }
+
+  /* 底部 Tab → 左侧竖排导航；二级页也不隐藏（keep 导航常驻） */
+  body.wre-app .wre-tabbar {
+    display: flex !important;
+    left: 0;
+    right: auto;
+    top: 0;
+    bottom: 0;
+    width: var(--wre-sidebar-w);
+    max-width: none;
+    transform: none;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 2px;
+    padding: 14px 12px;
+    border-top: 0;
+    border-right: 1px solid var(--wre-line);
+    background: var(--wre-card);
+  }
+  body.wre-app .wre-tab {
+    flex: none;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 11px 14px;
+    border-radius: 10px;
+    font-size: calc(14px * var(--wre-fs));
+    text-align: left;
+  }
+  body.wre-app .wre-tab__icon { font-size: calc(18px * var(--wre-fs)); }
+  body.wre-app .wre-tab.is-active { background: var(--wre-brand-soft); }
+
+  /* 侧栏顶部品牌区 */
+  .wre-sidebar__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 14px 14px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--wre-line);
+  }
+  .wre-sidebar__logo { font-size: 22px; line-height: 1; }
+  .wre-sidebar__name { font-size: calc(16px * var(--wre-fs)); font-weight: 600; color: var(--wre-text); }
+
+  /* 内容区：居中一个易读宽度，宽屏不再被拉满（手机版组件如分段条 / 进度条 / 按钮
+     一旦铺满整行会显得「变形」，故收窄到 720px 并居中） */
+  .wre-page { max-width: 720px; margin-left: auto; margin-right: auto; }
+
+  /* 非应用内页面（引导 / 配置 / 分享）：居中单列，略宽于手机列 */
+  body:not(.wre-app) .wre-header,
+  body:not(.wre-app) .wre-main { max-width: 760px; }
+  .wre-landing { max-width: 760px; margin-left: auto; margin-right: auto; }
+
+  /* 语音朗读条：浮在内容区内、与内容列（720px）居中对齐，不再压住侧栏 */
+  body.wre-app .wre-tts-bar {
+    left: var(--wre-sidebar-w);
+    right: 0;
+    bottom: 16px;
+    transform: none;
+    width: min(696px, calc(100% - var(--wre-sidebar-w) - 24px));
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
 /* ---- 引导页（landing）：未配置 Key 时打开网页看到的第一屏 ---- */
 /* 引导页自带顶部导航条，全局蓝色顶栏被隐藏，故这里自己留出刘海安全区 */
 .wre-landing { padding: calc(env(safe-area-inset-top, 0px) + 4px) 12px 28px; }
@@ -1133,8 +1231,5 @@ a.wre-donate__list { text-decoration: none; }
   color: var(--wre-text);
   margin-bottom: 4px;
 }
-/* 首页顶部折叠条：去掉顶部多余间距，与下方入口卡留出间隔 */
-.wre-desktop-slot { margin-bottom: 12px; }
-.wre-desktop-slot .wre-guide { margin-top: 0; }
 /* 「我的」页置顶的桌面安装卡：淡品牌底，与其它卡片区分、突出显示 */
 .wre-card--desktop { background: var(--wre-brand-soft); }

@@ -1,14 +1,16 @@
 /**
  * 本地存储
  *
- * 红线：所有密钥（微信读书 wrk- / DeepSeek sk-）只存手机本机，
- * 不登录、不上传、不落库；云函数只在内存中转，日志仅掩码。
- * 本机资料（头像 / 昵称）同样只存本地，用于「我的」页与分享图署名。
+ * 红线：所有密钥（微信读书 wrk- / DeepSeek sk-）不写日志（日志仅掩码）。
+ * 本机缓存一份明文 Key 供网关直发；同时云端加密托管一份（换机 / 退出后「恢复账号」时拉回）。
+ * 本机资料（头像 / 昵称）只存本地，用于「我的」页与分享图署名。
  */
 const KEY = 'wre_api_key';
 const DS_KEY = 'wre_deepseek_key';
 const PROFILE_KEY = 'wre_profile';
 const FONT_KEY = 'wre_font_scale';
+const KEY_MASK_KEY = 'wre_key_mask';     // 云端托管 Key 的掩码（本机没存明文时用于展示）
+const KEY_HOSTED_KEY = 'wre_key_hosted'; // 云端是否已托管 Key（用于「恢复账号」入口判断）
 
 /** 文字大小档位：小 / 标准 / 大 / 特大（与 H5 端保持一致） */
 const FONT_TIERS = [
@@ -50,6 +52,32 @@ function setKey(key) {
 
 function clearKey() {
   wx.removeStorageSync(KEY);
+}
+
+/** 记录「云端托管」元信息：本机没存明文 Key 时，用掩码展示、用标志判断能否「恢复账号」 */
+function setCredentialMeta(meta) {
+  const m = meta || {};
+  if (m.masked) {
+    wx.setStorageSync(KEY_MASK_KEY, String(m.masked));
+  } else {
+    wx.removeStorageSync(KEY_MASK_KEY);
+  }
+  wx.setStorageSync(KEY_HOSTED_KEY, !!m.hosted);
+}
+
+/** 云端托管 Key 的掩码（无则返回空串） */
+function getKeyMask() {
+  return wx.getStorageSync(KEY_MASK_KEY) || '';
+}
+
+/** 云端是否已托管 Key（本机没有明文时用于判断可否「恢复账号」） */
+function isKeyHosted() {
+  return !!wx.getStorageSync(KEY_HOSTED_KEY);
+}
+
+function clearCredentialMeta() {
+  wx.removeStorageSync(KEY_MASK_KEY);
+  wx.removeStorageSync(KEY_HOSTED_KEY);
 }
 
 /** DeepSeek Key（可选）：仅本机，用于生成 AI 人格画像 */
@@ -98,6 +126,10 @@ module.exports = {
   getKey,
   setKey,
   clearKey,
+  setCredentialMeta,
+  getKeyMask,
+  isKeyHosted,
+  clearCredentialMeta,
   getDeepSeekKey,
   setDeepSeekKey,
   clearDeepSeekKey,

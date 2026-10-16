@@ -1,39 +1,3 @@
-/* 加到手机桌面入口（置顶，点按进入「我的」看分步说明） */
-.desktop-entry {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--wre-brand-soft);
-  border: 1rpx solid var(--wre-brand);
-  border-radius: 20rpx;
-  padding: 24rpx 28rpx;
-  margin-bottom: 24rpx;
-}
-
-.desktop-entry__main {
-  flex: 1;
-  min-width: 0;
-}
-
-.desktop-entry__name {
-  font-size: calc(30rpx * var(--wre-fs));
-  font-weight: 700;
-  color: var(--wre-brand);
-}
-
-.desktop-entry__sub {
-  font-size: calc(24rpx * var(--wre-fs));
-  color: var(--wre-muted);
-  margin-top: 8rpx;
-}
-
-.desktop-entry__arrow {
-  font-size: calc(40rpx * var(--wre-fs));
-  line-height: 1;
-  color: var(--wre-brand);
-  margin-left: 16rpx;
-}
-
 /* 周期切换 */
 .period {
   display: flex;

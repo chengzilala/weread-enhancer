@@ -271,7 +271,7 @@ export async function makeShareCard(spec) {
     // footer
     ctx.fillStyle = '#8A8F99';
     ctx.font = fLabel;
-    ctx.fillText(String(s.footer || '微信悦读 · 阅读数据与人格，本机计算'), PAD, cardH - PAD - 40);
+    ctx.fillText(String(s.footer || '微信悦读 · reader.chesterlee.cn'), PAD, cardH - PAD - 40);
 
     return { ok: true, dataUrl: canvas.toDataURL('image/png') };
   } catch (err) {

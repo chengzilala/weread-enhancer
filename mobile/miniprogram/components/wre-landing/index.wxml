@@ -1,0 +1,109 @@
+<!-- 引导页：未配置 Key 时展示的介绍内容（对齐 H5 引导页） -->
+<view class="wre-landing">
+  <!-- 顶部品牌条 -->
+  <view class="wre-landing__nav">
+    <view class="wre-landing__brand">
+      <view class="wre-landing__logo">📖</view>
+      <view class="wre-landing__brand-text">
+        <view class="wre-landing__brand-name">{{brandName}}</view>
+        <view class="wre-landing__brand-sub">{{brandSub}}</view>
+      </view>
+    </view>
+    <view class="wre-landing__start" bindtap="onStart">开始使用</view>
+  </view>
+
+  <!-- Hero -->
+  <view class="wre-landing__hero">
+    <view class="wre-landing__title">把你自己的微信读书数据，</view>
+    <view class="wre-landing__title">变成看得懂的阅读报告</view>
+    <view class="wre-landing__lead">不用注册、不用装软件，打开小程序就能用。它会读懂你读过什么、怎么读的，生成你的「阅读人格」和一份阅读报告。</view>
+    <button class="wre-btn" bindtap="onStart">三步开始使用</button>
+    <button class="wre-btn wre-btn--ghost" bindtap="onFeatures">先看看能做什么</button>
+    <view class="wre-landing__hint">只读你自己的数据 · 全程免费 · 随时可清除</view>
+  </view>
+
+  <!-- 界面示意预览卡 -->
+  <view class="wre-landing__preview">
+    <view class="wre-landing__preview-head">
+      <view class="wre-landing__preview-status"><text class="wre-landing__dot"></text>本月阅读状态不错</view>
+      <view class="wre-landing__preview-tag">界面示意</view>
+    </view>
+    <view class="wre-landing__grid">
+      <view class="wre-landing__cell" wx:for="{{previewCells}}" wx:key="label">
+        <view class="wre-landing__cell-value">{{item.value}}<text class="wre-landing__unit" wx:if="{{item.unit}}">{{item.unit}}</text></view>
+        <view class="wre-landing__cell-label">{{item.label}}</view>
+      </view>
+    </view>
+    <view class="wre-landing__trend">
+      <view
+        class="wre-landing__bar {{item >= 100 ? 'is-peak' : ''}}"
+        wx:for="{{bars}}"
+        wx:key="*this"
+        style="height: {{item}}%;"
+      ></view>
+    </view>
+  </view>
+
+  <!-- 能做什么 -->
+  <view class="wre-landing__sec">
+    <view class="wre-landing__sec-title" id="wreLandingFeatures">能做什么</view>
+    <view class="wre-landing__grid">
+      <view class="wre-landing__card" wx:for="{{features}}" wx:key="name">
+        <view class="wre-landing__card-icon">{{item.icon}}</view>
+        <view class="wre-landing__card-title">{{item.name}}</view>
+        <view class="wre-landing__card-desc">{{item.desc}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 三步开始 -->
+  <view class="wre-landing__sec">
+    <view class="wre-landing__sec-title">三步开始</view>
+    <view class="wre-landing__step" wx:for="{{steps}}" wx:key="no">
+      <view class="wre-landing__step-no">{{item.no}}</view>
+      <view class="wre-landing__step-body">
+        <view class="wre-landing__step-title">{{item.name}}</view>
+        <view class="wre-landing__step-desc">{{item.desc}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 怎么拿到 Key（图文） -->
+  <view class="wre-landing__sec">
+    <view class="wre-landing__sec-title">怎么拿到 Key（图文）</view>
+    <view class="wre-landing__guide">
+      <view class="wre-landing__guide-head" bindtap="toggleKeyGuide">
+        <text class="wre-landing__guide-summary">还不知道去哪拿 Key？点开看 3 步图文说明</text>
+        <text class="wre-landing__guide-arrow">{{showKeyGuide ? '▴' : '▾'}}</text>
+      </view>
+      <view wx:if="{{showKeyGuide}}" class="wre-landing__guide-body">
+        <view class="wre-landing__guide-step" wx:for="{{keyGuideSteps}}" wx:key="no">
+          <view class="wre-landing__guide-row">
+            <view class="wre-landing__guide-no">{{item.no}}</view>
+            <view class="wre-landing__guide-text">{{item.text}}</view>
+          </view>
+          <image class="wre-landing__guide-img" src="{{item.img}}" mode="widthFix" lazy-load="{{true}}" />
+        </view>
+        <view class="wre-landing__guide-tip">小提示：第 ① 步的安装指令是给 AI 助手用的，这里用不到；只要第 ② 步的 Key 就够了。</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 你的数据，只属于你 -->
+  <view class="wre-landing__sec">
+    <view class="wre-landing__sec-title">你的数据，只属于你</view>
+    <view class="wre-landing__grid">
+      <view class="wre-landing__card" wx:for="{{privacy}}" wx:key="name">
+        <view class="wre-landing__card-icon">{{item.icon}}</view>
+        <view class="wre-landing__card-title">{{item.name}}</view>
+        <view class="wre-landing__card-desc">{{item.desc}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部 CTA -->
+  <view class="wre-landing__cta">
+    <button class="wre-btn" bindtap="onStart">开始使用</button>
+    <view class="wre-landing__hint">已经有账户码？可以在「我的 → 关联网页账户」里与网页版关联，两端共用阅读人格与昵称。</view>
+  </view>
+</view>

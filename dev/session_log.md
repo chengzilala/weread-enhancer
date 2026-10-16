@@ -1723,5 +1723,61 @@
 - **验证**：headless Chrome 实测 390 / 700 / 760 / 1175 / 1440px（390 全宽手机版、700 仍为 480px 手机列、760 起为侧栏两栏、1440 内容列 ~696px 居中）；`python3 web/build.py` **0 告警**（v0.28.2），`web/dist/app/` 已含新样式与新图标。
 - **待办**：本次改动**未提交**；线上 `reader.chesterlee.cn` 需重新构建 + 重新部署才生效（`dist` 已构建好）；版本号未递增（发版走 `pack-publish`）。
 
+## 2026-10-14 会话条目：官网首页新增「桌面版」按钮入口
+- **目标**：用户要求在首页 Hero 按钮行加「桌面版」图标，点击跳转到桌面版教程文章页。
+- **已做**：`web/build.py` 的 `render_home()` 新增 `desktop_item`——`<a class="home-btn" href="/docs/h5/desktop/">桌面版</a>`，note「电脑 / 手机 · 装成 App」，tip 说明全平台步骤；hero 模板占位由 `%s%s%s%s` 扩为 `%s%s%s%s%s`，按钮顺序调整为「安装到 Edge / H5 移动端 / 桌面版 / 微信小程序 / GitHub / Gitee」。同步更新 `web/content/首页.md` 板块标题与文案。**回灌文档**：[`plan/RPD_网站生态_需求文档.md`](file:///Users/Admin/Knowledge/Coding/微信读书插件/plan/RPD_网站生态_需求文档.md) §3.11 第 2 条按钮组描述加入「桌面版」+ 附 C 新增「二十三次修订（v0.23）」。
+- **关键结论**：跳转目标 `web/content/H5 移动端/加到手机桌面.md`（`slug: h5/desktop` → 网址 `/docs/h5/desktop/`）此前已存在，本轮缺口只在「首页可见性」，故不动内容、只加首页入口。
+- **产出物（文件）**：`web/build.py`、`web/content/首页.md`、`plan/RPD_网站生态_需求文档.md`。
+- **验证**：`python3 web/build.py` **0 告警**；`Grep` 核验 `web/dist/index.html` 含 `/docs/h5/desktop/[^>]*>桌面版</a>`（count=1）；headless Chrome 1440 / 1280px 截图目视按钮行无溢出。
+- **待办**：本次改动**未提交**；线上需重新构建 + 重新部署才生效；版本号未递增（发版走 `pack-publish`）。
+- **部署（2026-10-14）**：已 `python3 web/build.py`（v0.29.0，0 告警）→ dist 产物强推 GitHub/Gitee `site-dist`（`d0a36ca → 9450119`）→ 帽子云控制台对 `wereadapp` 点「部署」（16s，已「当前版本」）。线上核验 `https://reader.chesterlee.cn/` 首页按钮行确为「安装到 Edge / H5 移动端 / **桌面版** / 微信小程序 / GitHub / Gitee」，点「桌面版」正确跳 `/docs/h5/desktop/`（标题《装到桌面，像 App 一样用（电脑 / 手机）》），干净加载无控制台报错。
+
+## 2026-10-15 会话条目：小程序 ICP 备案通过 —— 登记 + 状态回灌
+- **目标**：用户告知「小程序的备案通过了」，要求「放到合适的位置 + 分析」。
+- **已做**（只改文档，未动代码）：
+  - **备案信息集中登记**：[`部署上线备案/README.md`](../../部署上线备案/README.md) 新增「六、小程序备案（微信小程序 · 悦读且住）」——主体备案号 `陇ICP备2026009894号`、小程序备案号 `陇ICP备2026009894号-1X`、服务名称「悦读且住」、主体「张诚 · 个人」、通过日期 2026-10-15、官方查询地址；并写明与官网域名备案同主体的关系。
+  - **发布指引落位**：[`plan/小程序_发布前准备.md`](file:///Users/Admin/Knowledge/Coding/微信读书插件/plan/小程序_发布前准备.md) v1.6 → **v1.7**，新增「§七 ICP 备案信息」（原 §七 参考文件顺延为 §八），§四 自检清单补 `[x] ICP 备案已通过` 一行。
+  - **状态回灌**：[`plan/RPD_小程序移动端_需求文档.md`](file:///Users/Admin/Knowledge/Coding/微信读书插件/plan/RPD_小程序移动端_需求文档.md) §1 备案 ⏳→✅、§6 阶段 3 打勾；[`plan/plan_小程序移动端.md`](file:///Users/Admin/Knowledge/Coding/微信读书插件/plan/plan_小程序移动端.md) 当前状态与「最后更新」改 2026-10-15；工作区 [`索引.md`](../../索引.md) 小程序一行改「⏳ 待提审」。
+- **关键结论**：① 小程序备案是**提审 / 发布的硬门槛**（未备案无法提交审核），现已解锁 → 下一步是**上传版本 → 提审 → 发布**。② **备案号不用自己挂**：微信官方《小程序备案操作指引》「八、备案号悬挂」明确，小程序**发布上线后自动展示在「更多资料」页**，故**不改小程序代码**（避免多余改动增加审核风险）。③ 这是**小程序 App 备案**（微信平台内办），与官网 `reader.chesterlee.cn` 的**域名备案**（阿里云）是两码事，但同为主体「张诚」，主体备案号相同。④ 红线：**小程序改名前备案会失效**，名称 `悦读且住` 已定不要改。
+- **待办**：微信开发者工具里**上传版本 → 提审**（提审前确认 §5 隐私指引已按驳回意见改写）；本次仅文档改动、**未提交**。
+- **风险/注意**：官网 `reader.chesterlee.cn` 页脚**目前未挂 ICP 备案号**（工信部对境内接入的网站有「主页底部标示备案号并链接备案系统」要求），属**另一件事**，需要网站侧备案号后缀（在阿里云备案控制台核对）后再补。
+
+## 2026-10-16 会话条目：笔记同步到 Obsidian —— 可行性分析 + RPD + MVP（单本）落地
+- **目标**：用户要求「把抓到的笔记 / 划线 / 想法同步到笔记软件（如 Obsidian）」，先出可行性分析与建设思路。经 AskUserQuestion 三轮确认：① 只做 Obsidian；② 先做「下载 Markdown」；③ 内容含划线 / 想法 / AI 摘要 / 书评 / 热门划线 / 阅读人格；④ 文件名 `《书名》.md`；⑤ 全含 + 开关；⑥ 先做单本 MVP。
+- **已做**：
+  - **调研 + 分析**：新建 [`plan/可行性分析_笔记同步.md`](file:///Users/Admin/Knowledge/Coding/微信读书插件/plan/可行性分析_笔记同步.md)——数据侧已就绪 / 生态三类做法（Obsidian 插件 · 浏览器扩展 · 本地脚本）/ 三条写盘通道（下载 / Local REST API / 云平台）/ 风险表 / **§5.6 内容可达性**。
+  - **RPD**：新建 [`plan/RPD_笔记同步_需求文档.md`](file:///Users/Admin/Knowledge/Coding/微信读书插件/plan/RPD_笔记同步_需求文档.md)——阶段十五-1~5、**文件规格 v1**（frontmatter + 章节 H2 + 划线引用块 + 想法配对 + 稳定 block id）。
+  - **代码（v0.30.0）**：新增 [`modules/sync-notes.js`](file:///Users/Admin/Knowledge/Coding/微信读书插件/modules/sync-notes.js)（`buildObsidianMarkdown`、同步弹层含「包含想法 / 包含时间戳」两开关、`chrome.storage.local` 键 `wreSyncNotes`、统一 `log('[sync-notes]')`）与 [`modules/sync-notes.css`](file:///Users/Admin/Knowledge/Coding/微信读书插件/modules/sync-notes.css)；[`modules/notes.js`](file:///Users/Admin/Knowledge/Coding/微信读书插件/modules/notes.js) **只改一处**（工具栏加「🔗 同步到 Obsidian」按钮 + `requestObsidianSync()` 派发 `wre-notes-sync-export` 事件解耦）；[`manifest.json`](file:///Users/Admin/Knowledge/Coding/微信读书插件/manifest.json) 注册两文件 + 版本 `0.29.1 → 0.30.0`。
+- **关键结论**：数据层早已就绪（notes.js 已归一化划线 / 想法，含 `range` 可配对），缺口只是「写盘」这一层；MVP 用「**下载 Markdown + 用户把下载目录设为 vault 子目录**」实现**零依赖、零新增权限**的同步；**灵感漫游 / 每日卡片**数据在 H5 / 小程序端，扩展端取不到 → 单列 P1 另议（分析 §5.6）。
+- **产出物（文件）**：`plan/可行性分析_笔记同步.md`、`plan/RPD_笔记同步_需求文档.md`、`modules/sync-notes.js`、`modules/sync-notes.css`、`modules/notes.js`、`manifest.json`。
+- **验证**：`node --check`（sync-notes.js / notes.js）与 `manifest.json` JSON 解析均通过；待用户在浏览器实机点一次「🔗 同步到 Obsidian」核验下载产物。
+- **待办**：阶段十五-2 批量同步；阶段十五-3 内容增厚（AI 摘要 / 书评 / 热门划线 / 阅读人格 / `_索引.md`）；阶段十五-4 Local REST API 直写；README / 网页教程 / `release/privacy.md` 回灌；本次改动**未提交**。
+
+## 2026-10-16 会话条目：用户数据落库 + Key 加密托管 + 纯登出（M16 · 阶段 8）
+- **目标**：用户要求「① 每日卡片 / 灵感漫游 / 纸书归档**必须落库**；② 退出登录＝**纯登出**（账号信息保留，下次还能登录）；③ 新增**「保存用户凭证」**功能，让用户信息不丢失」。经 AskUserQuestion 拍板：身份**挂账户码**、Key **加密托管云端**、三类数据**一起落库**、按 **P1–P5 计划全做**。
+- **已做（P1–P5 全部落地）**：
+  - **P1 云端基座**：云函数 `wereadProxy` 新增集合 `wre_udata` + `action:'udataGet' / 'udataPut'`（`kind ∈ daily/wander/paperbook`，按身份隔离、三分区覆盖写）；**统一身份** `uid = (await resolveLinkDeviceId(openid)) || openid`（**账户码优先、openid 兜底**）；回写前 `delete _id`（避免 `-501007`）。
+  - **P2 三类数据落库**：小程序 `shared/udata.js`（`get / put / backupSilent`）；`shared/daily-store.js`、`shared/wander-store.js`、纸书 `store` 每次改动静默备份；`pages/daily`、`pages/wander` 入页 `bootstrap()` 本机为空时 `restoreFromCloud()`（**仅空时写回**，避免覆盖较新数据）。
+  - **P3 Key 加密托管**：新增集合 `wre_users` + `action:'keySave / keyGet / keyPull / keyClear'`；**AES-256-GCM**（`encryptSecret / decryptSecret`，格式 `v1:<iv>:<tag>:<密文>`，派生密钥 = `SHA-256(KEY_SECRET)`）；`relayGateway` 改 `action:'relay'` 按身份取托管 Key 代发、**明文不回端**（兼容旧客户端仍传 apiKey 时直发）；新增 `shared/keyvault.js`。
+  - **P4 退出登录 + 「我的凭证」卡**：`pages/settings` 退出登录改**纯登出**——**只清本机**（`wre_` 全清、删本机头像文件，**保留** `wre_theme` / `wre_font_scale`；**移除 `bindUnbind`**，不再解除网页账户关联），**云端账号 / 托管 Key / `wre_udata` 全保留**；新增「🔑 我的凭证」卡（账户码展示 / 隐藏 / 复制、一键生成、云端托管状态、「恢复我的账号」走 `keyPull`）。
+  - **P5 H5 对齐（多端互通）**：`h5/src/api.js` 增 `udataGet / udataPut`；`h5/src/core/daily-store.js`、`wander-store.js` 对齐加 `backupSilent / restoreFromCloud`；`h5/src/views/daily.js`、`wander.js` 加 `bootstrap`；与小程序**共用同一 `wre_udata` 分区**。**文案统一**：两端 `daily` / `wander` 页「只存本机、不上云」→「**备份到你的云端账号，换机 / 清缓存后可拉回**」。
+- **文档回灌**：`web/content/隐私政策.md`（新增微信小程序章节 + H5「你攒下的内容」段，`updatedAt 2026-10-16`）；`plan/小程序_发布前准备.md` v1.7→**v1.8**（§四自检补两个集合、§5.2/§5.3 新增「用户数据云端备份 / Key 加密托管」声明、§六提审备注改写）；`mobile/README.md`（说明段 + 部署 / 增量部署建集合）；`plan/RPD_小程序移动端_需求文档.md`（**新增 §3 M16**、§2 总览表 M16 行、§4 UI 退出登录改语义 +「我的凭证」卡、§5.1 集合清单 / §5.3 数据流、§6 阶段 8、§7 成功标准第 6 条、§8 风险表 Key 行改加密托管口径、§9 第 17 条）；`plan/RPD_H5移动端_需求文档.md`（H0 动作表、H11 / H12 云端备份、§6 阶段 5、§7 第 7 条、§8 风险行）；`plan/plan_小程序移动端.md`（§2 总览 + §3 **新增阶段 8** 任务表）。
+- **关键结论**：身份统一为「**账户码优先、openid 兜底**」是**多端互通的地基**；本机始终是**唯一数据源**，云端只做备份，入页**仅在本机为空时**才写回；退出登录＝**只清本机**（对齐 H5 语义）；**Key 明文不落库、不落日志**（仅回掩码），`KEY_SECRET` 走云函数环境变量。
+- **产出物（文件）**：`mobile/cloudfunctions/wereadProxy/index.js`、`mobile/miniprogram/shared/{udata.js,keyvault.js,gateway.js,store.js,daily-store.js,wander-store.js}`、`mobile/miniprogram/pages/{daily,wander,settings}/*`、`h5/src/api.js`、`h5/src/core/{daily-store.js,wander-store.js}`、`h5/src/views/{daily.js,wander.js}`、上述各文档。
+- **验证**：多次 `node --check`（复制成 `.mjs`）校验改动的 H5 ES 模块通过；**待真机验证**（本机新代码尚未上传微信开发者工具）。
+- **⚠️ 提审变量**：Key 改托管 + 用户数据落云是**口径变更**，须在《用户隐私保护指引》**如实新增**「用户生成内容云端存储（`wre_udata`）」「API Key 加密托管（`wre_users`）」两项，**声明必须与代码一致**（文案见 发布前准备 §5.2 / §5.3）。
+- **待办**：小程序前端新代码（`pages/share/` + 7 页改动 + `wre-landing` + 本阶段改动）**尚未上传**微信开发者工具，待真机验证；源码尚未 commit / 双推 GitHub + Gitee。
+
+
+## 2026-10-16 分享图统一「产品出处」文字水印（三端 13 张）
+
+- **用户目标**：所有分享图带统一标识，别人看图就能认出、找到「我的作品」。
+- **口径（用户确认）**：标识＝**产品出处**（不是分享者昵称/头像）；形式＝**纯文字水印**，不加二维码 / 短链（"不要太过于复杂"）。
+- **改动**：三端 13 处生成器底部署名统一为 `微信悦读 · reader.chesterlee.cn` —— 插件 `modules/official.js`（原本已符合，未改）；H5 `h5/src/core/share-canvas.js` 的 `BRAND`（覆盖人格/首页/报告/书架 4 张）、`h5/src/share.js` 默认 footer（覆盖每日卡片/灵感漫游）、6 个 `h5/src/views/*.js` 的 `footer` 文案（原「微信悦读 · 本机计算」）；小程序 `mobile/miniprogram/shared/{persona,home,report,shelf,daily,wander}-share.js` 的 6 个 `BRAND` 常量（原「悦读且住」）。
+- **命名决策**：小程序端署名由「悦读且住」改为与 H5 / 插件一致的「微信悦读 · reader.chesterlee.cn」（项目正式名＝微信悦读，域名是唯一可查入口）；图内页标签（如「悦读且住 · 每日卡片回顾」）**保持不动**。⚠️ 若微信审核对图内域名有意见，回退方案＝小程序端改回「悦读且住 · 微信小程序」。
+- **文档回灌**：`web/content/微信小程序/分享图与转发.md`（§署名从哪来 改写为统一口径）；`web/content/阅读人格/分享图与隐私.md` 原本已是该口径（未改）；`web/dist` 已用 `python3 web/build.py` 重建（v0.30.0）。
+- **验证**：静态断言（grep 三端 13 处 `BRAND` / footer 均含 `reader.chesterlee.cn`，H5 侧「本机计算」在分享文案中已无残留）；**待真机 / 浏览器核验**（分享图需重新生成才可见）。
+- **待办**：小程序端改动尚未上传微信开发者工具；源码未 commit / 未双推。
+
 
 

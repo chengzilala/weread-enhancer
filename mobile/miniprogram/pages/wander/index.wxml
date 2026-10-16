@@ -20,16 +20,8 @@
   <!-- 分享图绘制画布（移出屏幕外，不可见） -->
   <canvas type="2d" id="shareCanvas" class="share-canvas"></canvas>
 
-  <!-- 无 Key 引导 -->
-  <wre-state
-    wx:if="{{!hasKey}}"
-    type="nokey"
-    text="还没有配置微信读书 API Key"
-    sub="配置后即可从你的历史划线 / 想法里取材，编排每周主题合辑"
-    action="去配置 Key"
-    actionType="settings"
-    bind:action="onStateAction"
-  />
+  <!-- 无 Key 引导：介绍页（对齐 H5 引导页） -->
+  <wre-landing wx:if="{{!hasKey}}" bind:action="onStateAction" />
 
   <block wx:else>
     <!-- 归档入口（「我的 → 灵感漫游 · 往期归档」）：直接展示往期归档，不生成本期 -->
@@ -40,7 +32,7 @@
       </view>
       <template is="wanderHistory" data="{{history, canRoam}}" />
       <view class="wre-card"><button class="wre-btn" bindtap="goCurrent">看本期</button></view>
-      <view class="wre-muted statement">每期只按主题把你自己的划线 / 想法编排在一起，全部在本机排版；归档与收藏只存本机，不上云。</view>
+      <view class="wre-muted statement">每期只按主题把你自己的划线 / 想法编排在一起，全部在本机排版；归档与收藏同时备份到你的云端账号，换机 / 清缓存后可拉回。</view>
     </block>
 
     <block wx:else>
@@ -131,7 +123,7 @@
       <!-- 往期归档 + 随机漫游 -->
       <template is="wanderHistory" data="{{history, canRoam}}" />
 
-      <view class="wre-muted statement">每期只按主题把你自己的划线 / 想法编排在一起，全部在本机排版；归档与收藏只存本机，不上云。</view>
+      <view class="wre-muted statement">每期只按主题把你自己的划线 / 想法编排在一起，全部在本机排版；归档与收藏同时备份到你的云端账号，换机 / 清缓存后可拉回。</view>
     </block>
 
     <!-- 未解锁：门槛进度引导 -->

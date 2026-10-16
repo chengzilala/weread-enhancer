@@ -51,7 +51,7 @@ function doShare() {
       { label: '已读完', value: (counts.finished || 0) + ' 本' },
     ],
     lines: books.slice(0, 3).map((b) => '《' + (b.title || '未命名') + '》' + (b.author ? ' · ' + b.author : '')),
-    footer: (profile.nickName ? profile.nickName + ' · ' : '') + '微信悦读 · 本机计算',
+    footer: (profile.nickName ? profile.nickName + ' · ' : '') + '微信悦读 · reader.chesterlee.cn',
     text: '我的书架',
   };
   presentShareImage(

@@ -55,7 +55,7 @@ GALLERY_THUMB_QUALITY = 82
 
 # 帮助文档站：除这几个「官网页面」留在根目录外，其余内容页统一挂到 /docs/ 下
 # （参考 flomo 101：官网只讲「是什么」，用法教程独立成一个文档站）
-SITE_SLUGS = {"", "about", "gallery", "privacy", "feedback"}
+SITE_SLUGS = {"", "about", "essay", "gallery", "privacy", "feedback"}
 DOCS_DIR = "docs"
 
 CALLOUT_TITLES = {
@@ -67,7 +67,6 @@ CALLOUT_TITLES = {
     "caution": "注意",
     "important": "重要",
     "danger": "警告",
-    "essay": "创作手记",
 }
 
 
@@ -619,6 +618,7 @@ def render_footer():
         links.append('<a href="/docs/start/">安装插件</a>')
     links.append('<a href="/docs/">帮助文档</a>')
     links.append('<a href="/docs/changelog/">更新日志</a>')
+    links.append('<a href="/essay/">创作手记</a>')
     links.append('<a href="/account/">我的账户</a>')
     links.append('<a href="/privacy/">隐私政策</a>')
     if CONFIG.get("personalSiteUrl"):
@@ -921,7 +921,8 @@ def render_home(page):
         "把手上的「微信悦读」装到桌面、像 App 一样用：电脑（Windows / Mac）装成桌面应用，手机 H5 与微信小程序也能加到桌面，桌面图标一点就开。含 Windows / Mac、iPhone、安卓全步骤。",
     )
 
-    # 微信小程序入口（预留：配置 miniappUrl 后变为可点击，否则为占位按钮）
+    # 微信小程序入口（已上线）：配置 miniappUrl 时按钮跳外链；否则鼠标悬停自动浮出小程序码、点击看大图
+    # （浏览器本身打不开小程序，只能扫码 / 微信里搜名字）
     miniapp_url = CONFIG.get("miniappUrl") or ""
     if miniapp_url:
         miniapp_item = home_action_item(
@@ -931,9 +932,12 @@ def render_home(page):
         )
     else:
         miniapp_item = home_action_item(
-            '<span class="home-btn home-btn-soon">微信小程序</span>',
-            "即将开放",
-            "微信小程序正在审核上线，敬请期待。想现在就在手机上用，可点旁边的「H5 移动端」。",
+            '<a class="home-btn wre-gal-link" href="#miniapp-qr" role="button"'
+            ' data-full="/assets/img/miniapp-qr.png"'
+            ' data-hover="1"'
+            ' data-cap="微信小程序「悦读且住」 · 用微信扫码打开">微信小程序</a>',
+            "微信里 · 读完复盘（无 AI）",
+            "已上线：在微信里搜「悦读且住」就能打开，或点按钮扫码。复盘数据、阅读人格、行为报告，还能管理纸质书。合规精简版，不含 AI。",
         )
 
     # 开源地址（GitHub / Gitee）：与「安装到 Edge」同排、同款按钮
@@ -1376,7 +1380,7 @@ def build():
 
     # 1) 页面：官网页（含首页）用 layout.html；帮助文档页用 docs.html（VuePress 版式）
     # 部分页面名已由顶部导航体现，正文区不再重复输出大标题
-    no_main_title = {"gallery", "faq", "changelog", "start"}
+    no_main_title = {"gallery", "faq", "changelog", "start", "about"}
     for p in PAGES:
         if p["base_slug"] == "":
             # 首页：大图落地页（Hero + 功能大图区 + CTA），开启滚动渐入
@@ -1385,7 +1389,14 @@ def build():
         elif p["base_slug"] in SITE_SLUGS:
             body_html = render_markdown(p["body"], p)
             content = ("" if p["base_slug"] in no_main_title else article_header(p)) + body_html
-            html_text = render_layout(p, content, extra_class="has-sidebar" if p["section"] else "")
+            # 「创作手记」独立页用专属窄栏排版（见 site.css 的 .essay）
+            if p["base_slug"] == "essay":
+                extra_class = "essay"
+            elif p["section"]:
+                extra_class = "has-sidebar"
+            else:
+                extra_class = ""
+            html_text = render_layout(p, content, extra_class=extra_class)
         else:
             # 帮助文档页（/docs/…）：标题 + 正文
             content = article_header(p) + render_markdown(p["body"], p)

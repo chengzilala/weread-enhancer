@@ -3,20 +3,26 @@
   <view class="wre-card desktop-card">
     <view class="wre-title">📲 加到手机桌面，像 App 一样用</view>
     <view class="wre-muted">加到桌面后，从图标一点就直接打开本小程序，不用每次翻微信找入口。安卓手机可以把小程序加到桌面；iPhone 不能把小程序加到桌面，但可以加到「我的小程序」，一样方便。</view>
-    <view class="desktop-guide__group" wx:for="{{desktopGuideGroups}}" wx:key="title">
-      <view class="desktop-guide__group-title">{{item.title}}</view>
-      <view
-        class="desktop-guide__row"
-        wx:for="{{item.steps}}"
-        wx:for-item="step"
-        wx:for-index="idx"
-        wx:key="*this"
-      >
-        <view class="desktop-guide__no">{{idx + 1}}</view>
-        <view class="desktop-guide__text">{{step}}</view>
-      </view>
+    <view class="desktop-guide__toggle" bindtap="toggleDesktopGuide">
+      <text class="desktop-guide__toggle-text">点开看安卓 / iPhone 的分步操作</text>
+      <text class="desktop-guide__toggle-arrow">{{showDesktopGuide ? '▴' : '▾'}}</text>
     </view>
-    <view class="desktop-guide__tip">若桌面没看到图标，左右翻页找一下，或用桌面搜索「悦读且住」。加到「我的小程序」后，在微信首页下拉就能快速打开。</view>
+    <view wx:if="{{showDesktopGuide}}" class="desktop-guide__body">
+      <view class="desktop-guide__group" wx:for="{{desktopGuideGroups}}" wx:key="title">
+        <view class="desktop-guide__group-title">{{item.title}}</view>
+        <view
+          class="desktop-guide__row"
+          wx:for="{{item.steps}}"
+          wx:for-item="step"
+          wx:for-index="idx"
+          wx:key="*this"
+        >
+          <view class="desktop-guide__no">{{idx + 1}}</view>
+          <view class="desktop-guide__text">{{step}}</view>
+        </view>
+      </view>
+      <view class="desktop-guide__tip">若桌面没看到图标，左右翻页找一下，或用桌面搜索「悦读且住」。加到「我的小程序」后，在微信首页下拉就能快速打开。</view>
+    </view>
   </view>
 
   <!-- 我的资料（可选）：仅本机 -->
@@ -75,7 +81,7 @@
   <!-- 微信读书 API Key -->
   <view class="wre-card">
     <view class="wre-title">API Key</view>
-    <view class="wre-muted">Key 仅保存在本机；调用时经微信云函数中转访问官方接口，不存储、不记录。</view>
+    <view class="wre-muted">Key 会在本机缓存一份用于直连，同时加密托管到你的云端账号（换手机 / 退出后可一键恢复）；调用时经微信云函数中转访问官方接口，不记录。</view>
 
     <view class="settings-status" wx:if="{{hasKey}}">
       当前已配置：<text class="settings-mask">{{masked}}</text>
@@ -114,6 +120,36 @@
   </view>
 
   <!-- M15 合规下线：原 Key 输入区块已移除 -->
+
+  <!-- 用户凭证：账户码 + 云端托管（换机 / 重装 / 退出后恢复账号用） -->
+  <view class="wre-card">
+    <view class="wre-title">🔑 我的凭证</view>
+    <view class="wre-muted">账户码是你账号的唯一凭证：换手机、重装微信、或退出登录后，用它即可找回账号与数据。请复制保存到安全处（例如备忘录）。</view>
+
+    <view class="params__row" wx:if="{{myCode}}">
+      <text class="params__label">账户码</text>
+      <text class="params__value">{{showCode ? myCode : myCodeMasked}}</text>
+    </view>
+
+    <view class="settings-actions">
+      <button class="wre-btn wre-btn--ghost" wx:if="{{!myCode}}" loading="{{codeBusy}}" bindtap="onEnsureCode">生成账户码</button>
+      <button class="wre-btn wre-btn--ghost" wx:if="{{myCode}}" bindtap="onToggleCode">{{showCode ? '隐藏' : '显示'}}</button>
+      <button class="wre-btn" wx:if="{{myCode}}" bindtap="onCopyCode">复制保存</button>
+    </view>
+
+    <view class="settings-status">云端 Key：{{hosted ? '已加密托管' : '未托管'}}　·　网页账户：{{linked ? '已关联' : '未关联'}}</view>
+
+    <view class="settings-status settings-status--ok" wx:if="{{hosted && !hasKey}}">检测到云端有你的账号，可一键恢复到本机。</view>
+    <button class="wre-btn" wx:if="{{hosted && !hasKey}}" loading="{{restoring}}" bindtap="onRestoreAccount">恢复我的账号</button>
+
+    <view class="settings-link" bindtap="goLink">
+      <view class="settings-link__main">
+        <text class="settings-link__label">关联 / 跨设备登录</text>
+        <text class="settings-link__desc">在网页端扫码或粘贴账户码，两端共用账号</text>
+      </view>
+      <text class="settings-link__arrow">›</text>
+    </view>
+  </view>
 
   <!-- 相关入口：四端互联；小程序内无法直接打开网页，点击为「复制链接 + 弹窗提示」 -->
   <view class="wre-card">
@@ -222,9 +258,17 @@
   <view class="wre-card">
     <view class="wre-title">说明</view>
     <view class="settings-help">1. 微信读书 API Key：在微信读书 App →「我」→「微信读书 Skill」页面复制（wrk- 开头）。</view>
-    <view class="settings-help">2. Key 只存手机本地，卸载小程序或清理微信缓存后会丢失，需要重新填写。</view>
+    <view class="settings-help">2. Key 会在本机缓存一份，并加密托管到你的云端账号；卸载小程序、清理微信缓存或换手机后，可用「我的凭证」一键恢复。</view>
     <view class="settings-help">3. 清除 Key 后，首页 / 人格 / 报告 / 书架会回到引导状态。</view>
     <view class="settings-help">4. 头像昵称可选，仅存本机、不上传。</view>
-    <view class="settings-help">5. 阅读报告、阅读人格、每日卡片、灵感漫游均为本机按固定规则计算与整理，结果只保存在本机（阅读人格可选择存到云端用于换机找回）。</view>
+    <view class="settings-help">5. 阅读报告、阅读人格、每日卡片、灵感漫游、纸书归档均为本机按固定规则计算与整理；除阅读报告外，结果会按你的账号加密存一份在云端，用于换机 / 退出后找回。</view>
+  </view>
+
+  <!-- 退出登录：清空本机数据，云端账号与数据保留（对齐 H5「退出登录」） -->
+  <view class="wre-card">
+    <view class="wre-title">退出登录</view>
+    <view class="wre-muted">退出会清除本机保存的 API Key、头像昵称与本机缓存（每日卡片 / 灵感漫游 / 纸书归档等）；云端账号与数据会保留，下次可用「我的凭证」一键恢复。「外观」「文字大小」等设备偏好会保留。</view>
+    <button class="wre-btn wre-btn--ghost signout-btn" loading="{{signingOut}}" bindtap="onSignOut">退出登录</button>
+    <view class="wre-muted">小程序没有账号密码，这里的「退出登录」= 把本机属于你的数据一键清空，方便换人或重新开始；你的云端账号不受影响。</view>
   </view>
 </view>

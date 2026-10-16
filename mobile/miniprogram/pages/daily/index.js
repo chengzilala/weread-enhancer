@@ -44,8 +44,20 @@ Page({
     if (!hasKey) {
       return;
     }
+    this.bootstrap();
+  },
+
+  // 本机无历史时先从云端拉回（换机 / 恢复账号后），再进入正常流程
+  async bootstrap() {
+    if (!db.listCards().length) {
+      try {
+        await db.restoreFromCloud();
+      } catch (e) {
+        // 云端无数据 / 不可用时按本机处理
+      }
+      this.setData({ regenLeft: db.regenLeft() });
+    }
     if (this.archiveMode) {
-      // 归档入口：只列本机历史卡片，不自动生成今天的卡片
       this.loadHistory();
       return;
     }

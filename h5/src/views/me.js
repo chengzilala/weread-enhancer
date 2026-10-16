@@ -14,7 +14,7 @@ import { getMask, setMask, getProfile, setProfile, getDeviceId, setDeviceId, res
 import { esc, toast, copyText, confirmSignOut } from '../ui.js';
 import { keyGuideHtml } from '../key-guide.js';
 import { qrSvg } from '../qrcode.js';
-import { desktopGuideBodyHtml } from '../desktop-guide.js';
+import { desktopGuideHtml } from '../desktop-guide.js';
 import { CONFIG } from '../config.js';
 import { openArchive as openDailyArchive } from './daily.js';
 import { openArchive as openWanderArchive } from './wander.js';
@@ -190,13 +190,13 @@ function paint(body) {
     '<div class="wre-note">微信悦读 H5 · 数据与人格全部在你的浏览器本机计算；Key 由你自建的云函数加密托管，昵称托管后可跨设备同步，两者都能一键清除。</div>';
 }
 
-/** 「加到手机桌面」卡片：置顶，新手也能照做（iOS Safari / 安卓浏览器分步） */
+/** 「装到桌面」卡片：置顶，新手也能照做（电脑 / iOS Safari / 安卓浏览器分步） */
 function desktopCard() {
   return (
     '<div class="wre-card wre-card--desktop">' +
-    '  <div class="wre-card__title">📲 加到手机桌面，像 App 一样用</div>' +
-    '  <div class="wre-muted">加到桌面后，从图标点开就是一个独立窗口，没有浏览器地址栏，和 App 几乎一样；网页本身不占内存。</div>' +
-    desktopGuideBodyHtml() +
+    '  <div class="wre-card__title">📲 装到桌面，像 App 一样用</div>' +
+    '  <div class="wre-muted">装到桌面后，从图标点开就是一个独立窗口，没有浏览器地址栏，和 App 几乎一样；网页本身不占内存。电脑（Windows / Mac）和手机都能装。</div>' +
+    desktopGuideHtml({ summary: '点开看 电脑 / iPhone / 安卓 的分步操作' }) +
     '</div>'
   );
 }

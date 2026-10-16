@@ -53,6 +53,18 @@ export function render(root, app) {
   S.error = '';
   S.reason = '';
   S.aiError = '';
+  bootstrap(body, app);
+}
+
+// 本机无归档时先从云端拉回（换机 / 恢复账号后），再进入正常流程
+async function bootstrap(body, app) {
+  if (!db.listIssues().length) {
+    try {
+      await db.restoreFromCloud();
+    } catch (e) {
+      // 云端无数据 / 不可用时按本机处理
+    }
+  }
   if (S.mode === 'archive') {
     // 归档模式：只列往期，不读取 / 生成本期
     S.loading = false;
@@ -425,7 +437,7 @@ function archiveListHtml() {
 }
 
 function statementHtml() {
-  return '<div class="wre-note">每期只按主题把你自己的划线 / 想法编排在一起，全部在本机排版；归档与收藏只存本机，不上云。</div>';
+  return '<div class="wre-note">每期只按主题把你自己的划线 / 想法编排在一起，全部在本机排版；归档与收藏同时备份到你的云端账号，换机 / 清缓存后可拉回。</div>';
 }
 
 function rulesHtml() {
@@ -587,7 +599,7 @@ function shareSpec(v) {
     lines: v.summary ? [v.summary] : [],
     quote: first ? { text: first.text, from: '《' + (first.title || '') + '》' + (first.author ? ' · ' + first.author : '') } : null,
     chips: [v.theme, v.tierName ? v.tierName + ' 档' : ''].filter(Boolean),
-    footer: (profile.nickName ? profile.nickName + ' · ' : '') + '微信悦读 · 本机计算',
+    footer: (profile.nickName ? profile.nickName + ' · ' : '') + '微信悦读 · reader.chesterlee.cn',
   };
 }
 

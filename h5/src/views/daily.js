@@ -51,6 +51,18 @@ export function render(root, app) {
   S.error = '';
   S.reason = '';
   S.aiError = '';
+  bootstrap(body, app);
+}
+
+// 本机无历史时先从云端拉回（换机 / 恢复账号后），再进入正常流程
+async function bootstrap(body, app) {
+  if (!db.listCards().length) {
+    try {
+      await db.restoreFromCloud();
+    } catch (e) {
+      // 云端无数据 / 不可用时按本机处理
+    }
+  }
   if (S.mode === 'archive') {
     // 归档模式：只列历史卡片，不自动生成今天的卡片
     paint(body);
@@ -327,7 +339,7 @@ function archiveListHtml() {
 }
 
 function statementHtml() {
-  return '<div class="wre-note">卡片只排布你自己的划线原文、出处，以及按主题规则召回的同主题旧划线；全部在本机排版，只存本机、不上云。</div>';
+  return '<div class="wre-note">卡片只排布你自己的划线原文、出处，以及按主题规则召回的同主题旧划线；全部在本机排版，并备份到你的云端账号，换机 / 清缓存后可拉回。</div>';
 }
 
 // ---- 交互 ----
@@ -432,7 +444,7 @@ function shareSpec(view) {
     },
     lines: view.note ? [view.note] : [],
     chips: view.themes || [],
-    footer: (profile.nickName ? profile.nickName + ' · ' : '') + '微信悦读 · 本机计算',
+    footer: (profile.nickName ? profile.nickName + ' · ' : '') + '微信悦读 · reader.chesterlee.cn',
   };
 }
 

@@ -20,7 +20,7 @@
   });
 })();
 
-// 图片灯箱：点击图库缩略图看大图（零依赖，Esc / 点背景 / 点关闭按钮退出）
+// 图片灯箱：点击图库缩略图 / 小程序码按钮看大图（零依赖，Esc / 点背景 / 点关闭按钮退出）
 (function () {
   "use strict";
 
@@ -66,7 +66,8 @@
   links.forEach(function (a) {
     a.addEventListener("click", function (e) {
       e.preventDefault();
-      open(a.getAttribute("data-full") || a.getAttribute("href"), a.getAttribute("title") || "");
+      open(a.getAttribute("data-full") || a.getAttribute("href"),
+           a.getAttribute("data-cap") || a.getAttribute("title") || "");
     });
   });
 
@@ -80,6 +81,62 @@
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape" && box.classList.contains("open")) closeBox();
   });
+})();
+
+// 悬停预览：鼠标移到带 data-hover 的按钮上，自动浮出大图（目前用于首页「微信小程序」弹出小程序码）
+// 触屏 / 无悬停设备不启用；点按钮仍走上面的灯箱看大图
+(function () {
+  "use strict";
+
+  var links = document.querySelectorAll("a[data-hover]");
+  if (!links.length) return;
+  if (window.matchMedia && !window.matchMedia("(hover: hover)").matches) return;
+
+  var card = document.createElement("div");
+  card.className = "wre-hover-card";
+
+  var img = document.createElement("img");
+  img.alt = "";
+
+  var cap = document.createElement("p");
+  cap.className = "wre-hover-cap";
+
+  card.appendChild(img);
+  card.appendChild(cap);
+  document.body.appendChild(card);
+
+  var shown = false;
+
+  function show(a) {
+    if (!img.getAttribute("src")) img.src = a.getAttribute("data-full") || a.getAttribute("href");
+    var text = a.getAttribute("data-cap") || a.getAttribute("title") || "";
+    cap.textContent = text;
+    cap.style.display = text ? "" : "none";
+
+    // 卡片常驻布局（opacity:0），故此处能量到宽度；先定位再显示，避免闪一下
+    var r = a.getBoundingClientRect();
+    var w = card.offsetWidth;
+    var left = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 8));
+    card.style.left = (left + window.pageXOffset) + "px";
+    card.style.top = (r.bottom + window.pageYOffset + 10) + "px";
+    card.classList.add("open");
+    shown = true;
+  }
+
+  function hide() {
+    if (!shown) return;
+    card.classList.remove("open");
+    shown = false;
+  }
+
+  links.forEach(function (a) {
+    a.addEventListener("mouseenter", function () { show(a); });
+    a.addEventListener("mouseleave", hide);
+    a.addEventListener("focus", function () { show(a); });
+    a.addEventListener("blur", hide);
+    a.addEventListener("click", hide);
+  });
+  window.addEventListener("resize", hide);
 })();
 
 // 滚动渐入：元素进入视口时加 .wre-in 触发渐入 + 轻微上移（原生 IntersectionObserver）

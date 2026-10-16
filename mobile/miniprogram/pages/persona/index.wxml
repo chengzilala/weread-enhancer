@@ -2,16 +2,8 @@
   <!-- 分享图绘制画布（移出屏幕外，不可见） -->
   <canvas type="2d" id="shareCanvas" class="share-canvas"></canvas>
 
-  <!-- 无 Key 引导 -->
-  <wre-state
-    wx:if="{{!hasKey}}"
-    type="nokey"
-    text="还没有配置微信读书 API Key"
-    sub="配置后即可算出你的「阅读人格」"
-    action="去配置 Key"
-    actionType="settings"
-    bind:action="onStateAction"
-  />
+  <!-- 无 Key 引导：介绍页（对齐 H5 引导页） -->
+  <wre-landing wx:if="{{!hasKey}}" bind:action="onStateAction" />
 
   <block wx:else>
     <!-- 加载中 -->

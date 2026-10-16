@@ -20,7 +20,7 @@ const ACCENT_SOFT = '#F1EDFF';
 const LINE = '#E8EBF0';
 const FONT = 'sans-serif';
 
-const BRAND = '悦读且住';
+const BRAND = '微信悦读 · reader.chesterlee.cn';
 
 const TIER_COLOR = { copper: '#C08A3E', silver: '#8A93A6', gold: '#C9962B' };
 

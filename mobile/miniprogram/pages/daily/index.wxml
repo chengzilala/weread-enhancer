@@ -2,16 +2,8 @@
   <!-- 分享图绘制画布（移出屏幕外，不可见） -->
   <canvas type="2d" id="shareCanvas" class="share-canvas"></canvas>
 
-  <!-- 无 Key 引导 -->
-  <wre-state
-    wx:if="{{!hasKey}}"
-    type="nokey"
-    text="还没有配置微信读书 API Key"
-    sub="配置后即可用你的历史划线生成每日卡片"
-    action="去配置 Key"
-    actionType="settings"
-    bind:action="onStateAction"
-  />
+  <!-- 无 Key 引导：介绍页（对齐 H5 引导页） -->
+  <wre-landing wx:if="{{!hasKey}}" bind:action="onStateAction" />
 
   <block wx:else>
     <!-- 归档入口（「我的 → 每日卡片 · 往期回顾」）：直接展示往期回顾列表，不生成今天的卡片 -->
@@ -31,7 +23,7 @@
         <view wx:else class="wre-muted">还没有往期卡片。每天打开一次「每日卡片」，就会在本机攒下一张，这里按日期倒序排好。</view>
         <button class="wre-btn" bindtap="goToday">看今天的卡片</button>
       </view>
-      <view class="wre-muted statement">卡片只排布你自己的划线原文、出处，以及按主题规则召回的同主题旧划线；全部在本机排版，只存本机、不上云。</view>
+      <view class="wre-muted statement">卡片只排布你自己的划线原文、出处，以及按主题规则召回的同主题旧划线；全部在本机排版，并备份到你的云端账号，换机 / 清缓存后可拉回。</view>
     </block>
 
     <block wx:else>
@@ -137,7 +129,7 @@
         </view>
       </view>
 
-      <view class="wre-muted statement">卡片只排布你自己的划线原文、出处，以及按主题规则召回的同主题旧划线；全部在本机排版，只存本机、不上云。</view>
+      <view class="wre-muted statement">卡片只排布你自己的划线原文、出处，以及按主题规则召回的同主题旧划线；全部在本机排版，并备份到你的云端账号，换机 / 清缓存后可拉回。</view>
     </block>
     </block>
   </block>

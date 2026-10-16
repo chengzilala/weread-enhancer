@@ -5,11 +5,14 @@
  * 并把小程序「无 btoa 手写 base64」换成浏览器原生 btoa）。
  * ⚠️ 算法单一来源：改这里请同步小程序端，避免两端口径漂移。
  * 图片无法继承 currentColor，故墨色/点缀色取固定值。
- * 墨色固定 #1F2430；点缀色默认 #2F6BFF（品牌蓝，与页面 / 分享图统一）。
+ * 页面里按当前明暗取色：浅色底用深墨，深色底用浅墨（否则暗色卡片上「看不见」）；
+ * 生成分享图时底色是浅色，固定用深墨 #1F2430 + 主题蓝 #2F6BFF。
  */
 
-const INK = '#1F2430';       // 线描墨色
-const ACCENT = '#2F6BFF';    // 品牌点缀色
+const INK = '#1F2430';         // 线描墨色（浅色底）
+const ACCENT = '#2F6BFF';      // 品牌点缀色（浅色底）
+const INK_DARK = '#C7CCD6';    // 线描墨色（深色底）
+const ACCENT_DARK = '#4E86FF'; // 品牌点缀色（深色底）
 
 // 线描插画底稿：圆框 + 肩颈 + 头 + 五官（线条颜色用占位符，生成时替换）
 const FIGURE_FRAME =
@@ -120,8 +123,8 @@ const FIGURE_PARTS = {
   },
 };
 
-// 生成某型的线描插画 SVG 字符串；accent 可选，缺省用品牌蓝
-export function personaFigureSvg(code, accent) {
+// 生成某型的线描插画 SVG 字符串；accent / ink 可选，缺省用浅色底配色（主题蓝 + 深墨）
+export function personaFigureSvg(code, accent, ink) {
   const part = FIGURE_PARTS[code];
   if (!part) {
     return '';
@@ -129,11 +132,16 @@ export function personaFigureSvg(code, accent) {
   const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" fill="none" stroke-linecap="round" stroke-linejoin="round">' +
     FIGURE_FRAME + (part.back || '') + FIGURE_HEAD + (part.front || '') +
     '</svg>';
-  return svg.replace(/__INK__/g, INK).replace(/__ACCENT__/g, accent || ACCENT);
+  return svg.replace(/__INK__/g, ink || INK).replace(/__ACCENT__/g, accent || ACCENT);
 }
 
-// 转为可直接给 <img src> 的 Data URI
-export function personaFigureDataUri(code) {
-  const svg = personaFigureSvg(code);
+// 页面用：按当前明暗直接出图（dark=true 走深色底配色，暗色卡片上才看得见）
+export function personaFigureSvgThemed(code, dark) {
+  return dark ? personaFigureSvg(code, ACCENT_DARK, INK_DARK) : personaFigureSvg(code);
+}
+
+// 转为可直接给 <img src> 的 Data URI；dark=true 时用深色底配色
+export function personaFigureDataUri(code, dark) {
+  const svg = personaFigureSvgThemed(code, dark);
   return svg ? 'data:image/svg+xml;base64,' + btoa(svg) : '';
 }

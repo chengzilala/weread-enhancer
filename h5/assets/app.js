@@ -77,11 +77,16 @@ const app = {
 };
 
 function renderTabbar() {
-  tabbarEl.innerHTML = TABS.map((t) =>
-    '<button class="wre-tab" data-tab="' + t.key + '">' +
-    '<span class="wre-tab__icon">' + t.icon + '</span>' +
-    '<span class="wre-tab__label">' + t.label + '</span>' +
-    '</button>').join('');
+  tabbarEl.innerHTML =
+    '<div class="wre-sidebar__brand">' +
+    '  <span class="wre-sidebar__logo">📖</span>' +
+    '  <span class="wre-sidebar__name">' + CONFIG.APP_NAME + '</span>' +
+    '</div>' +
+    TABS.map((t) =>
+      '<button class="wre-tab" data-tab="' + t.key + '">' +
+      '<span class="wre-tab__icon">' + t.icon + '</span>' +
+      '<span class="wre-tab__label">' + t.label + '</span>' +
+      '</button>').join('');
   tabbarEl.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-tab]');
     if (btn) {
@@ -109,9 +114,20 @@ function setHeaderVisible(visible) {
   }
 }
 
+/**
+ * 标记「是否处于应用内」（五栏 Tab / 二级页）。
+ * 桌面两栏布局（≥720px，见 app.css）据此决定是否显示左侧导航栏：
+ * 应用内 → 显示；引导页 / 配置页 / 分享页 → 保持居中单列。
+ * 移动端此标记不产生任何视觉影响（媒体查询不命中）。
+ */
+function setAppChrome(on) {
+  document.body.classList.toggle('wre-app', !!on);
+}
+
 function renderTab(key) {
   current = key;
   const tab = findTab(key) || TABS[0];
+  setAppChrome(true);
   setHeaderVisible(true);
   setChromeVisible(true);
   setActiveTab(tab.key);
@@ -125,6 +141,7 @@ function renderTab(key) {
 function renderSecondary(key) {
   current = key;
   const item = findSecondary(key);
+  setAppChrome(true);
   setHeaderVisible(true);
   setChromeVisible(false);
   setActiveTab('');
@@ -137,6 +154,7 @@ function renderSecondary(key) {
 /** 只读分享页：隐藏 TabBar，由分享视图自行渲染（免 Key 门槛） */
 function renderShare(code) {
   current = 'share';
+  setAppChrome(false);
   setHeaderVisible(true);
   setChromeVisible(false);
   setActiveTab('');
@@ -165,6 +183,7 @@ async function route() {
 
   const state = await resolveKeyState();
   if (!state.ok) {
+    setAppChrome(false);
     setHeaderVisible(true);
     setChromeVisible(false);
     viewEl.innerHTML = '<div class="wre-page">' + stateHtml('error', state.error || '连接中转服务失败', '重试') + '</div>';
@@ -174,6 +193,7 @@ async function route() {
   if (!state.hasKey) {
     // 未配 Key：默认展示引导页（讲清楚这是什么、怎么开始）；
     // 点「开始使用」后进入 #/setup 配置页填 Key。
+    setAppChrome(false);
     if (current === SETUP_KEY) {
       renderKeySetup(state.offline);
     } else {

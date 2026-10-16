@@ -407,7 +407,7 @@ Page({
       codeItems: codeItems,
       full: persona.full,
       figure: persona.figure,
-      figureUri: personaFigureDataUri(persona.code),
+      figureUri: personaFigureDataUri(persona.code, this.data.wreDark),
       nicknames: persona.nicknames,
       oneLiner: persona.oneLiner,
       dims: dimsView,

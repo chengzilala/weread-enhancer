@@ -317,6 +317,37 @@
   background: var(--wre-brand-soft);
 }
 
+/* 分步说明折叠条（默认收起，视觉对齐 .key-guide 的可点标题） */
+.desktop-guide__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24rpx;
+  padding: 22rpx 24rpx;
+  background: var(--wre-card-2);
+  border: 1rpx solid var(--wre-line);
+  border-radius: 24rpx;
+}
+
+.desktop-guide__toggle-text {
+  flex: 1;
+  font-size: calc(26rpx * var(--wre-fs));
+  font-weight: 600;
+  color: var(--wre-brand);
+}
+
+.desktop-guide__toggle-arrow {
+  flex: none;
+  margin-left: 16rpx;
+  font-size: calc(24rpx * var(--wre-fs));
+  color: var(--wre-muted);
+}
+
+.desktop-guide__body {
+  margin-top: 8rpx;
+  padding: 0 24rpx 8rpx;
+}
+
 .desktop-guide__group {
   margin-top: 24rpx;
 }
@@ -360,5 +391,12 @@
   font-size: calc(24rpx * var(--wre-fs));
   line-height: 1.65;
   color: var(--wre-muted);
+}
+
+/* 退出登录：危险操作按钮（描边 + 危险色，与普通操作区分） */
+.wre-btn.signout-btn {
+  margin-top: 28rpx;
+  color: var(--wre-danger);
+  border-color: var(--wre-danger);
 }
 

@@ -146,3 +146,14 @@ export function sharePut(kind, payload) {
 export function shareGet(code) {
   return call({ action: 'shareGet', code: code || '' });
 }
+
+// ---- 用户数据落库（每日卡片 / 灵感漫游 / 纸书归档）----
+/** 取回某类数据（云端无数据时 value 为 null） */
+export function udataGet(kind) {
+  return call({ action: 'udataGet', kind: kind });
+}
+
+/** 写入某类数据（覆盖该分区，保留其它分区） */
+export function udataPut(kind, value) {
+  return call({ action: 'udataPut', kind: kind, value: value });
+}

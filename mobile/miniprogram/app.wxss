@@ -159,3 +159,9 @@ page {
   color: var(--wre-on-brand);
   font-weight: 600;
 }
+
+/* 原生 input / textarea：不设 color 时默认黑字，深色底上会「看不见」；统一继承主题文字色 */
+input,
+textarea {
+  color: var(--wre-text);
+}

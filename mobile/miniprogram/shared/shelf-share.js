@@ -24,7 +24,7 @@ const LINE = '#E8EBF0';
 const MUTED = '#A8ADB8';
 const FONT = 'sans-serif';
 
-const BRAND = '悦读且住';
+const BRAND = '微信悦读 · reader.chesterlee.cn';
 const BRAND_SUB = '基于我的微信读书数据生成';
 const RECENT_MAX = 12;   // 最近在读最多展示本数（分享图多列几本，减少留白）
 

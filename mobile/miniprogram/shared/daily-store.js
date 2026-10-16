@@ -1,13 +1,15 @@
 /**
  * 每日卡片回顾（M11）· 本机存储 + 每日限流
  *
- * 只存本机、不上云；换机 / 清缓存即丢失（与 API Key 同口径）。
+ * 本机为唯一数据源；同时静默备份到云端（集合 `wre_udata` 的 daily 分区，按身份隔离），
+ * 换机 / 清缓存 / 退出登录后可拉回。
  * 存储键沿用 `wre_` 前缀：
  *   - wre_daily_cards：卡片历史（每天至多 1 张，最多保留 HISTORY_MAX 张，可回看 / 收藏）
  *   - wre_daily_used ：已用素材集合（{hashKey: ts}，用于连续多日不重复）
  *   - wre_daily_quota：当日「重新生成」次数
  */
 const { hashKey, dateKey } = require('./daily-core');
+const udata = require('./udata');
 
 const CARDS_KEY = 'wre_daily_cards';
 const USED_KEY = 'wre_daily_used';
@@ -44,10 +46,12 @@ function markUsed(text) {
   const used = getUsed();
   used[hashKey(text)] = Date.now();
   writeJson(USED_KEY, used);
+  backupSilent();
 }
 
 function resetUsed() {
   writeJson(USED_KEY, {});
+  backupSilent();
 }
 
 function usedCount() {
@@ -73,6 +77,7 @@ function bumpRegen() {
   const quota = getQuota();
   quota.regen += 1;
   writeJson(QUOTA_KEY, quota);
+  backupSilent();
   return Math.max(0, REGEN_LIMIT - quota.regen);
 }
 
@@ -87,6 +92,7 @@ function saveCard(card) {
   const cards = listCards().filter((item) => item && item.date !== card.date);
   cards.unshift(card);
   writeJson(CARDS_KEY, { cards: cards.slice(0, HISTORY_MAX) });
+  backupSilent();
 }
 
 function getTodayCard() {
@@ -122,7 +128,44 @@ function starCard(id) {
     }
   });
   writeJson(CARDS_KEY, { cards: cards });
+  backupSilent();
   return starred;
+}
+
+// ---- 云端备份 / 恢复（换机 / 清缓存 / 退出登录后拉回；失败静默）----
+
+/** 备份快照：一次性打包三类本机数据 */
+function cloudSnapshot() {
+  return { cards: listCards(), used: getUsed(), quota: getQuota() };
+}
+
+/** 静默备份（不 await；失败不打扰用户） */
+function backupSilent() {
+  udata.backupSilent(udata.KIND.DAILY, cloudSnapshot());
+}
+
+/** 从云端恢复（仅本机无卡片时写入，避免覆盖本机较新数据）→ { ok, restored, count } */
+function restoreFromCloud() {
+  return udata.get(udata.KIND.DAILY).then((res) => {
+    if (!res.ok || !res.value) {
+      return { ok: false, code: (res && res.code) || 'empty' };
+    }
+    const v = res.value;
+    if (!v || !Array.isArray(v.cards) || !v.cards.length) {
+      return { ok: false, code: 'empty' };
+    }
+    if (listCards().length) {
+      return { ok: true, restored: false, count: 0 };
+    }
+    writeJson(CARDS_KEY, { cards: v.cards.slice(0, HISTORY_MAX) });
+    if (v.used && typeof v.used === 'object') {
+      writeJson(USED_KEY, v.used);
+    }
+    if (v.quota && v.quota.date) {
+      writeJson(QUOTA_KEY, v.quota);
+    }
+    return { ok: true, restored: true, count: v.cards.length };
+  });
 }
 
 module.exports = {
@@ -139,4 +182,6 @@ module.exports = {
   getTodayCard,
   getCardById,
   starCard,
+  backupSilent,
+  restoreFromCloud,
 };

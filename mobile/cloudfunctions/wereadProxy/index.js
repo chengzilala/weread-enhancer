@@ -23,6 +23,13 @@
  *  13. action: 'profilePut'   —— 小程序端把昵称写入已绑定账户（随账户在网页端可见）。
  *  14. action: 'sharePut'     —— 生成只读分享短链（H5 与小程序共用，写入集合 `wre_shares`）。
  *  15. action: 'shareGet'     —— 凭短码取回分享内容（任何人可读，无需 Key / openid）。
+ *  16. action: 'udataGet/Put' —— 用户数据落库（每日卡片 / 灵感漫游 / 纸书归档，写集合 `wre_udata`，
+ *                               按身份：账户码优先、openid 兜底；换机 / 清缓存后可拉回）。
+ *  17. action: 'relay'        —— 网关中转（用**托管 Key** 按身份代发，前端不再传明文 Key）。
+ *  18. action: 'keySave'      —— Key 加密托管（{apiKey?, aiKey?}，按身份写集合 `wre_users`）。
+ *  19. action: 'keyGet'       —— 只回「是否已配置 + 掩码 + 昵称」（绝不回明文）。
+ *  20. action: 'keyPull'      —— 把托管 Key 明文回传本机（换机 / 退出后「一键恢复账号」用）。
+ *  21. action: 'keyClear'     —— 清除云端托管的 Key（保留昵称，不动本机数据）。
  *
  * H5（纯网页 App）走 HTTP 访问服务，`handleHttp` 额外支持：
  *   - action: 'relay'         —— 用托管 Key 走官方网关中转（{deviceId, apiName, params}）；
@@ -34,6 +41,7 @@
  *   - action: 'keyClear'      —— 清除托管 Key（{deviceId}）；
  *   - action: 'profileSave'   —— 保存昵称（{deviceId, nickName}，非敏感，随账户走）；
  *   - action: 'syncGet/Put'   —— 人格结果按 deviceId 云同步；
+ *   - action: 'udataGet/Put'  —— 用户数据落库（每日卡片 / 灵感漫游 / 纸书归档，按 deviceId）；
  *   - action: 'bindCreate'    —— 网页端生成一次性绑定码（{deviceId} → {code, expireAt}）；
  *   - action: 'bindStatus'    —— 网页端查询本账户是否已被小程序绑定（{deviceId} → {linked}）；
  *   - action: 'bindRemove'    —— 网页端解除绑定（{deviceId}）；
@@ -56,6 +64,8 @@
  *      权限选「仅创建者可读写」。（函数也会尝试自动创建，但手动建更稳妥。）
  *      「我的纸书」云端备份同理，用集合 `wre_paperbooks`（权限同样选「仅创建者可读写」，
  *      函数也会尝试自动创建，但手动建更稳妥）。
+ *      「用户数据落库」（每日卡片 / 灵感漫游 / 纸书归档）用集合 `wre_udata`（权限同样选
+ *      「仅创建者可读写」，函数也会尝试自动创建，但手动建更稳妥）。
  *   ③ M13 运营看板：在「云开发控制台 → 数据库」新建集合 `wre_ops_daily`
  *      （权限选「仅管理端可读写」）；在「云函数 → wereadProxy → 配置 → 环境变量」新增
  *      `ADMIN_OPENIDS`（值＝你自己的 openid，多个用英文逗号分隔），否则看板对任何人都不下发；
@@ -108,6 +118,11 @@ const SYNC_MAX_BYTES = 400 * 1024;
 
 // 我的纸书：按 openid 隔离的云端备份（只存纸书档案：isbn/title/关联 bookId 等，不含任何 Key）
 const PB_COLLECTION = 'wre_paperbooks';
+
+// 用户数据落库（每日卡片 / 灵感漫游 / 纸书归档）：按身份（账户码优先、openid 兜底）一个文档，
+// 分区存 daily / wander / paperbook，换机 / 清缓存后可拉回。红线：只存用户自己的内容，不含任何 Key。
+const UDATA_COLLECTION = 'wre_udata';
+const UDATA_KINDS = ['daily', 'wander', 'paperbook'];
 
 // 运营统计（M13）：只存「聚合计数 + 去重键」，保留 90 天，到期只留计数
 const OPS_COLLECTION = 'wre_ops_daily';
@@ -432,17 +447,31 @@ async function handlePaperbook(event) {
   if (!openid) {
     return { ok: false, code: 'noopenid', error: '未取到用户标识（需已开通云开发）' };
   }
+  // 已关联网页账户 → 按账户码存取（与其它用户数据同一身份口径）；未关联则退回 openid
+  const uid = (await resolveLinkDeviceId(openid)) || openid;
+  const legacyId = uid === openid ? '' : openid;   // 老数据曾按 openid 存，读取时兼容迁移
   const db = cloud.database();
   const coll = db.collection(PB_COLLECTION);
 
   if (event && event.action === 'pbGet') {
     try {
-      const r = await coll.doc(openid).get();
-      return { ok: true, books: (r.data && r.data.books) || [] };
+      const r = await coll.doc(uid).get();
+      const books = (r.data && r.data.books) || null;
+      if (books) {
+        return { ok: true, books: books };
+      }
     } catch (err) {
       // 文档不存在（或集合还没建）都按「云端暂无备份」处理
-      return { ok: true, books: [] };
     }
+    // 迁移：账户码下没有，但老 openid 文档有 → 搬到账户码名下
+    if (legacyId) {
+      const old = await readDoc(PB_COLLECTION, legacyId);
+      if (old && Array.isArray(old.books) && old.books.length) {
+        await writeDoc(PB_COLLECTION, uid, { books: old.books, updatedAt: old.updatedAt || Date.now() });
+        return { ok: true, books: old.books };
+      }
+    }
+    return { ok: true, books: [] };
   }
 
   const books = event && Array.isArray(event.books) ? event.books : null;
@@ -454,16 +483,94 @@ async function handlePaperbook(event) {
     return { ok: false, code: 'toobig', error: '纸书过多、数据过大，未备份' };
   }
   try {
-    await coll.doc(openid).set({ data: payload });
+    await coll.doc(uid).set({ data: payload });
   } catch (err) {
     try {
       await db.createCollection(PB_COLLECTION);
-      await coll.doc(openid).set({ data: payload });
+      await coll.doc(uid).set({ data: payload });
     } catch (err2) {
       return { ok: false, code: 'sync', error: '备份写入失败：' + ((err2 && err2.errMsg) || '未知错误') };
     }
   }
   return { ok: true, updatedAt: payload.updatedAt, count: books.length };
+}
+
+// ---------- 用户数据落库（每日卡片 / 灵感漫游 / 纸书归档） ----------
+
+/** 归一化数据类型（非法返回空串） */
+function normalizeUdataKind(kind) {
+  const k = String(kind || '').trim();
+  return UDATA_KINDS.indexOf(k) >= 0 ? k : '';
+}
+
+/**
+ * udataCore：用户生成内容落库的公共实现（小程序 / H5 共用）。
+ *   - udataGet：取回某分区数据（不存在返回 null）；
+ *   - udataPut：写入 / 覆盖某分区数据（保留其它分区，只动 kind 这一块）。
+ * 红线：只存用户自己的内容，不含任何 Key、不含官方接口原始数据。
+ */
+async function udataCore(action, kindRaw, value, uid) {
+  const kind = normalizeUdataKind(kindRaw);
+  if (!kind) {
+    return { ok: false, code: 'param', error: '缺少或非法的数据类型' };
+  }
+  const db = cloud.database();
+  const coll = db.collection(UDATA_COLLECTION);
+
+  if (action === 'udataGet') {
+    try {
+      const r = await coll.doc(uid).get();
+      return { ok: true, value: (r.data && r.data[kind]) || null, updatedAt: (r.data && r.data.updatedAt) || 0 };
+    } catch (err) {
+      // 文档不存在（或集合还没建）都按「云端无数据」处理
+      return { ok: true, value: null, updatedAt: 0 };
+    }
+  }
+
+  if (value === undefined || value === null) {
+    return { ok: false, code: 'param', error: '缺少待保存数据' };
+  }
+  const doc = (await readDoc(UDATA_COLLECTION, uid)) || {};
+  const base = Object.assign({}, doc);
+  delete base._id;   // 云开发文档自带 _id，回写时必须剔除，否则报 -501007
+  const now = Date.now();
+  const patch = { createdAt: doc.createdAt || now, updatedAt: now };
+  patch[kind] = value;
+  const payload = Object.assign({}, base, patch);
+  if (JSON.stringify(payload).length > SYNC_MAX_BYTES) {
+    return { ok: false, code: 'toobig', error: '数据过大，未保存' };
+  }
+  try {
+    await coll.doc(uid).set({ data: payload });
+  } catch (err) {
+    await ensureCollection(db, UDATA_COLLECTION);
+    try {
+      await coll.doc(uid).set({ data: payload });
+    } catch (err2) {
+      return { ok: false, code: 'sync', error: '保存失败：' + ((err2 && err2.errMsg) || '未知错误') };
+    }
+  }
+  return { ok: true, updatedAt: now };
+}
+
+/**（小程序）udataGet / udataPut：按身份（账户码优先、openid 兜底）落库用户数据 */
+async function handleUdata(event) {
+  const ctx = cloud.getWXContext();
+  const openid = ctx && ctx.OPENID;
+  if (!openid) {
+    return { ok: false, code: 'noopenid', error: '未取到用户标识（需已开通云开发）' };
+  }
+  const uid = (await resolveLinkDeviceId(openid)) || openid;
+  return await udataCore(event && event.action, event && event.kind, event && event.value, uid);
+}
+
+/**（H5）udataGet / udataPut：按账户码（deviceId）落库用户数据，与小程序同一集合 */
+async function handleH5Udata(body) {
+  const deviceId = cleanDeviceId(body && body.deviceId);
+  if (!validDeviceId(deviceId)) {
+    return { ok: false, code: 'nodevice', error: '缺少或非法的账户码' };
+  }
+  return await udataCore(body && body.action, body && body.kind, body && body.value, deviceId);
 }
 
 // ---------- 我的纸书：拍照识码（M2，云调用 img.scanQRCode） ----------
@@ -931,6 +1038,83 @@ async function handleKeyClear(body) {
   return { ok: true };
 }
 
+// ---------- 小程序：Key 加密托管（按身份：账户码优先、openid 兜底） ----------
+//
+// 与 H5 共用同一集合 wre_users：绑定网页账户后 uid = 账户码（与 H5 同一份托管 Key，两端互通）；
+// 未绑定时 uid = openid。前端不再持有 / 传递明文 Key（网关代发时按身份取托管 Key）。
+// 红线：Key 密文入库（AES-256-GCM），明文仅在内存中使用，绝不回传 / 不写日志。
+
+/** 小程序侧身份：已关联网页账户返回账户码，否则返回 openid */
+async function resolveMpUid() {
+  const ctx = cloud.getWXContext();
+  const openid = ctx && ctx.OPENID;
+  if (!openid) {
+    return '';
+  }
+  return (await resolveLinkDeviceId(openid)) || openid;
+}
+
+/**（小程序）keySave：把用户填写的 Key 加密托管到云端 */
+async function handleMpKeySave(event) {
+  const uid = await resolveMpUid();
+  if (!uid) {
+    return { ok: false, code: 'noopenid', error: '未取到用户标识（需已开通云开发）' };
+  }
+  return await handleKeySave({ deviceId: uid, apiKey: event && event.apiKey, aiKey: event && event.aiKey });
+}
+
+/**（小程序）keyGet：只回「是否已配置 + 掩码 + 昵称」，绝不回明文 */
+async function handleMpKeyGet() {
+  const uid = await resolveMpUid();
+  if (!uid) {
+    return { ok: false, code: 'noopenid', error: '未取到用户标识（需已开通云开发）' };
+  }
+  return await handleKeyGet({ deviceId: uid });
+}
+
+/**（小程序）keyClear：清除云端托管的 Key（保留昵称；不动本机数据） */
+async function handleMpKeyClear() {
+  const uid = await resolveMpUid();
+  if (!uid) {
+    return { ok: false, code: 'noopenid', error: '未取到用户标识（需已开通云开发）' };
+  }
+  return await handleKeyClear({ deviceId: uid });
+}
+
+/**
+ *（小程序）keyPull：把托管 Key 的**明文**回传到本机
+ *
+ * 用途：换机 / 重装微信 / 退出登录后「一键恢复账号」时把 Key 拉回本机（此后网关直发）。
+ * 安全：与 H5 keyPull 同口径——持账户码即等同可抄走 Key；仅用户在本机主动恢复时调用。
+ */
+async function handleMpKeyPull() {
+  const uid = await resolveMpUid();
+  if (!uid) {
+    return { ok: false, code: 'noopenid', error: '未取到用户标识（需已开通云开发）' };
+  }
+  return await handleKeyPull({ deviceId: uid });
+}
+
+/**
+ *（小程序）relay：网关中转，用**托管 Key** 代发（前端不再传明文 Key）。
+ * 兼容旧客户端：若仍传了 apiKey 则按原逻辑直发。
+ */
+async function handleMpRelay(event) {
+  const provided = String((event && event.apiKey) || '').trim();
+  if (provided) {
+    return await relayGateway(event);
+  }
+  const uid = await resolveMpUid();
+  if (!uid) {
+    return { ok: false, code: 'noopenid', error: '未取到用户标识（需已开通云开发）' };
+  }
+  const got = await getHostedKey(uid, 'enc');
+  if (!got.ok) {
+    return { ok: false, code: got.code, error: got.error };
+  }
+  return await relayGateway({ apiName: event && event.apiName, params: (event && event.params) || {}, apiKey: got.key });
+}
+
 /** H5 relay：用托管 Key 走官方网关中转（响应不含明文 Key） */
 async function handleH5Relay(body) {
   const got = await getHostedKey(body && body.deviceId, 'enc');
@@ -1123,29 +1307,58 @@ async function findBindSession(code) {
   }
 }
 
-/** 首次绑定：账户侧还没有人格时，把本机（openid）已算好的人格搬过去（绝不覆盖账户已有数据） */
-async function migratePersonaOnBind(openid, deviceId) {
-  if (openid === deviceId) {
+/** 首次绑定 / 解绑时把迁移对象的用户数据搬一份（逐字段 / 逐分区补缺，绝不覆盖已有数据） */
+async function migrateUserDocs(fromId, toId) {
+  if (!fromId || !toId || fromId === toId) {
     return;
   }
-  const target = await readDoc(SYNC_COLLECTION, deviceId);
-  if (target && target.persona) {
-    return;
+  // 人格（wre_sync）
+  const syncSrc = await readDoc(SYNC_COLLECTION, fromId);
+  if (syncSrc && syncSrc.persona) {
+    const syncDst = await readDoc(SYNC_COLLECTION, toId);
+    if (!syncDst || !syncDst.persona) {
+      await writeDoc(SYNC_COLLECTION, toId, { persona: syncSrc.persona, updatedAt: syncSrc.updatedAt || Date.now() });
+    }
   }
-  const local = await readDoc(SYNC_COLLECTION, openid);
-  if (local && local.persona) {
-    await writeDoc(SYNC_COLLECTION, deviceId, { persona: local.persona, updatedAt: local.updatedAt || Date.now() });
+  // 托管 Key / 昵称（wre_users）：逐字段补缺，避免把已有 Key 覆盖掉
+  const userSrc = await readDoc(USERS_COLLECTION, fromId);
+  if (userSrc) {
+    const merged = Object.assign({}, (await readDoc(USERS_COLLECTION, toId)) || {});
+    delete merged._id;
+    ['enc', 'masked', 'aiEnc', 'aiMasked', 'nickName'].forEach((f) => {
+      if (!merged[f] && userSrc[f]) {
+        merged[f] = userSrc[f];
+      }
+    });
+    merged.updatedAt = Date.now();
+    if (!merged.createdAt) {
+      merged.createdAt = userSrc.createdAt || Date.now();
+    }
+    await writeDoc(USERS_COLLECTION, toId, merged);
   }
-}
-
-/** 解绑：把账户侧最新人格回搬本机（openid）侧，避免解绑后本机数据回退 */
-async function migratePersonaOnUnbind(openid, deviceId) {
-  if (openid === deviceId) {
-    return;
+  // 用户数据（wre_udata）：按分区补缺
+  const udataSrc = await readDoc(UDATA_COLLECTION, fromId);
+  if (udataSrc) {
+    const merged = Object.assign({}, (await readDoc(UDATA_COLLECTION, toId)) || {});
+    delete merged._id;
+    UDATA_KINDS.forEach((k) => {
+      if (!merged[k] && udataSrc[k]) {
+        merged[k] = udataSrc[k];
+      }
+    });
+    merged.updatedAt = Date.now();
+    if (!merged.createdAt) {
+      merged.createdAt = udataSrc.createdAt || Date.now();
+    }
+    await writeDoc(UDATA_COLLECTION, toId, merged);
   }
-  const acc = await readDoc(SYNC_COLLECTION, deviceId);
-  if (acc && acc.persona) {
-    await writeDoc(SYNC_COLLECTION, openid, { persona: acc.persona, updatedAt: acc.updatedAt || Date.now() });
+  // 纸书（wre_paperbooks）
+  const pbSrc = await readDoc(PB_COLLECTION, fromId);
+  if (pbSrc && Array.isArray(pbSrc.books) && pbSrc.books.length) {
+    const pbDst = await readDoc(PB_COLLECTION, toId);
+    if (!pbDst || !Array.isArray(pbDst.books) || !pbDst.books.length) {
+      await writeDoc(PB_COLLECTION, toId, { books: pbSrc.books, updatedAt: pbSrc.updatedAt || Date.now() });
+    }
   }
 }
 
@@ -1261,7 +1474,7 @@ async function handleAccountEnsure() {
   } catch (err) {
     return { ok: false, code: 'save', error: '账户码生成失败，请稍后重试' };
   }
-  await migratePersonaOnBind(openid, deviceId);
+  await migrateUserDocs(openid, deviceId);
   return { ok: true, deviceId: deviceId, created: true };
 }
 
@@ -1310,7 +1523,7 @@ async function handleBindClaim(event) {
   } catch (err) {
     return { ok: false, code: 'save', error: '绑定失败：' + ((err && err.errMsg) || '未知错误') };
   }
-  await migratePersonaOnBind(openid, deviceId);
+  await migrateUserDocs(openid, deviceId);
   return { ok: true, deviceId: deviceId };
 }
 
@@ -1338,7 +1551,7 @@ async function handleBindUnbind() {
   }
   const deviceId = await resolveLinkDeviceId(openid);
   if (deviceId) {
-    await migratePersonaOnUnbind(openid, deviceId);
+    await migrateUserDocs(deviceId, openid);
     await removeDoc(LINK_COLLECTION, 'l_' + openid);
     await removeDoc(LINK_COLLECTION, 'd_' + deviceId);
     await removeDoc(LINK_COLLECTION, 'b_' + deviceId);
@@ -1535,6 +1748,9 @@ async function handleHttp(event) {
   if (action === 'syncGet' || action === 'syncPut') {
     return httpReply(200, await handleH5Sync(body), origin);
   }
+  if (action === 'udataGet' || action === 'udataPut') {
+    return httpReply(200, await handleH5Udata(body), origin);
+  }
   if (action === 'bindCreate') {
     return httpReply(200, await handleBindCreate(body), origin);
   }
@@ -1576,6 +1792,21 @@ exports.main = async (event) => {
   if (action === 'syncGet' || action === 'syncPut') {
     return await handleSync(event);
   }
+  if (action === 'relay') {
+    return await handleMpRelay(event);
+  }
+  if (action === 'keySave') {
+    return await handleMpKeySave(event);
+  }
+  if (action === 'keyGet') {
+    return await handleMpKeyGet();
+  }
+  if (action === 'keyPull') {
+    return await handleMpKeyPull();
+  }
+  if (action === 'keyClear') {
+    return await handleMpKeyClear();
+  }
   if (action === 'bindClaim') {
     return await handleBindClaim(event);
   }
@@ -1593,6 +1824,9 @@ exports.main = async (event) => {
   }
   if (action === 'pbGet' || action === 'pbPut') {
     return await handlePaperbook(event);
+  }
+  if (action === 'udataGet' || action === 'udataPut') {
+    return await handleUdata(event);
   }
   if (action === 'imgScan') {
     return await handleImgScan(event);

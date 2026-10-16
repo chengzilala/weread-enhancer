@@ -242,30 +242,74 @@ a:hover { text-decoration: underline; }
 .callout-warning, .callout-caution, .callout-danger { border-left-color: #d9a441; }
 .callout-tip, .callout-hint { border-left-color: #7c9cff; }
 
-/* 「创作手记」：作者自述长文 —— 左侧竖线 + 更松的行距与段距，缓解长文阅读疲劳 */
-.callout-essay {
-  margin: 0 0 30px;
-  padding: 2px 0 2px 22px;
-  background: transparent;
-  border: 0;
-  border-left: 3px solid var(--accent);
-  border-radius: 0;
+/* ---------- 「创作手记」独立页（/essay/）：散文式窄栏阅读 ---------- */
+/* 页面收窄居中成单栏，行距与留白更松；标题居中、下方一道短绿线，
+   章节标题用左侧绿条分段，结尾署名句右对齐呼应——营造安静的阅读感。
+   配色全走变量，自动适配深色模式。 */
+/* 宽度与顶栏 / 页脚对齐（沿用 .site-body 的 --max-width），只调整上下留白 */
+.essay .site-body {
+  padding-top: 56px;
+  padding-bottom: 72px;
 }
-.callout-essay .callout-title {
-  margin: 0 0 16px;
-  padding-bottom: 6px;
-  font-size: 1.32em;
+.essay .doc { max-width: none; }
+
+/* 标题：居中大标 + 下方短绿线 */
+.essay .doc-header { margin-bottom: 42px; text-align: center; }
+.essay .doc-header h1 {
+  margin: 0;
+  font-size: clamp(1.9em, 3.6vw, 2.4em);
   font-weight: 700;
-  border-bottom: 1px solid var(--border);
+  line-height: 1.4;
+  letter-spacing: 0.05em;
 }
-.callout-essay .callout-body p {
-  margin: 0 0 15px;
-  line-height: 2;
+.essay .doc-header h1::after {
+  content: "";
+  display: block;
+  width: 46px;
+  height: 3px;
+  margin: 24px auto 0;
+  border-radius: 2px;
+  background: var(--accent);
 }
-.callout-essay .callout-body p:last-child { margin-bottom: 0; }
+
+/* 正文：字号略大、行距更松、段距更大 */
+.essay .doc p {
+  margin: 0 0 22px;
+  font-size: 1.04em;
+  line-height: 2.05;
+}
+
+/* 开篇导语：首段放大加重，像一句话把人带进来 */
+.essay .doc > p:first-of-type {
+  font-size: 1.2em;
+  line-height: 1.9;
+  letter-spacing: 0.01em;
+}
+
+/* 章节标题：去掉通栏分隔线，改成左侧绿色短条 + 更多上方留白 */
+.essay .doc h2 {
+  margin: 60px 0 22px;
+  padding: 0 0 0 16px;
+  font-size: 1.22em;
+  line-height: 1.5;
+  border: 0;
+  border-left: 4px solid var(--accent);
+  border-radius: 2px;
+}
+
+/* 结尾署名句（「这段文案我没有用AI。」）：右对齐、弱化，像落款 */
+.essay .doc > p:last-of-type {
+  margin: 44px 0 0;
+  color: var(--text-soft);
+  font-style: italic;
+  letter-spacing: 0.04em;
+  text-align: right;
+}
 
 @media (max-width: 767px) {
-  .callout-essay { padding-left: 16px; }
+  .essay .site-body { padding-top: 36px; padding-bottom: 48px; }
+  .essay .doc p { line-height: 1.95; }
+  .essay .doc h2 { margin-top: 46px; }
 }
 
 /* 卡片列表（栏目索引页）—— 加 .doc 前缀提升优先级，避免被 .doc ul 的 padding-left 顶开 */
@@ -390,8 +434,6 @@ a:hover { text-decoration: underline; }
 }
 
 /* ---------- 首页落地页（大图 · 极简 · 顺滑） ---------- */
-/* 小程序占位按钮：未配置链接时不可点（外形与悬停效果同按钮组，仅光标不回手型） */
-.home-btn.home-btn-soon { cursor: default; color: var(--text-soft); }
 
 /* 愿景横幅：无底色，白底上直接放深色书法大字（最极简、零割裂） */
 .home .site-body { padding-top: 26px; }
@@ -680,6 +722,28 @@ a:hover { text-decoration: underline; }
 }
 .wre-lightbox .wre-lb-close:hover { background: rgba(255, 255, 255, 0.3); }
 body.wre-lb-open { overflow: hidden; }
+
+/* ---------- 悬停预览卡（鼠标移到带 data-hover 的按钮上自动浮出大图，如小程序码） ---------- */
+.wre-hover-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 900;
+  width: 240px;
+  max-width: 80vw;
+  padding: 10px 10px 12px;
+  border-radius: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .24);
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .16s ease;
+}
+.wre-hover-card.open { opacity: 1; }
+.wre-hover-card img { display: block; width: 100%; height: auto; border-radius: 8px; }
+.wre-hover-card .wre-hover-cap { margin: 8px 2px 0; font-size: .82em; line-height: 1.5; color: var(--text-soft); }
 
 /* ---------- 我的账户页（/account/，与网页版共用同一套账户） ---------- */
 /* 与全站其他页面同宽同对齐（.site-body 内左对齐），不再单独限宽居中 */

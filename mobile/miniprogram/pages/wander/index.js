@@ -66,6 +66,18 @@ Page({
     if (!hasKey) {
       return;
     }
+    this.bootstrap();
+  },
+
+  // 本机无归档时先从云端拉回（换机 / 恢复账号后），再进入正常流程
+  async bootstrap() {
+    if (!db.listIssues().length) {
+      try {
+        await db.restoreFromCloud();
+      } catch (e) {
+        // 云端无数据 / 不可用时按本机处理
+      }
+    }
     // 往期归档始终先取一次（本地存档，不依赖本期状态）
     this.loadHistory();
     if (this.archiveMode && !this.data.viewingArchive) {

@@ -925,6 +925,7 @@
           listenActions +
           '<button class="wre-btn wre-btn-small" data-wre-notes-refresh>刷新</button>' +
           '<button class="wre-btn wre-btn-small" data-wre-notes-copy>复制笔记</button>' +
+          '<button class="wre-btn wre-btn-small" data-wre-notes-sync title="生成 Obsidian 规格 Markdown，放入你的笔记库">🔗 同步到 Obsidian</button>' +
           '<button class="wre-btn wre-btn-small" data-wre-notes-export="markdown">导出 Markdown</button>' +
           '<button class="wre-btn wre-btn-small" data-wre-notes-export="html">导出 HTML</button>' +
           '<button class="wre-btn wre-btn-small" data-wre-notes-export="pdf">导出 PDF</button>' +
@@ -1281,6 +1282,10 @@
     const copyBtn = event.target.closest('[data-wre-notes-copy]');
     if (copyBtn) {
       handleCopyNotes();
+      return;
+    }
+    if (event.target.closest('[data-wre-notes-sync]')) {
+      requestObsidianSync();
       return;
     }
     const exportBtn = event.target.closest('[data-wre-notes-export]');
@@ -2087,6 +2092,24 @@
       thoughts: data.thoughts.length,
       source: data.source,
     });
+  }
+
+  // ---------- 同步到 Obsidian（转交 modules/sync-notes.js） ----------
+  // 解耦：本模块只负责把「当前已加载（含搜索过滤）的数据」通过 document 自定义事件交出去，
+  // 渲染 / 弹层 / 下载均由 sync-notes.js 处理，避免把同步逻辑写进既有导出流程。
+  function requestObsidianSync() {
+    const data = currentFilteredData();
+    if (!data) {
+      toast('还没有可同步的笔记，先等数据读出来～');
+      logNotes('warn', '笔记数据未就绪，忽略同步请求');
+      return;
+    }
+    logNotes('info', '转交「笔记同步」模块处理', {
+      highlights: data.highlights.length,
+      thoughts: data.thoughts.length,
+      source: data.source,
+    });
+    document.dispatchEvent(new CustomEvent('wre-notes-sync-export', { detail: { data } }));
   }
 
   // ---------- 选中即复制 ----------

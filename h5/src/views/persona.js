@@ -8,7 +8,7 @@
 
 import { fetchReadData, fetchOverview, fetchCorpus } from '../data.js';
 import { getReadingPersona, personaYear } from '../core/persona-core.js';
-import { personaFigureSvg } from '../core/persona-figure.js';
+import { personaFigureSvgThemed } from '../core/persona-figure.js';
 import { generatePersonaPortrait } from '../ai.js';
 import { messageOf } from '../core/errors.js';
 import { esc, stateHtml, toast } from '../ui.js';
@@ -22,6 +22,11 @@ export const title = '阅读人格';
 let lastPersona = null;   // 最近一次算出的（视图）人格
 let aiText = '';          // AI 润色画像文本
 let aiBusy = false;
+
+/** 当前是否为深色主题（线描插画按明暗取色，深色底才看得见） */
+function isDark() {
+  return document.documentElement.getAttribute('data-theme') === 'dark';
+}
 
 export function render(root, app) {
   root.innerHTML = '<div class="wre-page" id="personaBody">' + stateHtml('loading', '正在本机计算你的阅读人格…') + '</div>';
@@ -209,7 +214,7 @@ function personaHtml(p) {
   const aiBlock = aiText ? '<div class="wre-persona__ai">' + esc(aiText) + '</div>' : '';
   const figure = p.figure
     ? '<div class="wre-persona__figurewrap">' +
-      '<div class="wre-persona__figure">' + personaFigureSvg(p.code) + '</div>' +
+      '<div class="wre-persona__figure">' + personaFigureSvgThemed(p.code, isDark()) + '</div>' +
       '<div class="wre-persona__figurename">' + esc(p.figure.name) + '</div>' +
       '</div>'
     : '';
@@ -304,7 +309,7 @@ function doShare() {
     subtitle: p.tagline || '',
     lines: [p.oneLiner].filter(Boolean),
     chips: (p.nicknames || []).slice(0, 6),
-    footer: (profile.nickName ? profile.nickName + ' · ' : '') + '微信悦读 · 本机计算',
+    footer: (profile.nickName ? profile.nickName + ' · ' : '') + '微信悦读 · reader.chesterlee.cn',
     text: '我的阅读人格 ' + (p.name || '') + ' · ' + (p.code || ''),
   };
   presentShareImage(

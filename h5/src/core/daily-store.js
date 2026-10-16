@@ -2,12 +2,14 @@
  * 每日卡片回顾（H11）· 本机存储 + 每日限流
  *
  * 来源：mobile/miniprogram/shared/daily-store.js（逐字移植，wx 存储 → localStorage）。
- * 只存本机、不上云；换机 / 清缓存即丢失。
+ * 本机为唯一数据源；同时静默备份到云端（集合 `wre_udata` 的 daily 分区，按账户码隔离），
+ * 换机 / 清缓存 / 退出登录后可拉回。
  * 存储键：wre_daily_cards（历史）/ wre_daily_used（已用素材）/ wre_daily_quota（当日重生成次数）。
  */
 
 import { localGet, localSet } from '../store.js';
 import { hashKey, dateKey } from './daily-core.js';
+import * as api from '../api.js';
 
 const CARDS_KEY = 'wre_daily_cards';
 const USED_KEY = 'wre_daily_used';
@@ -34,10 +36,12 @@ export function markUsed(text) {
   const used = getUsed();
   used[hashKey(text)] = Date.now();
   writeJson(USED_KEY, used);
+  backupSilent();
 }
 
 export function resetUsed() {
   writeJson(USED_KEY, {});
+  backupSilent();
 }
 
 export function usedCount() {
@@ -63,6 +67,7 @@ export function bumpRegen() {
   const quota = getQuota();
   quota.regen += 1;
   writeJson(QUOTA_KEY, quota);
+  backupSilent();
   return Math.max(0, REGEN_LIMIT - quota.regen);
 }
 
@@ -77,6 +82,7 @@ export function saveCard(card) {
   const cards = listCards().filter((item) => item && item.date !== card.date);
   cards.unshift(card);
   writeJson(CARDS_KEY, { cards: cards.slice(0, HISTORY_MAX) });
+  backupSilent();
 }
 
 export function getTodayCard() {
@@ -112,5 +118,48 @@ export function starCard(id) {
     }
   });
   writeJson(CARDS_KEY, { cards: cards });
+  backupSilent();
   return starred;
 }
+
+// ---- 云端备份 / 恢复（换机 / 清缓存 / 退出登录后拉回；失败静默）----
+
+/** 备份快照：一次性打包三类本机数据 */
+function cloudSnapshot() {
+  return { cards: listCards(), used: getUsed(), quota: getQuota() };
+}
+
+/** 静默备份（不 await；失败不打扰用户） */
+function backupSilent() {
+  try {
+    api.udataPut('daily', cloudSnapshot()).catch(() => {});
+  } catch (e) {
+    // 中转服务不可用等情况忽略
+  }
+}
+
+/** 从云端恢复（仅本机无卡片时写入，避免覆盖本机较新数据）→ { ok, restored, count } */
+function restoreFromCloud() {
+  return api.udataGet('daily').then((res) => {
+    if (!res || !res.ok || !res.value) {
+      return { ok: false, code: (res && res.code) || 'empty' };
+    }
+    const v = res.value;
+    if (!v || !Array.isArray(v.cards) || !v.cards.length) {
+      return { ok: false, code: 'empty' };
+    }
+    if (listCards().length) {
+      return { ok: true, restored: false, count: 0 };
+    }
+    writeJson(CARDS_KEY, { cards: v.cards.slice(0, HISTORY_MAX) });
+    if (v.used && typeof v.used === 'object') {
+      writeJson(USED_KEY, v.used);
+    }
+    if (v.quota && v.quota.date) {
+      writeJson(QUOTA_KEY, v.quota);
+    }
+    return { ok: true, restored: true, count: v.cards.length };
+  });
+}
+
+export { backupSilent, restoreFromCloud };

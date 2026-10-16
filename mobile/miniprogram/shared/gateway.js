@@ -5,21 +5,22 @@
  * 小程序端直连必失败；云函数出网不受小程序 request 合法域名白名单限制，正好代发。
  * 口径与插件 background.js 保持一致。
  *
+ * 身份与 Key：走 `action:'relay'`，云函数按身份取「托管 Key」代发；
+ *   本机传了 apiKey（如「校验新 Key」时）则用传入的，否则用云端托管 Key。
+ *
  * 返回 { ok:true, data, upgrade } 或 { ok:false, code, error }
  */
 const { PROXY_FUNCTION } = require('../config');
 
 function callGateway(apiName, params, apiKey) {
   return new Promise((resolve) => {
-    if (!apiKey) {
-      resolve({ ok: false, code: 'nokey', error: '尚未配置 API Key' });
-      return;
+    const data = { action: 'relay', apiName: apiName, params: params || {} };
+    // 仅「校验新 Key」等场景显式传 Key；日常调用不传，由云端用托管 Key 代发
+    if (apiKey) {
+      data.apiKey = apiKey;
     }
     wx.cloud
-      .callFunction({
-        name: PROXY_FUNCTION,
-        data: { apiName: apiName, params: params || {}, apiKey: apiKey },
-      })
+      .callFunction({ name: PROXY_FUNCTION, data: data })
       .then((res) => {
         const result = res && res.result;
         if (!result || typeof result.ok !== 'boolean') {

@@ -24,7 +24,8 @@ export const LINE = '#E8EBF0';
 export const MUTED = '#A8ADB8';
 export const FONT = 'sans-serif';
 
-export const BRAND = '悦读且住';
+// 品牌署名：插件 / H5 / 小程序三端统一为「品牌名 · 唯一出处域名」
+export const BRAND = '微信悦读 · reader.chesterlee.cn';
 export const BRAND_SUB = '基于我的微信读书数据生成';
 
 /** 署名副标题：有昵称时带昵称 */

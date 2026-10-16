@@ -1,0 +1,367 @@
+/* 引导页（landing）——对齐 H5 .wre-landing* 视觉；
+   颜色全部走 app.wxss 的 --wre-* 变量，深色模式自动适配 */
+
+.wre-landing {
+  display: block;
+  padding-bottom: 8rpx;
+}
+
+/* 顶部品牌条：logo + 名称 + 开始使用 */
+.wre-landing__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 20rpx 24rpx;
+  background: var(--wre-card);
+  border: 1rpx solid var(--wre-line);
+  border-radius: 28rpx;
+  box-shadow: 0 2rpx 12rpx rgba(31, 36, 48, 0.04);
+}
+
+.wre-landing__brand {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  min-width: 0;
+}
+
+.wre-landing__logo {
+  flex: none;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 20rpx;
+  background: var(--wre-brand);
+  color: var(--wre-on-brand);
+  font-size: calc(36rpx * var(--wre-fs));
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wre-landing__brand-text {
+  min-width: 0;
+}
+
+.wre-landing__brand-name {
+  font-size: calc(30rpx * var(--wre-fs));
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--wre-text);
+}
+
+.wre-landing__brand-sub {
+  margin-top: 4rpx;
+  font-size: calc(22rpx * var(--wre-fs));
+  color: var(--wre-muted);
+}
+
+.wre-landing__start {
+  flex: none;
+  height: 68rpx;
+  padding: 0 32rpx;
+  border-radius: 999rpx;
+  background: var(--wre-brand);
+  color: var(--wre-on-brand);
+  font-size: calc(26rpx * var(--wre-fs));
+  font-weight: 600;
+  line-height: 68rpx;
+}
+
+/* Hero */
+.wre-landing__hero {
+  text-align: center;
+  padding: 32rpx 4rpx 8rpx;
+}
+
+.wre-landing__title {
+  font-size: calc(46rpx * var(--wre-fs));
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--wre-text);
+}
+
+.wre-landing__lead {
+  margin-top: 20rpx;
+  font-size: calc(28rpx * var(--wre-fs));
+  line-height: 1.8;
+  color: var(--wre-text-3);
+}
+
+.wre-landing__hint {
+  margin-top: 20rpx;
+  font-size: calc(24rpx * var(--wre-fs));
+  line-height: 1.65;
+  color: var(--wre-muted);
+}
+
+/* 界面示意预览卡 */
+.wre-landing__preview {
+  margin-top: 32rpx;
+  padding: 28rpx;
+  background: var(--wre-card);
+  border: 1rpx solid var(--wre-line);
+  border-radius: 32rpx;
+  box-shadow: 0 2rpx 12rpx rgba(31, 36, 48, 0.04);
+}
+
+.wre-landing__preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.wre-landing__preview-status {
+  font-size: calc(26rpx * var(--wre-fs));
+  color: var(--wre-text-3);
+}
+
+.wre-landing__dot {
+  display: inline-block;
+  width: 16rpx;
+  height: 16rpx;
+  margin-right: 12rpx;
+  border-radius: 50%;
+  background: var(--wre-tag-fg);
+  vertical-align: middle;
+}
+
+.wre-landing__preview-tag {
+  flex: none;
+  padding: 4rpx 16rpx;
+  border: 1rpx solid var(--wre-line);
+  border-radius: 999rpx;
+  font-size: calc(22rpx * var(--wre-fs));
+  color: var(--wre-muted);
+}
+
+/* 通用两列网格（预览格 / 功能卡 / 隐私卡共用） */
+.wre-landing__grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+/* 预览里的指标格 */
+.wre-landing__cell {
+  width: 48%;
+  box-sizing: border-box;
+  background: var(--wre-card-2);
+  border: 1rpx solid var(--wre-line);
+  border-radius: 24rpx;
+  padding: 24rpx 28rpx;
+  margin-bottom: 20rpx;
+}
+
+.wre-landing__cell-value {
+  font-size: calc(40rpx * var(--wre-fs));
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--wre-text);
+}
+
+.wre-landing__unit {
+  margin-left: 6rpx;
+  font-size: calc(24rpx * var(--wre-fs));
+  font-weight: 500;
+  color: var(--wre-muted);
+}
+
+.wre-landing__cell-label {
+  margin-top: 8rpx;
+  font-size: calc(24rpx * var(--wre-fs));
+  color: var(--wre-muted);
+}
+
+/* 迷你趋势柱 */
+.wre-landing__trend {
+  display: flex;
+  align-items: flex-end;
+  height: 144rpx;
+  margin-top: 8rpx;
+}
+
+.wre-landing__bar {
+  flex: 1;
+  margin: 0 3rpx;
+  min-height: 6rpx;
+  background: var(--wre-bar);
+  border-radius: 6rpx 6rpx 0 0;
+}
+
+.wre-landing__bar.is-peak {
+  background: var(--wre-brand);
+}
+
+/* 分节标题 */
+.wre-landing__sec {
+  margin-top: 48rpx;
+}
+
+.wre-landing__sec-title {
+  font-size: calc(34rpx * var(--wre-fs));
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 24rpx;
+  padding-left: 20rpx;
+  border-left: 8rpx solid var(--wre-brand);
+  color: var(--wre-text);
+}
+
+/* 功能卡 / 隐私卡 */
+.wre-landing__card {
+  width: 48%;
+  box-sizing: border-box;
+  background: var(--wre-card);
+  border-radius: 28rpx;
+  padding: 28rpx 24rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 2rpx 12rpx rgba(31, 36, 48, 0.04);
+}
+
+.wre-landing__card-icon {
+  font-size: calc(40rpx * var(--wre-fs));
+  line-height: 1;
+}
+
+.wre-landing__card-title {
+  margin-top: 16rpx;
+  font-size: calc(28rpx * var(--wre-fs));
+  font-weight: 600;
+  color: var(--wre-text);
+}
+
+.wre-landing__card-desc {
+  margin-top: 8rpx;
+  font-size: calc(24rpx * var(--wre-fs));
+  line-height: 1.65;
+  color: var(--wre-muted);
+}
+
+/* 三步开始 */
+.wre-landing__step {
+  display: flex;
+  gap: 24rpx;
+  background: var(--wre-card);
+  border-radius: 28rpx;
+  padding: 28rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 2rpx 12rpx rgba(31, 36, 48, 0.04);
+}
+
+.wre-landing__step-no {
+  flex: none;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: var(--wre-brand);
+  color: var(--wre-on-brand);
+  font-size: calc(28rpx * var(--wre-fs));
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wre-landing__step-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.wre-landing__step-title {
+  font-size: calc(28rpx * var(--wre-fs));
+  font-weight: 600;
+  color: var(--wre-text);
+}
+
+.wre-landing__step-desc {
+  margin-top: 8rpx;
+  font-size: calc(24rpx * var(--wre-fs));
+  line-height: 1.65;
+  color: var(--wre-muted);
+}
+
+/* 「怎么拿到 Key」图文（可折叠） */
+.wre-landing__guide {
+  border: 1rpx solid var(--wre-line);
+  border-radius: 24rpx;
+  background: var(--wre-card);
+  overflow: hidden;
+}
+
+.wre-landing__guide-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 26rpx 28rpx;
+}
+
+.wre-landing__guide-summary {
+  font-size: calc(26rpx * var(--wre-fs));
+  color: var(--wre-text-3);
+}
+
+.wre-landing__guide-arrow {
+  flex: none;
+  font-size: calc(26rpx * var(--wre-fs));
+  color: var(--wre-muted);
+}
+
+.wre-landing__guide-body {
+  padding: 0 28rpx 28rpx;
+}
+
+.wre-landing__guide-step {
+  margin-top: 20rpx;
+}
+
+.wre-landing__guide-row {
+  display: flex;
+  gap: 16rpx;
+  align-items: flex-start;
+}
+
+.wre-landing__guide-no {
+  flex: none;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: var(--wre-brand-soft);
+  color: var(--wre-brand);
+  font-size: calc(24rpx * var(--wre-fs));
+  font-weight: 600;
+  text-align: center;
+  line-height: 40rpx;
+}
+
+.wre-landing__guide-text {
+  flex: 1;
+  min-width: 0;
+  font-size: calc(26rpx * var(--wre-fs));
+  line-height: 1.7;
+  color: var(--wre-text-body);
+}
+
+.wre-landing__guide-img {
+  width: 100%;
+  margin-top: 16rpx;
+  border-radius: 16rpx;
+  border: 1rpx solid var(--wre-line);
+}
+
+.wre-landing__guide-tip {
+  margin-top: 24rpx;
+  font-size: calc(24rpx * var(--wre-fs));
+  line-height: 1.7;
+  color: var(--wre-muted);
+}
+
+/* 底部 CTA */
+.wre-landing__cta {
+  text-align: center;
+  margin-top: 52rpx;
+}

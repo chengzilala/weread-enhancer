@@ -26,7 +26,7 @@ const LINE = '#E8EBF0';
 const MUTED = '#A8ADB8';
 const FONT = 'sans-serif';
 
-const BRAND = '悦读且住';
+const BRAND = '微信悦读 · reader.chesterlee.cn';
 const BRAND_SUB = '基于我的微信读书数据生成';
 
 // 圆角矩形路径（不依赖 ctx.roundRect 的平台支持）
