@@ -4,7 +4,7 @@
 - 仓库名称：weread-enhancer
 - 可见性：private
 - 本地目录：/Users/Admin/Knowledge/Coding/微信读书插件
-- 当前归档版本：v0.29.0（2026-10-14；**官网改版**：首页改 flomo 风格大图流、顶栏精简为 4 项 + 登录 + 绿色胶囊「装到 Edge」、新增帮助文档站 `/docs/`（VuePress 原味，左栏 emoji 目录树 + 上/下页）、40 个旧地址自动跳转到 `/docs/`、插件帮助中心入口改指 `/docs/`；删除 `web/demo/`）
+- 当前归档版本：v0.30.0（2026-10-16；**笔记同步**：新增 `modules/sync-notes.*`；**Key 加密托管**：小程序 `shared/keyvault.js` / `udata.js`；**分享图统一水印**：三端 13 处署名统一为 `微信悦读 · reader.chesterlee.cn`；小程序新增 `wre-landing` 组件；商店素材与 `screenshots/promo` 重生成；新增 `marketing/` 与 `tools/` 运营资产）
 
 ## 归档历史（Git Tags）
 
@@ -40,6 +40,7 @@
 | v0.28.0 | 6a06660 | 2026-10-11 | **多模型 AI 增强**：AI 增强支持 6 家国产大模型（DeepSeek 默认 / 通义千问 / Kimi / 智谱 GLM / 豆包 / 硅基流动），各 Key 分别保存、可「测试连接」、可填任意 OpenAI 兼容端点；**评论侧栏**新模块 `modules/reviews.js`（阅读页右侧按当前章节展示微信读书公开评论，复用同源 Cookie，免 Key / 免权限 / 只读不落盘）；**插件界面明暗主题**（`content.css` 顶部统一 `--wre-*` 设计 Token，浅色 / 深色 / 跟随系统）；**H5 云端语音** `h5/src/tts-cloud.js` + 云函数 `edge-tts`（Edge 神经语音合成 mp3，失败回退系统语音）；H5 引导页（独立导航 + ☀️/🌙 切换）与「如何获取 Key」图文；灵感漫游「往期归档」直达；云函数 `edge-tts` 签名版本对齐 `143.0.3650.75` 修复 403 握手 |
 | v0.28.2 | d0cf1b9 | 2026-10-14 | **域名切换自有域名**：官网 / H5 / 小程序 / 扩展统一改用 `reader.chesterlee.cn`（官网 / H5）与 `chesterlee.cn`（作者站），原 `*.maozi.io` 降为备用；**打赏公开名单**：官网新增 `/donate/` 页（`web/build.py` 新增 `render_donate_page()` / `load_donate()` / `fmt_amount()` / `avatar_color()`）+ 本地登记后台 `web/admin.py` + 数据 `web/donate.json` + 收款码图（`web|h5/assets/img/donate/`）；插件 `modules/support-center.js`、H5「我的」、小程序 `pages/settings/*` 均加跳转入口；`fix(h5)` 分享短链 `shareUrlOf` 固定用 `config.SITE_URL`；manifest 落到 `0.28.2` |
 | v0.29.0 | 57fab50 | 2026-10-14 | **官网改版（flomo 大图流）**：`web/build.py` 的 `render_home` 重写，首页标题区大留白 + 大图流上下排布，内容一个不少；`web/assets/site.css` 调色板 flomo 化（底 `#F2F2F2` / 品牌绿 `#1a8917` / `max-width:1200px`）；**顶栏精简为 4 项**（帮助文档 / 图库 / 关于 / 打赏）+ 右侧「登录」+ 绿色胶囊「装到 Edge」（`site.config.json` 的 `nav` 13 → 4，`render_nav()` 重写）；**新增帮助文档站 `/docs/`**（VuePress 原味：`web/templates/docs.html` + `web/assets/docs.css` + `docs.tree` 左栏 emoji 目录树、正文 740px、上/下页、移动端抽屉）；**官网 / 文档站分家**（`SITE_SLUGS` + `DOCS_DIR`，内容页统一进 `/docs/…`）；**40 个旧地址自动跳转**（`write_redirect()`）；`modules/help.js` 帮助中心入口改指 `/docs/`；删除 `web/demo/`；manifest 落到 `0.29.0` |
+| v0.30.0 | ce8e1ae | 2026-10-16 | 一个提交归档 v0.29.0 之后累积：**扩展笔记同步**（新增 `modules/sync-notes.js` + `sync-notes.css`，在 manifest 注册，`content.js` 一处菜单分流）；**API Key 改服务端加密托管**（小程序 `shared/keyvault.js` / `udata.js`，用户数据落云 `wre_udata`、Key 加密托管 `wre_users`，H5 同步）；**分享图统一「产品出处」水印**（三端 13 处署名统一为 `微信悦读 · reader.chesterlee.cn`）；小程序新增 `components/wre-landing/` 落地组件与多页更新；360 / 微软商店素材与 `screenshots/promo` 全部重生成；新增 `marketing/`（小红书 / 知乎 / 少数派 / 微信读书 App 渠道文案配图、发帖规范、软著申请材料）与 `tools/`（发帖 / 抓图脚本）；`.gitignore` 排除软著个人信息与生成产物；manifest 落到 `0.30.0` |
 
 **未打 Tag 的版本**：
 - v0.8.0（无独立提交）：商店追平版，改动未单独提交，已并入 v0.8.1 提交 `aecf919`；因无独立 commit，不单独补 tag。

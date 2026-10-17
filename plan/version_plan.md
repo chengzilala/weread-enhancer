@@ -3,7 +3,7 @@
 > **文档类型**：版本历程 + 未来规划  
 > **项目仓库**：[chengzilala/weread-enhancer](https://github.com/chengzilala/weread-enhancer)  
 > **版本规则**：`v主.次.补`（语义化简化）  
-> **最后更新**：2026-10-14
+> **最后更新**：2026-10-16
 
 ---
 
@@ -677,6 +677,25 @@
 - 删除 `web/demo/` 演示目录（选定方案已落地正式站，演示代码不再保留）
 
 **里程碑**：官网完成 flomo 风格改版，帮助内容独立成站，观感对齐 VuePress，且旧链接零失效。
+
+---
+
+### v0.30.0 — 笔记同步 + Key 加密托管 + 分享图统一水印（2026-10-16）
+
+> manifest.json 版本号：`0.29.0` → `0.30.0`；Git Tag `v0.30.0`（提交 `ce8e1ae`）
+> 需求：`plan/RPD_笔记同步_需求文档.md`、`plan/可行性分析_笔记同步.md`
+
+**本版本改动**：
+- **扩展新增「笔记同步」**：新增 `modules/sync-notes.js` + `modules/sync-notes.css`，在 `manifest.json` 的 `content_scripts` 注册（`content.js` 增加一处菜单分流，旧逻辑不动）
+- **API Key 改服务端加密托管**：小程序 `shared/keyvault.js` / `udata.js`（用户数据落云 `wre_udata`、Key 加密托管 `wre_users`），H5 同步改造
+- **分享图统一「产品出处」水印**：三端 13 处生成器底部署名统一为 `微信悦读 · reader.chesterlee.cn`（小程序端原为「悦读且住」、H5 原为「本机计算」）
+- **小程序**：新增 `components/wre-landing/` 落地组件；`pages/*` 与 `shared/*` 多处更新（每日卡片 / 灵感漫游 / 人格 / 设置等）
+- **素材重生成**：`release/360-素材/`、`release/微软商店-上传/`、`screenshots/promo/` 按新视觉全部重出
+- **运营资产入库**：新增 `marketing/`（小红书 / 知乎 / 少数派 / 微信读书 App 各渠道文案与配图、发帖规范、软著申请材料与脚本）与 `tools/`（发帖 / 抓图脚本）
+- **文档**：新增笔记同步 RPD 与可行性分析、小程序隐私保护指引补充文档；会话日志回灌
+- **`.gitignore`**：排除软著个人信息（`form_data.json`、`申请信息清单.md`）与生成产物（`软著申请/输出/`）、临时文件
+
+**里程碑**：笔记可跨端同步，Key 改为加密托管（配合隐私政策如实声明），三端分享图带统一产品出处水印。
 
 ---
 
