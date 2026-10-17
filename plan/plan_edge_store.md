@@ -334,38 +334,38 @@ The extension is open source: https://github.com/chengzilala/weread-enhancer
 | 处理动作 | ① 取消在审的 v0.27.4 → 该提交转为草稿；② 把草稿包替换为 v0.28.0（已验证）；③ 修正隐私页：`storage` 理由（原被一段旧英文功能清单污染、顶满 1000 字）+ 主机权限理由（补全新增的 `dashscope/moonshot/bigmodel/volces/siliconflow`、`*.tcloudbase.com`、可选 `https://*/*`）；④ 单一用途描述「DeepSeek Key」→「自选 AI 模型 Key」；⑤ 商店描述 DeepSeek → 多模型表述（中 1 处 / 英 2 处）；⑥ 提交页「认证说明」选「无需测试凭据」 |
 | 审核状态 | ✅ **已上架（Live）**（2026-10-16 复核后台显示 `版本 0.28.0 Live`） |
 
-### 📝 商店描述文案 · 格式优化（2026-10-16 · 已写入 v0.29.1 草稿并保存）
+### 📝 商店描述文案 · 格式优化（2026-10-16 · 已写入 v0.30.0 草稿并保存）
 | 项 | 记录 |
 |---|---|
 | 改动 | 中文详细描述：① 顶部加「🌐 官方网站：https://reader.chesterlee.cn」；② 每条功能前加 emoji，去掉 Markdown 的 `**` 与 `-`（商店页不渲染 Markdown，原样显示会带星号/短横）；③ 条目之间与板块之间加空行分段；④ 底部加「👤 个人说明：INTJ · 现居深圳 · 信息化PM × 独立开发者（AI 产品）」 |
 | 顺手修正 | 「帮助你**打造**…网页阅读体验」重复用词 → 「帮助你**获得**…」；「可选接入 DeepSeek Key」→「可选接入**自选国产大模型** Key」（与代码一致：`modules/official.js` 支持 DeepSeek / 智谱 GLM / 豆包（火山方舟）/ 硅基流动等，仅国产） |
 | 位置 | 本文件「步骤 3」的「详细描述文案（中文）」 |
-| 生效时点 | 已写入本次 v0.29.1 草稿的 Store 一览（中文）并「保存草稿」落库；待 v0.29.1 发布上线后对用户可见 |
+| 生效时点 | 已写入本次 v0.30.0 草稿的 Store 一览（中文）并「保存草稿」落库；待 v0.30.0 发布上线后对用户可见 |
 | 未改 | 英文描述（如需同步加官网 / emoji，另行说明） |
 
-### v0.29.1｜本次 · 已就绪，待发布（2026-10-16）
+### v0.30.0｜本次 · 已就绪，待发布（2026-10-16）
 | 项 | 记录 |
 |---|---|
-| 提交版本 | **v0.29.1** |
+| 提交版本 | **v0.30.0** |
 | 提交日期 | 2026-10-16 |
-| 提交包 | `release/weread-enhancer-v0.29.1.zip`（`pack.py` 打包，36 个运行文件，1,441,101 字节；包内 `manifest.json` 版本 = 0.29.1 已校验） |
+| 提交包 | `release/weread-enhancer-v0.30.0.zip`（`pack.py` 打包，38 个运行文件，1,447,872 字节；包内 `manifest.json` 版本 = 0.30.0 已校验，含 `modules/sync-notes.*`） |
 | 上次商店版本 | v0.28.0（Live） |
-| 本次要点 | 在途改动打包（`content.css` / `content.js` / `modules/reviews.css` / `modules/reviews.js`）+ 商店文案换新 |
-| 处理动作 | ① 从线上版本 v0.28.0 点「更新」建草稿（当天无在审版本，无需取消）；② 替换包为 v0.29.1（后台显示「已验证当前程序包」、无错误警告）；③ Store 一览（中文）换新格式文案并点「保存草稿」落库（重载核验生效）；④ 认证说明选「不需要，测试人员无需附加信息即可访问和测试所有功能」 |
+| 本次要点 | 与 git tag `v0.30.0` 同版：**笔记同步** `modules/sync-notes.*` + 笔记/评论模块更新 + 商店文案换新（草稿先按 v0.29.1 建，随后按发布计划整体升级为 v0.30.0 重传） |
+| 处理动作 | ① 从线上版本 v0.28.0 点「更新」建草稿（当天无在审版本，无需取消）；② 先注入 v0.29.1，后替换为 **v0.30.0**（后台显示「已验证当前程序包」、无错误警告）；③ Store 一览（中文）换新格式文案并点「保存草稿」落库（重载核验生效）；④ 认证说明选「不需要，测试人员无需附加信息即可访问和测试所有功能」 |
 | 属性页网站 | 「网站」字段 = `https://reader.chesterlee.cn/`（新官网，重载核验持久化；旧域名 `wereadapp-32km31c.maozi.io` 已停用） |
-| 平台核验 | 可用性 = 公用 / 241 个市场全选 / 未来市场开；5 个提交步骤全绿勾、无红点；隐私页无可见报错；程序包权限含全部 10 条主机权限 |
+| 平台核验 | 可用性 = 公用 / 241 个市场全选 / 未来市场开；5 个提交步骤全绿勾、无红点；隐私页无可见报错；程序包权限含全部 **9 条主机权限** + 可选 `https://*/*` |
 | 审核状态 | ⏸ **已停在最终「发布」前**，由用户亲手点发布（红线：AI 不代点） |
 
 ### ⏭️ 下一步
-> v0.29.1 草稿已就绪，**停在「发布」前交用户点**。点发布后进入「正在审阅（In review）」，通过后即为线上版本。
-> 本次未改动隐私页（v0.28.0 时已核对过）。但每次发布前仍建议按最新 `manifest.json` 复核隐私页「主机权限理由」是否覆盖全部域名（当前 10 条：`i.weread.qq.com` / `api.deepseek.com` / `dashscope.aliyuncs.com` / `api.moonshot.cn` / `open.bigmodel.cn` / `ark.cn-beijing.volces.com` / `api.siliconflow.cn` / `reader.chesterlee.cn` / `*.tcloudbase.com` + 可选 `https://*/*`）。
+> v0.30.0 草稿已就绪，**停在「发布」前交用户点**。点发布后进入「正在审阅（In review）」，通过后即为线上版本。
+> 每次发布前仍建议按最新 `manifest.json` 复核隐私页「主机权限理由」是否覆盖全部域名（当前 9 条：`i.weread.qq.com` / `api.deepseek.com` / `dashscope.aliyuncs.com` / `api.moonshot.cn` / `open.bigmodel.cn` / `ark.cn-beijing.volces.com` / `api.siliconflow.cn` / `reader.chesterlee.cn` / `*.tcloudbase.com` + 可选 `https://*/*`）。
 
 ---
 
-## 十、Edge 后台「隐私」页填写文案（v0.29.1 · 可直接复制）
+## 十、Edge 后台「隐私」页填写文案（v0.30.0 · 可直接复制）
 
 > 用途：Partner Center → 扩展 → **隐私**页，逐字复制下面各框内容即可。
-> 事实依据（以代码为准）：`manifest.json` 权限仅 `storage`；主机权限 10 条——`https://i.weread.qq.com/*`、`https://api.deepseek.com/*`、`https://dashscope.aliyuncs.com/*`、`https://api.moonshot.cn/*`、`https://open.bigmodel.cn/*`、`https://ark.cn-beijing.volces.com/*`、`https://api.siliconflow.cn/*`、`https://reader.chesterlee.cn/*`、`https://*.tcloudbase.com/*`，另含可选 `https://*/*`；生效域名仅 `weread.qq.com`；全部 JS 随包分发、**无远程代码**。
+> 事实依据（以代码为准）：`manifest.json` 权限仅 `storage`；主机权限 **9 条**——`https://i.weread.qq.com/*`、`https://api.deepseek.com/*`、`https://dashscope.aliyuncs.com/*`、`https://api.moonshot.cn/*`、`https://open.bigmodel.cn/*`、`https://ark.cn-beijing.volces.com/*`、`https://api.siliconflow.cn/*`、`https://reader.chesterlee.cn/*`、`https://*.tcloudbase.com/*`，另含可选 `https://*/*`；生效域名仅 `weread.qq.com`；全部 JS 随包分发、**无远程代码**。
 > 每框限 1000 字符（英文按字符计，中文按字计，均远低于上限）。
 
 ### 10.1 单一用途描述（Single purpose）
