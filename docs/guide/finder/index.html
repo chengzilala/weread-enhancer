@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>本地找书：给书架补上标签与搜索 · 微信悦读 · 帮助</title>
+  <meta name="description" content="用本机标签 + 多维度搜索（书名/作者/标签/状态/笔记数/最近阅读，支持拼音首字母）快速找到书架里的书，还能检索划线与想法正文。">
+  <meta property="og:title" content="本地找书：给书架补上标签与搜索 · 微信悦读 · 帮助">
+  <meta property="og:description" content="用本机标签 + 多维度搜索（书名/作者/标签/状态/笔记数/最近阅读，支持拼音首字母）快速找到书架里的书，还能检索划线与想法正文。">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="微信悦读">
+  <link rel="icon" href="/assets/img/icon-48.png">
+  <link rel="stylesheet" href="/assets/site.css">
+  <link rel="stylesheet" href="/assets/docs.css">
+</head>
+<body class="docs">
+  <header class="navbar">
+    <button class="nav-toggle" type="button" aria-label="目录" aria-expanded="false">☰</button>
+    <a class="logo" href="/docs/">
+      <img src="/assets/img/icon-48.png" alt="">
+      <span>微信悦读 · 帮助</span>
+    </a>
+    <a class="navbar-link" href="/">返回官网</a>
+  </header>
+
+  <aside class="sidebar">
+<nav class="docs-tree">
+  <a class="docs-home" href="/docs/">帮助文档首页</a>
+  <div class="docs-group">
+    <p class="docs-group-title">🚀 开始</p>
+  <a href="/docs/start/">快速上手</a>
+  </div>
+  <div class="docs-group">
+    <p class="docs-group-title"><a href="/docs/guide/">📖 功能教程</a></p>
+  <a href="/docs/guide/screen-ratio/">屏占比调节：让正文更宽</a>
+  <a href="/docs/guide/auto-read/">自动阅读：让页面自己翻</a>
+  <a href="/docs/guide/shortcuts/">快捷键：几个键管住全部</a>
+  <a href="/docs/guide/stats/">阅读统计与导出</a>
+  <a href="/docs/guide/notes/">笔记增强：划线与想法一键留存</a>
+  <a href="/docs/guide/official/">阅读洞察：阅读行为报告 · 书架 · 发现</a>
+  <a href="/docs/guide/api-key/">API Key 使用说明：阅读洞察与 AI 的钥匙</a>
+  <a href="/docs/guide/reading-persona/">阅读人格（插件里怎么用）</a>
+  <a href="/docs/guide/tts/">语音复习：把笔记读出来</a>
+  <a href="/docs/guide/finder/" class="active">本地找书：给书架补上标签与搜索</a>
+  <a href="/docs/guide/backup/">数据备份与恢复：本机数据一键备份</a>
+  </div>
+  <div class="docs-group">
+    <p class="docs-group-title"><a href="/docs/tips/">🧠 进阶技巧</a></p>
+  <a href="/docs/tips/immersive/">沉浸夜读：一套可以照抄的设置</a>
+  </div>
+  <div class="docs-group">
+    <p class="docs-group-title"><a href="/docs/h5/">📱 H5 移动端</a></p>
+  <a href="/docs/h5/overview/">H5 移动端是什么</a>
+  <a href="/docs/h5/account/">账户码、跨设备与关联小程序</a>
+  <a href="/docs/h5/daily/">每日卡片</a>
+  <a href="/docs/h5/wander/">灵感漫游</a>
+  <a href="/docs/h5/share/">朗读与分享</a>
+  <a href="/docs/h5/desktop/">装到桌面，像 App 一样用（电脑 / 手机）</a>
+  </div>
+  <div class="docs-group">
+    <p class="docs-group-title"><a href="/docs/miniapp/">💬 微信小程序</a></p>
+  <a href="/docs/miniapp/overview/">微信小程序是什么</a>
+  <a href="/docs/miniapp/link/">关联网页账户</a>
+  <a href="/docs/miniapp/daily-wander/">每日卡片与灵感漫游</a>
+  <a href="/docs/miniapp/paperbook/">我的纸书</a>
+  <a href="/docs/miniapp/share/">分享图与转发</a>
+  </div>
+  <div class="docs-group">
+    <p class="docs-group-title"><a href="/docs/persona/">✨ 阅读人格</a></p>
+  <a href="/docs/persona/overview/">阅读人格是什么</a>
+  <a href="/docs/persona/dimensions/">四维详解</a>
+  <a href="/docs/persona/types/">16 型图鉴</a>
+  <a href="/docs/persona/share/">分享图与隐私</a>
+  </div>
+  <div class="docs-group">
+    <p class="docs-group-title"><a href="/docs/thinking/">📚 知识资产</a></p>
+  <a href="/docs/thinking/start/">从这里开始：读得多 ≠ 读得进去</a>
+  <a href="/docs/thinking/efficient/">高效阅读的方法</a>
+  <a href="/docs/thinking/after-highlight/">划线之后</a>
+  <a href="/docs/thinking/choose-books/">怎么选书</a>
+  </div>
+  <div class="docs-group">
+    <p class="docs-group-title">❓ 常见问题</p>
+  <a href="/docs/faq/">常见问题</a>
+  </div>
+  <div class="docs-group">
+    <p class="docs-group-title">🧾 更新日志</p>
+  <a href="/docs/changelog/">更新日志</a>
+  </div>
+</nav>
+  </aside>
+
+  <div class="page">
+    <article class="content doc">
+<header class="doc-header"><h1>本地找书：给书架补上标签与搜索</h1></header><p>书一多，微信读书自带的书架就不够用了：不能打标签，搜索也只能搜书名。「找书」给书架补上两块能力——<strong>本机标签</strong>和<strong>多维度搜索</strong>。</p>
+<h2 id="从哪打开">从哪打开</h2>
+<p>悬浮球 → 菜单 → <strong>🔎 找书</strong>。</p>
+<p>它要读你的书架，所以需要先在 <a href="/docs/guide/api-key/">API Key 使用说明</a> 里配好 <code>wrk-</code> 开头的官方 Key；没配时面板会给出「去配置 API Key」的引导。</p>
+<h2 id="一本机标签">一、本机标签</h2>
+<p>给任意一本书加上你自己的标签，比如「一号书柜」「借出中」「专业必读」。</p>
+<ul><li>在书籍条目的「+ 加标签」里输入即可，标签名最多 20 字，每本书最多 10 个。</li><li>面板右上「标签管理」能<strong>重命名 / 合并 / 删除</strong>：重命名和合并会同时更新所有挂了该标签的书；删除只移除标签，不删书。</li><li>标签区还有「同时命中 (AND) / 任一命中 (OR)」两种匹配模式。</li></ul>
+<div class="callout callout-warning"><p class="callout-title">标签只存本机</p><div class="callout-body"><p>标签只存在你浏览器本地（<code>chrome.storage.local</code>），<strong>不上传、不写回微信读书</strong>。官方接口全程只读。
+换电脑或清缓存前，记得去 <a href="/docs/guide/backup/">数据备份与恢复</a> 导出备份，否则标签会永久丢失。</p></div></div>
+<h2 id="二多维度搜索">二、多维度搜索</h2>
+<p>搜索框支持按<strong>书名 / 作者 / 标签 / 官方分组</strong>匹配，还能用<strong>拼音首字母</strong>——输入 <code>rzjx</code> 就能命中《认知觉醒》（拼音只参与命中，不参与高亮）。</p>
+<p>下面有三行筛选，可以叠加：</p>
+<table><thead><tr><th>筛选行</th><th>选项</th></tr></thead><tbody><tr><td>状态</td><td>全部状态 / 在读 / 已读完 / 从未打开</td></tr><tr><td>笔记</td><td>笔记不限 / 无笔记 / 有笔记 / 1-10 条 / 11-50 条 / 50 条以上</td></tr><tr><td>时间</td><td>时间不限 / 近 7 天 / 近 30 天 / 近 90 天 / 更早</td></tr></tbody></table>
+<p>往下还有「按标签筛选」和「官方分组」（来自官方书架，只读，多选任一命中）。</p>
+<h2 id="三连笔记正文一起搜">三、连笔记正文一起搜</h2>
+<p>列表里有个「<strong>搜我的划线 / 想法</strong>」按钮：点下去会逐本拉取<strong>有笔记的书</strong>，在划线正文和想法正文里找关键词。命中会在条目下显示「命中划线：…」或「命中想法：…」（截断展示）。</p>
+<p>这个过程要一本本查，面板会显示「已查 N / M」进度，随时可以「停止」。</p>
+<h2 id="打开与刷新">打开与刷新</h2>
+<ul><li>点条目「打开 ↗」会在<strong>新标签页</strong>打开网页版书籍详情，电脑上直接能看。</li><li>「刷新书架」重新拉取（书架缓存 30 分钟）。</li><li>结果多时点「显示更多」分页展开。</li></ul>
+<h2 id="相关">相关</h2>
+<ul><li><a href="/docs/guide/backup/">数据备份与恢复</a>：把本机标签备份下来</li><li><a href="/docs/guide/official/">阅读洞察</a>：官方的书架、搜书与推荐</li><li><a href="/docs/thinking/choose-books/">怎么选书</a>：找到书之后，读什么</li></ul>
+    </article>
+<nav class="pager"><a class="prev" href="/docs/guide/tts/">语音复习：把笔记读出来</a><a class="next" href="/docs/guide/backup/">数据备份与恢复：本机数据一键备份</a></nav>
+  </div>
+
+  <script>
+  (function () {
+    var btn = document.querySelector('.nav-toggle');
+    var sb = document.querySelector('.sidebar');
+    if (!btn || !sb) return;
+    btn.addEventListener('click', function () {
+      var open = sb.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    sb.addEventListener('click', function (e) {
+      if (e.target.tagName === 'A') sb.classList.remove('open');
+    });
+  })();
+  </script>
+</body>
+</html>
