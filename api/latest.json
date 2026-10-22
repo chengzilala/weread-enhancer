@@ -1,0 +1,11 @@
+{
+  "latestVersion": "0.30.2",
+  "releasedAt": "2026-10-16",
+  "minSupportedVersion": "0.9.0",
+  "notice": "微信小程序「悦读且住」已通过审核、正式上线：在微信里搜「悦读且住」就能打开，官网首页点「微信小程序」可扫码进入。",
+  "changelogUrl": "https://reader.chesterlee.cn/docs/changelog/",
+  "storeUrls": {
+    "edge": "https://microsoftedge.microsoft.com/addons/detail/%E5%BE%AE%E4%BF%A1%E6%82%A6%E8%AF%BB/nkcckbonpafeclefhlhbencibkaabmgb",
+    "360": "https://ext.se.360.cn/#/extension-detail?id=fiidojfpifhgajiackccpgaaheiehcjd"
+  }
+}

@@ -1,0 +1,278 @@
+/**
+ * 每日卡片回顾（H11）· 纯计算核心 — 选材 / 主题召回 / 组卡
+ *
+ * 来源：mobile/miniprogram/shared/daily-core.js（逐字移植，仅 CommonJS → ESM）。
+ * 主题标签复用 persona-core 的 PERSONA_THEMES（规则 + 关键词，首版不做 embedding）。
+ * 「关联」的准确性靠两条硬约束：① 主题至少命中 2 个关键词才算数；② 两条文本必须真实共享关键词。
+ * 红线：引用一律来自读者自己的划线 / 想法原文，禁止编造。
+ */
+
+import { PERSONA_THEMES } from './persona-core.js';
+
+export const MATERIAL_MIN = 8;      // 素材门槛：划线 + 想法 总条数（不够则走引导，不硬生成）
+export const RELATED_MAX = 3;       // 关联旧划线最多条数
+const THEME_MIN_HITS = 2;    // 认定主题所需的最少关键词命中数（只命中 1 个通用词不算）
+
+// ---- 基础工具 ----
+
+/** 归一化：去空白与标点，仅留中文 / 字母 / 数字（用于去重与比较） */
+export function normText(text) {
+  return String(text || '').replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '');
+}
+
+/** 稳定的短哈希（djb2 变体 + 长度），用作「已用素材」索引键 */
+export function hashKey(text) {
+  const s = normText(text);
+  let h = 5381;
+  for (let i = 0; i < s.length; i += 1) {
+    h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  }
+  return 'h' + h.toString(36) + '_' + s.length;
+}
+
+/** 本机日期键：YYYY-MM-DD */
+export function dateKey(ts) {
+  const d = new Date(ts || Date.now());
+  const m = ('0' + (d.getMonth() + 1)).slice(-2);
+  const day = ('0' + d.getDate()).slice(-2);
+  return d.getFullYear() + '-' + m + '-' + day;
+}
+
+/** 人类可读日期：10月6日 周一 */
+export function dayLabel(ts) {
+  const d = new Date(ts || Date.now());
+  const week = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d.getDay()];
+  return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + week;
+}
+
+/** 该文本命中的全部主题关键词（去重）——用于判断两条划线是否「真的共享词」 */
+function themeWordsIn(text) {
+  const t = String(text || '');
+  const found = [];
+  for (let i = 0; i < PERSONA_THEMES.length; i += 1) {
+    const words = PERSONA_THEMES[i].words;
+    for (let j = 0; j < words.length; j += 1) {
+      if (t.indexOf(words[j]) >= 0 && found.indexOf(words[j]) < 0) {
+        found.push(words[j]);
+      }
+    }
+  }
+  return found;
+}
+
+/**
+ * 取关键词命中数最多的主题名；命中数不足 THEME_MIN_HITS 时返回 ''（宁可不贴标签，也不误判）。
+ */
+export function themeOfText(text) {
+  const t = String(text || '');
+  let best = '';
+  let bestHits = 0;
+  for (let i = 0; i < PERSONA_THEMES.length; i += 1) {
+    const theme = PERSONA_THEMES[i];
+    let hits = 0;
+    for (let j = 0; j < theme.words.length; j += 1) {
+      if (t.indexOf(theme.words[j]) >= 0) {
+        hits += 1;
+      }
+    }
+    if (hits > bestHits) {
+      bestHits = hits;
+      best = theme.name;
+    }
+  }
+  return bestHits >= THEME_MIN_HITS ? best : '';
+}
+
+// ---- 选材与主题召回 ----
+
+/** 给素材池打主题标签，并按主题分组（返回 { tagged, groups }） */
+export function tagAndGroup(pool) {
+  const tagged = [];
+  const groups = {};
+  (Array.isArray(pool) ? pool : []).forEach((item) => {
+    if (!item || typeof item.text !== 'string' || !item.text.trim()) {
+      return;
+    }
+    const theme = item.theme || themeOfText(item.text);
+    const next = {
+      bookId: item.bookId || '',
+      title: item.title || '',
+      author: item.author || '',
+      kind: item.kind || 'mark',
+      text: item.text.trim(),
+      at: item.at || 0,
+      theme: theme,
+      words: themeWordsIn(item.text),
+    };
+    tagged.push(next);
+    if (theme) {
+      if (!groups[theme]) {
+        groups[theme] = [];
+      }
+      groups[theme].push(next);
+    }
+  });
+  return { tagged: tagged, groups: groups };
+}
+
+/**
+ * 抽签选材（纯函数）：随机挑一条「主划线」，并召回真正相关的旧句（同主题 + 共享关键词，跨书优先）。
+ */
+export function prepareMaterial(pool, usedMap) {
+  const list = Array.isArray(pool) ? pool : [];
+  if (list.length < MATERIAL_MIN) {
+    return { ok: false, reason: 'material', count: list.length, need: MATERIAL_MIN };
+  }
+
+  const used = usedMap && typeof usedMap === 'object' ? usedMap : {};
+  const isUsed = (item) => !!used[hashKey(item.text)];
+  const { tagged, groups } = tagAndGroup(list);
+
+  const sharesWord = (a, b) => {
+    for (let i = 0; i < a.words.length; i += 1) {
+      if (b.words.indexOf(a.words[i]) >= 0) {
+        return true;
+      }
+    }
+    return false;
+  };
+  const relatedOf = (main, limit) => {
+    if (!main.theme) {
+      return [];
+    }
+    const max = limit || RELATED_MAX;
+    const seen = {};
+    seen[normText(main.text)] = true;
+    const picked = [];
+    const candidates = (groups[main.theme] || [])
+      .filter((item) => item !== main && sharesWord(main, item))
+      .sort((a, b) => {
+        const ca = (a.title && a.title !== main.title) ? 1 : 0;
+        const cb = (b.title && b.title !== main.title) ? 1 : 0;
+        if (ca !== cb) {
+          return cb - ca;
+        }
+        return (b.at || 0) - (a.at || 0);
+      });
+    for (let i = 0; i < candidates.length && picked.length < max; i += 1) {
+      const item = candidates[i];
+      const key = normText(item.text);
+      if (!key || seen[key]) {
+        continue;
+      }
+      seen[key] = true;
+      picked.push({
+        text: item.text,
+        at: item.at || 0,
+        title: item.title || '',
+        author: item.author || '',
+        kind: item.kind || 'mark',
+      });
+    }
+    return picked;
+  };
+
+  let resetUsed = false;
+  const withRelated = (kind) => tagged.filter((item) => item.kind === kind && item.theme
+    && !isUsed(item) && relatedOf(item, 1).length > 0);
+  let mains = withRelated('mark');
+  if (!mains.length) {
+    mains = withRelated('review');
+  }
+  if (!mains.length) {
+    mains = tagged.filter((item) => item.kind === 'mark' && !isUsed(item));
+  }
+  if (!mains.length) {
+    resetUsed = true;
+    mains = tagged.filter((item) => item.kind === 'mark');
+    if (!mains.length) {
+      mains = tagged.slice();
+    }
+  }
+  const main = mains[Math.floor(Math.random() * mains.length)];
+
+  const related = relatedOf(main);
+
+  return {
+    ok: true,
+    resetUsed: resetUsed,
+    main: {
+      bookId: main.bookId || '',
+      text: main.text,
+      at: main.at || 0,
+      title: main.title || '',
+      author: main.author || '',
+      kind: main.kind || 'mark',
+    },
+    related: related,
+    themes: main.theme ? [main.theme] : [],
+    poolSize: tagged.length,
+  };
+}
+
+// ---- 组卡 ----
+
+/**
+ * 本地规则标题（解析失败时的占位；H5 保留 AI，正常走 AI 标题）。
+ */
+export function localTitle(material) {
+  const main = (material && material.main) || {};
+  const theme = (material && material.themes && material.themes[0]) || '';
+  const isNote = main.kind === 'review';
+  if (theme) {
+    return '重读一段关于「' + theme + '」的' + (isNote ? '想法' : '划线');
+  }
+  return '今天，重读一段' + (isNote ? '想法' : '划线');
+}
+
+/** 组装卡片对象（不落盘，由调用方 saveCard） */
+export function makeCard(material, text) {
+  const now = Date.now();
+  const t = text || {};
+  const main = (material && material.main) || {};
+  return {
+    id: dateKey(now) + '-' + now,
+    date: dateKey(now),
+    createdAt: now,
+    ai: !!t.ai,
+    title: t.title || '今天，重读一段划线',
+    note: t.note || '',
+    themes: (material && material.themes) || [],
+    quote: {
+      bookId: main.bookId || '',
+      text: main.text || '',
+      at: main.at || 0,
+      title: main.title || '',
+      author: main.author || '',
+      kind: main.kind || 'mark',
+    },
+    related: (material && material.related) || [],
+    starred: false,
+  };
+}
+
+/** 卡片 → 页面视图（关联项默认收起；可点开展开） */
+export function toView(card) {
+  if (!card) {
+    return null;
+  }
+  return {
+    id: card.id,
+    date: card.date,
+    dateLabel: dayLabel(card.createdAt),
+    ai: !!card.ai,
+    title: card.title,
+    note: card.note,
+    themes: card.themes || [],
+    quote: card.quote,
+    related: (card.related || []).map((item, index) => ({
+      text: item.text,
+      title: item.title || '',
+      author: item.author || '',
+      kind: item.kind || 'mark',
+      index: index,
+      open: false,
+    })),
+    starred: !!card.starred,
+  };
+}

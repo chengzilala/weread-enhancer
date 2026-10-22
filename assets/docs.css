@@ -1,0 +1,197 @@
+/* 微信悦读 · 帮助文档站（/docs/）—— VuePress 1.x 默认主题「原味」
+   参考 https://help.flomoapp.com/（flomo 101）：顶栏、左栏常驻目录树、
+   正文占满右侧余宽、底部「上一页 / 下一页」。
+   本文件在 site.css 之后加载：先复用全站正文样式（.doc / .callout / .card），
+   再把调色板与骨架换成 VuePress 观感并覆盖为浅色（文档站不跟随系统深色）。 */
+
+:root {
+  --bg: #ffffff;
+  --bg-soft: #f8f8f8;
+  --bg-card: #ffffff;
+  --text: #2c3e50;
+  --text-soft: #4e6e8e;
+  --text-muted: #9aa5b1;
+  --border: #eaecef;
+  --accent: #3eaf7c;
+  --accent-hover: #359a6c;
+  --accent-soft: #f3f9f5;
+  --code-bg: #f8f8f8;
+  --navbar-h: 3.6rem;
+  --sidebar-w: 20rem;
+}
+
+body.docs {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+/* ---------- 顶栏 ---------- */
+.navbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--navbar-h);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 1.5rem;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+}
+.navbar .logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+.navbar .logo:hover { text-decoration: none; }
+.navbar .logo img { width: 26px; height: 26px; border-radius: 6px; }
+.navbar-link { margin-left: auto; color: var(--text-soft); font-size: .92rem; }
+.navbar-link:hover { color: var(--accent); text-decoration: none; }
+
+/* 抽屉开关：桌面隐藏（覆盖 site.css 的通用 .nav-toggle 规则） */
+.navbar .nav-toggle {
+  display: none;
+  margin: 0;
+  padding: 5px 11px;
+  font-size: 17px;
+  line-height: 1;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* ---------- 左侧目录树 ---------- */
+.sidebar {
+  position: fixed;
+  top: var(--navbar-h);
+  left: 0;
+  width: var(--sidebar-w);
+  height: calc(100% - var(--navbar-h));
+  overflow-y: auto;
+  padding: 1.2rem 0 2.5rem;
+  background: #fff;
+  border-right: 1px solid var(--border);
+}
+.docs-tree a {
+  display: block;
+  padding: 5px 1.5rem 5px 2.2rem;
+  color: var(--text-soft);
+  font-size: .92rem;
+  border-left: 2px solid transparent;
+}
+.docs-tree a:hover { color: var(--accent); text-decoration: none; }
+.docs-tree a.active {
+  color: var(--accent);
+  font-weight: 600;
+  border-left-color: var(--accent);
+  background: rgba(62, 175, 124, .06);
+}
+.docs-home {
+  padding-left: 1.5rem !important;
+  margin-bottom: .9rem;
+  font-weight: 600;
+  color: var(--text) !important;
+}
+.docs-group { margin-bottom: 1.3rem; }
+.docs-group-title {
+  margin: 0 0 4px;
+  padding: 0 1.5rem 6px;
+  font-size: .95rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.docs-group-title a { display: inline; padding: 0; color: var(--text); }
+.docs-group-title a:hover { color: var(--accent); }
+
+/* ---------- 正文 ---------- */
+.page { padding-top: var(--navbar-h); padding-left: var(--sidebar-w); }
+
+.content {
+  max-width: none;
+  padding: 2rem 2.5rem 3rem;
+}
+.content h1 { margin: 0 0 1rem; font-size: 2rem; font-weight: 600; line-height: 1.3; }
+.content h2 {
+  margin: 2.2rem 0 1rem;
+  padding-bottom: .3rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+.content h3 { margin: 1.6rem 0 .8rem; font-size: 1.17rem; font-weight: 600; }
+.content p { margin: 0 0 1rem; }
+.content ul, .content ol { margin: 0 0 1rem; padding-left: 1.4rem; }
+.content li { margin: .3rem 0; }
+.content a { color: var(--accent); }
+.content a:hover { text-decoration: underline; }
+/* 正文按钮（内容里写 `:::store` 的胶囊按钮）：恢复自身配色，
+   否则会被上面的 `.content a` 覆盖成绿字绿底（文字与底色同色、看不见）。 */
+.content .home-btn { color: var(--text); }
+.content .home-btn:hover { color: #fff; }
+.content .home-btn-primary,
+.content .home-btn-primary:hover { color: #fff; }
+.content img { border: 1px solid var(--border); border-radius: 4px; }
+.content blockquote {
+  margin: 1rem 0;
+  padding: .5rem 1rem;
+  color: var(--text-soft);
+  background: var(--bg-soft);
+  border-left: 4px solid var(--border);
+}
+.content table { font-size: .92em; }
+.content th { background: var(--bg-soft); }
+
+.docs-sec-desc { color: var(--text-soft); }
+
+/* 提示块（与正文里的 [!tip] 同一视觉） */
+.content .callout {
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+}
+.content .callout-title { color: var(--text); }
+
+/* 商店按钮组（内容里写 `:::store`）在文档页内左对齐 */
+.content .store-actions { justify-content: flex-start; }
+
+/* ---------- 上一页 / 下一页 ---------- */
+.pager {
+  max-width: none;
+  padding: 1.4rem 2.5rem 3.5rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid var(--border);
+}
+.pager a { color: var(--accent); font-size: .95rem; }
+.pager a:hover { text-decoration: underline; }
+.pager .prev::before { content: "← "; }
+.pager .next::after { content: " →"; }
+.pager .next { margin-left: auto; text-align: right; }
+
+/* ---------- 移动端：侧栏变抽屉 ---------- */
+@media (max-width: 719px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform .2s ease;
+    z-index: 25;
+    box-shadow: 0 0 8px rgba(0, 0, 0, .08);
+  }
+  .sidebar.open { transform: translateX(0); }
+  .page { padding-left: 0; }
+  .navbar .nav-toggle { display: block; }
+  .content { padding: 1.5rem 1.2rem 2.5rem; }
+  .content h1 { font-size: 1.6rem; }
+  .content h2 { font-size: 1.3rem; }
+  .pager { padding: 1.2rem 1.2rem 3rem; }
+}
