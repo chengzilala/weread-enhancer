@@ -164,3 +164,34 @@
 
   els.forEach(function (el) { io.observe(el); });
 })();
+
+// 顶栏账户入口：已登录（本机存有昵称）显示用户名，未登录才显示「需要登录」
+// 登录态与网页版（/app/）、「我的账户」（/account/）共用同一 localStorage 键（wre_account_profile）
+(function () {
+  "use strict";
+
+  var link = document.querySelector("[data-wre-account-link]");
+  if (!link) return;
+
+  function readNickName() {
+    try {
+      var raw = localStorage.getItem("wre_account_profile");
+      var profile = raw ? JSON.parse(raw) : null;
+      var name = profile && typeof profile.nickName === "string" ? profile.nickName.trim() : "";
+      return name.slice(0, 24);
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function sync() {
+    var name = readNickName();
+    link.textContent = name || "需要登录";
+    link.title = name ? "我的账户" : "登录 / 注册账户";
+  }
+
+  sync();
+  // 从 /account/ 或 /app/ 登录后回到本站（含浏览器前进后退的缓存恢复）
+  window.addEventListener("pageshow", sync);
+  window.addEventListener("storage", sync);
+})();

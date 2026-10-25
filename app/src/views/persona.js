@@ -218,6 +218,12 @@ function personaHtml(p) {
       '<div class="wre-persona__figurename">' + esc(p.figure.name) + '</div>' +
       '</div>'
     : '';
+  const figureWhy = (p.figure && p.figure.why)
+    ? '<div class="wre-persona__why">' +
+      '<div class="wre-persona__why-title">为什么是' + esc(p.figure.name) + '</div>' +
+      '<div class="wre-persona__why-text">' + esc(p.figure.why) + '</div>' +
+      '</div>'
+    : '';
   const acts = ['<button class="wre-btn wre-btn--ghost" data-action="share">生成分享图</button>'];
   if (ttsSupported) {
     acts.push('<button class="wre-btn wre-btn--ghost" data-action="tts">🔊 朗读人格</button>');
@@ -234,6 +240,7 @@ function personaHtml(p) {
     '    </div>' +
     figure +
     '  </div>' +
+    figureWhy +
     '  <div class="wre-persona__share">' + acts.join('') + '</div>' +
     (nicks ? '  <div class="wre-persona__nicks">' + nicks + '</div>' : '') +
     (p.oneLiner ? '  <div class="wre-persona__one">' + esc(p.oneLiner) + '</div>' : '') +

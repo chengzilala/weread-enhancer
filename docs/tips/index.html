@@ -20,6 +20,11 @@
       <img src="/assets/img/icon-48.png" alt="">
       <span>微信悦读 · 帮助</span>
     </a>
+    <button class="docs-search-btn" type="button" aria-label="搜索帮助文档">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
+      <span class="docs-search-label">搜索</span>
+      <kbd>/</kbd>
+    </button>
     <a class="navbar-link" href="/">返回官网</a>
   </header>
 
@@ -99,6 +104,19 @@
 
   </div>
 
+  <div class="docs-search" id="docsSearch" hidden>
+    <div class="docs-search-mask" data-close></div>
+    <div class="docs-search-panel" role="dialog" aria-modal="true" aria-label="搜索帮助文档">
+      <div class="docs-search-bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
+        <input id="docsSearchInput" type="search" placeholder="搜索功能、问题、设置项…" autocomplete="off" spellcheck="false">
+        <button class="docs-search-close" type="button" data-close>Esc</button>
+      </div>
+      <div class="docs-search-results" id="docsSearchResults"></div>
+      <div class="docs-search-foot">↑ ↓ 选择 · Enter 打开 · Esc 关闭</div>
+    </div>
+  </div>
+
   <script>
   (function () {
     var btn = document.querySelector('.nav-toggle');
@@ -110,6 +128,167 @@
     });
     sb.addEventListener('click', function (e) {
       if (e.target.tagName === 'A') sb.classList.remove('open');
+    });
+  })();
+  </script>
+
+  <script>
+  (function () {
+    var modal = document.getElementById('docsSearch');
+    if (!modal || !window.fetch) return;
+    var input = document.getElementById('docsSearchInput');
+    var list = document.getElementById('docsSearchResults');
+    var openBtn = document.querySelector('.docs-search-btn');
+    var index = null;
+    var loading = false;
+    var items = [];
+    var active = -1;
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function escapeReg(s) {
+      return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    function terms(q) {
+      return q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    }
+    function highlight(text, ts) {
+      var out = escapeHtml(text);
+      if (!ts.length) return out;
+      var re = new RegExp('(' + ts.map(escapeReg).join('|') + ')', 'gi');
+      return out.replace(re, '<mark>$1</mark>');
+    }
+    function makeSnippet(body, ts) {
+      var lower = body.toLowerCase();
+      var pos = -1;
+      for (var i = 0; i < ts.length; i++) {
+        var p = lower.indexOf(ts[i]);
+        if (p >= 0 && (pos < 0 || p < pos)) pos = p;
+      }
+      if (pos < 0) return body.slice(0, 80) + (body.length > 80 ? '…' : '');
+      var start = Math.max(0, pos - 24);
+      var end = Math.min(body.length, pos + 76);
+      return (start > 0 ? '…' : '') + body.slice(start, end) + (end < body.length ? '…' : '');
+    }
+    function load() {
+      if (index || loading) return;
+      loading = true;
+      fetch('/assets/search-index.json')
+        .then(function (r) { return r.json(); })
+        .then(function (data) { index = data; loading = false; render(); })
+        .catch(function () {
+          loading = false;
+          list.innerHTML = '<p class="docs-search-empty">搜索索引加载失败，请刷新页面重试。</p>';
+        });
+    }
+    function search(q) {
+      var ts = terms(q);
+      if (!ts.length || !index) return [];
+      var out = [];
+      index.forEach(function (it) {
+        var title = (it.t || '').toLowerCase();
+        var heads = (it.h || []).join(' ').toLowerCase();
+        var desc = (it.d || '').toLowerCase();
+        var body = (it.b || '').toLowerCase();
+        var score = 0;
+        for (var i = 0; i < ts.length; i++) {
+          var t = ts[i];
+          var hit = 0;
+          if (title.indexOf(t) >= 0) hit += 100;
+          if (heads.indexOf(t) >= 0) hit += 30;
+          if (desc.indexOf(t) >= 0) hit += 20;
+          var n = body.split(t).length - 1;
+          if (n > 0) hit += Math.min(n, 5) * 4;
+          if (!hit) return;
+          score += hit;
+        }
+        out.push({ item: it, score: score });
+      });
+      out.sort(function (a, b2) { return b2.score - a.score; });
+      return out.slice(0, 20);
+    }
+    function render() {
+      var q = input.value;
+      if (!index) {
+        list.innerHTML = '<p class="docs-search-empty">正在加载…</p>';
+        return;
+      }
+      if (!q.trim()) {
+        items = []; active = -1;
+        list.innerHTML = '<p class="docs-search-empty">输入关键词，搜功能、问题或设置项。</p>';
+        return;
+      }
+      var q2 = q.trim();
+      var res = search(q2);
+      items = res;
+      active = res.length ? 0 : -1;
+      if (!res.length) {
+        list.innerHTML = '<p class="docs-search-empty">没有找到「' + escapeHtml(q2) + '」相关内容。</p>';
+        return;
+      }
+      var ts = terms(q2);
+      list.innerHTML = res.map(function (r, i) {
+        var it = r.item;
+        var snip = it.b ? makeSnippet(it.b, ts) : (it.d || '');
+        return '<a class="docs-search-item' + (i === active ? ' active' : '') + '" href="' + it.u + '">' +
+          '<span class="docs-search-title">' + highlight(it.t, ts) + '</span>' +
+          (snip ? '<span class="docs-search-snippet">' + highlight(snip, ts) + '</span>' : '') +
+          (it.s ? '<span class="docs-search-meta">' + escapeHtml(it.s) + '</span>' : '') +
+          '</a>';
+      }).join('');
+    }
+    function openSearch() {
+      modal.hidden = false;
+      document.body.classList.add('docs-search-open');
+      input.value = '';
+      items = []; active = -1;
+      render();
+      load();
+      setTimeout(function () { input.focus(); }, 20);
+    }
+    function closeSearch() {
+      modal.hidden = true;
+      document.body.classList.remove('docs-search-open');
+      if (openBtn) openBtn.focus();
+    }
+    function setActive(i) {
+      var nodes = list.querySelectorAll('.docs-search-item');
+      if (!nodes.length) return;
+      active = (i + nodes.length) % nodes.length;
+      for (var k = 0; k < nodes.length; k++) {
+        nodes[k].classList.toggle('active', k === active);
+      }
+      if (nodes[active].scrollIntoView) nodes[active].scrollIntoView({ block: 'nearest' });
+    }
+
+    if (openBtn) openBtn.addEventListener('click', openSearch);
+    modal.addEventListener('click', function (e) {
+      if (e.target.hasAttribute('data-close')) closeSearch();
+    });
+    input.addEventListener('input', render);
+    document.addEventListener('keydown', function (e) {
+      var mod = e.metaKey || e.ctrlKey;
+      if (mod && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        if (modal.hidden) openSearch(); else closeSearch();
+        return;
+      }
+      if (modal.hidden) {
+        var ae = document.activeElement;
+        var typing = ae && (/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) || ae.isContentEditable);
+        if (e.key === '/' && !typing) { e.preventDefault(); openSearch(); }
+        return;
+      }
+      if (e.key === 'Escape') { e.preventDefault(); closeSearch(); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); if (items.length) setActive(active + 1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); if (items.length) setActive(active - 1); }
+      else if (e.key === 'Enter' && active >= 0 && items[active]) {
+        e.preventDefault();
+        window.location.href = items[active].item.u;
+      }
     });
   })();
   </script>
