@@ -45,15 +45,18 @@ export function buildPersonaPrompt(persona) {
   return prompt;
 }
 
-/** 底层：把对话交给云函数转发 DeepSeek。永不 reject，返回 { ok, text } 或 { ok:false, code, error }。 */
-export async function callAI(messages) {
+/**
+ * 底层：把对话交给云函数转发 DeepSeek。永不 reject，返回 { ok, text } 或 { ok:false, code, error }。
+ * feature 只用于服务端成本统计（persona-report / daily-card / wander），不影响对话内容。
+ */
+export async function callAI(messages, feature) {
   if (!AI_ENABLED) {
     return { ok: false, code: 'disabled', error: '当前版本不提供该能力' };
   }
   if (!Array.isArray(messages) || !messages.length) {
     return { ok: false, code: 'param', error: '缺少对话内容' };
   }
-  const res = await callRemote(messages);
+  const res = await callRemote(messages, feature);
   if (res && typeof res.ok === 'boolean') {
     return res;
   }
@@ -68,5 +71,5 @@ export async function generatePersonaPortrait(persona) {
   return await callAI([
     { role: 'system', content: SYSTEM_PROMPT },
     { role: 'user', content: buildPersonaPrompt(persona) },
-  ]);
+  ], 'persona-report');
 }

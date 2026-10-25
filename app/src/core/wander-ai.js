@@ -138,7 +138,7 @@ export async function generateWanderText(material, tier, context) {
   const res = await callAI([
     { role: 'system', content: basePrompt(tier) },
     { role: 'user', content: buildPrompt(material, tier, context) },
-  ]);
+  ], 'wander');
   if (res && res.ok) {
     const parsed = parseIssue(res.text);
     if (parsed.body) {

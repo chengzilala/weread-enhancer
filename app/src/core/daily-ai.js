@@ -99,7 +99,7 @@ export async function generateDailyText(material) {
   const res = await callAI([
     { role: 'system', content: DAILY_SYSTEM_PROMPT },
     { role: 'user', content: buildPrompt(material) },
-  ]);
+  ], 'daily-card');
   if (res && res.ok) {
     const parsed = parseText(res.text);
     if (parsed.note) {

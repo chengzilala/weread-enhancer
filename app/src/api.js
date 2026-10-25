@@ -72,8 +72,9 @@ export async function verifyKey() {
 }
 
 // ---- AI 转发 ----
-export function ai(messages) {
-  return call({ action: 'ai', messages: messages }, CONFIG.AI_TIMEOUT_MS);
+/** feature 只用于服务端成本统计（persona-report / daily-card / wander） */
+export function ai(messages, feature) {
+  return call({ action: 'ai', messages: messages, feature: feature || '' }, CONFIG.AI_TIMEOUT_MS);
 }
 
 /** 朗读合成：由云函数调用 Edge 神经语音，返回 { ok, format, voice, audio(base64) } */
