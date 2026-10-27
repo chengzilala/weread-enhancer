@@ -218,10 +218,23 @@ function personaHtml(p) {
       '<div class="wre-persona__figurename">' + esc(p.figure.name) + '</div>' +
       '</div>'
     : '';
+  const fe = p.figureEvidence || {};
+  const feItems = (fe.items || []).map((item) =>
+    '<li class="wre-persona__why-item">' +
+    '<span class="wre-persona__why-pick">' + esc(item.label) + '</span>' +
+    '<span class="wre-persona__why-basis"><b>' + esc(item.title) + '</b>' + esc(item.text) + '</span>' +
+    '</li>').join('');
+  const figureWhyData = feItems
+    ? '<div class="wre-persona__why-sub">你的微信读书数据佐证</div>' +
+      '<ul class="wre-persona__why-list">' + feItems + '</ul>' +
+      (fe.sample ? '<div class="wre-persona__why-sample">' + esc(fe.sample) + '</div>' : '') +
+      (fe.note ? '<div class="wre-persona__why-src">' + esc(fe.note) + '</div>' : '')
+    : '';
   const figureWhy = (p.figure && p.figure.why)
     ? '<div class="wre-persona__why">' +
       '<div class="wre-persona__why-title">为什么是' + esc(p.figure.name) + '</div>' +
       '<div class="wre-persona__why-text">' + esc(p.figure.why) + '</div>' +
+      figureWhyData +
       '</div>'
     : '';
   const acts = ['<button class="wre-btn wre-btn--ghost" data-action="share">生成分享图</button>'];

@@ -428,6 +428,30 @@ a.wre-donate__list { text-decoration: none; }
 }
 .wre-persona__why-title { font-size: calc(13px * var(--wre-fs)); font-weight: 700; color: var(--wre-brand); }
 .wre-persona__why-text { margin-top: 4px; font-size: calc(13px * var(--wre-fs)); line-height: 1.7; color: var(--wre-text-3); }
+.wre-persona__why-sub {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--wre-line);
+  font-size: calc(12px * var(--wre-fs));
+  font-weight: 600;
+  color: var(--wre-text-3);
+}
+.wre-persona__why-list { margin: 4px 0 0; padding: 0; list-style: none; }
+.wre-persona__why-item {
+  display: flex;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--wre-line);
+  font-size: calc(12px * var(--wre-fs));
+  line-height: 1.65;
+  color: var(--wre-text-3);
+}
+.wre-persona__why-item:last-child { border-bottom: 0; }
+.wre-persona__why-pick { flex: 0 0 auto; min-width: 56px; color: var(--wre-brand); font-weight: 600; }
+.wre-persona__why-basis { flex: 1; }
+.wre-persona__why-basis b { display: inline; margin-right: 4px; font-weight: 600; color: var(--wre-text-3); }
+.wre-persona__why-sample { margin-top: 6px; font-size: calc(12px * var(--wre-fs)); line-height: 1.65; color: var(--wre-text-3); }
+.wre-persona__why-src { margin-top: 4px; font-size: calc(11px * var(--wre-fs)); line-height: 1.6; color: var(--wre-muted); }
 .wre-persona__share { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .wre-persona__share .wre-btn { width: auto; flex: 1; margin-top: 0; height: 40px; font-size: calc(14px * var(--wre-fs)); }
 .wre-persona__nicks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
