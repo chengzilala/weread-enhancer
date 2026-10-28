@@ -24,6 +24,10 @@ export const title = '我的账户';
 let openForm = '';    // '' | 'wrk' | 'ai'：当前展开的 Key 输入区
 let showCode = false; // 是否展开完整账户码
 
+// 统一账户（account-center）状态：与本机账户码并存，互不影响
+let acUser = null;    // null=未登录 / { uid, nickname, emailMasked }
+let acReady = false;  // 是否已向账户中心查询过一次
+
 // 关联小程序（跨端打通）状态
 let bindCode = '';      // 当前展示的一次性绑定码（6 位）
 let bindExpire = 0;     // 绑定码过期时间
@@ -44,10 +48,13 @@ export function render(root, app) {
   bindLinked = null;
   syncCode = '';
   syncExpire = 0;
+  acUser = null;
+  acReady = false;
   stopPoll();
   paint(body);
   syncFromServer(body);   // 静默与服务端对齐昵称 / 掩码
   refreshLink(body);      // 静默查询是否已关联小程序
+  syncAccount(body);      // 静默查询统一账户登录态
 }
 
 /** 文件选择：选中头像图片后压缩并仅存本机 */
@@ -72,6 +79,70 @@ async function onAvatarChange(e, body) {
 function maskCode(id) {
   const v = String(id || '');
   return v.length > 8 ? v.slice(0, 4) + '····' + v.slice(-4) : v;
+}
+
+/* ---------- 统一账户（account-center）：只做登录态展示与上报 ---------- */
+
+/** SDK 与配置是否就绪（未就绪时整张卡不出现，不影响原有功能） */
+function acEnabled() {
+  const cfg = CONFIG.ACCOUNT || {};
+  return !!(window.PSAuth && cfg.apiBase && cfg.productId);
+}
+
+function acSdk() {
+  const cfg = CONFIG.ACCOUNT || {};
+  const sdk = window.PSAuth;
+  sdk.init({ apiBase: cfg.apiBase, productId: cfg.productId });
+  return sdk;
+}
+
+/** uid 掩码：前 6 后 4，中间打点 */
+function maskUid(uid) {
+  const v = String(uid || '');
+  return v.length > 12 ? v.slice(0, 6) + '····' + v.slice(-4) : v;
+}
+
+function unifiedInner() {
+  if (!acReady) {
+    return '<div class="wre-card__title">统一账户</div>' +
+      '<div class="wre-muted">正在查询登录状态…</div>';
+  }
+  if (acUser) {
+    return '<div class="wre-card__title">统一账户</div>' +
+      '<div class="wre-muted">已登录。一个 uid 管所有作品（官网 / 算经小课 / 微信悦读），账户码与托管 Key 都不受影响。</div>' +
+      '<div class="wre-code">' + esc(maskUid(acUser.uid)) + (acUser.emailMasked ? ' · ' + esc(acUser.emailMasked) : '') + '</div>' +
+      '<button class="wre-btn wre-btn--ghost" data-action="ac-logout">退出统一账户</button>';
+  }
+  return '<div class="wre-card__title">统一账户</div>' +
+    '<div class="wre-muted">用邮箱登录统一账户后，同一个身份可走遍官网、算经小课与微信悦读；本机账户码与已托管 Key 不变。</div>' +
+    '<button class="wre-btn" data-action="ac-login">登录统一账户</button>' +
+    '<div class="wre-hint">登录后可看到「我的足迹」，个人网站上也会显示为已登录。</div>';
+}
+
+/** 只重绘这一张卡，避免把页面其它输入框刷掉 */
+function paintUnified(body) {
+  const box = body.querySelector('#meUnified');
+  if (box) {
+    box.innerHTML = unifiedInner();
+  }
+}
+
+function syncAccount(body) {
+  if (!acEnabled()) {
+    return;
+  }
+  const sdk = acSdk();
+  sdk.getUser().then((user) => {
+    acUser = user || null;
+    acReady = true;
+    paintUnified(body);
+    if (user) {
+      sdk.track({ event: 'open', title: '我的账户', platform: 'h5' });
+    }
+  }).catch(() => {
+    acReady = true;
+    paintUnified(body);
+  });
 }
 
 /** 头像：有本机上传的图片则显示图片，否则退回昵称首字（图片仅存本机、不上传） */
@@ -103,6 +174,8 @@ function paint(body) {
     '    <button class="wre-account__out" data-action="sign-out">退出登录</button>' +
     '  </div>' +
     '</div>' +
+
+    (acEnabled() ? '<div class="wre-card" id="meUnified">' + unifiedInner() + '</div>' : '') +
 
     '<div class="wre-card">' +
     '  <div class="wre-card__title">API Key</div>' +
@@ -434,6 +507,28 @@ async function onAction(e, body, app) {
     return;
   }
   const action = btn.getAttribute('data-action');
+
+  if (action === 'ac-login') {
+    if (!acEnabled()) {
+      toast('统一账户暂不可用');
+      return;
+    }
+    btn.disabled = true;
+    acSdk().requireLogin();   // 未登录会跳账户中心，登录后带票据回到本页
+    return;
+  }
+
+  if (action === 'ac-logout') {
+    if (!acEnabled()) {
+      return;
+    }
+    btn.disabled = true;
+    await acSdk().logout();
+    acUser = null;
+    paintUnified(body);
+    toast('已退出统一账户');
+    return;
+  }
 
   if (action === 'toggle-form') {
     const kind = btn.getAttribute('data-kind');

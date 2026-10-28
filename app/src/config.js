@@ -30,6 +30,13 @@ export const CONFIG = {
    * 故在小程序入口处给「小程序码 + 搜名字」提示，而非链接。 */
   MINIAPP_NAME: '悦读且住',
   SITE_URL: 'https://reader.chesterlee.cn',
+
+  /* 统一账户中心（account-center）：同一 uid 管所有作品。
+   * 只用于「登录 + 行为上报」，本机账户码与 Key 托管仍走原有云函数，互不影响。 */
+  ACCOUNT: {
+    apiBase: 'https://account.chesterlee.cn',
+    productId: 'wxread',
+  },
   DONATE_URL: 'https://reader.chesterlee.cn/donate/',
   PERSONAL_URL: 'https://chesterlee.cn/',
 };
