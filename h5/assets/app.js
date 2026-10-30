@@ -15,6 +15,7 @@ import { setTtsToast } from '../src/tts.js';
 import * as welcome from '../src/views/welcome.js';
 import * as home from '../src/views/home.js';
 import * as persona from '../src/views/persona.js';
+import * as personaEvidence from '../src/views/persona-evidence.js';
 import * as report from '../src/views/report.js';
 import * as shelf from '../src/views/shelf.js';
 import * as me from '../src/views/me.js';
@@ -33,6 +34,7 @@ const TABS = [
 
 // 二级页面：不在底部 Tab，进入后隐藏 TabBar（页面内自带「返回」）
 const SECONDARY = [
+  { key: 'persona-evidence', label: '人格依据', view: personaEvidence },
   { key: 'daily', label: '每日卡片', view: daily },
   { key: 'wander', label: '灵感漫游', view: wander },
   { key: 'admin', label: '运营看板', view: admin },

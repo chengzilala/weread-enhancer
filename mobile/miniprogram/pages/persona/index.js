@@ -58,6 +58,11 @@ Page({
     wx.switchTab({ url: '/pages/settings/index' });
   },
 
+  // 进入「人格依据」明细页：颗粒度到具体分类 / 书名 / 划线原文
+  goEvidence() {
+    wx.navigateTo({ url: '/pages/persona-detail/index' });
+  },
+
   // 通用状态块的动作：settings=去配置 Key，retry=重试
   onStateAction(e) {
     if (e.detail.type === 'settings') {
@@ -407,6 +412,7 @@ Page({
       codeItems: codeItems,
       full: persona.full,
       figure: persona.figure,
+      figureEvidence: persona.figureEvidence || null,
       figureUri: personaFigureDataUri(persona.code, this.data.wreDark),
       nicknames: persona.nicknames,
       oneLiner: persona.oneLiner,

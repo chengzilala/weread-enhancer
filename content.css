@@ -78,6 +78,17 @@
   opacity: 1;
 }
 
+/* 空闲收起：不打扰阅读，但保留半透明轮廓，鼠标靠近左上角感应区即恢复
+   （勿扰模式下不生效，避免两套隐藏规则互相覆盖） */
+#we-read-enhancer-root.wre-fab-resting:not(.wre-dnd) .wre-fab {
+  opacity: 0.18;
+  transform: scale(0.92);
+}
+#we-read-enhancer-root.wre-fab-resting:not(.wre-dnd):hover .wre-fab {
+  opacity: 1;
+  transform: scale(1.05);
+}
+
 /* 主面板下拉菜单 */
 .wre-panel-container {
   position: absolute;

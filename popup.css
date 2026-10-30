@@ -1,0 +1,110 @@
+/* 微信悦读 · 工具栏弹窗（点击扩展图标打开的快捷入口） */
+
+:root {
+  --wre-primary: #07c160;
+  --wre-primary-soft: #e8f5e9;
+  --wre-bg: #ffffff;
+  --wre-border: #e5e7eb;
+  --wre-text: #1f2329;
+  --wre-text-soft: #6b7280;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  width: 320px;
+  padding: 14px 14px 12px;
+  background: var(--wre-bg);
+  color: var(--wre-text);
+  font: 13px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wre-pop-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wre-pop-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  flex: 0 0 36px;
+}
+
+.wre-pop-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.wre-pop-ver {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--wre-text-soft);
+}
+
+.wre-pop-tip {
+  margin: 6px 0 12px;
+  font-size: 11.5px;
+  color: var(--wre-text-soft);
+}
+
+.wre-pop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wre-pop-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--wre-border);
+  border-radius: 10px;
+  color: var(--wre-text);
+  text-decoration: none;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.wre-pop-btn:hover {
+  background: var(--wre-primary-soft);
+  border-color: var(--wre-primary);
+}
+
+.wre-pop-btn:active {
+  transform: scale(0.985);
+}
+
+.wre-pop-ico {
+  flex: 0 0 20px;
+  width: 20px;
+  font-size: 16px;
+  text-align: center;
+}
+
+.wre-pop-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.wre-pop-text b {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.wre-pop-text i {
+  font-size: 11px;
+  font-style: normal;
+  color: var(--wre-text-soft);
+}

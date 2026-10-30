@@ -75,6 +75,22 @@
           </view>
         </view>
 
+        <!-- 为什么是这位代表人物 -->
+        <view class="persona__why" wx:if="{{persona.figure && persona.figure.why}}">
+          <view class="persona__why-title">为什么是{{persona.figure.name}}</view>
+          <view class="persona__why-text">{{persona.figure.why}}</view>
+          <block wx:if="{{persona.figureEvidence && persona.figureEvidence.items.length}}">
+            <view class="persona__why-sub">你的微信读书数据佐证</view>
+            <view class="persona__why-item" wx:for="{{persona.figureEvidence.items}}" wx:key="key">
+              <text class="persona__why-pick">{{item.label}}</text>
+              <view class="persona__why-basis"><text class="persona__why-dim">{{item.title}}</text>{{item.text}}</view>
+            </view>
+            <view class="persona__why-sample" wx:if="{{persona.figureEvidence.sample}}">{{persona.figureEvidence.sample}}</view>
+            <view class="persona__why-src" wx:if="{{persona.figureEvidence.note}}">{{persona.figureEvidence.note}}</view>
+            <view class="persona__why-more" bindtap="goEvidence">查看完整依据（细到分类 / 书名 / 划线原文）→</view>
+          </block>
+        </view>
+
         <!-- 生成竖版分享图 -->
         <view class="persona__share">
           <button class="wre-btn" bindtap="generateShare" loading="{{sharing}}" disabled="{{sharing}}">

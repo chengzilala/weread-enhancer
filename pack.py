@@ -45,6 +45,14 @@ def collect_runtime_files(manifest):
         for path in cs.get("css", []):
             add(path)
 
+    # 工具栏弹窗（点击扩展图标打开的快捷入口）
+    action = manifest.get("action", {})
+    add(action.get("default_popup"))
+    add("popup.css")
+    add("popup.js")
+    for path in (action.get("default_icon") or {}).values():
+        add(path)
+
     # 图标
     for path in manifest.get("icons", {}).values():
         add(path)

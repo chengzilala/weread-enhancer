@@ -95,6 +95,14 @@
   background: var(--rv-hover);
 }
 
+/* 文字按钮（收起） */
+.wre-reviews-iconbtn--text {
+  width: auto;
+  padding: 0 8px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .wre-reviews-sub {
   flex: 0 0 auto;
   padding: 8px 14px;
@@ -233,7 +241,7 @@
   overflow: visible;
 }
 
-/* ---------- 收起态：面板滑出视口，由主菜单「💭 评论」重新展开 ---------- */
+/* ---------- 收起态：面板滑出视口，重新展开走主菜单「💭 评论」 ---------- */
 #wre-reviews-sidebar.wre-collapsed {
   pointer-events: none;
 }

@@ -88,6 +88,9 @@
  *   ⑦ H5 朗读（Edge 神经语音）新增 npm 依赖 `ws`（见同目录 package.json）：
  *      上传部署时请选择「云端安装依赖」（或本地 `npm install` 后连同 node_modules 一起上传），
  *      否则 `require('ws')` 会失败、朗读自动回退系统语音。签名版本号见同目录 edge-tts.js 的 CHROMIUM_VERSION。
+ *   ⑧ AI 成本观测（不计费）：新建集合 `wre_ai_usage`（权限选「仅管理端可读写」，函数也会尝试自动创建）。
+ *      每次 AI 调用成功只记「功能 / 漫游档位 / token 数 / 耗时 / 匿名用户标识」，不记 messages 与输出正文，
+ *      供 billing-center 实测单次成本（P50 / P90）；保留期与清理策略由后续分析脚本决定。
  */
 'use strict';
 
@@ -105,12 +108,19 @@ const RETRY_BACKOFF_MS = 300; // 瞬时故障重试前的等待
 
 // DeepSeek（B3）：仅转发，Key 由用户自填，不内置我方 Key
 const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
-const DEEPSEEK_MODEL = 'deepseek-chat';
+const DEEPSEEK_MODEL = 'deepseek-flash'; // 旧名 deepseek-chat 已于 2026-07-24 弃用
 const AI_TIMEOUT_MS = 30000;
 const AI_MAX_MESSAGES = 8;
 // 输出上限：人格画像（短）+ 每日卡片（短）+ 灵感漫游（金档正文约 1000 字，
 // 加摘要 / 外部火花 / 创作种子的 JSON 结构，留足余量防截断导致 JSON 解析失败）
 const AI_MAX_TOKENS = 2000;
+// 成本观测（不收费）：只记 token 数与耗时，不记 messages / 输出正文。
+// 集合 `wre_ai_usage`（权限选「仅管理端可读写」，函数也会尝试自动创建），
+// 用途＝billing-center 的「实测单次成本 / P50·P90」分析，不参与任何计费。
+const AI_USAGE_COLLECTION = 'wre_ai_usage';
+const AI_FEATURES = ['persona-report', 'daily-card', 'wander'];
+// 灵感漫游三档是三个独立 SKU（素材量 / 输出长度不同），成本要分档统计
+const AI_TIERS = ['copper', 'silver', 'gold'];
 
 // 云同步（B2）：按 openid 隔离，只存人格结果，不存 Key、不存原始接口数据
 const SYNC_COLLECTION = 'wre_sync';
@@ -329,9 +339,71 @@ async function relayGateway(event) {
 
 // ---------- B3：DeepSeek 转发（Key 由用户自填，我方不内置） ----------
 
+/** 从 DeepSeek 响应里取 usage（缺失按 0，绝不影响主流程） */
+function pickAiUsage(data) {
+  const u = (data && data.usage) || {};
+  const prompt = Number(u.prompt_tokens) || 0;
+  const completion = Number(u.completion_tokens) || 0;
+  return {
+    promptTokens: prompt,
+    completionTokens: completion,
+    cachedTokens: Number(u.prompt_cache_hit_tokens) || 0,
+    totalTokens: Number(u.total_tokens) || (prompt + completion),
+  };
+}
+
+/** 用量记录里的匿名标识：同一人可聚合，库里不落 deviceId / openid 原文 */
+function hashAiUser(uid) {
+  const s = String(uid || '');
+  return s ? crypto.createHash('sha256').update('ai-usage:' + s).digest('hex').slice(0, 16) : '';
+}
+
+/** 记一条 AI 用量（成本观测，不参与计费）；写失败只打日志，不影响 AI 结果 */
+async function recordAiUsage(meta, usage, ms) {
+  const now = Date.now();
+  const doc = {
+    date: cstDate(now),
+    at: now,
+    product: meta.product || 'weread-h5',
+    feature: meta.feature || 'other',
+    tier: meta.tier || '',
+    channel: meta.channel || 'byok',
+    model: DEEPSEEK_MODEL,
+    user: hashAiUser(meta.uid),
+    ms: ms,
+    promptTokens: usage.promptTokens,
+    completionTokens: usage.completionTokens,
+    cachedTokens: usage.cachedTokens,
+    totalTokens: usage.totalTokens,
+    ok: true,
+  };
+  const db = cloud.database();
+  try {
+    await db.collection(AI_USAGE_COLLECTION).add({ data: doc });
+  } catch (err) {
+    // 集合不存在：建集合后重试
+    try {
+      await db.createCollection(AI_USAGE_COLLECTION);
+      await db.collection(AI_USAGE_COLLECTION).add({ data: doc });
+    } catch (err2) {
+      console.log('[wereadProxy] ai usage drop', (err2 && err2.errMsg) || 'unknown');
+    }
+  }
+}
+
 async function handleAi(event) {
+  const startedAt = Date.now();
   const apiKey = String((event && event.apiKey) || '').trim();
   const messages = event && Array.isArray(event.messages) ? event.messages : null;
+  const rawFeature = String((event && event.feature) || '');
+  const rawTier = String((event && event.tier) || '');
+  const meta = {
+    product: String((event && event.product) || 'weread-h5'),
+    feature: AI_FEATURES.indexOf(rawFeature) >= 0 ? rawFeature : 'other',
+    tier: AI_TIERS.indexOf(rawTier) >= 0 ? rawTier : '',
+    channel: String((event && event.channel) || 'byok'),
+    uid: (event && event.uid) || '',
+  };
 
   if (apiKey.indexOf('sk-') !== 0) {
     return { ok: false, code: 'param', error: 'DeepSeek Key 缺失或格式不对（应以 sk- 开头）' };
@@ -346,7 +418,7 @@ async function handleAi(event) {
   const res = await postJson(
     DEEPSEEK_URL,
     { Authorization: 'Bearer ' + apiKey },
-    { model: DEEPSEEK_MODEL, messages: messages, temperature: 0.7, stream: false, max_tokens: AI_MAX_TOKENS },
+    { model: DEEPSEEK_MODEL, messages: messages, temperature: 0.7, stream: false, max_tokens: AI_MAX_TOKENS, thinking: { type: 'disabled' } },
     AI_TIMEOUT_MS
   );
 
@@ -383,8 +455,17 @@ async function handleAi(event) {
     return { ok: false, code: 'parse', error: 'AI 返回内容无法解析', snippet: snippet };
   }
 
-  console.log('[wereadProxy] ai ok', { key: maskKey(apiKey) });
-  return { ok: true, text: String(text).trim() };
+  const usage = pickAiUsage(data);
+  // 成本观测：先落库再返回，确保样本不丢（对 AI 结果无影响）
+  await recordAiUsage(meta, usage, Date.now() - startedAt);
+
+  console.log('[wereadProxy] ai ok', {
+    key: maskKey(apiKey),
+    feature: meta.feature,
+    ms: Date.now() - startedAt,
+    tokens: usage.totalTokens,
+  });
+  return { ok: true, text: String(text).trim(), usage: usage };
 }
 
 // ---------- B2：云同步（按 openid 隔离，只存人格结果） ----------
@@ -1124,13 +1205,22 @@ async function handleH5Relay(body) {
   return await relayGateway({ apiName: body && body.apiName, params: (body && body.params) || {}, apiKey: got.key });
 }
 
-/** H5 ai：用托管 DeepSeek Key 转发 */
+/** H5 ai：用托管 DeepSeek Key 转发（deviceId 只用于用量统计的匿名聚合） */
 async function handleH5Ai(body) {
-  const got = await getHostedKey(body && body.deviceId, 'aiEnc');
+  const deviceId = cleanDeviceId(body && body.deviceId);
+  const got = await getHostedKey(deviceId, 'aiEnc');
   if (!got.ok) {
     return { ok: false, code: got.code === 'nokey' ? 'ai_nokey' : got.code, error: got.error };
   }
-  return await handleAi({ apiKey: got.key, messages: body && body.messages });
+  return await handleAi({
+    apiKey: got.key,
+    messages: body && body.messages,
+    feature: body && body.feature,
+    tier: body && body.tier,
+    uid: deviceId,
+    product: 'weread-h5',
+    channel: 'byok',
+  });
 }
 
 /**

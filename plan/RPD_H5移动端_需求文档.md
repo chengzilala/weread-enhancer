@@ -239,7 +239,7 @@ AI 同理：{action:'ai', deviceId, messages} → 云函数取 Key → DeepSeek 
 
 ### 5.4 部署
 
-- **静态托管**：可挂在现有帽子云 / Vercel（与官网同域或独立子域）；
+- **静态托管**：与官网同域，走 `/app/` 子路径（腾讯云轻量 `/srv/chesterlee/reader/app/`）；
 - **中转**：微信云开发 → 云函数 `wereadProxy` 的 HTTP 访问服务增加绑定路径（如 `/h5`）；
 - **跨域**：云函数响应头把 `Access-Control-Allow-Origin` 从 `*` 收敛为本站域名。
 

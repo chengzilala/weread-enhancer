@@ -1,0 +1,64 @@
+<view class="wre-page {{wreDark ? 'wre-dark' : ''}}" style="--wre-fs:{{wreFs}}">
+  <wre-state
+    wx:if="{{loading}}"
+    type="loading"
+    text="正在整理你的完整依据…"
+    sub="首次会拉取笔记最多的几本书的划线原文，稍等片刻"
+  />
+
+  <wre-state
+    wx:elif="{{error}}"
+    type="error"
+    text="{{error}}"
+    action="{{needsKey ? '去重新配置' : '重试'}}"
+    actionType="{{needsKey ? 'settings' : 'retry'}}"
+    bind:action="onStateAction"
+  />
+
+  <block wx:elif="{{detail}}">
+    <view class="wre-card detail__intro">
+      <view class="detail__intro-title">为什么是{{detail.figureName}}</view>
+      <view class="wre-muted">{{detail.name}}{{detail.code ? ' · ' + detail.code : ''}}　下面每一节对应你人格的一个维度，细到你具体的分类、具体的书、具体的划线原文。</view>
+      <view class="detail__why" wx:if="{{detail.why}}">{{detail.why}}</view>
+    </view>
+
+    <view class="wre-card detail__sec" wx:for="{{detail.sections}}" wx:key="key" wx:for-item="sec">
+      <view class="detail__head">
+        <text class="detail__dim">{{sec.title}}</text>
+        <text class="detail__pick {{sec.available ? '' : 'is-na'}}">{{sec.pickText}}</text>
+      </view>
+      <view class="detail__lead">{{sec.lead}}</view>
+      <view class="detail__chips" wx:if="{{sec.stats.length}}">
+        <text class="detail__chip" wx:for="{{sec.stats}}" wx:key="label" wx:for-item="st">{{st.label}} {{st.value}}</text>
+      </view>
+      <view class="detail__group" wx:for="{{sec.groups}}" wx:key="name" wx:for-item="gp">
+        <view class="detail__gname">{{gp.name}}</view>
+        <view class="detail__book" wx:for="{{gp.books}}" wx:key="*this" wx:for-item="bk">· {{bk}}</view>
+      </view>
+      <view class="detail__rows" wx:if="{{sec.rows.length}}">
+        <view class="detail__row" wx:for="{{sec.rows}}" wx:key="label" wx:for-item="rw">
+          <text>{{rw.label}}</text>
+          <text class="detail__rowv">{{rw.value}}</text>
+        </view>
+      </view>
+      <view class="detail__note" wx:for="{{sec.notes}}" wx:key="text" wx:for-item="nt">
+        <view class="detail__note-text">{{nt.text}}</view>
+        <view class="detail__note-src">{{nt.src}}</view>
+      </view>
+    </view>
+
+    <view class="wre-card detail__sec" wx:if="{{detail.quotes.length}}">
+      <view class="detail__head">
+        <text class="detail__dim">原文划线</text>
+        <text class="detail__pick is-quiet">{{detail.quotes.length}} 条</text>
+      </view>
+      <view class="detail__lead">从你的划线里挑出的几条原文（每本最多 2 条），最能代表你留下的痕迹。</view>
+      <view class="detail__note" wx:for="{{detail.quotes}}" wx:key="text" wx:for-item="qt">
+        <view class="detail__note-text">{{qt.text}}</view>
+        <view class="detail__note-src">{{qt.src}}</view>
+      </view>
+    </view>
+
+    <view class="detail__foot">{{detail.note}}</view>
+  </block>
+</view>

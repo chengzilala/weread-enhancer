@@ -29,6 +29,9 @@ let wreRoot = null;
 let debugViewTimer = null;
 let lastReflowAt = 0;
 let lastPreviewLogAt = 0;
+let wreUnderlineReflowObserver = null;
+let wreUnderlineReflowTimer = null;
+let wreUnderlineReflowFired = false;
 
 // 自动阅读状态
 let autoReadTimer = null;
@@ -129,6 +132,56 @@ function triggerWereadLayoutReflow(reason) {
     log('warn', '触发页面重排失败', { reason, error: String(error) });
   }
 }
+
+// 官方划线层（.wr_underline_wrapper）在正文之后才渲染，且只在 resize 时按当前宽度重算坐标。
+// 插件改过正文宽度后，如果划线层先于/晚于这次重排渲染，就会出现「打开书籍划线错位、刷新才正常」。
+// 这里等划线层真正出现后再补一次重排，让官方按插件宽度重新计算划线坐标。
+function scheduleUnderlineLayerReflow(reason) {
+  if (wreUnderlineReflowObserver) {
+    wreUnderlineReflowObserver.disconnect();
+    wreUnderlineReflowObserver = null;
+  }
+  if (wreUnderlineReflowTimer) {
+    clearTimeout(wreUnderlineReflowTimer);
+    wreUnderlineReflowTimer = null;
+  }
+  wreUnderlineReflowFired = false;
+
+  const fire = (tag) => {
+    if (wreUnderlineReflowFired || !getPrimaryContentElement()) {
+      return;
+    }
+    wreUnderlineReflowFired = true;
+    if (wreUnderlineReflowObserver) {
+      wreUnderlineReflowObserver.disconnect();
+      wreUnderlineReflowObserver = null;
+    }
+    if (wreUnderlineReflowTimer) {
+      clearTimeout(wreUnderlineReflowTimer);
+      wreUnderlineReflowTimer = null;
+    }
+    scheduleWereadLayoutReflow(`${reason}:${tag}`);
+    // 官方划线层可能分多帧铺开，错开时间再补两次，确保坐标最终按插件宽度重算
+    window.setTimeout(() => scheduleWereadLayoutReflow(`${reason}:${tag}-late1`), 700);
+    window.setTimeout(() => scheduleWereadLayoutReflow(`${reason}:${tag}-late2`), 2500);
+  };
+
+  if (document.querySelector('.wr_underline_wrapper')) {
+    fire('already');
+    return;
+  }
+
+  wreUnderlineReflowObserver = new MutationObserver(() => {
+    if (document.querySelector('.wr_underline_wrapper')) {
+      fire('underline-ready');
+    }
+  });
+  wreUnderlineReflowObserver.observe(document.body, { childList: true, subtree: true });
+
+  // 兜底：划线少 / 加载慢时也补一次重排
+  wreUnderlineReflowTimer = window.setTimeout(() => fire('fallback'), 8000);
+}
+
 
 function log(level, message, meta) {
   const entry = {
@@ -454,15 +507,18 @@ function waitNextFrame() {
 }
 
 async function measureDefaultBaseWidthPx() {
-  ensureStyleTag();
-  const previous = wreStyleTag.textContent;
-  wreStyleTag.textContent = '';
-  await waitNextFrame();
+  // 基准取 .readerChapterContent_container 自身的宽度：它不受屏占比 CSS 影响（CSS 只作用于
+  // .readerChapterContent / .app_content）。不再临时清空 styleTag，避免启动瞬间正文宽度反复
+  // 变化，导致官方按错误宽度排版、划线层坐标随之错位。
   const container = getReaderContainerElement();
-  const width = container ? Number(container.getBoundingClientRect().width.toFixed(2)) : null;
-  wreStyleTag.textContent = previous;
-  await waitNextFrame();
-  return width;
+  if (!container) {
+    return null;
+  }
+  const width = container.getBoundingClientRect().width;
+  if (!Number.isFinite(width) || width <= 0) {
+    return null;
+  }
+  return Number(width.toFixed(2));
 }
 
 async function primeScreenBasePx(force) {
@@ -546,6 +602,11 @@ body.wre-toolbar-floating.wre-show-controls [class*="readerControls"] {
 function detectScrollMode() {
   return !document.querySelector('.readerChapterContent_container')
     && !!document.querySelector('.app_content');
+}
+
+// 判定是否在阅读页（路径形如 /web/reader/...）
+function isReaderPage() {
+  return window.location.pathname.indexOf('/web/reader') === 0;
 }
 
 // 生成屏占比宽度 CSS（按阅读方式分流），供 updateStyleTag 使用
@@ -736,6 +797,46 @@ function pinControls() {
   return true;
 }
 
+// 官方「目录 / 搜索」抽屉打开时会盖住屏幕顶部；此时必须让出顶栏，
+// 否则浮动顶栏（z-index 高于官方抽屉）会压住抽屉顶部的搜索框，导致点不到。
+function isOfficialPanelAtTop() {
+  // 插件自己的界面（悬浮球 / 各模块面板）不算，统一以 wre- 前缀判据
+  const isOwnUI = (el) => {
+    let node = el;
+    while (node && node !== document.body) {
+      if (node.id === 'we-read-enhancer-root') return true;
+      const cls = typeof node.className === 'string' ? node.className : '';
+      if (/(^|\s)wre-/.test(cls)) return true;
+      node = node.parentElement;
+    }
+    return false;
+  };
+  // ① 顶部区域里有官方可见输入框（目录 / 搜索抽屉的搜索框）
+  const inputs = document.querySelectorAll('input, textarea');
+  for (const input of inputs) {
+    if (isOwnUI(input)) continue; // 跳过插件自己的输入框
+    const rect = input.getBoundingClientRect();
+    if (rect.width < 80 || rect.height < 16) continue;
+    if (rect.bottom <= 0 || rect.top > WRE_TOPBAR_ZONE_PX) continue;
+    const style = window.getComputedStyle(input);
+    if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) < 0.1) continue;
+    return true;
+  }
+  // ② 目录面板本身占住了顶部（无输入框时的兜底）
+  const panels = document.querySelectorAll('.readerCatalog, [class*="readerCatalog"]');
+  for (const panel of panels) {
+    if (panel.tagName === 'LI' || panel.tagName === 'UL') continue;
+    const rect = panel.getBoundingClientRect();
+    if (rect.width < 200 || rect.height < 200) continue;
+    if (rect.right <= 0 || rect.left >= window.innerWidth) continue; // 已收起（滑出视口）
+    if (rect.bottom <= 0 || rect.top > WRE_TOPBAR_ZONE_PX) continue;
+    const style = window.getComputedStyle(panel);
+    if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) < 0.1) continue;
+    return true;
+  }
+  return false;
+}
+
 function applyToolbarFloating() {
   const topOk = pinTopBar();
   const ctrlOk = pinControls();
@@ -771,6 +872,7 @@ function ensureToolbarTrigger() {
   if (wreToolbarMoveHandler) return;
 
   const showTop = () => {
+    if (isOfficialPanelAtTop()) return; // 官方目录 / 搜索抽屉打开时让位
     if (wreToolbarHideTimer) { clearTimeout(wreToolbarHideTimer); wreToolbarHideTimer = null; }
     pinTopBar();
     document.body.classList.add('wre-show-topbar');
@@ -798,7 +900,17 @@ function ensureToolbarTrigger() {
 
   // 用鼠标位置判断代替透明感应层：感应层即使完全透明也会吃掉点击，压住官方「下一页」点击区
   wreToolbarMoveHandler = (event) => {
-    if (event.clientY <= WRE_TOPBAR_ZONE_PX) showTop(); else hideTop();
+    if (event.clientY <= WRE_TOPBAR_ZONE_PX) {
+      if (isOfficialPanelAtTop()) {
+        // 抽屉打开：立刻收起顶栏（顶栏 pointer-events 随类名移除即刻失效，不再吃点击）
+        if (wreToolbarHideTimer) { clearTimeout(wreToolbarHideTimer); wreToolbarHideTimer = null; }
+        document.body.classList.remove('wre-show-topbar');
+      } else {
+        showTop();
+      }
+    } else {
+      hideTop();
+    }
     if (window.innerWidth - event.clientX <= WRE_CONTROLS_ZONE_PX) showRight(); else hideRight();
   };
   document.addEventListener('mousemove', wreToolbarMoveHandler, true);
@@ -1407,6 +1519,8 @@ function toggleDndMode() {
   WRE_STATE.dndMode = !WRE_STATE.dndMode;
   if (wreRoot) {
     wreRoot.classList.toggle('wre-dnd', WRE_STATE.dndMode);
+    // 进入勿扰时清掉「空闲收起」态，退出后由鼠标移动重新判定
+    if (WRE_STATE.dndMode) wreRoot.classList.remove('wre-fab-resting');
   }
   saveState();
   log('info', '勿扰模式已切换', { dndMode: WRE_STATE.dndMode });
@@ -1434,7 +1548,10 @@ function toggleFullscreen() {
     updateScreenRatioUI();
     if (!WRE_STATE.dndMode) {
       WRE_STATE.dndMode = true;
-      if (wreRoot) wreRoot.classList.add('wre-dnd');
+      if (wreRoot) {
+        wreRoot.classList.add('wre-dnd');
+        wreRoot.classList.remove('wre-fab-resting');
+      }
     }
     document.documentElement.requestFullscreen().catch((err) => {
       log('warn', '进入全屏失败', { error: String(err) });
@@ -1536,23 +1653,70 @@ function bindEvents(root) {
   const debugDownload = root.querySelector('#wre-debug-download');
   const debugClear = root.querySelector('#wre-debug-clear');
 
+  // 悬浮球空闲收起：进入阅读页先完整显示 5 秒，之后淡成半透明小圆点；
+  // 鼠标靠近左上角感应区（半径 90px）即恢复完整，移开 0.9 秒后再收起。
+  const FAB_REST_DELAY_MS = 5000;   // 进入阅读页后完整显示的时长
+  const FAB_REST_IDLE_MS = 900;     // 鼠标离开感应区后多久收起
+  const FAB_HOVER_RADIUS_PX = 90;   // 以悬浮球中心为圆心的感应半径
+  let fabRestTimer = null;
+
+  const clearFabRestTimer = () => {
+    if (fabRestTimer) { clearTimeout(fabRestTimer); fabRestTimer = null; }
+  };
+  const wakeFab = () => {
+    clearFabRestTimer();
+    root.classList.remove('wre-fab-resting');
+  };
+  const restFab = () => {
+    clearFabRestTimer();
+    // 勿扰模式（完全隐藏）或菜单展开时不收起
+    if (WRE_STATE.dndMode || menu.classList.contains('wre-visible')) return;
+    root.classList.add('wre-fab-resting');
+  };
+  const scheduleRestFab = (delay) => {
+    clearFabRestTimer();
+    if (WRE_STATE.dndMode) return;
+    fabRestTimer = setTimeout(restFab, delay);
+  };
+  const isNearFab = (event) => {
+    const rect = fab.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    return Math.hypot(event.clientX - cx, event.clientY - cy) <= FAB_HOVER_RADIUS_PX;
+  };
+
   // 悬浮球：鼠标悬停即展开菜单（无需点击），移开后延迟收起
   let menuCloseTimer = null;
   const openMenu = () => {
     if (menuCloseTimer) { clearTimeout(menuCloseTimer); menuCloseTimer = null; }
     menu.classList.add('wre-visible');
+    wakeFab();
   };
   const scheduleCloseMenu = () => {
     if (menuCloseTimer) clearTimeout(menuCloseTimer);
     menuCloseTimer = setTimeout(() => {
       menu.classList.remove('wre-visible');
       menuCloseTimer = null;
+      // 菜单收起后按空闲节奏重新收起悬浮球
+      scheduleRestFab(FAB_REST_IDLE_MS);
     }, 250);
   };
   fab.addEventListener('mouseenter', openMenu);
   fab.addEventListener('mouseleave', scheduleCloseMenu);
   menu.addEventListener('mouseenter', openMenu);
   menu.addEventListener('mouseleave', scheduleCloseMenu);
+
+  if (isReaderPage()) {
+    scheduleRestFab(FAB_REST_DELAY_MS);
+    document.addEventListener('mousemove', (event) => {
+      if (WRE_STATE.dndMode) return;
+      if (isNearFab(event)) {
+        wakeFab();
+      } else if (!root.classList.contains('wre-fab-resting') && !fabRestTimer) {
+        scheduleRestFab(FAB_REST_IDLE_MS);
+      }
+    }, true);
+  }
 
   fab.addEventListener('click', (event) => {
     event.stopPropagation();
@@ -1845,12 +2009,14 @@ async function applySavedScreenRatioOnInit() {
     if (ready) {
       const applied = applyScreenRatio(ratio);
       scheduleWereadLayoutReflow('init-apply');
+      scheduleUnderlineLayerReflow('init-apply');
       inspectAppliedLayout();
       collectLayoutSnapshot();
       log('info', '已在刷新后自动应用已保存的屏占比', applied);
       // 兜底：稍后再应用一次，防止早期模式判定/渲染时机偏差（如 app_content 晚于正文出现）
       setTimeout(() => {
         applyScreenRatio(WRE_STATE.screenRatio);
+        scheduleWereadLayoutReflow('init-apply-2');
         log('info', '屏占比二次兜底应用', { ratio: WRE_STATE.screenRatio, scrollMode: detectScrollMode() });
       }, 800);
       return true;

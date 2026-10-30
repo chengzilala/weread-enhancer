@@ -409,5 +409,6 @@ module.exports = {
   makeLocalIssue,
   localTitle,
   toView,
+  hashKey,
   dateKey,
 };

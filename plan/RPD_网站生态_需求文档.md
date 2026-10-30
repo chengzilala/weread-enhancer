@@ -53,8 +53,8 @@
 | **内容工作台** | **Obsidian + 本仓库 `web/content/` 作为 vault** | 你日常用 Obsidian，直接在里面写；front-matter 即 Obsidian 属性；构建脚本兼容 wiki 链接 / `![[图片]]` / callout |
 | 第一版内容范围 | **标准版 + 知识资产（阅读方法论）** | 方法论板块是粘性核心，**进第一版**，不放储备 |
 | 复刻程度 | **结构照搬，视觉自定** | 见 1.2 |
-| 代码落点与部署 | **本项目内 `web/` 目录 + 帽子云静态托管** | 与插件同仓库；构建产物走 `site-dist` 分支 |
-| 站点域名 | **自有域名 `reader.chesterlee.cn`**（阿里云备案，已绑定帽子云应用 `wereadapp`）；帽子云默认域名 `wereadapp-32km31c.maozi.io` 仍可访问，仅作备用 | 换域名只改 `site.config.json` 一处 |
+| 代码落点与部署 | **本项目内 `web/` 目录 + 腾讯云轻量静态目录** | 与插件同仓库；`python3 web/build.py` 后 `rsync web/dist/` 到 `/srv/chesterlee/reader/` |
+| 站点域名 | **自有域名 `reader.chesterlee.cn`**（阿里云备案，A 记录 → `43.136.92.125`，Caddy 自动证书） | 换域名只改 `site.config.json` 一处 |
 | Obsidian vault 形态 | **独立 vault（`web/content/`）** | 不并入你现有库，零冲突 |
 | 知识资产首版选题 | **已确认**（4 篇，见 3.3） | — |
 
@@ -85,7 +85,7 @@
 | **API Key 使用说明** | 两把 Key（`wrk-` 官方 / `sk-` DeepSeek）的获取、配置、校验、清除与隐私口径（见 3.8） | P0 |
 | Obsidian 内容工作流 | vault 约定 + 语法兼容 + 一键发布（含 Obsidian 内触发构建） | P0 |
 | 版本公告接口 | 构建时产出 `dist/api/latest.json`，供插件查询"最新版本" | P0 |
-| 本地预览与部署 | 本地一键预览 + 帽子云静态部署 | P0 |
+| 本地预览与部署 | 本地一键预览 + 腾讯云轻量静态发布 | P0 |
 | 插件侧联动入口 | 插件菜单新增「📖 帮助中心」，跳转网站首页 | P1 |
 | 插件侧版本提示 | 插件启动拉取 `latest.json`，版本更新时提示（失败静默） | P1 |
 | SEO 与响应式 | title/description/OG、移动端自适应、暗色适配 | P1 |
@@ -186,7 +186,7 @@ aliases: [屏占比, 宽度]       # Obsidian 别名，同时用于 [[双链]] �
 | `/changelog/` | 更新日志 | 每个版本一节；最新一节供 `latest.json` 提取 |
 | `/about/` | 关于 | 项目由来、开源许可（GPL-3.0） |
 | `/privacy/` | 隐私政策 | 与 `release/privacy.md` 同步（单一事实源） |
-| `/account/` | **我的账户** | 与网页版 `/app/` **共用同一套账户与登录系统**（同域名同 origin、同一 localStorage、同一份 `/app/src/` 账户实现）：身份头（昵称首字头像 / 账户码 / 退出登录）、已连接 Key 状态与更换、跨设备登录、**关联网页账户（生成 6 位短码 / 查看关联状态 / 解绑）**、昵称、清除云端 Key |
+| `/account/` | **我的账户** | **统一账户中心**（`account-center`，`productId=wxread`，SDK 见 `web/assets/ps-auth.js`）：身份头（头像 / 昵称 / 邮箱掩码 / uid）、登录 / 注册、进入账户中心、退出登录；账户码 + Key 托管等插件自有账户仍在网页版 `/app/` 的「我的」里管理 |
 | `/feedback/` | 反馈 | 问题反馈 / 联系方式入口 |
 | `/gallery/` | **图库（界面图库）** | 分组图墙：**响应式大图为主 + 极简文案 + 顺滑渐入**，真实界面截图 / 站点宣传图 / 商店尺寸件，点击看大图（见 3.9） |
 
@@ -458,7 +458,7 @@ aliases: [屏占比, 宽度]       # Obsidian 别名，同时用于 [[双链]] �
 - **构建**：Python 脚本 `web/build.py`（**零第三方依赖**：只用 Python 标准库，本机 Python 3.9 即可；Markdown 渲染先自写"够用子集"，覆盖 3.1 的语法清单，不引入任何 npm/pip 依赖）
 - **产出**：`web/dist/` 纯静态 HTML/CSS/JS（**零 CDN、零第三方脚本、无运行时依赖**）
 - **预览**：`web/serve.py`（Python 内置 `http` 模块，极简静态服务器）
-- **部署**：帽子云静态托管（国内可直连）；构建产物 `web/dist/` 走 `site-dist` 分支，平台直接发分支内容、无需平台侧构建
+- **部署**：腾讯云轻量静态目录（`/srv/chesterlee/reader`）；构建产物 `web/dist/` 由 `rsync` 覆盖，静态直读、无需重启
 
 ### 5.2 文件结构（规划）
 
@@ -519,7 +519,7 @@ python3 web/serve.py    # 本地预览（默认 http://localhost:5173）
 - [x] `serve.py` 本地预览跑通
 - [x] 产出 `dist/api/latest.json`（版本号自动读 `manifest.json`）
 - [x] 内容目录可被 Obsidian 直接打开为 vault（附件目录约定 + `_模板.md`）
-- [x] 帽子云静态部署跑通（默认域名 `wereadapp-32km31c.maozi.io`；现已改用自有域名 `reader.chesterlee.cn`）
+- [x] 静态部署跑通（原平台默认域名已弃用；现为自有域名 `reader.chesterlee.cn`，腾讯云轻量静态目录 rsync 发布）
 
 ### 6.2 阶段二：教程与 FAQ（P0）
 - [x] 首页 `/`
@@ -582,7 +582,7 @@ python3 web/serve.py    # 本地预览（默认 http://localhost:5173）
 1. `python3 web/build.py` 一条命令无报错产出 `web/dist/`，含首页与所有栏目页（含 `/thinking/`），以及 `dist/api/latest.json`；
 2. `python3 web/serve.py` 本地预览所有链接可点、无 404 死链、移动端与暗色下可读；
 3. **Obsidian 可直接打开 `web/content/` 写作**：`[[双链]]` 与 `![[图片]]` 构建后正确渲染为站内链接与图片；构建告警清单在无问题时为空；
-4. 帽子云部署成功，国内可直连访问；
+4. rsync 到腾讯云轻量 `/srv/chesterlee/reader/` 后上线成功，国内可直连访问；
 5. **内容与代码一致**：快捷键仅 `空格 / D / F / ?`，权限、生效域名与 `manifest.json` 一致，无矛盾表述；
 6. 修改 `manifest.json` 版本号后重新构建，`dist/api/latest.json` 的 `latestVersion` 自动同步变化（版本号单一事实源）；
 7. 插件菜单出现「📖 帮助中心」，点击能打开网站首页；插件版本低于站点记录时显示"有新版本"提示；断网 / 超时**静默无报错**；
@@ -607,7 +607,7 @@ python3 web/serve.py    # 本地预览（默认 http://localhost:5173）
 | 用户误以为插件向网站上传了阅读数据 | 动线文案与隐私政策写明："只发一个 GET 请求取版本号，不上传任何阅读数据，不使用 Cookie" |
 | 网站文案与代码漂移（快捷键 / 权限 / 域名说错） | 每篇功能文章标注"以 vX.Y.Z 代码为准"；发布前按第 7 章第 5 条逐项核对；版本号由构建自动同步 |
 | 网站与插件版本号两处维护、容易不一致 | `latest.json` 与页脚版本号**一律构建时读 `manifest.json`**，禁止手写 |
-| 帽子云免费额度 / 域名限制 | 纯静态站，额度足够；域名由平台自动分配（随机前缀、无法自选），换名重建会换域名；后续有需要可绑自有域名（改 `site.config.json` 一处） |
+| 静态站发布遗漏（`push` 不等于上线） | 发布一律 `python3 web/build.py` → `rsync web/dist/` 到 `/srv/chesterlee/reader/`；Caddy 静态直读，无需重启（见《部署上线备案》§2.1） |
 | 内容长期不更新，网站变"僵尸" | 更新日志与插件发版**绑定**：发版即补一节 changelog 再构建；写入插件发版流程 |
 | 教程里出现真实 Key / 诱导用户把 Key 交给他人 | 红线（3.8）：示例只用 `wrk-xxxxxxxx` / `sk-xxxxxxxx` 占位；明确"Key 等同账号读取权限、只存本机、勿发任何人"；发布前全站搜 `wrk-`、`sk-` 逐个确认是占位符 |
 | 用户以为配置 Key = 把账号密码交给插件 | 教程第 1 段先讲清"Key 是什么、不是账号密码、只存本机、可随时清除/重置"；插件侧同口径（3.7 帮助中心/引导态文案与网站对齐） |
@@ -630,7 +630,7 @@ python3 web/serve.py    # 本地预览（默认 http://localhost:5173）
 - **用户目标**：微信读书插件用户有一个内容入口站（教程 / 技巧 / **阅读方法论** / FAQ / 更新日志），插件与网站互相引流；作者能在 **Obsidian** 里用最低成本维护内容。
 - **输入输出**：
   - 输入 = 作者在 `web/content/`（Obsidian vault）写的 Markdown 文章 + 仓库根 `manifest.json` 的版本号
-  - 输出 = ① 纯静态网站（帽子云）；② `dist/api/latest.json`（插件版本公告源）；③ 插件内「📖 帮助中心」入口
+  - 输出 = ① 纯静态网站（腾讯云轻量静态目录）；② `dist/api/latest.json`（插件版本公告源）；③ 插件内「📖 帮助中心」入口
 - **成功标准**：见第 7 章（13 条，均可判定）。
 
 ## 附 B. 已确认项与假设
@@ -640,7 +640,7 @@ python3 web/serve.py    # 本地预览（默认 http://localhost:5173）
 | 项 | 结论 |
 |---|---|
 | 知识资产首版选题 | 沿用 3.3 的 4 篇 |
-| 站点域名 | 自有域名 `reader.chesterlee.cn`（阿里云备案，国内可直连）；帽子云默认域名 `wereadapp-32km31c.maozi.io` 作备用 |
+| 站点域名 | 自有域名 `reader.chesterlee.cn`（阿里云备案，国内可直连，腾讯云轻量静态站） |
 | Obsidian vault | 独立 vault（`web/content/`），不并入现有库 |
 
 ### B-2 仍按假设推进（有异议请指出）
@@ -679,3 +679,5 @@ python3 web/serve.py    # 本地预览（默认 http://localhost:5173）
 | 2026-10-14 | 二十一次修订（v0.21） | **「加到手机桌面」由顶栏导航并入「H5 移动端」栏目**：从 `site.config.json` 的 `nav` 移除该入口（顶栏不再单独占位）；源文件由 `content/加到手机桌面.md` 迁入 `content/H5 移动端/加到手机桌面.md`，`slug` 由 `desktop` 改为 `h5/desktop`（网址 `/desktop/` → `/h5/desktop/`），并挂进 H5 栏目（`order: 6`）；站内 `[[加到手机桌面]]` 双链经 `aliases` 自动改指新网址（首页 / H5 / 小程序 / 朗读与分享等 9 个产物页）；同步更新 `content/_内容结构说明.md` 的导航↔文件对照表。**注意：旧网址 `/desktop/` 已不存在** | 2.1、3.2、3.4、附 C |
 | 2026-10-14 | 二十二次修订（v0.22） | **顶栏导航改「核心项平铺 + 更多 ▾」**：13 项在 `min(1920px,80vw)` 容器里放不下会换行，故把低频 6 项（知识资产 / 图库 / 常见问题 / 更新日志 / 打赏 / 我的账户）收进右侧「更多」下拉，常显 7 项（首页 / 快速上手 / 功能教程 / 进阶技巧 / H5 移动端 / 微信小程序 / 阅读人格）；实现用**原生 `<details>`（零依赖、无 JS 也能展开）**——`site.config.json` 的 nav 项加 `"more": true` 即入下拉，`build.py` 的 `render_nav` 据此拆分并渲染 `.nav-more` 面板；`site.css` 加下拉浮层样式（桌面端点空白 / `Esc` 收起由 `site.js` 补 3 行）、`≤860px` 汉堡菜单里改为就地竖向展开；实测桌面 1440 单行不换行、下拉 6 项、无 JS 报错 | 2.1、3.1、4.2、附 C |
 | 2026-10-14 | 二十三次修订（v0.23） | **首页 Hero 按钮组新增「桌面版」入口**：在「H5 移动端」与「微信小程序」之间插入「桌面版」按钮（`<a class="home-btn" href="/docs/h5/desktop/">桌面版</a>`），点击直达《装到桌面，像 App 一样用（电脑 / 手机）》教程页 `/docs/h5/desktop/`，把电脑（Windows / Mac 装成桌面应用）/ 手机（H5、小程序加到桌面）的手把手说明摆到首页可见位置；`home_action_item` 带一行小字 note「电脑 / 手机 · 装成 App」与悬停提示；同步更新 `web/content/首页.md` 板块标题与文案（「装到桌面，像 App 一样用（电脑 / 手机）」「电脑、手机都能用」） | 3.11、附 C |
+| 2026-10-29 | 二十四次修订（v0.24） | **官网顶栏账户入口接入统一账户中心（account-center）**：新增 `web/assets/ps-auth.js`（账户中心 SDK 副本，整文件复制不改本体）、`layout.html` 加载 SDK、`site.js` 按统一身份渲染——未登录显示「登录」（点击跳账户中心登录页，带 `productId=wxread` + `returnUrl`，登录后凭 `ps_ticket` 回跳本站）、已登录显示昵称（点击跳账户中心「我的账户」）；SDK 未加载 / 接口不可用时保留原 `/account/` 链接，主功能不受影响；原 `/account/`（账户码 + Key 托管）维持不变 | 3.4、附 C |
+| 2026-10-29 | 二十五次修订（v0.25） | **官网 `/account/` 整页换成统一账户**：`web/assets/account.js` 重写为纯 `PSAuth` 实现（不再 import `/app/src/` 模块）——未登录展示「登录 / 注册」、已登录展示头像 / 昵称 / 邮箱掩码 / uid + 「进入账户中心」+「退出登录」；旧的账户码 / Key 托管 / 关联小程序 UI 从本页移除，统一在网页版 `/app/` 的「我的」里管理（隐私政策、账户与跨设备、关联网页账户三篇文档同步改口径）；`render_account_page` 的标题 / 描述 / 导语同步改写 | 3.4、附 C |

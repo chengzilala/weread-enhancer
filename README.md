@@ -4,6 +4,8 @@
 
 专为微信读书网页版（weread.qq.com）打造的阅读增强浏览器扩展。
 
+> **域名 / 备案 / 上线**：统一记在 [部署上线备案/README.md](../部署上线备案/README.md)（唯一台账），本文不重复。
+
 <p>
   <a href="https://microsoftedge.microsoft.com/addons/detail/%E5%BE%AE%E4%BF%A1%E6%82%A6%E8%AF%BB/nkcckbonpafeclefhlhbencibkaabmgb"><img src="https://img.shields.io/badge/Microsoft%20Edge-立即安装-2F6BFF?logo=microsoftedge&logoColor=white" alt="从 Microsoft Edge 加载项商店安装"></a>
   <a href="https://reader.chesterlee.cn"><img src="https://img.shields.io/badge/官网-reader.chesterlee.cn-2F6BFF" alt="访问官网"></a>
@@ -109,7 +111,7 @@
 │   ├── build.py           #    一键构建：content/*.md → dist/（官网留根、其余进 /docs/）+ dist/api/latest.json
 │   ├── serve.py           #    本地预览（零依赖）
 │   ├── admin.py           #    打赏登记本地后台（浏览器表单增删改，写 donate.json）
-│   ├── vercel.json        #    Vercel 海外镜像配置（可选，主站已迁帽子云）
+│   ├── vercel.json        #    Vercel 海外镜像配置（可选，主站已迁腾讯云轻量）
 │   └── dist/              #    构建产物（不入库）
 │
 ├── h5/                    # 📱 微信悦读 H5（纯网页移动端 App，独立构建部署）
@@ -179,7 +181,7 @@ python3 web/serve.py    # 本地预览：http://localhost:5173
 - `web/dist/api/latest.json` 的版本号在构建时自动读仓库根 `manifest.json`，是插件「版本提示」的单一事实源
 - 站内「打赏名单」页（`/donate/`）由 `web/donate.json` 渲染，公开列出每一笔打赏（插件 / H5 / 小程序均可跳转至此），让打赏透明可查
 - 登记打赏不必手改 JSON：运行 `python3 web/admin.py`，在浏览器里用表单添加 / 修改 / 删除，点页面上的「重新构建网站」即更新本地站点（该工具只在本机运行，不会随官网发布）
-- 线上地址：https://reader.chesterlee.cn（新域名；旧域名 https://wereadapp-32km31c.maozi.io 仍可访问，仅作备用）（帽子云静态托管，国内可直连）；部署方式见 `plan/session_handoff_网站帽子云部署.md`
+- 线上地址：https://reader.chesterlee.cn（腾讯云轻量静态站）；部署方式见《部署上线备案》§2.1——`python3 web/build.py` 后 `rsync web/dist/` 到 `/srv/chesterlee/reader/`
 
 ## 隐私声明
 

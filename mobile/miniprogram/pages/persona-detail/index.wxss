@@ -1,0 +1,133 @@
+/* 人格依据 · 明细页 */
+.detail__intro-title {
+  font-size: calc(30rpx * var(--wre-fs));
+  font-weight: 700;
+}
+
+.detail__why {
+  margin-top: 16rpx;
+  padding-left: 16rpx;
+  border-left: 4rpx solid var(--wre-brand);
+  font-size: calc(24rpx * var(--wre-fs));
+  line-height: 1.7;
+  color: var(--wre-text-3);
+}
+
+.detail__sec {
+  margin-top: 20rpx;
+}
+
+.detail__head {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.detail__dim {
+  font-size: calc(28rpx * var(--wre-fs));
+  font-weight: 700;
+}
+
+.detail__pick {
+  margin-left: auto;
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  background: var(--wre-brand-soft);
+  font-size: calc(24rpx * var(--wre-fs));
+  font-weight: 600;
+  color: var(--wre-brand);
+}
+
+.detail__pick.is-na,
+.detail__pick.is-quiet {
+  background: var(--wre-card-2);
+  color: var(--wre-muted);
+}
+
+.detail__lead {
+  margin-top: 12rpx;
+  font-size: calc(26rpx * var(--wre-fs));
+  line-height: 1.75;
+  color: var(--wre-text-3);
+}
+
+.detail__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 16rpx;
+}
+
+.detail__chip {
+  padding: 6rpx 16rpx;
+  border: 1rpx solid var(--wre-line);
+  border-radius: 999rpx;
+  font-size: calc(22rpx * var(--wre-fs));
+  color: var(--wre-text-3);
+}
+
+.detail__group {
+  margin-top: 16rpx;
+}
+
+.detail__gname {
+  font-size: calc(24rpx * var(--wre-fs));
+  font-weight: 600;
+  color: var(--wre-brand);
+}
+
+.detail__book {
+  font-size: calc(24rpx * var(--wre-fs));
+  line-height: 1.7;
+  color: var(--wre-text-3);
+}
+
+.detail__rows {
+  margin-top: 16rpx;
+}
+
+.detail__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 8rpx 0;
+  border-bottom: 1rpx dashed var(--wre-line);
+  font-size: calc(24rpx * var(--wre-fs));
+  color: var(--wre-text-3);
+}
+
+.detail__row:last-child {
+  border-bottom: 0;
+}
+
+.detail__rowv {
+  font-weight: 600;
+}
+
+.detail__note {
+  margin-top: 12rpx;
+  padding: 16rpx 20rpx;
+  border-left: 4rpx solid var(--wre-brand);
+  border-radius: 0 12rpx 12rpx 0;
+  background: var(--wre-card-2);
+}
+
+.detail__note-text {
+  font-size: calc(24rpx * var(--wre-fs));
+  line-height: 1.75;
+  color: var(--wre-text-3);
+}
+
+.detail__note-src {
+  margin-top: 6rpx;
+  font-size: calc(22rpx * var(--wre-fs));
+  line-height: 1.6;
+  color: var(--wre-muted);
+}
+
+.detail__foot {
+  margin-top: 20rpx;
+  font-size: calc(22rpx * var(--wre-fs));
+  line-height: 1.7;
+  color: var(--wre-muted);
+}

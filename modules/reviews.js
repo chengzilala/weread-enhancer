@@ -23,12 +23,11 @@
     LIST_TYPE: 8,                          // 公开章节评论的 listType（沿用参考实现固定值，待实测标定）
     TIMEOUT: 8000,
   };
-  const ENABLED_KEY = 'wreReviewsEnabled';  // 侧栏开关（持久化）
   const READER_RE = /\/web\/reader\/([^/?#]+)/;
   const REFRESH_DEBOUNCE = 500;
 
-  let enabled = true;      // 是否在阅读页显示侧栏（持久化）
-  let collapsed = false;   // 本次会话内是否收起（收起后从主菜单「💭 评论」重新展开）
+  // 默认收起：打开一本书时不自动弹出，只在主菜单点「💭 评论」时展开
+  let collapsed = true;
   let sidebar = null;
   let reqSeq = 0;          // 请求序号：拦截旧任务，防止章节快速切换时错乱
   let lastKey = '';        // bookId|chapterUid：相同则不重复拉取
@@ -401,7 +400,7 @@
           '<span class="wre-reviews-heading">💭 评论</span>' +
           '<div class="wre-reviews-tools">' +
             '<button class="wre-reviews-iconbtn" data-wre-reviews-refresh title="刷新">⟳</button>' +
-            '<button class="wre-reviews-iconbtn" data-wre-reviews-collapse title="收起">›</button>' +
+            '<button class="wre-reviews-iconbtn wre-reviews-iconbtn--text" data-wre-reviews-collapse title="收起评论">收起 ›</button>' +
           '</div>' +
         '</div>' +
         '<div class="wre-reviews-sub" id="wre-reviews-sub">正在读取评论…</div>' +
@@ -433,7 +432,7 @@
   }
 
   function mountSidebar() {
-    if (!enabled || !isReaderPage()) {
+    if (!isReaderPage()) {
       return;
     }
     if (!sidebar || !document.body.contains(sidebar)) {
@@ -448,11 +447,20 @@
     applyTheme();
   }
 
-  // 收起 / 展开面板（收起后由主菜单「💭 评论」重新展开）
+  // 收起 / 展开面板（收起后面板整体隐藏，不留右边缘小标签）
   function setCollapsed(value) {
-    collapsed = !!value;
+    const next = !!value;
+    if (collapsed === next) {
+      return;
+    }
+    collapsed = next;
     if (sidebar) {
       sidebar.classList.toggle('wre-collapsed', collapsed);
+    }
+    logReviews('info', collapsed ? '评论侧栏已收起' : '评论侧栏已展开');
+    if (!collapsed) {
+      lastKey = '';
+      refresh(true);
     }
   }
 
@@ -550,7 +558,7 @@
   // ---------- 主流程：拉取 + 渲染 ----------
 
   async function refresh(force) {
-    if (!enabled || !isReaderPage()) {
+    if (collapsed || !isReaderPage()) {
       return;
     }
     mountSidebar();
@@ -601,13 +609,12 @@
     }
     refreshTimer = setTimeout(() => {
       refreshTimer = null;
-      if (!enabled) {
-        return;
-      }
       if (isReaderPage()) {
         mountSidebar();
         applyTheme();
-        refresh(false);
+        if (!collapsed) {
+          refresh(false);
+        }
       } else {
         unmountSidebar();
       }
@@ -650,52 +657,17 @@
     logReviews('info', '已注入「评论」菜单入口');
   }
 
-  async function persistEnabled(value) {
-    try {
-      await chrome.storage.local.set({ [ENABLED_KEY]: value });
-    } catch (e) {
-      logReviews('warn', '侧栏开关保存失败', { error: String(e) });
-    }
-  }
-
-  function setEnabled(value) {
-    enabled = !!value;
-    logReviews('info', '评论侧栏开关切换', { enabled });
-    persistEnabled(enabled);
-    if (enabled && isReaderPage()) {
-      collapsed = false;
-      mountSidebar();
-      lastKey = '';
-      refresh(true);
-    } else {
-      unmountSidebar();
-    }
-  }
-
-  // 主菜单「💭 评论」入口：未开启 → 开启并展开；已收起 → 展开；已展开 → 关闭
+  // 主菜单「💭 评论」入口：已收起 → 展开；已展开 → 收起（不持久化关闭，下次打开书仍默认收起）
   function onMenuEntryClick() {
-    if (!enabled) {
-      setEnabled(true);
+    if (!isReaderPage()) {
       return;
     }
-    if (collapsed) {
-      setCollapsed(false);
-      logReviews('info', '由主菜单展开评论侧栏');
-      return;
-    }
-    setEnabled(false);
+    setCollapsed(!collapsed);
   }
 
   // ---------- 启动 ----------
 
-  async function bootstrap() {
-    try {
-      const got = await chrome.storage.local.get([ENABLED_KEY]);
-      if (got && typeof got[ENABLED_KEY] === 'boolean') {
-        enabled = got[ENABLED_KEY];
-      }
-    } catch (e) { /* 默认开启 */ }
-
+  function bootstrap() {
     const root = document.getElementById('we-read-enhancer-root');
     if (root) {
       injectMenuEntry(root);

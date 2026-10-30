@@ -15,6 +15,7 @@ import {
   shelfCategories,
   notebookStats,
   finishStats,
+  fmtBucketLabel,
   buildPersona,
 } from './report-core.js';
 
@@ -49,6 +50,9 @@ export const PERSONA_THEMES = [
 // 常见停用词 / 功能词（仅用于过滤 n-gram 候选，不参与正向词表匹配）
 const PERSONA_STOPWORDS = ['我们', '你们', '他们', '她们', '这个', '那个', '这些', '那些', '一个', '一种', '一样', '一些', '什么', '怎么', '这样', '那样', '如果', '但是', '可是', '然后', '而且', '并且', '或者', '还是', '就是', '只是', '而是', '不是', '没有', '不能', '可以', '能够', '应该', '需要', '进行', '通过', '对于', '关于', '以及', '已经', '正在', '自己', '它', '他们'];
 
+// 高频词展示时剔除的虚词：有语法功能，但当「关键词」没有信息量（不影响四维判定与主题归并）
+const PERSONA_DISPLAY_SKIP = ['因为', '所以', '因此', '由于', '但是', '可是', '然后', '而且', '并且', '或者', '还是', '就是', '只是', '而是', '不是', '没有', '不能', '可以', '能够', '应该', '需要', '进行', '通过', '对于', '关于', '以及', '已经', '正在', '这个', '那个', '这些', '那些', '一个', '一种', '一样', '一些', '什么', '怎么', '这样', '那样', '我们', '你们', '他们', '她们', '它们', '如果', '虽然', '不过', '其实', '于是', '同时', '还有', '之后', '之前', '之间'];
+
 // 16 型命名表（主称号 + 一句定调）
 export const PERSONA_TYPES = {
   DFLP: ['书房里的匠人', '把一本书当成一门手艺，读完还要动手做一遍'],
@@ -78,23 +82,88 @@ export const PERSONA_NICKNAMES = {
 };
 
 // 16 型人物对照（公共领域文化名人，仅用于文案展示，不使用真人照片）
+// why：为什么用这位人物呼应这一型（结果页「为什么是 TA」一段说明）
 export const PERSONA_FIGURES = {
-  DFLP: { name: '牛顿', line: '像牛顿那样，把一本书读成一门手艺' },
-  DFLR: { name: '达·芬奇', line: '像达·芬奇那样，把问题拆到零件级' },
-  DFEP: { name: '达尔文', line: '像达尔文那样，长期观察、认真记录' },
-  DFER: { name: '阿基米德', line: '像阿基米德那样，边玩边试，学了就用' },
-  DMLP: { name: '康德', line: '像康德那样，极度规律，系统想通' },
-  DMLR: { name: '图灵', line: '像图灵那样，独自往抽象深处挖' },
-  DMEP: { name: '苏轼', line: '像苏轼那样，又深情又较真' },
-  DMER: { name: '李白', line: '像李白那样，浪漫随性，投入极深' },
-  BFLP: { name: '爱迪生', line: '像爱迪生那样，目标明确、成体系地做' },
-  BFLR: { name: '马克·吐温', line: '像马克·吐温那样，什么都读，先囤再说' },
-  BFEP: { name: '李时珍', line: '像李时珍那样，生活里观察，温暖又细致' },
-  BFER: { name: '莫扎特', line: '像莫扎特那样，杂食热情、爱分享' },
-  BMLP: { name: '亚里士多德', line: '像亚里士多德那样，有计划地铺开整张地图' },
-  BMLR: { name: '蒙田', line: '像蒙田那样，跨着读，串成一条线' },
-  BMEP: { name: '安徒生', line: '像安徒生那样，爱读故事，也爱讲给人听' },
-  BMER: { name: '莎士比亚', line: '像莎士比亚那样，什么热闹读什么，读完就开讲' },
+  DFLP: {
+    name: '牛顿',
+    line: '像牛顿那样，把一本书读成一门手艺',
+    why: '牛顿读前人的书，是为了亲手算出结果：他把伽利略、开普勒的结论拿来推导、做实验，最后写成《自然哲学的数学原理》。读一条原理，就动手验证一条——书是图纸，手艺才是目的。',
+  },
+  DFLR: {
+    name: '达·芬奇',
+    line: '像达·芬奇那样，把问题拆到零件级',
+    why: '达·芬奇的手稿里，解剖、机械、水利、绘画混在一起。他遇到问题就拆成零件，反复画图、做模型，慢慢调准，不急着收束成书。读书对他来说，更像拆解与改良。',
+  },
+  DFEP: {
+    name: '达尔文',
+    line: '像达尔文那样，长期观察、认真记录',
+    why: '达尔文随小猎犬号航行五年，一路观察、采集、记笔记；回国后又花几十年整理标本，才写出《物种起源》。他读得深、记得细，最后都要落回真实世界的观察里。',
+  },
+  DFER: {
+    name: '阿基米德',
+    line: '像阿基米德那样，边玩边试，学了就用',
+    why: '阿基米德的故事几乎都围着「动手试」：杠杆、浮力、守城器械，想到就去验证。他读书不为建体系，碰上问题就钻进去，读一点、用一点。',
+  },
+  DMLP: {
+    name: '康德',
+    line: '像康德那样，极度规律，系统想通',
+    why: '康德的生活近乎刻板，读书、写作、散步都有固定钟点；他把读来的东西一遍遍拆解、追问前提，最后搭起《纯粹理性批判》那样严整的体系。深读、求懂、有条理，就是这一型。',
+  },
+  DMLR: {
+    name: '图灵',
+    line: '像图灵那样，独自往抽象深处挖',
+    why: '图灵常独自沉进一个抽象问题，从「可计算数」一路想到机器能否思考。他的阅读和思考不按课表走，而是在一个点上越挖越深，挖到哪算哪。',
+  },
+  DMEP: {
+    name: '苏轼',
+    line: '像苏轼那样，又深情又较真',
+    why: '苏轼一生屡遭贬谪，却把读过的书、走过的路都写进诗文；他读得深，也读得动情，还愿意为一句话反复琢磨。感性投入，但自有章法。',
+  },
+  DMER: {
+    name: '李白',
+    line: '像李白那样，浪漫随性，投入极深',
+    why: '李白「五岳寻仙不辞远，一生好入名山游」，读书、漫游、写诗混成一片。他顺着兴致往深处走，不为体系，只为把胸中那口气写出来。',
+  },
+  BFLP: {
+    name: '爱迪生',
+    line: '像爱迪生那样，目标明确、成体系地做',
+    why: '爱迪生靠自学和大量实验起家，门洛帕克的实验室像一条发明流水线：定目标、查资料、分工试验、批量改进。他读得广，但每本书都要落到「做出来」上。',
+  },
+  BFLR: {
+    name: '马克·吐温',
+    line: '像马克·吐温那样，什么都读，先囤再说',
+    why: '马克·吐温当过印刷学徒、汽船领航员、记者，还去淘过金；见什么学什么，素材先囤着。他读书杂、记性又好，写作时随手就能取用。',
+  },
+  BFEP: {
+    name: '李时珍',
+    line: '像李时珍那样，生活里观察，温暖又细致',
+    why: '李时珍发现旧本草书错漏不少，于是参考八百多种书，又亲自上山采药、访问药农，前后近三十年写成《本草纲目》。生活里遇到什么，就去查、去问、去记。',
+  },
+  BFER: {
+    name: '莫扎特',
+    line: '像莫扎特那样，杂食热情、爱分享',
+    why: '莫扎特从小随父亲在欧洲巡演，各地说唱、各种体裁都接触；他学得快、兴趣广，写完的曲子常常当场就弹给人听。杂食、热情、爱分享。',
+  },
+  BMLP: {
+    name: '亚里士多德',
+    line: '像亚里士多德那样，有计划地铺开整张地图',
+    why: '亚里士多德几乎把当时的知识都过了一遍：逻辑、物理、生物、伦理、政治、诗学，还带学生收集各城邦的政制。他读书像画地图：先铺开，再分门别类。',
+  },
+  BMLR: {
+    name: '蒙田',
+    line: '像蒙田那样，跨着读，串成一条线',
+    why: '蒙田在《随笔集》里说自己「杂乱地读书」，读到哪、想到哪，就把读来的和经历过的串成一篇。他的箴言是「我知道什么？」——广读、随性，最后都指向理解自己与人生。',
+  },
+  BMEP: {
+    name: '安徒生',
+    line: '像安徒生那样，爱读故事，也爱讲给人听',
+    why: '安徒生爱读故事，也爱讲故事；他把旅行见闻、童年记忆和民间传说改写成童话，再一遍遍念给朋友和孩子听。读得动情，讲得认真，故事就这样传开。',
+  },
+  BMER: {
+    name: '莎士比亚',
+    line: '像莎士比亚那样，什么热闹读什么，读完就开讲',
+    why: '莎士比亚没上过大学，却把历史、戏剧、诗歌和市井传闻都变成素材。他写戏是给台下各种人看的：什么热闹写什么，写完就上演。',
+  },
 };
 
 // ---- 基础工具 ----
@@ -220,10 +289,18 @@ export function personaCountWords(text) {
   });
 
   const list = [];
+  const skipSet = {};
+  PERSONA_DISPLAY_SKIP.forEach((word) => { skipSet[word] = true; });
   Object.keys(lexCounts).forEach((word) => {
+    if (skipSet[word]) {
+      return;
+    }
     list.push({ word: word, count: lexCounts[word], lex: true, score: lexCounts[word] * 2.2 + word.length });
   });
   Object.keys(gramCounts).forEach((word) => {
+    if (lexCounts[word] || skipSet[word]) {
+      return;
+    }
     if (gramCounts[word] >= 3) {
       list.push({ word: word, count: gramCounts[word], lex: false, score: gramCounts[word] });
     }
@@ -235,23 +312,28 @@ export function personaCountWords(text) {
     if (item.word.length > 12) {
       return;
     }
-    let contained = false;
     for (let i = 0; i < accepted.length; i += 1) {
-      if (accepted[i].word.length > item.word.length && accepted[i].word.indexOf(item.word) >= 0) {
-        contained = true;
-        break;
+      const other = accepted[i];
+      if (other.word === item.word) {
+        return;
       }
-    }
-    if (contained) {
-      return;
-    }
-    for (let i = accepted.length - 1; i >= 0; i -= 1) {
-      if (item.word.length > accepted[i].word.length && item.word.indexOf(accepted[i].word) >= 0) {
+      // 被更长的词包含 → 丢弃（n-gram 碎片）
+      if (other.word.length > item.word.length && other.word.indexOf(item.word) >= 0) {
+        return;
+      }
+      // 长词包含已收录的短词：词表词优先保留，不被 n-gram 碎片挤掉
+      if (item.word.length > other.word.length && item.word.indexOf(other.word) >= 0) {
+        if (other.lex && !item.lex) {
+          return;
+        }
         accepted.splice(i, 1);
+        i -= 1;
       }
     }
     accepted.push(item);
   });
+  // 展示顺序按真实次数降序（次数相同：词表命中优先，其次更长的词）
+  accepted.sort((a, b) => (b.count - a.count) || (Number(b.lex) - Number(a.lex)) || (b.word.length - a.word.length));
   return accepted;
 }
 
@@ -636,6 +718,555 @@ export function personaOneLiner(dims, tagline) {
   return '你是那种' + decisive.join('、') + '的人。';
 }
 
+// ---- 人物依据：把四维判定翻成「你的微信读书数据」 ----
+// 目的：结果页在「为什么是 TA」下面，用真实数字说明为什么归到这一型，而不是只讲人物生平。
+
+/** 取向维度里，命中所选极的前两个分类名（官方偏好优先，其次书架分类） */
+export function personaFigurePolarityNames(cats, shelf, polarity) {
+  if (cats && cats.length) {
+    return cats.map((item) => ({
+      name: item.parentCategoryTitle || item.categoryTitle || '',
+      weight: Number(item.readingTime) || Number(item.readingCount) || 0,
+    })).filter((item) => item.name && item.weight > 0 && personaCategoryPolarity(item.name) === polarity)
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 2)
+      .map((item) => item.name);
+  }
+  if (shelf) {
+    return shelfCategories(shelf).list
+      .filter((item) => personaCategoryPolarity(item.name) === polarity)
+      .slice(0, 2)
+      .map((item) => item.name);
+  }
+  return [];
+}
+
+function personaFigureEnergyText(overall, shelf, notebooks, dim) {
+  const books = shelf && Array.isArray(shelf.books) ? shelf.books : [];
+  const totalSec = Number(overall && overall.totalReadTime) || 0;
+  const readBooks = books.filter((item) => Number(item.readUpdateTime) > 0).length || books.length;
+  const parts = [];
+  if (books.length) {
+    parts.push('书架 ' + books.length + ' 本');
+  }
+  if (totalSec > 0 && readBooks > 0) {
+    parts.push('单本均摊 ' + fmtDuration(totalSec / readBooks));
+  }
+  const fin = shelf ? finishStats(shelf) : null;
+  if (fin && fin.ebooks > 0) {
+    parts.push('电子书完读率 ' + Math.round(fin.rate * 100) + '%');
+  }
+  const cats = shelf ? shelfCategories(shelf) : null;
+  if (cats && cats.list.length && books.length) {
+    const top3 = cats.list.slice(0, 3).reduce((acc, item) => acc + item.count, 0);
+    parts.push('前 3 类占书架 ' + Math.round((top3 / books.length) * 100) + '%');
+  }
+  const stats = notebookStats(notebooks);
+  if (stats && stats.totalBookCount > 0) {
+    parts.push('有笔记的书 ' + stats.totalBookCount + ' 本');
+  }
+  if (!parts.length) {
+    return '';
+  }
+  return parts.join('，') + '；' + (dim.side === 'D'
+    ? '时间更愿意压进少数几本，是深潜式读法。'
+    : '注意力铺得更开，是广撒式读法。');
+}
+
+function personaFigureContentText(overall, shelf, dim) {
+  const cats = overall && Array.isArray(overall.preferCategory) ? overall.preferCategory : [];
+  let factW = 0;
+  let meaningW = 0;
+  let source = '';
+  if (cats.length) {
+    source = '官方偏好分类（按阅读时长）';
+    cats.forEach((item) => {
+      const name = item.parentCategoryTitle || item.categoryTitle || '';
+      const weight = Number(item.readingTime) || Number(item.readingCount) || 0;
+      if (weight <= 0) {
+        return;
+      }
+      const polarity = personaCategoryPolarity(name);
+      if (polarity === 'fact') {
+        factW += weight;
+      } else if (polarity === 'meaning') {
+        meaningW += weight;
+      }
+    });
+  } else if (shelf) {
+    source = '书架分类（按本数）';
+    shelfCategories(shelf).list.forEach((item) => {
+      const polarity = personaCategoryPolarity(item.name);
+      if (polarity === 'fact') {
+        factW += item.count;
+      } else if (polarity === 'meaning') {
+        meaningW += item.count;
+      }
+    });
+  }
+  const denom = factW + meaningW;
+  if (!denom) {
+    return '';
+  }
+  const factPct = Math.round((factW / denom) * 100);
+  const pickPct = dim.side === 'F' ? factPct : 100 - factPct;
+  const names = personaFigurePolarityNames(cats, shelf, dim.side === 'F' ? 'fact' : 'meaning');
+  return source + '：' + (dim.side === 'F' ? '求实' : '求意') + ' ' + pickPct + '%' +
+    (names.length ? '（' + names.join('、') + '）' : '') +
+    (dim.side === 'F' ? '，你更常读能直接解决问题的内容。' : '，你更常为理解人和世界而读。');
+}
+
+function personaFigureStyleText(corpus, dim) {
+  const segments = personaSegments(corpus);
+  const text = segments.marks.concat(segments.reviews).map((item) => item.text).join('\n');
+  if (!text) {
+    return '';
+  }
+  let logic = 0;
+  let emotion = 0;
+  PERSONA_LOGIC_WORDS.forEach((word) => { logic += personaCountOccurrences(text, word); });
+  PERSONA_EMOTION_WORDS.forEach((word) => { emotion += personaCountOccurrences(text, word); });
+  const quest = (text.match(/[？?]/g) || []).length;
+  const excl = (text.match(/[！!]/g) || []).length;
+  if (!logic && !emotion && !quest && !excl) {
+    return '';
+  }
+  const parts = ['划线/想法里' + (dim.side === 'L'
+    ? '逻辑词 ' + logic + ' 次、情感词 ' + emotion + ' 次'
+    : '情感词 ' + emotion + ' 次、逻辑词 ' + logic + ' 次')];
+  if (quest || excl) {
+    parts.push('问号 ' + quest + ' 个、感叹号 ' + excl + ' 个');
+  }
+  parts.push(dim.side === 'L' ? '你更习惯把看到的东西拆开看。' : '你更容易被文字里的情绪打动。');
+  return parts.join('，') + '。';
+}
+
+function personaFigureRhythmText(data, dim) {
+  const buckets = reportBuckets(data || {});
+  const positive = buckets.filter((item) => item.seconds > 0);
+  if (positive.length < 3) {
+    return '';
+  }
+  const coverage = positive.length / (buckets.length || positive.length);
+  const mean = positive.reduce((acc, item) => acc + item.seconds, 0) / positive.length;
+  const variance = positive.reduce((acc, item) => acc + Math.pow(item.seconds - mean, 2), 0) / positive.length;
+  const cv = mean > 0 ? Math.sqrt(variance) / mean : 0;
+  const parts = ['有阅读的统计单元 ' + positive.length + '/' + buckets.length + '（' + Math.round(coverage * 100) + '%）'];
+  const hourly = hourlyReadTime(data || {});
+  if (hourly.length) {
+    const peak = hourly.reduce((acc, item) => (item.seconds > acc.seconds ? item : acc));
+    if (peak.seconds > 0) {
+      const next = (peak.hour + 1) % 24;
+      parts.push('最常读 ' + (peak.hour < 10 ? '0' : '') + peak.hour + ':00–' + (next < 10 ? '0' : '') + next + ':00');
+    }
+  }
+  parts.push(cv < 0.6 ? '各段阅读量比较平稳' : (cv < 1 ? '阅读量有明显起伏' : '阅读量起伏很大'));
+  parts.push(dim.side === 'P' ? '更像按自己的安排稳定推进。' : '更像跟着当下的兴趣随手读。');
+  return parts.join('，') + '。';
+}
+
+function personaFigureSample(notebooks) {
+  const stats = notebookStats(notebooks);
+  if (!stats || !stats.topBooks || !stats.topBooks.length) {
+    return '';
+  }
+  const titles = stats.topBooks.slice(0, 2).map((item) => item.title).filter(Boolean);
+  if (!titles.length) {
+    return '';
+  }
+  return '数据样本：划线 / 想法最集中的书是《' + titles.join('》《') + '》' +
+    (stats.totalBookCount ? '，共 ' + stats.totalBookCount + ' 本有笔记' : '') + '。';
+}
+
+/** 生成「为什么是 TA」的数据佐证：四维各一条 + 样本书 + 来源说明 */
+export function personaFigureEvidence(input) {
+  const opts = input || {};
+  const dims = opts.dims || [];
+  const items = [];
+  dims.forEach((dim) => {
+    if (!dim || !dim.available) {
+      return;
+    }
+    let text = '';
+    if (dim.key === 'energy') {
+      text = personaFigureEnergyText(opts.overall, opts.shelf, opts.notebooks, dim);
+    } else if (dim.key === 'content') {
+      text = personaFigureContentText(opts.overall, opts.shelf, dim);
+    } else if (dim.key === 'style') {
+      text = personaFigureStyleText(opts.corpus, dim);
+    } else if (dim.key === 'rhythm') {
+      text = personaFigureRhythmText(opts.rhythmData, dim);
+    }
+    if (!text) {
+      text = dim.basis || '';
+    }
+    const pole = dim.side === dim.left.letter ? dim.left.label : dim.right.label;
+    const pct = dim.side === dim.left.letter ? dim.leftPct : 100 - dim.leftPct;
+    items.push({
+      key: dim.key,
+      title: dim.title,
+      label: pole + ' ' + Math.round(pct) + '%',
+      text: text,
+    });
+  });
+  return {
+    items: items,
+    sample: personaFigureSample(opts.notebooks),
+    note: '以上数字来自你的微信读书账号（累计阅读、书架、笔记与划线），在本机计算，不对外上传。',
+  };
+}
+
+// ---- 人物依据 · 明细页（颗粒度到具体分类、具体书、具体划线）----
+// 结果页只放「四行摘要」，更细的一层放进独立页面，避免主卡过长。
+
+const PERSONA_EV_BOOKS = 3;    // 每个分类最多列几本书
+const PERSONA_EV_NOTES = 3;    // 每个维度最多列几条原文
+const PERSONA_EV_QUOTES = 5;   // 末尾「原文划线」最多几条
+
+function personaEvTrim(text, max) {
+  const value = String(text || '').replace(/\s+/g, ' ').trim();
+  return value.length > max ? value.slice(0, max) + '…' : value;
+}
+
+/** 书架条目 → 分类名（兼容字符串 / 对象两种形态） */
+function personaEvBookCategory(book) {
+  const raw = book && book.category;
+  return (typeof raw === 'string' ? raw : (raw && (raw.title || raw.name)) || '').trim() || '未分类';
+}
+
+/** 按分类归拢书架（全量，不截断），组内按最近阅读排序 */
+function personaEvShelfGroups(shelf) {
+  const books = shelf && Array.isArray(shelf.books) ? shelf.books : [];
+  const map = {};
+  books.forEach((book) => {
+    const name = personaEvBookCategory(book);
+    if (!map[name]) {
+      map[name] = [];
+    }
+    map[name].push(book);
+  });
+  return Object.keys(map).map((name) => ({
+    name: name,
+    count: map[name].length,
+    books: map[name].slice().sort((a, b) =>
+      (Number(b.readUpdateTime) || 0) - (Number(a.readUpdateTime) || 0)),
+  })).sort((a, b) => b.count - a.count);
+}
+
+/** 单本书的笔记总量（划线 + 想法 + 书签） */
+function personaEvNoteCount(item) {
+  return (Number(item && item.noteCount) || 0) + (Number(item && item.reviewCount) || 0) +
+    (Number(item && item.bookmarkCount) || 0);
+}
+
+/** 已读完的电子书（按最近阅读降序） */
+function personaEvFinished(shelf, max) {
+  const books = shelf && Array.isArray(shelf.books) ? shelf.books : [];
+  return books.filter((item) => Number(item.finishReading) === 1 && item.title)
+    .sort((a, b) => (Number(b.readUpdateTime) || 0) - (Number(a.readUpdateTime) || 0))
+    .slice(0, max);
+}
+
+function personaEvEmpty(lead) {
+  return { lead: lead || '这一维数据还不够。', stats: [], groups: [], rows: [], notes: [] };
+}
+
+/** 阅读能量明细：分类 → 具体书（广撒）/ 笔记最集中的书 + 读完的书（深潜） */
+function personaEvidenceEnergy(overall, shelf, notebooks, dim) {
+  const groups = personaEvShelfGroups(shelf);
+  const allBooks = [];
+  groups.forEach((group) => group.books.forEach((book) => allBooks.push(book)));
+  const totalSec = Number(overall && overall.totalReadTime) || 0;
+  const readBooks = allBooks.filter((item) => Number(item.readUpdateTime) > 0).length || allBooks.length;
+  const fin = shelf ? finishStats(shelf) : null;
+  const nb = notebookStats(notebooks);
+
+  const stats = [];
+  if (allBooks.length) {
+    stats.push({ label: '书架', value: allBooks.length + ' 本' });
+  }
+  if (readBooks) {
+    stats.push({ label: '读过', value: readBooks + ' 本' });
+  }
+  if (totalSec) {
+    stats.push({ label: '累计阅读', value: fmtDuration(totalSec) });
+    if (readBooks) {
+      stats.push({ label: '单本均摊', value: fmtDuration(totalSec / readBooks) });
+    }
+  }
+  if (fin && fin.ebooks) {
+    stats.push({ label: '电子书完读率', value: Math.round(fin.rate * 100) + '%' });
+  }
+  if (nb && nb.totalBookCount) {
+    stats.push({ label: '有笔记的书', value: nb.totalBookCount + ' 本' });
+  }
+
+  const out = { stats: stats, groups: [], rows: [], notes: [] };
+  if (dim.side === 'B') {
+    const top = groups.slice(0, 3);
+    out.groups = top.map((group) => ({
+      name: group.name + ' · ' + group.count + ' 本',
+      books: group.books.slice(0, PERSONA_EV_BOOKS).map((item) => item.title).filter(Boolean),
+    }));
+    const topCount = top.reduce((acc, group) => acc + group.count, 0);
+    const parts = [];
+    if (allBooks.length) {
+      parts.push('书架 ' + allBooks.length + ' 本，散在 ' + groups.length + ' 个分类');
+    }
+    if (top.length && allBooks.length) {
+      parts.push('最多的三类是 ' + top.map((g) => g.name + '（' + g.count + ' 本）').join('、') +
+        '，合计占 ' + Math.round((topCount / allBooks.length) * 100) + '%');
+    }
+    if (totalSec && readBooks) {
+      parts.push('单本均摊只有 ' + fmtDuration(totalSec / readBooks));
+    }
+    out.lead = parts.join('，') + '。注意力铺得很开，所以判为「广撒」。';
+    return out;
+  }
+
+  if (nb && Array.isArray(nb.topBooks) && nb.topBooks.length) {
+    const top = nb.topBooks.slice(0, 4).filter((item) => item.title);
+    if (top.length) {
+      out.groups.push({
+        name: '笔记最集中的书',
+        books: top.map((item) => item.title + '（' + personaEvNoteCount(item) + ' 条）'),
+      });
+    }
+  }
+  const done = personaEvFinished(shelf, PERSONA_EV_BOOKS);
+  if (done.length) {
+    out.groups.push({ name: '最近读完的书', books: done.map((item) => item.title) });
+  }
+  const parts = [];
+  if (totalSec && readBooks) {
+    parts.push('单本均摊 ' + fmtDuration(totalSec / readBooks));
+  }
+  if (fin && fin.ebooks) {
+    parts.push('电子书完读率 ' + Math.round(fin.rate * 100) + '%（' + fin.finished + '/' + fin.ebooks + ' 本）');
+  }
+  if (nb && nb.totalBookCount) {
+    parts.push('有笔记的书 ' + nb.totalBookCount + ' 本');
+  }
+  out.lead = parts.join('，') + '。时间集中在少数几本上，所以判为「深潜」。';
+  return out;
+}
+
+/** 内容取向明细：各分类占比 + 命中所选极的分类下的具体书 */
+function personaEvidenceContent(overall, shelf, dim) {
+  const want = dim.side === 'F' ? 'fact' : 'meaning';
+  const label = dim.side === 'F' ? '求实' : '求意';
+  const raw = overall && Array.isArray(overall.preferCategory) ? overall.preferCategory : [];
+  let list = raw.map((item) => ({
+    name: item.parentCategoryTitle || item.categoryTitle || '',
+    weight: Number(item.readingTime) || Number(item.readingCount) || 0,
+  })).filter((item) => item.name && item.weight > 0).sort((a, b) => b.weight - a.weight);
+  let source = '官方偏好分类（按阅读时长）';
+  if (!list.length) {
+    list = personaEvShelfGroups(shelf).map((group) => ({ name: group.name, weight: group.count }));
+    source = '书架分类（按本数）';
+  }
+  const total = list.reduce((acc, item) => acc + item.weight, 0);
+  if (!total) {
+    return personaEvEmpty('暂无可归类的分类数据。');
+  }
+  const picked = list.filter((item) => personaCategoryPolarity(item.name) === want);
+  const pickShare = picked.reduce((acc, item) => acc + item.weight, 0) / total;
+  const stats = list.slice(0, 6).map((item) => ({
+    label: item.name,
+    value: Math.round((item.weight / total) * 100) + '%',
+  }));
+  const shelfGroups = personaEvShelfGroups(shelf);
+  const groups = picked.slice(0, 3).map((item) => {
+    const hit = shelfGroups.filter((group) =>
+      group.name.indexOf(item.name) >= 0 || item.name.indexOf(group.name) >= 0)[0];
+    return {
+      name: item.name + ' · ' + Math.round((item.weight / total) * 100) + '%',
+      books: hit ? hit.books.slice(0, PERSONA_EV_BOOKS).map((book) => book.title).filter(Boolean) : [],
+    };
+  }).filter((group) => group.books.length);
+  const lead = source + '里，' + (picked.length ? picked.map((item) => item.name).join('、') : label + '类') +
+    '合计占 ' + Math.round(pickShare * 100) + '%；排在前面的是 ' +
+    list.slice(0, 3).map((item) => item.name + ' ' + Math.round((item.weight / total) * 100) + '%').join('、') +
+    '。所以判为「' + label + '」。';
+  return { lead: lead, stats: stats, groups: groups, rows: [], notes: [] };
+}
+
+/** 表达方式明细：词频总数 + 命中所选极的几条原文（带书名） */
+function personaEvidenceStyle(corpus, dim) {
+  const segments = personaSegments(corpus);
+  const all = segments.marks.concat(segments.reviews);
+  if (!all.length) {
+    return personaEvEmpty('还没有可用的划线 / 想法语料。');
+  }
+  const text = all.map((item) => item.text).join('\n');
+  let logic = 0;
+  let emotion = 0;
+  PERSONA_LOGIC_WORDS.forEach((word) => { logic += personaCountOccurrences(text, word); });
+  PERSONA_EMOTION_WORDS.forEach((word) => { emotion += personaCountOccurrences(text, word); });
+  const quest = (text.match(/[？?]/g) || []).length;
+  const excl = (text.match(/[！!]/g) || []).length;
+  const wantLogic = dim.side === 'L';
+
+  const hits = [];
+  all.forEach((item) => {
+    let logicIn = 0;
+    let emotionIn = 0;
+    PERSONA_LOGIC_WORDS.forEach((word) => { logicIn += personaCountOccurrences(item.text, word); });
+    PERSONA_EMOTION_WORDS.forEach((word) => { emotionIn += personaCountOccurrences(item.text, word); });
+    const hit = wantLogic ? logicIn : emotionIn;
+    if (hit > 0) {
+      hits.push({ item: item, logic: logicIn, emotion: emotionIn });
+    }
+  });
+  hits.sort((a, b) => (wantLogic ? b.logic - a.logic : b.emotion - a.emotion));
+
+  const bookMap = {};
+  all.forEach((item) => { if (item.title) { bookMap[item.title] = true; } });
+  const stats = [
+    { label: '划线与想法', value: all.length + ' 条' },
+    { label: '覆盖', value: Object.keys(bookMap).length + ' 本书' },
+    { label: '逻辑词', value: logic + ' 次' },
+    { label: '情感词', value: emotion + ' 次' },
+  ];
+  if (quest) {
+    stats.push({ label: '问号', value: quest + ' 个' });
+  }
+  if (excl) {
+    stats.push({ label: '感叹号', value: excl + ' 个' });
+  }
+  const notes = hits.slice(0, PERSONA_EV_NOTES).map((hit) => ({
+    text: personaEvTrim(hit.item.text, 110),
+    title: hit.item.title || '',
+    year: personaYear(hit.item.at),
+    hits: wantLogic ? ('逻辑词 ×' + hit.logic) : ('情感词 ×' + hit.emotion),
+  }));
+  const lead = '你在这 ' + Object.keys(bookMap).length + ' 本书里留下 ' + all.length + ' 条划线 / 想法：逻辑词 ' +
+    logic + ' 次、情感词 ' + emotion + ' 次' +
+    (quest || excl ? '，问号 ' + quest + ' 个、感叹号 ' + excl + ' 个' : '') + '。' +
+    (wantLogic ? '你更像在读的时候把东西拆开看，所以判为「理性」。' : '你更容易被文字里的情绪打动，所以判为「感性」。') +
+    (notes.length ? '下面几条是最能体现这一点的原文。' : '');
+  return { lead: lead, stats: stats, groups: [], rows: [], notes: notes };
+}
+
+/** 阅读节奏明细：有阅读的单元 + 最集中的三个周期 + 最近读完的书 */
+function personaEvidenceRhythm(overall, shelf, dim) {
+  const buckets = reportBuckets(overall || {});
+  const positive = buckets.filter((item) => item.seconds > 0);
+  if (positive.length < 3) {
+    return personaEvEmpty('有阅读的统计单元只有 ' + positive.length + ' 个，暂时看不出节奏。');
+  }
+  const coverage = positive.length / (buckets.length || positive.length);
+  const mean = positive.reduce((acc, item) => acc + item.seconds, 0) / positive.length;
+  const variance = positive.reduce((acc, item) => acc + Math.pow(item.seconds - mean, 2), 0) / positive.length;
+  const cv = mean > 0 ? Math.sqrt(variance) / mean : 0;
+  const hourly = hourlyReadTime(overall || {});
+  let peakText = '';
+  if (hourly.length) {
+    const peak = hourly.reduce((acc, item) => (item.seconds > acc.seconds ? item : acc));
+    if (peak.seconds > 0) {
+      const pad = (value) => (value < 10 ? '0' : '') + value;
+      peakText = pad(peak.hour) + ':00–' + pad((peak.hour + 1) % 24) + ':00';
+    }
+  }
+  const stats = [
+    { label: '有阅读的单元', value: positive.length + '/' + buckets.length },
+    { label: '覆盖', value: Math.round(coverage * 100) + '%' },
+    { label: '波动系数', value: cv.toFixed(2) },
+  ];
+  if (peakText) {
+    stats.push({ label: '最常读时段', value: peakText });
+  }
+  const rows = positive.slice().sort((a, b) => b.seconds - a.seconds).slice(0, 3).map((item) => ({
+    label: fmtBucketLabel(item.ts, 'overall'),
+    value: fmtDuration(item.seconds),
+  }));
+  const done = personaEvFinished(shelf, PERSONA_EV_BOOKS);
+  const groups = done.length ? [{ name: '最近读完的书', books: done.map((item) => item.title) }] : [];
+  const lead = buckets.length + ' 个统计单元里，' + positive.length + ' 个有阅读记录（覆盖 ' +
+    Math.round(coverage * 100) + '%）' + (peakText ? '，最常读 ' + peakText : '') + '，波动系数 ' + cv.toFixed(2) +
+    '（' + (cv < 0.6 ? '比较平稳' : (cv < 1 ? '有明显起伏' : '起伏很大')) + '）。' +
+    (dim.side === 'P' ? '更像按自己的安排稳定推进，所以判为「计划」。' : '更像跟着当下的兴趣随手读，所以判为「随兴」。');
+  return { lead: lead, stats: stats, groups: groups, rows: rows, notes: [] };
+}
+
+/** 原文划线：跨书挑最长的几条（每本最多 2 条） */
+function personaEvidenceQuotes(corpus) {
+  const segments = personaSegments(corpus);
+  const all = segments.marks.slice().sort((a, b) => String(b.text).length - String(a.text).length);
+  const out = [];
+  const perBook = {};
+  all.forEach((item) => {
+    if (out.length >= PERSONA_EV_QUOTES) {
+      return;
+    }
+    if (String(item.text || '').replace(/\s/g, '').length < 12) {
+      return;
+    }
+    const key = item.title || '';
+    if ((perBook[key] || 0) >= 2) {
+      return;
+    }
+    perBook[key] = (perBook[key] || 0) + 1;
+    out.push({ text: personaEvTrim(item.text, 120), title: item.title || '', year: personaYear(item.at) });
+  });
+  return out;
+}
+
+/**
+ * 生成「人格依据明细」：四维各一节（结论 + 数据 + 具体分类/书/原文）+ 原文划线。
+ * 供独立页面使用；数据不足的维度照常输出占位说明，不做推断。
+ */
+export function personaFigureEvidenceDetail(input) {
+  const opts = input || {};
+  const sections = [];
+  (opts.dims || []).forEach((dim) => {
+    if (!dim) {
+      return;
+    }
+    if (!dim.available) {
+      sections.push({
+        key: dim.key, title: dim.title, available: false, pick: '', pct: 0,
+        lead: dim.basis || '这一维数据还不够。', stats: [], groups: [], rows: [], notes: [],
+      });
+      return;
+    }
+    const isLeft = dim.side === dim.left.letter;
+    let detail = null;
+    if (dim.key === 'energy') {
+      detail = personaEvidenceEnergy(opts.overall, opts.shelf, opts.notebooks, dim);
+    } else if (dim.key === 'content') {
+      detail = personaEvidenceContent(opts.overall, opts.shelf, dim);
+    } else if (dim.key === 'style') {
+      detail = personaEvidenceStyle(opts.corpus, dim);
+    } else if (dim.key === 'rhythm') {
+      detail = personaEvidenceRhythm(opts.overall, opts.shelf, dim);
+    }
+    if (!detail) {
+      detail = personaEvEmpty(dim.basis);
+    }
+    sections.push({
+      key: dim.key,
+      title: dim.title,
+      available: true,
+      pick: isLeft ? dim.left.label : dim.right.label,
+      pct: Math.round(isLeft ? dim.leftPct : 100 - dim.leftPct),
+      lead: detail.lead,
+      stats: detail.stats,
+      groups: detail.groups,
+      rows: detail.rows,
+      notes: detail.notes,
+    });
+  });
+  return {
+    code: opts.code || '',
+    name: opts.name || '',
+    figureName: opts.figureName || '',
+    sections: sections,
+    quotes: personaEvidenceQuotes(opts.corpus),
+    note: '本页的数字与原文都来自你自己的微信读书账号（累计阅读、书架、笔记与划线），在本机计算，不对外上传；仅作趣味参考，不是心理测评。',
+  };
+}
+
 /**
  * 汇总：算出「阅读人格」（四维判定 + 16 型 + 人格化的人 + 词语分析）。
  * 纯函数版：所有输入显式传入，便于 H5 端从缓存 / 云函数组装。
@@ -714,6 +1345,15 @@ export function getReadingPersona(input) {
     evidenceData.push('书架 ' + counts.books + ' 本');
   }
 
+  const figureEvidence = personaFigureEvidence({
+    overall: overall,
+    shelf: shelf,
+    notebooks: notebooks,
+    corpus: corpus,
+    dims: dims,
+    rhythmData: rhythmData,
+  });
+
   return {
     ok: true,
     basedOn: opts.overall ? 'overall' : mode,
@@ -722,6 +1362,7 @@ export function getReadingPersona(input) {
     name: type ? type[0] : '待补全的阅读人格',
     tagline: type ? type[1] : '还有一两个维度数据不够，补齐后会更准',
     figure: type && PERSONA_FIGURES[code] ? PERSONA_FIGURES[code] : null,
+    figureEvidence: figureEvidence,
     full: full,
     nicknames: personaNicknames(overall, mode, shelf, notebooks, dims),
     dims: dims,

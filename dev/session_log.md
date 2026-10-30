@@ -1781,3 +1781,56 @@
 
 
 
+
+## 2026-10-25 会话条目：AI 成本埋点（billing-center 第一步 · 实测单次成本）
+
+- **目标**：billing-center 立项分析后的下一步第 1 条「实测 100 次真实请求 tokens」当前**无数据源**（`handleAi` 完全不读 `usage`）。先补最小埋点，为点数定价提供 P50 / P90 依据。
+- **口径（用户确认）**：只做成本观测，**不收费、不改用户体验、不动 Key 托管**；只在 AI 成功返回后落一条用量。
+- **改动**：
+  - 云函数 `wereadProxy`：新增常量 `AI_USAGE_COLLECTION`（`wre_ai_usage`）/ `AI_FEATURES`；新增 `pickAiUsage`、`hashAiUser`、`recordAiUsage`；`handleAi` 解析 `data.usage`（prompt / completion / cached / total）并落库，成功响应**新增** `usage` 字段（纯附加）；`handleH5Ai` 传入 `deviceId`（仅用于匿名聚合）、`feature`、`product`、`channel:'byok'`。
+  - 落库字段：`date / at / product / feature / channel / model / user(sha256 前 16 位) / ms / promptTokens / completionTokens / cachedTokens / totalTokens / ok`；**不记 messages、不记输出正文、不记 Key**。
+  - H5：`api.ai(messages, feature)`、`ai.js callAI(messages, feature)`；三个调用点分别传 `persona-report` / `daily-card` / `wander`。
+- **关键结论**：埋点只能看到 **BYOK 通道**的真实 token；平台 Key 通道要等 P0 网关上线后在网关侧记同一张表口径。
+- **产出物（文件）**：`mobile/cloudfunctions/wereadProxy/index.js`、`h5/src/api.js`、`h5/src/ai.js`、`h5/src/core/daily-ai.js`、`h5/src/core/wander-ai.js`、`manifest.json`（版本 0.30.2 → 0.30.3）。
+- **验证**：`node --check` 云函数通过；4 个 H5 ES 模块 `--input-type=module --check` 通过；**待部署云函数 + H5 后实测**。
+- **待办**：① ✅ 集合 `wre_ai_usage` 已建（用户操作）；② ✅ 云函数已上传（用户操作）+ H5 已发布（2026-10-25 23:37，`site-dist` 提交 `96d6544`，仅更新 `/app/` 4 个文件，未动整站与 `api/latest.json`）；③ 收满 100 条后按 feature 算 P50 / P90 单次成本；④ 本次改动**未 commit**（main 工作区）。
+
+### 补充：wander 分档（2026-10-26）
+
+- **背景**：实测首条记录 `feature:'wander'`、prompt 1804 / completion 950 / total 2754 / 7938ms；但铜/银/金三档 prompt 与输出长度不同，是三个独立 SKU，混在一起算 P50/P90 会失真。
+- **改动**：云函数新增 `AI_TIERS = ['copper','silver','gold']`，`handleAi` 读取并校验 `event.tier`，`handleH5Ai` 透传，落库新增 `tier` 字段（非漫游为空串）；H5 `api.ai(messages, feature, tier)` / `callAI(messages, feature, tier)`，`generateWanderText` 传 `tier.key`。
+- **发布**：`site-dist` 提交 `70f985d` → 帽子云部署 `zaghavthb` 成功（仅 `/app/` 3 个文件，未动整站）；线上 `app/src/core/wander-ai.js` 已含 tier。
+- **待办**：云函数本次有改动，需**重新上传**后才开始记录 `tier`；之后每档单独攒样本。
+
+### 成本核算脚本（2026-10-26）
+
+- 用户已重新上传云函数（新记录含 `tier` 字段），并导出 `wre_ai_usage` 4 条样本。
+- 首份样本：wander 2754 / 2098 tokens，daily-card 913，persona-report 962；单次成本（deepseek-flash 高峰价）0.0022 / 0.0032 / 0.0090 元。
+- billing-center 新增 `scripts/ai_usage_report.py`（读导出 JSONL，按 feature/tier 算 P50/P90 成本）与 `reports/ai_usage_2026-10-26.md`。
+- **风险**：`deepseek-chat` 已于 2026-07-24 官方弃用，建议下次上传云函数时改为 `deepseek-flash`。
+
+### 模型名切换 deepseek-flash（2026-10-26）
+
+- **云函数**：`DEEPSEEK_MODEL` 改为 `deepseek-flash`（已由用户重新上传）。
+- **桌面扩展**：`background.js` 预设表、`modules/official.js` 预设表同步改为 `deepseek-flash`；存量用户在 `wreAiActive` 里存的旧名，由新增的 `aiNormalizeModel()` 在解析端点和读取存储时统一映射为 `deepseek-flash`（仅对 deepseek 生效，自定义端点不受影响）。
+- **版本**：`manifest.json` 0.30.3 → 0.30.4，待发布扩展。
+
+### 思考模式踩坑 + 批量成本采样（2026-10-27）
+
+- **发现**：`deepseek-flash` **默认开启思考模式**，思维链计入 `completion_tokens`。实测同一条每日卡片：关闭时 97 tokens / 1.5s，默认 886 tokens（其中 reasoning 783）/ 6s，约 9 倍成本；漫游请求稳定吃满 `max_tokens: 2000` 被截断（`finish_reason: length`）→ JSON 解析失败。
+- **影响**：切到 `deepseek-flash` 后的线上云函数正处于思考模式，漫游会失败、成本翻 9 倍。
+- **修复**：云函数与扩展的请求体都加 `thinking: { type: 'disabled' }`；扩展仅对 `api.deepseek.com` 生效，其他厂商不受影响。**云函数需重新上传才生效**。
+- **采样**：`billing-center/scripts/gen_usage_samples.mjs` 用 H5 同一份提示词跑 102 次（关闭思考），全部 `stop`，合计 0.49 元。P90 单次成本：每日卡片 0.0017、人格画像 0.0034、漫游铜/银/金 0.0073 / 0.0095 / 0.0106 元。
+- **定价定稿**：`billing-center` 可行性分析 §6.3——1 元 = 100 点；每日卡片 1 点、人格画像 2 点、漫游铜/银/金 2/3/4 点；毛利 64%–83%；P1 主推 6 元 600 点；新用户赠 20 点（24h 后到账）。同时修正原文「1 元 30 次一定亏」——实测输入量高估一个数量级，统一次数不亏但会短补长。
+
+---
+
+## 2026-10-28 会话条目：H5「我的账户」接入统一账户（阶段 3 起步）
+
+- **目标**：让微信悦读 H5 用户能用全站统一身份（一个 uid 管官网 / 算经小课 / 微信悦读），并开始向账户中心上报行为；**不改动现有账户码、Key 托管与云端接口**。
+- **已做**：① 复制账户中心 SDK 到 `h5/assets/ps-auth.js`；② `h5/src/config.js` 新增 `ACCOUNT`（`apiBase: https://account.chesterlee.cn`、`productId: wxread`）；③ `h5/index.html` 在模块脚本前加载 SDK；④ `h5/src/views/me.js`「我的账户」在账户卡下方新增「统一账户」卡：未登录→「登录统一账户」（`requireLogin` 跳账户中心，登录后带票据回本页）、已登录→ uid 掩码 + 邮箱掩码 + 「退出统一账户」；进页面静默查登录态并上报 `track({event:'open', title:'我的账户', platform:'h5'})`；⑤ 统一账户侧线上登记 `wxread` → `https://reader.chesterlee.cn` 并把该域名加入 `ALLOWED_ORIGINS`。
+- **关键结论/决定**：统一账户只做「身份 + 足迹」，与账户码（deviceId）**并存**，老用户零迁移；卡片只重绘自己那块容器 `#meUnified`，异步查登录态不会把用户正在填的 Key / 昵称输入框刷掉；SDK 或配置缺失时整张卡不出现，不影响原有功能。
+- **产出物（文件/链接）**：`h5/assets/ps-auth.js`、`h5/src/config.js`、`h5/index.html`、`h5/src/views/me.js`。
+- **验证**：`node --check` 通过（me.js / config.js）；本机静态服务 `http://localhost:18841/#/me` 中页面与 SDK 均 200；账户中心侧 `auth.ticket.issue` / CORS 预检对 `https://reader.chesterlee.cn` 均通过。
+- **待办**：① 本机预览确认卡片样式（真实 Chrome 打开 `#/me`）；② 已 `web/build.py` 重建并 `rsync` 到腾讯云轻量 `/srv/chesterlee/reader/`（线上 `/`、`/app/`、`/app/assets/ps-auth.js`、`/app/src/config.js` 均 200，`me.js` 含 `meUnified`）；③ 插件侧接入与小程序 openid → uid（阶段 4）。
+- **风险/注意事项**：`h5/assets/ps-auth.js` 是副本，SDK 改动要回 `account-center/sdk/ps-auth.js` 母本再同步；发布方式已改为 rsync（`push ≠ 上线`），见《部署上线备案》§2.1；本次未 `git commit`。

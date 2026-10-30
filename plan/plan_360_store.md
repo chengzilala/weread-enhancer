@@ -243,13 +243,15 @@
 | 360 上架包 | ✅ `release/360上架包-v0.27.4.zip`（crx + 功能说明.txt + 图标48 + 效果图01~05；中文名已带 UTF-8 标记） |
 | 创作者中心实际提交物 | ✅ 与旧文档不同：**`.crx` 直接单独上传**（非 ZIP）；图标 **192×192**、封面图小图 **472×296**、市场推荐图 **1120×700**（提交 4 张，满足 1–5）；素材在 `release/360-素材/`，由 `promo.py` 的 `build_360_platform()` 生成 |
 | `.pem` 私钥保存位置 | ⚠️ 当前在项目内 `release/360-扩展目录.pem`（**须移出仓库妥善保存**，勿入 git） |
-| 提交版本 | v0.27.4（首次上架）｜**v0.28.0（更新提交）** |
+| 提交版本 | v0.27.4（首次）｜v0.28.0｜v0.30.0（已上线）｜**v0.30.1（本次·审核中）** |
 | 更新提交（v0.28.0） | ✅ **2026-10-13** 经创作者中心「更新扩展」提交：crx 版本 **0.28.0**（附件哈希 `bb7617fbc70986a9b7b37cd85eeb0bcf.crx`），当前状态「审核中」；版本号与主版本 `manifest.json` / Edge 保持一致；更新表单仅需重传 crx（图标/封面/推荐图沿用，无需重传），无「版本说明」字段 |
-| 扩展 ID（创作者中心） | ✅ `fiidojfpifhgajiackccpgaaheiehcjd`（审核通过后详情页形如 `https://ext.se.360.cn/webstore/detail/fiidojfpifhgajiackccpgaaheiehcjd`；当前访问为 404，属正常） |
+| 更新提交（v0.30.0 · 按 Edge 对齐） | ✅ **2026-10-13** 经「更新扩展」提交：① 短说明改为「增强微信读书网页版：屏占比、自动阅读、快捷键、统计与笔记导出」（30/30，Edge 口径压缩）；② 长说明改为 Edge 中文详细描述（986/2000，逐字一致，含 emoji、官网开头与个人说明）；③ 扩展官网由 `wereadapp-32km31c.maozi.io` 改为 **`https://reader.chesterlee.cn/`**（与 Edge 一致）；④ crx 更新为 **0.30.0**（哈希 `c7e40696178e6f7c82c18105cea188ca.crx`）；已于 **2026-10-21** 审核通过并上线（线上 0.30.0） |
+| 更新提交（v0.30.1 · 修复前台「概述」空白） | ✅ **2026-10-21** 经「更新扩展」提交：crx **0.30.1**（哈希 `6996524b62404f65d44582ded8c08ae4.crx`），状态「审核中」。**根因**：后台 `long_desc` 完整（1020 字）、保存请求 `POST /api/plugin/v2/plugin/update` 确认含 `long_desc`（986 字）；但公开详情接口 `plugin/detail` 的 `moredesc` 为空 → 平台「后台长说明 → 前台概述」同步/快照问题。本次重提交用于触发重新生成详情快照；若审核后 `moredesc` 仍为空，需向 360 提工单 |
+| 扩展 ID（创作者中心） | ✅ `fiidojfpifhgajiackccpgaaheiehcjd`（前台详情页：`https://ext.se.360.cn/#/extension-detail?id=fiidojfpifhgajiackccpgaaheiehcjd`） |
 | 提交日期 | ✅ **2026-10-11** |
 | 提交平台（实测） | ✅ **360 创作者中心 `creative.360.com`**（**不是**本档第一至八节写的旧平台 `open.chrome.360.cn`；Mac 上实际走的是创作者中心） |
-| 审核状态 | ✅ **已上线**（2026-10-13 创作者中心后台状态变为绿色「已上线」）｜⚠️ 商店前台暂未同步：`ext.se.360.cn` 按名称/ID 均搜不到，「应用中心链接」暂不可用 |
-| 应用中心链接 | ⏳ **待前台同步**。正确格式已确认（对照已上架扩展验证）：`https://ext.se.360.cn/webstore/detail/<扩展ID>`，即 `https://ext.se.360.cn/webstore/detail/fiidojfpifhgajiackccpgaaheiehcjd`；当前访问会跳转至 360 浏览器官网（ID 未收录）。待前台收录后回填并核实 |
+| 审核状态 | ✅ **已上线 v0.30.0**（2026-10-21 前台已可访问）｜⚠️ 前台「概述」空白：公开详情接口 `moredesc` 为空（后台 `long_desc` 正常），已重提交 v0.30.1 尝试修复，审核中 |
+| 应用中心链接 | ✅ 前台已可访问（2026-10-21）：`https://ext.se.360.cn/#/extension-detail?id=fiidojfpifhgajiackccpgaaheiehcjd`（旧式路径 `/webstore/detail/<ID>` 会跳转，**以 hash 路由为准**） |
 | **网站入口（`storeUrls.360`）** | ⏳ **已预留、暂留空**（2026-10-10）：360 审核中、暂无详情页链接，故 `web/site.config.json` 的 `storeUrls.360` 留空。链接到手后**只需两步**：① 填 `storeUrls.360`（形如 `https://ext.se.360.cn/webstore/detail/…`）→ ② 跑 `python3 web/build.py`；内容页 `:::store` 按钮组与页脚会自动出现「安装到 360 / 360 商店」，**首页 Hero 主按钮保持仅 Edge**（用户已确认） |
 | 拒绝原因与修正 | （如有） |
 

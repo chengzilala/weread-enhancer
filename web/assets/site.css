@@ -114,6 +114,24 @@ a:hover { text-decoration: underline; }
 .btn-ghost { color: var(--text-soft); }
 .btn-ghost:hover { color: var(--accent); text-decoration: none; }
 
+/* 已登录：顶栏账户入口只显示圆形头像 */
+.btn-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+.wre-account-avatar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .nav-toggle {
   display: none;
   margin-left: auto;
@@ -438,7 +456,7 @@ a:hover { text-decoration: underline; }
 /* 愿景横幅：无底色，白底上直接放深色书法大字（最极简、零割裂） */
 .home .site-body { padding-top: 26px; }
 .home .doc .home-vision {
-  margin: 30px 0 40px;
+  margin: 52px 0 68px;
   text-align: center;
 }
 .home .doc .home-vision__text {
@@ -448,6 +466,10 @@ a:hover { text-decoration: underline; }
   font-size: clamp(3em, 9vw, 6.5em);
   line-height: 1;
   letter-spacing: 0.08em;
+}
+
+@media (max-width: 767px) {
+  .home .doc .home-vision { margin: 38px 0 50px; }
 }
 
 /* Hero：主标 + 功能标签 + 结语 + 按钮组 + 主视觉大图（极简高对比：绿色只给按钮） */
@@ -489,9 +511,8 @@ a:hover { text-decoration: underline; }
   letter-spacing: 0.06em;
 }
 .home-actions { display: flex; flex-wrap: wrap; gap: 14px 16px; align-items: flex-start; justify-content: center; margin: 22px 0 0; }
-/* 按钮组每一项：按钮 + 一行小字（说明这是什么、什么时候用） */
+/* 按钮组每一项：只放按钮，说明文字收进悬停提示 */
 .home-action { display: flex; flex-direction: column; align-items: center; gap: 7px; }
-.home-action-note { color: var(--text-soft); font-size: 0.8em; line-height: 1.3; letter-spacing: 0.02em; white-space: nowrap; }
 /* 悬停 / 聚焦提示：读 data-tip，浮在按钮正上方（纯 CSS，无脚本依赖） */
 .home-action [data-tip] { position: relative; }
 .home-action [data-tip]::after {
@@ -745,7 +766,7 @@ body.wre-lb-open { overflow: hidden; }
 .wre-hover-card img { display: block; width: 100%; height: auto; border-radius: 8px; }
 .wre-hover-card .wre-hover-cap { margin: 8px 2px 0; font-size: .82em; line-height: 1.5; color: var(--text-soft); }
 
-/* ---------- 我的账户页（/account/，与网页版共用同一套账户） ---------- */
+/* ---------- 我的账户页（/account/，统一账户中心 account-center） ---------- */
 /* 与全站其他页面同宽同对齐（.site-body 内左对齐），不再单独限宽居中 */
 .acct-lead { color: var(--text-soft); margin: 0 0 22px; }
 
@@ -870,6 +891,7 @@ body.wre-lb-open { overflow: hidden; }
 .acct-btn--ghost:hover { background: var(--accent-soft); }
 .acct-btn--danger { color: #fff; background: #d64545; border-color: #d64545; }
 .acct-btn--danger:hover { background: #bf3b3b; border-color: #bf3b3b; }
+a.acct-btn { display: inline-flex; align-items: center; text-decoration: none; }
 
 .acct-form__actions { display: flex; gap: 10px; margin-top: 10px; }
 .acct-hint { margin: 10px 0 0; color: var(--text-soft); font-size: 0.85em; }

@@ -546,7 +546,7 @@ def render_list(items, page):
 # --------------------------------------------------------------------------
 
 def render_nav(current_url):
-    """顶栏：主导航（site.config.json 的 nav，flomo 式少链接）+「登录」+ 绿色胶囊「装到 Edge」"""
+    """顶栏：主导航（site.config.json 的 nav，flomo 式少链接）+「登录」+ 绿色胶囊「创作手记」"""
     links = []
     for item in CONFIG["nav"]:
         active = ' class="active"' if item["url"] == current_url else ""
@@ -554,16 +554,12 @@ def render_nav(current_url):
             item["url"], active, html.escape(item["title"])))
     nav = "\n      ".join(links)
 
-    stores = CONFIG.get("storeUrls") or {}
-    store_url = stores.get("edge") or "/docs/start/"
-    store_label = "装到 Edge" if stores.get("edge") else "安装插件"
-    store_ext = ' target="_blank" rel="noopener"' if store_url.startswith("http") else ""
     return (
         '<nav class="site-nav">\n      %s\n      </nav>\n'
         '      <div class="site-cta">\n'
-        '        <a class="btn btn-ghost" href="/account/">登录</a>\n'
-        '        <a class="btn btn-primary" href="%s"%s>%s</a>\n'
-        '      </div>' % (nav, html.escape(store_url, quote=True), store_ext, store_label)
+        '        <a class="btn btn-ghost" href="/account/" data-wre-account-link>需要登录</a>\n'
+        '        <a class="btn btn-primary" href="/essay/">创作手记</a>\n'
+        '      </div>' % nav
     )
 
 
@@ -608,28 +604,17 @@ def render_prev_next(page):
 
 
 def render_footer():
-    stores = CONFIG.get("storeUrls") or {}
     links = []
-    for key, label in (("edge", "Edge 商店"), ("chrome", "Chrome 商店"), ("360", "360 商店")):
-        if stores.get(key):
-            links.append('<a href="%s" target="_blank" rel="noopener">%s</a>' % (
-                html.escape(stores[key], quote=True), label))
-    if not links:
-        links.append('<a href="/docs/start/">安装插件</a>')
-    links.append('<a href="/docs/">帮助文档</a>')
     links.append('<a href="/docs/changelog/">更新日志</a>')
-    links.append('<a href="/essay/">创作手记</a>')
-    links.append('<a href="/account/">我的账户</a>')
     links.append('<a href="/privacy/">隐私政策</a>')
     if CONFIG.get("personalSiteUrl"):
         links.append('<a href="%s" target="_blank" rel="noopener">个人网站</a>' % html.escape(CONFIG["personalSiteUrl"], quote=True))
-    links.append('<a href="%s" target="_blank" rel="noopener">GitHub</a>' % CONFIG["repoUrl"])
-    if CONFIG.get("giteeUrl"):
-        links.append('<a href="%s" target="_blank" rel="noopener">Gitee</a>' % CONFIG["giteeUrl"])
     return (
         '<div class="footer-inner">\n'
         '    <nav class="footer-links">%s</nav>\n'
-        '    <p class="footer-meta">%s v%s · GPL-3.0 License · © %s</p>\n'
+        '    <p class="footer-meta">%s v%s · GPL-3.0 License · © %s '
+        '<a href="https://chesterlee.cn/" target="_blank" rel="noopener">Chester</a> · '
+        '<a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">陇ICP备2026009894号-2</a></p>\n'
         '  </div>' % (
             " ".join(links), html.escape(CONFIG["siteName"]), VERSION, date.today().year)
     )
@@ -661,6 +646,71 @@ def article_header(page):
 # --------------------------------------------------------------------------
 # 三·五、帮助文档站（/docs/）——VuePress 原味：顶栏 + 左栏目录树 + 正文单栏 + 上/下页
 # --------------------------------------------------------------------------
+
+def md_plain_text(text):
+    """Markdown -> 纯文本（供站内搜索索引使用；不追求完美，够搜就行）"""
+    s = text
+    s = re.sub(r"```[\s\S]*?```", " ", s)
+    s = re.sub(r"!\[\[[^\]]*\]\]", " ", s)
+    s = re.sub(r"!\[[^\]]*\]\([^)]*\)", " ", s)
+    s = re.sub(r"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]", lambda m: m.group(2) or m.group(1), s)
+    s = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", s)
+    s = re.sub(r"^\s{0,3}#{1,6}\s*", "", s, flags=re.M)
+    s = re.sub(r"^\s*:::\s*\w*", " ", s, flags=re.M)
+    s = re.sub(r"^\s*>\s?", "", s, flags=re.M)
+    s = re.sub(r"^\s*[-*+]\s+", "", s, flags=re.M)
+    s = re.sub(r"^\s*\d+\.\s+", "", s, flags=re.M)
+    s = re.sub(r"<[^>]+>", " ", s)
+    s = re.sub(r"[*_~`|]", " ", s)
+    s = re.sub(r"\s+", " ", s)
+    return s.strip()
+
+
+def md_headings(text):
+    """抽取正文里的二～四级标题（用于搜索加权）"""
+    out = []
+    for m in re.finditer(r"^\s{0,3}#{2,4}\s+(.+?)\s*#*\s*$", text, flags=re.M):
+        h = re.sub(r"[*_`\[\]]", "", m.group(1)).strip()
+        if h:
+            out.append(h)
+    return out[:12]
+
+
+def write_search_index():
+    """生成 /assets/search-index.json：帮助文档站的全站搜索数据（前端按需加载）"""
+    items = []
+    for p in PAGES:
+        if p["base_slug"] in SITE_SLUGS:
+            continue
+        items.append({
+            "t": p["title"],
+            "u": p["url"],
+            "s": (p["section"] or {}).get("title", ""),
+            "d": p["description"],
+            "h": md_headings(p["body"]),
+            "b": md_plain_text(p["body"])[:8000],
+        })
+    for sec in CONFIG["sections"]:
+        items.append({
+            "t": sec["title"],
+            "u": section_url(sec),
+            "s": "栏目",
+            "d": sec.get("description") or "",
+            "h": [],
+            "b": "",
+        })
+    items.append({
+        "t": "帮助文档首页",
+        "u": "/docs/",
+        "s": "",
+        "d": "微信悦读的使用教程：装好、用起来、读完复盘。",
+        "h": [],
+        "b": "",
+    })
+    out = DIST / "assets" / "search-index.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(items, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+
 
 def write_page(out_file, html_text, url):
     out_file.parent.mkdir(parents=True, exist_ok=True)
@@ -852,18 +902,17 @@ def home_install_button():
         html.escape(url, quote=True), ext, label)
 
 
-def home_action_item(btn_html, note="", tip=""):
-    """首页 Hero 按钮组的一项：按钮 + 一行小字说明（note） + 悬停提示（tip）。
+def home_action_item(btn_html, tip=""):
+    """首页 Hero 按钮组的一项：只输出按钮，说明性文字收进悬停提示（tip）。
 
-    note 常显，说明「这是什么、什么时候用」；tip 悬停/聚焦时由 CSS 显示更完整的解释。
-    btn_html 为已生成的按钮标签（<a>/<span>），这里在其开始标签末尾补一个 data-tip 属性。
+    btn_html 为已生成的按钮标签（<a>/<span>），这里在其开始标签末尾补一个 data-tip 属性，
+    鼠标悬停 / 键盘聚焦时由 CSS 浮出更完整的解释。
     """
     if tip:
         idx = btn_html.find(">")
         if idx != -1:
             btn_html = btn_html[:idx] + ' data-tip="%s"' % html.escape(tip, quote=True) + btn_html[idx:]
-    note_html = '<span class="home-action-note">%s</span>' % html.escape(note) if note else ""
-    return '<div class="home-action">%s%s</div>' % (btn_html, note_html)
+    return '<div class="home-action">%s</div>' % btn_html
 
 
 # 作者个人名片（跨域 iframe）：名片页自包含、零依赖；高度由名片页 postMessage 自适应
@@ -899,25 +948,29 @@ def render_home(page):
                  '<img src="%s" alt="%s" decoding="async" fetchpriority="high"></div>') % (
             html.escape(page["hero"], quote=True), html.escape(title, quote=True))
 
-    # 安装到 Edge（插件）：电脑端入口 —— 按钮 + 一行小字 + 悬停提示
+    # 安装到 Edge（插件）：电脑端入口 —— 按钮 + 悬停提示
     install_item = home_action_item(
         home_install_button(),
-        "电脑浏览器 · 读的时候用",
         "在电脑浏览器（Edge / Chrome）里安装的插件，管「读的过程」：屏占比、自动阅读、笔记导出、阅读统计、阅读洞察等。",
     )
+
+    # 安装到 360（插件）：配置了 360 商店链接才出现，与 Edge 版功能一致
+    store_360 = (CONFIG.get("storeUrls") or {}).get("360")
+    install_360_item = home_action_item(
+        '<a class="home-btn" href="%s" target="_blank" rel="noopener">安装到 360</a>' % html.escape(store_360, quote=True),
+        "在 360 浏览器（360 极速浏览器 / 360 安全浏览器）里安装的插件，功能与 Edge 版一致：屏占比、自动阅读、笔记导出、阅读统计、阅读洞察等。",
+    ) if store_360 else ""
 
     # 网页版（H5）入口：配置 appUrl 后出现；与官网同域，线上路径 /app/
     app_url = CONFIG.get("appUrl") or ""
     app_item = home_action_item(
         '<a class="home-btn" href="%s">H5 移动端</a>' % html.escape(app_url, quote=True),
-        "手机浏览器 · 读完复盘（带 AI）",
         "手机浏览器打开就能用，不用安装。管「读完之后」：数据总览、阅读人格、行为报告、每日卡片、灵感漫游，保留 AI 深度解析。",
     ) if app_url else ""
 
     # 桌面版：把「微信悦读」装成桌面应用的手把手教程（电脑 / 手机都覆盖）
     desktop_item = home_action_item(
         '<a class="home-btn" href="/docs/h5/desktop/">桌面版</a>',
-        "电脑 / 手机 · 装成 App",
         "把手上的「微信悦读」装到桌面、像 App 一样用：电脑（Windows / Mac）装成桌面应用，手机 H5 与微信小程序也能加到桌面，桌面图标一点就开。含 Windows / Mac、iPhone、安卓全步骤。",
     )
 
@@ -927,7 +980,6 @@ def render_home(page):
     if miniapp_url:
         miniapp_item = home_action_item(
             '<a class="home-btn" href="%s" target="_blank" rel="noopener">微信小程序</a>' % html.escape(miniapp_url, quote=True),
-            "微信里 · 读完复盘（无 AI）",
             "在微信里搜「悦读且住」打开就能用：复盘数据、阅读人格、行为报告，还能管理纸质书。合规精简版，不含 AI。",
         )
     else:
@@ -936,20 +988,17 @@ def render_home(page):
             ' data-full="/assets/img/miniapp-qr.png"'
             ' data-hover="1"'
             ' data-cap="微信小程序「悦读且住」 · 用微信扫码打开">微信小程序</a>',
-            "微信里 · 读完复盘（无 AI）",
             "已上线：在微信里搜「悦读且住」就能打开，或点按钮扫码。复盘数据、阅读人格、行为报告，还能管理纸质书。合规精简版，不含 AI。",
         )
 
     # 开源地址（GitHub / Gitee）：与「安装到 Edge」同排、同款按钮
     src_items = [home_action_item(
         '<a class="home-btn" href="%s" target="_blank" rel="noopener">GitHub</a>' % html.escape(CONFIG["repoUrl"], quote=True),
-        "源码仓库",
         "在 GitHub 上查看或下载源码，反馈问题、提建议也在这里。",
     )]
     if CONFIG.get("giteeUrl"):
         src_items.append(home_action_item(
             '<a class="home-btn" href="%s" target="_blank" rel="noopener">Gitee</a>' % html.escape(CONFIG["giteeUrl"], quote=True),
-            "源码仓库 · 国内更快",
             "Gitee 是国内的源码镜像，访问和下载更快，适合国内网络。",
         ))
 
@@ -976,14 +1025,15 @@ def render_home(page):
         '  <div class="home-hero-text">\n'
         '    <h1 class="home-hero-title">%s</h1>\n'
         '%s'
-        '    <div class="home-actions">%s%s%s%s%s</div>\n'
+        '    <div class="home-actions">%s%s%s%s%s%s</div>\n'
         '  </div>\n'
         '  %s\n'
         '</section>' % (inline(title, page), sub_html,
-                         install_item, app_item, desktop_item, miniapp_item, " ".join(src_items), media)
+                         install_item, install_360_item, app_item, desktop_item, miniapp_item,
+                         " ".join(src_items), media)
     )
 
-    # 愿景横幅：品牌绿底 + 白色书法大字，独立一块（参考「让天下没有难做的生意」式标语）
+    # 愿景横幅：白底书法大字（最极简、零割裂）
     vision = ""
     vision_text = page.get("visionText") or ""
     if vision_text:
@@ -1023,22 +1073,23 @@ def render_section_index(sec):
 
 
 def render_account_page():
-    """官网「我的账户」页：与 /app/ 网页版共用同一套账户与登录系统
+    """官网「我的账户」页：统一账户中心（account-center）
 
     页面骨架（标题 + 空壳）由构建输出；交互逻辑在 /assets/account.js，
-    该脚本直接 import 网页版（/app/src/）的 store / api / ui 模块，
-    因此两端是同一份账户实现；又因官网在 /、网页版在 /app/（同域名同 origin，
-    同一 localStorage），登录态天然互通，无需任何同步机制。
+    身份统一走 account-center（productId=wxread，SDK 见 /assets/ps-auth.js），
+    与顶栏账户入口、网页版「我的」是同一个 uid。
+    旧的账户码 / Key 托管仍属网页版自己的账户体系，在 /app/ 的「我的」里管理。
     """
     page = {
         "title": "我的账户",
         "url": "/account/",
-        "description": "一个账户，处处通用：官网与网页版共用同一个账户码，Key 与昵称随账户跨设备同步。",
+        "description": "一个账户，处处通用：官网、网页版与其它作品共用同一个统一账户身份。",
         "section": None,
         "updatedAt": "",
     }
-    lead = ('一个账户，处处通用：官网与 <a href="/app/">网页版</a> 共用同一个账户码，'
-            '微信读书 Key 与昵称都挂在你的账户下，换设备用账户码登录即可找回。')
+    lead = ('一个账户，处处通用：官网与 <a href="/app/">网页版</a>、个人网站等作品共用同一个'
+            '<strong>统一账户</strong>，一处登录，到处是已登录。'
+            '微信读书 Key 托管与账户码登录仍在网页版「我的」里管理。')
     content = (
         '<p class="acct-lead">' + lead + '</p>'
         + '<div id="acctRoot" class="acct"><p class="acct-loading">正在读取账户信息…</p></div>'
@@ -1407,6 +1458,9 @@ def build():
     for sec in CONFIG["sections"]:
         render_docs_section_index(sec)
     render_docs_home()
+
+    # 2.2) 站内搜索索引（帮助文档站的顶栏搜索按需加载）
+    write_search_index()
 
     # 2.5) 官网「我的账户」页（与 /app/ 网页版共用同一套账户）
     render_account_page()

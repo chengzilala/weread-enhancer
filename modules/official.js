@@ -55,7 +55,7 @@
   // 智能预设表（与 background.js 的 AI_PROVIDER_PRESETS 保持一致）：一套 OpenAI 兼容内核，加新厂商 = 加一行
   // 红线：只列国产大模型，不含任何国外模型入口。
   const AI_PROVIDERS = [
-    { id: 'deepseek', name: 'DeepSeek', model: 'deepseek-chat', hint: 'sk-xxxxxxxx（DeepSeek）', domain: 'api.deepseek.com', site: 'platform.deepseek.com' },
+    { id: 'deepseek', name: 'DeepSeek', model: 'deepseek-flash', hint: 'sk-xxxxxxxx（DeepSeek）', domain: 'api.deepseek.com', site: 'platform.deepseek.com' },
     { id: 'qwen', name: '通义千问（阿里百炼）', model: 'qwen-plus', hint: 'sk-xxxxxxxx（阿里百炼）', domain: 'dashscope.aliyuncs.com', site: 'bailian.console.aliyun.com' },
     { id: 'kimi', name: 'Kimi（月之暗面）', model: 'moonshot-v1-8k', hint: 'sk-xxxxxxxx（Moonshot）', domain: 'api.moonshot.cn', site: 'platform.moonshot.cn' },
     { id: 'glm', name: '智谱 GLM', model: 'glm-4-flash', hint: 'xxxxxx.xxxxxx（智谱）', domain: 'open.bigmodel.cn', site: 'open.bigmodel.cn' },
@@ -113,6 +113,9 @@
 
   // 常见停用词 / 功能词（仅用于过滤 n-gram 候选，不参与正向词表匹配）
   const PERSONA_STOPWORDS = ['我们', '你们', '他们', '她们', '这个', '那个', '这些', '那些', '一个', '一种', '一样', '一些', '什么', '怎么', '这样', '那样', '如果', '但是', '可是', '然后', '而且', '并且', '或者', '还是', '就是', '只是', '而是', '不是', '没有', '不能', '可以', '能够', '应该', '需要', '进行', '通过', '对于', '关于', '以及', '已经', '正在', '自己', '它', '他们'];
+
+  // 高频词展示时剔除的虚词：有语法功能，但当「关键词」没有信息量（不影响四维判定与主题归并）
+  const PERSONA_DISPLAY_SKIP = ['因为', '所以', '因此', '由于', '但是', '可是', '然后', '而且', '并且', '或者', '还是', '就是', '只是', '而是', '不是', '没有', '不能', '可以', '能够', '应该', '需要', '进行', '通过', '对于', '关于', '以及', '已经', '正在', '这个', '那个', '这些', '那些', '一个', '一种', '一样', '一些', '什么', '怎么', '这样', '那样', '我们', '你们', '他们', '她们', '它们', '如果', '虽然', '不过', '其实', '于是', '同时', '还有', '之后', '之前', '之间'];
 
   // 16 型命名表（主称号 + 一句定调）
   const PERSONA_TYPES = {
@@ -4153,10 +4156,18 @@
     });
 
     const list = [];
+    const skipSet = {};
+    PERSONA_DISPLAY_SKIP.forEach((word) => { skipSet[word] = true; });
     Object.keys(lexCounts).forEach((word) => {
+      if (skipSet[word]) {
+        return;
+      }
       list.push({ word: word, count: lexCounts[word], lex: true, score: lexCounts[word] * 2.2 + word.length });
     });
     Object.keys(gramCounts).forEach((word) => {
+      if (lexCounts[word] || skipSet[word]) {
+        return;
+      }
       if (gramCounts[word] >= 3) {
         list.push({ word: word, count: gramCounts[word], lex: false, score: gramCounts[word] });
       }
@@ -4169,23 +4180,28 @@
       if (item.word.length > 12) {
         return;
       }
-      let contained = false;
       for (let i = 0; i < accepted.length; i += 1) {
-        if (accepted[i].word.length > item.word.length && accepted[i].word.indexOf(item.word) >= 0) {
-          contained = true;
-          break;
+        const other = accepted[i];
+        if (other.word === item.word) {
+          return;
         }
-      }
-      if (contained) {
-        return;
-      }
-      for (let i = accepted.length - 1; i >= 0; i -= 1) {
-        if (item.word.length > accepted[i].word.length && item.word.indexOf(accepted[i].word) >= 0) {
+        // 被更长的词包含 → 丢弃（n-gram 碎片）
+        if (other.word.length > item.word.length && other.word.indexOf(item.word) >= 0) {
+          return;
+        }
+        // 长词包含已收录的短词：词表词优先保留，不被 n-gram 碎片挤掉
+        if (item.word.length > other.word.length && item.word.indexOf(other.word) >= 0) {
+          if (other.lex && !item.lex) {
+            return;
+          }
           accepted.splice(i, 1);
+          i -= 1;
         }
       }
       accepted.push(item);
     });
+    // 展示顺序按真实次数降序（次数相同：词表命中优先，其次更长的词）
+    accepted.sort((a, b) => (b.count - a.count) || (Number(b.lex) - Number(a.lex)) || (b.word.length - a.word.length));
     return accepted;
   }
 

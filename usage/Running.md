@@ -28,4 +28,4 @@ python3 web/serve.py    # 本地预览：http://localhost:5173
 
 - 文章源在 `web/content/`，可用 Obsidian 直接打开为 vault 编辑
 - `web/dist/api/latest.json` 的版本号构建时自动读根目录 `manifest.json`
-- 部署：`python3 web/build.py` 后把 `web/dist/` 产物推到 `site-dist` 分支，由帽子云静态托管（详见 `plan/session_handoff_网站帽子云部署.md`）
+- 部署：`python3 web/build.py` 后把 `web/dist/` 用 `rsync` 同步到腾讯云轻量 `/srv/chesterlee/reader/`（Caddy 静态直读，无需重启；`push ≠ 上线`，详见《部署上线备案》§2.1）

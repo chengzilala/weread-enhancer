@@ -2,6 +2,7 @@
   "pages": [
     "pages/home/index",
     "pages/persona/index",
+    "pages/persona-detail/index",
     "pages/report/index",
     "pages/shelf/index",
     "pages/paperbook/index",

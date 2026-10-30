@@ -343,7 +343,7 @@ The extension is open source: https://github.com/chengzilala/weread-enhancer
 | 生效时点 | 已写入本次 v0.30.0 草稿的 Store 一览（中文）并「保存草稿」落库；待 v0.30.0 发布上线后对用户可见 |
 | 未改 | 英文描述（如需同步加官网 / emoji，另行说明） |
 
-### v0.30.0｜本次 · 已就绪，待发布（2026-10-16）
+### v0.30.0｜已上线（2026-10-16）
 | 项 | 记录 |
 |---|---|
 | 提交版本 | **v0.30.0** |
@@ -354,15 +354,40 @@ The extension is open source: https://github.com/chengzilala/weread-enhancer
 | 处理动作 | ① 从线上版本 v0.28.0 点「更新」建草稿（当天无在审版本，无需取消）；② 先注入 v0.29.1，后替换为 **v0.30.0**（后台显示「已验证当前程序包」、无错误警告）；③ Store 一览（中文）换新格式文案并点「保存草稿」落库（重载核验生效）；④ 认证说明选「不需要，测试人员无需附加信息即可访问和测试所有功能」 |
 | 属性页网站 | 「网站」字段 = `https://reader.chesterlee.cn/`（新官网，重载核验持久化；旧域名 `wereadapp-32km31c.maozi.io` 已停用） |
 | 平台核验 | 可用性 = 公用 / 241 个市场全选 / 未来市场开；5 个提交步骤全绿勾、无红点；隐私页无可见报错；程序包权限含全部 **9 条主机权限** + 可选 `https://*/*` |
-| 审核状态 | ⏸ **已停在最终「发布」前**，由用户亲手点发布（红线：AI 不代点） |
+| 审核状态 | ✅ **已上线**（Live，后台「上次更新日期」2026-10-17） |
+
+### v0.30.2｜已上线（2026-10-22）
+| 项 | 记录 |
+|---|---|
+| 提交版本 | **v0.30.2** |
+| 提交日期 | 2026-10-22 |
+| 提交包 | `release/weread-enhancer-v0.30.2.zip`（`pack.py` 打包，38 个运行文件，1,449,211 字节；包内版本 0.30.2 已校验） |
+| 上次商店版本 | v0.30.0（Live） |
+| 本次要点 | 评论侧栏重构（`modules/reviews.js` / `reviews.css`）、`content.js` 调整、小程序与官网构建同步等 0.30.1 / 0.30.2 累计改动 |
+| 处理动作 | ① 当天无在审版本 → 从 Live v0.30.0 点「更新」建草稿；② 程序包「替换」注入 v0.30.2（本地 CORS 服务 8999 + DataTransfer，后台显示「已完成 / 已验证当前程序包」）；③ **修正隐私页「主机权限理由」**：原文案漏 `reader.chesterlee.cn`、且含清单外域名 `wereadapp-32km31c.maozi.io` → 改为覆盖全部 9 条 host_permissions + 可选 `https://*/*`（548/1000 字，保存并重载核验持久化）；④ 认证说明沿用「不需要凭据」（`#testerInfoNo.checked = true`）；⑤ 提交页错误列表为空、`#publishButton` 可点 → 点「发布」 |
+| 新版后台差异 | 概览页不再显示版本卡片列表，改为「扩展概述 + 左侧步骤导航」；建更新草稿从概览页「更新」按钮进入；程序包页用行内「替换」按钮 |
+| 审核状态 | ✅ **已上线**（Live，2026-10-27 复核后台显示 0.30.2 Live） |
+| 待办 | 已闭环；商店详情页 `https://microsoftedge.microsoft.com/addons/detail/nkcckbonpafeclefhlhbencibkaabmgb` |
+
+### v0.30.4｜正在审阅（2026-10-27）
+| 项 | 记录 |
+|---|---|
+| 提交版本 | **v0.30.4** |
+| 提交日期 | 2026-10-27 提交，2026-10-28 复核为「正在审阅（In review）」 |
+| 提交包 | `release/weread-enhancer-v0.30.4.zip`（`pack.py` 打包，38 个运行文件，1,449,507 字节；包内版本 0.30.4 已校验） |
+| 上次商店版本 | v0.30.2（Live） |
+| 本次要点 | 0.30.3 / 0.30.4 累计：AI 成本埋点（云函数 `wre_ai_usage` + `usage/tier` 透传）、模型切 `deepseek-flash`（`background.js` / `modules/official.js` 预设 + `aiNormalizeModel()` 兼容旧名）、关闭 deepseek 思考模式（`thinking:{type:'disabled'}`，仅对 `api.deepseek.com` 生效） |
+| 处理动作 | ① 当天无在审版本 → 从 Live v0.30.2 点「更新」建草稿；② 程序包「替换」注入 v0.30.4（本地 CORS 服务 8999 + DataTransfer，显示「已完成 / 已验证当前程序包」）；③ 隐私页只读复核：主机权限理由 548/1000 覆盖 9 条域名（含 `reader.chesterlee.cn`、`*.tcloudbase.com`）、远程代码=否、3 项数据披露已勾选，无 red 报错；④ 各板块接口全 ready、整体校验 Valid；⑤ 提交审核 |
+| 审核状态 | ⏳ **正在审阅（In review）**，预计 7 个工作日；线上仍为 0.30.2 |
+| 备注 | 本版起 `publish-edge-store` 技能改为「校验全绿自动点发布」，不再停在发布前等人工点击 |
 
 ### ⏭️ 下一步
-> v0.30.0 草稿已就绪，**停在「发布」前交用户点**。点发布后进入「正在审阅（In review）」，通过后即为线上版本。
+> v0.30.4 在审；通过后回填 Live 版本（届时线上 = 0.30.4）。
 > 每次发布前仍建议按最新 `manifest.json` 复核隐私页「主机权限理由」是否覆盖全部域名（当前 9 条：`i.weread.qq.com` / `api.deepseek.com` / `dashscope.aliyuncs.com` / `api.moonshot.cn` / `open.bigmodel.cn` / `ark.cn-beijing.volces.com` / `api.siliconflow.cn` / `reader.chesterlee.cn` / `*.tcloudbase.com` + 可选 `https://*/*`）。
 
 ---
 
-## 十、Edge 后台「隐私」页填写文案（v0.30.0 · 可直接复制）
+## 十、Edge 后台「隐私」页填写文案（v0.30.4 · 可直接复制）
 
 > 用途：Partner Center → 扩展 → **隐私**页，逐字复制下面各框内容即可。
 > 事实依据（以代码为准）：`manifest.json` 权限仅 `storage`；主机权限 **9 条**——`https://i.weread.qq.com/*`、`https://api.deepseek.com/*`、`https://dashscope.aliyuncs.com/*`、`https://api.moonshot.cn/*`、`https://open.bigmodel.cn/*`、`https://ark.cn-beijing.volces.com/*`、`https://api.siliconflow.cn/*`、`https://reader.chesterlee.cn/*`、`https://*.tcloudbase.com/*`，另含可选 `https://*/*`；生效域名仅 `weread.qq.com`；全部 JS 随包分发、**无远程代码**。
@@ -439,20 +464,24 @@ Used only to (1) silently check the companion website's version file (GET /api/l
 **中文（推荐直接粘贴）**
 ```
 主机权限仅服务于扩展在微信读书（weread.qq.com）上的单一用途，且仅在用户主动操作时使用：
-1) weread.qq.com（content_scripts）：在微信读书阅读页注入扩展自绘的控制面板与阅读辅助功能。
-2) i.weread.qq.com：当用户填写自己的微信读书 API Key 并打开「笔记/阅读洞察」时，后台脚本调用官方网关（POST /api/agent/gateway）读取用户本人的划线、想法、书架与阅读数据，并在本地展示/导出。
-3) api.deepseek.com：可选；仅在用户填写自己的 DeepSeek Key 并点击 AI 按钮时，用其本人笔记生成可读摘要。
-4) reader.chesterlee.cn：仅静默检查版本文件（GET /api/latest.json，缓存 24 小时）与在用户点击时打开配套帮助页。
-不向开发者回传任何数据；无分析、无跟踪、无广告；无远程代码。
+1) weread.qq.com（content_scripts）：注入扩展自绘控制面板与阅读辅助功能。
+2) i.weread.qq.com：用户填写自己的微信读书 API Key 后，通过官方网关读取其本人的划线、想法、书架与阅读数据，仅在本地展示/导出。
+3) api.deepseek.com / dashscope.aliyuncs.com / api.moonshot.cn / open.bigmodel.cn / ark.cn-beijing.volces.com / api.siliconflow.cn：可选；仅当用户填写自己的模型 Key 并点击 AI 解读时，用其本人数据生成摘要。
+4) reader.chesterlee.cn：静默检查版本（GET /api/latest.json，缓存 24 小时）与用户点击时打开帮助页。
+5) *.tcloudbase.com：仅在用户启用「多端同步」时上传/下载其本人笔记数据。
+6) https://*/* 为可选权限：仅当用户使用自选模型/自定义服务时按需申请。
+不向开发者回传数据；无分析、无跟踪、无广告；无远程代码。
 ```
 
 **English（备选）**
 ```
 Host permissions serve only the extension's single purpose on WeRead (weread.qq.com), and only on user action:
 1) weread.qq.com (content_scripts): inject the extension's own control panel and reading aids into the WeRead reader pages.
-2) i.weread.qq.com: when the user enters their OWN WeRead API key and opens Notes/Insights, the service worker calls the official gateway (POST /api/agent/gateway) to read the user's OWN highlights, thoughts, shelf and reading data, shown/exported locally.
-3) api.deepseek.com: optional; only when the user adds their OWN DeepSeek key and clicks the AI button, to generate a readable summary of their own notes.
+2) i.weread.qq.com: when the user enters their OWN WeRead API key, the service worker calls the official gateway to read the user's OWN highlights, thoughts, shelf and reading data, shown/exported locally.
+3) api.deepseek.com / dashscope.aliyuncs.com / api.moonshot.cn / open.bigmodel.cn / ark.cn-beijing.volces.com / api.siliconflow.cn: optional; only when the user adds their OWN model key and clicks the AI button, to summarize their own data.
 4) reader.chesterlee.cn: only a silent version check (GET /api/latest.json, cached 24h) and opening companion Help pages on user click.
+5) *.tcloudbase.com: only when the user enables multi-device sync, to upload/download their own notes.
+6) https://*/* is optional: requested only when the user configures a custom model/service.
 No data is sent to the developer; no analytics, tracking, or ads; no remote code.
 ```
 

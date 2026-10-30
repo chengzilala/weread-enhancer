@@ -83,6 +83,91 @@
   color: var(--wre-text-3);
 }
 
+/* 为什么是这位代表人物 */
+.persona__why {
+  margin-top: 20rpx;
+  padding: 20rpx 24rpx;
+  border-left: 4rpx solid var(--wre-brand);
+  border-radius: 0 16rpx 16rpx 0;
+  background: var(--wre-brand-soft);
+}
+
+.persona__why-title {
+  font-size: calc(26rpx * var(--wre-fs));
+  font-weight: 700;
+  color: var(--wre-brand);
+}
+
+.persona__why-text {
+  margin-top: 8rpx;
+  font-size: calc(26rpx * var(--wre-fs));
+  line-height: 1.7;
+  color: var(--wre-text-3);
+}
+
+.persona__why-sub {
+  margin-top: 20rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx dashed var(--wre-line);
+  font-size: calc(24rpx * var(--wre-fs));
+  font-weight: 600;
+  color: var(--wre-text-3);
+}
+
+.persona__why-item {
+  display: flex;
+  gap: 16rpx;
+  padding: 10rpx 0;
+  border-bottom: 1rpx dashed var(--wre-line);
+  font-size: calc(24rpx * var(--wre-fs));
+  line-height: 1.65;
+  color: var(--wre-text-3);
+}
+
+.persona__why-item:last-child {
+  border-bottom: 0;
+}
+
+.persona__why-pick {
+  flex: 0 0 auto;
+  min-width: 112rpx;
+  color: var(--wre-brand);
+  font-weight: 600;
+}
+
+.persona__why-basis {
+  flex: 1;
+}
+
+.persona__why-dim {
+  margin-right: 8rpx;
+  font-weight: 600;
+  color: var(--wre-text-3);
+}
+
+.persona__why-sample {
+  margin-top: 12rpx;
+  font-size: calc(24rpx * var(--wre-fs));
+  line-height: 1.65;
+  color: var(--wre-text-3);
+}
+
+.persona__why-src {
+  margin-top: 8rpx;
+  font-size: calc(22rpx * var(--wre-fs));
+  line-height: 1.6;
+  color: var(--wre-muted);
+}
+
+.persona__why-more {
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx dashed var(--wre-line);
+  font-size: calc(24rpx * var(--wre-fs));
+  font-weight: 600;
+  color: var(--wre-brand);
+}
+
 /* 生成竖版分享图 */
 .persona__share {
   margin-top: 24rpx;

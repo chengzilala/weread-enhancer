@@ -35,7 +35,7 @@ const AI_TIMEOUT_MS = 30000;                // AI 生成较慢，放宽到 30 �
 
 // baseURL 已按公开文档核对，落地前仍以各家官方文档为准（部分存在 /v1 前缀差异）。
 const AI_PROVIDER_PRESETS = {
-  deepseek:    { name: 'DeepSeek',        baseURL: 'https://api.deepseek.com',                              model: 'deepseek-chat' },
+  deepseek:    { name: 'DeepSeek',        baseURL: 'https://api.deepseek.com',                              model: 'deepseek-flash' },
   qwen:        { name: '通义千问（阿里百炼）', baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',    model: 'qwen-plus' },
   kimi:        { name: 'Kimi（月之暗面）',  baseURL: 'https://api.moonshot.cn/v1',                           model: 'moonshot-v1-8k' },
   glm:         { name: '智谱 GLM',         baseURL: 'https://open.bigmodel.cn/api/paas/v4',                 model: 'glm-4-flash' },
@@ -76,13 +76,18 @@ function aiProviderInfo(providerId) {
   return AI_PROVIDER_PRESETS[providerId] || AI_PROVIDER_PRESETS[AI_DEFAULT_PROVIDER];
 }
 
+/** 旧模型名兼容：deepseek-chat 已于 2026-07-24 弃用，存量用户存下的旧名统一改用新名 */
+function aiNormalizeModel(providerId, model) {
+  return (providerId === 'deepseek' && model === 'deepseek-chat') ? 'deepseek-flash' : model;
+}
+
 /** 解析某提供商的最终调用参数：baseURL（自定义取用户填写）＋ model（取当前激活值或该家默认） */
 function aiResolveEndpoint(providerId, entry, active) {
   const preset = aiProviderInfo(providerId);
   const baseURL = providerId === 'custom'
     ? String((entry && entry.baseURL) || '').replace(/\/+$/, '')
     : preset.baseURL;
-  const model = (active && active.model) || preset.model;
+  const model = aiNormalizeModel(providerId, (active && active.model) || preset.model);
   return { name: preset.name, baseURL: baseURL, model: model };
 }
 
@@ -106,7 +111,7 @@ async function readAiStore() {
   }
   const providerId = AI_PROVIDER_PRESETS[active.providerId] ? active.providerId : AI_DEFAULT_PROVIDER;
   const preset = aiProviderInfo(providerId);
-  const model = (typeof active.model === 'string' && active.model) ? active.model : preset.model;
+  const model = aiNormalizeModel(providerId, (typeof active.model === 'string' && active.model) ? active.model : preset.model);
   return { providers: providers, providerId: providerId, model: model };
 }
 
@@ -354,6 +359,8 @@ async function callAi(endpoint, messages, apiKey) {
         temperature: 0.7,
         max_tokens: 2000,
         stream: false,
+        // DeepSeek 默认开启思考模式（会吃掉 max_tokens 且多花 5–10 倍 token），显式关闭
+        ...(String(endpoint.baseURL).includes('api.deepseek.com') ? { thinking: { type: 'disabled' } } : {}),
       }),
       signal: controller.signal,
     });

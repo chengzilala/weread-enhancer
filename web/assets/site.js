@@ -164,3 +164,69 @@
 
   els.forEach(function (el) { io.observe(el); });
 })();
+
+// 顶栏账户入口：统一账户中心（account-center），一个 uid 管所有作品
+// 未登录 → 账户中心登录页（登录后带 ps_ticket 回到本页）；已登录 → 账户中心「我的账户」
+// SDK 未加载 / 接口不可用 → 保留默认链接（/account/ 本站账户页），主流程不受影响
+(function () {
+  "use strict";
+
+  var ACCOUNT = {
+    apiBase: "https://account.chesterlee.cn",
+    productId: "wxread"
+  };
+
+  var link = document.querySelector("[data-wre-account-link]");
+  if (!link) return;
+
+  var sdk = window.PSAuth;
+  if (!sdk || !ACCOUNT.apiBase || !ACCOUNT.productId) return;
+
+  sdk.init({ apiBase: ACCOUNT.apiBase, productId: ACCOUNT.productId });
+
+  function paint(user) {
+    var name = user && typeof user.nickname === "string" ? user.nickname.trim() : "";
+    link.textContent = "";
+    link.classList.toggle("btn-avatar", Boolean(user));
+    if (user) {
+      // 已登录只留头像，不再显示昵称
+      if (user.avatar) {
+        var avatar = document.createElement("img");
+        avatar.className = "wre-account-avatar";
+        avatar.src = user.avatar;
+        avatar.alt = "";
+        link.appendChild(avatar);
+      } else {
+        link.textContent = name ? name.slice(0, 1) : "我";
+      }
+      link.title = "我的账户";
+      link.setAttribute("aria-label", "我的账户");
+      link.setAttribute("data-wre-account-state", "in");
+    } else {
+      link.textContent = "登录";
+      link.title = "登录 / 注册账户";
+      link.setAttribute("aria-label", "登录 / 注册账户");
+      link.setAttribute("data-wre-account-state", "out");
+    }
+  }
+
+  link.addEventListener("click", function (e) {
+    var state = link.getAttribute("data-wre-account-state");
+    if (!state) return;                      // 还没判断出登录态 → 走默认链接
+    e.preventDefault();
+    if (state === "in") {
+      location.href = ACCOUNT.apiBase + "/account.html";
+      return;
+    }
+    sdk.requireLogin();
+  });
+
+  function refresh() {
+    if (!window.PSAuth) return;
+    sdk.getUser().then(paint).catch(function () { /* 账户服务不可用保持默认 */ });
+  }
+
+  refresh();
+  // 从账户中心登录回跳 / 前进后退缓存恢复时重新读一次
+  window.addEventListener("pageshow", refresh);
+})();
