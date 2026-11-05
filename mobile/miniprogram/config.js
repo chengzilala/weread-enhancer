@@ -25,5 +25,6 @@ module.exports = {
     h5: 'https://reader.chesterlee.cn/app/',           // H5 网页版（满血版，带 AI）
     donate: 'https://reader.chesterlee.cn/donate/',    // 打赏名单（公开透明的打赏记录）
     personal: 'https://chesterlee.cn/',      // 作者个人网站
+    account: 'https://account.chesterlee.cn/account.html', // 统一账户中心（管邮箱 / 昵称头像）
   },
 };

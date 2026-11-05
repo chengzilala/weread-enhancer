@@ -1,28 +1,28 @@
 /**
- * 「我的账户」页：账户总览 + Key 托管（H1）+ 昵称托管 + 跨设备登录（H8）+ 运营入口
+ * 「我的账户」页：Key 托管（H1）+ 登录与同步（统一账户 / 跨设备 H8 / 关联小程序）+ 更多入口
  *
  * 账户模型：deviceId 即账户（32 位随机码，浏览器本机生成，服务端按它认人）；
- *   「账户码」就是它，换设备输入即可登录同一账户（未来可在此挂 openid 做微信登录）。
+ *   「账户码」就是它，换设备输入即可登录同一账户（收在「登录与同步 → 跨设备登录」里）。
  *
  * 红线：Key 明文只提交一次给服务端加密托管，本机只保存掩码；提交后不再持有明文。
- *      昵称非敏感、可托管；头像可本机上传，仅存本机、不上传服务器。
- *      完整账户码等同一把钥匙，默认只显示掩码，点「显示完整」才展开。
+ *      完整账户码等同一把钥匙，默认只显示掩码，点「显示」才展开。
  */
 
-import { keySave, keyClear, verifyKey, keyGet, profileSave, bindCreate, bindStatus, bindRemove, bindRedeem } from '../api.js';
-import { getMask, setMask, getProfile, setProfile, getDeviceId, setDeviceId, resetDeviceId, readAvatarFile, getFontScale, applyFontScale, FONT_TIERS, getTheme, applyTheme, THEME_TIERS } from '../store.js';
+import { keySave, keyClear, verifyKey, keyGet, bindCreate, bindStatus, bindRemove, bindRedeem } from '../api.js';
+import { getMask, setMask, getDeviceId, setDeviceId, resetDeviceId, getFontScale, applyFontScale, FONT_TIERS, getTheme, applyTheme, THEME_TIERS } from '../store.js';
 import { esc, toast, copyText, confirmSignOut } from '../ui.js';
 import { keyGuideHtml } from '../key-guide.js';
 import { qrSvg } from '../qrcode.js';
-import { desktopGuideHtml } from '../desktop-guide.js';
+import { desktopGuideBodyHtml } from '../desktop-guide.js';
 import { CONFIG } from '../config.js';
 import { openArchive as openDailyArchive } from './daily.js';
 import { openArchive as openWanderArchive } from './wander.js';
 
-export const title = '我的账户';
+export const title = '我的';
 
-let openForm = '';    // '' | 'wrk' | 'ai'：当前展开的 Key 输入区
+let openForm = '';    // '' | 'wrk'：当前展开的 Key 输入区
 let showCode = false; // 是否展开完整账户码
+let openSec = '';     // 当前展开的折叠区（同一时间只展开一个）
 
 // 统一账户（account-center）状态：与本机账户码并存，互不影响
 let acUser = null;    // null=未登录 / { uid, nickname, emailMasked }
@@ -39,10 +39,9 @@ let syncCode = '';      // 当前展示的 6 位登录码
 let syncExpire = 0;     // 登录码过期时间
 
 export function render(root, app) {
-  root.innerHTML = '<div class="wre-page" id="meBody"></div>';
+  root.innerHTML = '<div class="wre-page wre-me" id="meBody"></div>';
   const body = root.querySelector('#meBody');
   body.addEventListener('click', (e) => onAction(e, body, app));
-  body.addEventListener('change', (e) => onAvatarChange(e, body));
   bindCode = '';
   bindExpire = 0;
   bindLinked = null;
@@ -50,29 +49,13 @@ export function render(root, app) {
   syncExpire = 0;
   acUser = null;
   acReady = false;
+  openSec = '';
+  openForm = '';
   stopPoll();
   paint(body);
   syncFromServer(body);   // 静默与服务端对齐昵称 / 掩码
   refreshLink(body);      // 静默查询是否已关联小程序
   syncAccount(body);      // 静默查询统一账户登录态
-}
-
-/** 文件选择：选中头像图片后压缩并仅存本机 */
-async function onAvatarChange(e, body) {
-  const t = e.target;
-  if (!t || t.id !== 'meAvatar' || !t.files || !t.files[0]) {
-    return;
-  }
-  try {
-    toast('处理图片中…');
-    const url = await readAvatarFile(t.files[0]);
-    setProfile({ nickName: getProfile().nickName, avatarUrl: url });
-    paint(body);
-    toast('头像已更新（仅本机显示）');
-  } catch (err) {
-    toast((err && err.message) || '头像设置失败');
-  }
-  t.value = '';
 }
 
 /** 账户码掩码：前 4 后 4，中间打点 */
@@ -104,27 +87,21 @@ function maskUid(uid) {
 
 function unifiedInner() {
   if (!acReady) {
-    return '<div class="wre-card__title">统一账户</div>' +
-      '<div class="wre-muted">正在查询登录状态…</div>';
+    return '<div class="wre-muted">正在查询登录状态…</div>';
   }
   if (acUser) {
-    return '<div class="wre-card__title">统一账户</div>' +
-      '<div class="wre-muted">已登录。一个 uid 管所有作品（官网 / 算经小课 / 微信悦读），账户码与托管 Key 都不受影响。</div>' +
+    return '<div class="wre-muted">已登录。一个 uid 管所有作品（官网 / 算经小课 / 微信悦读），账户码与托管 Key 都不受影响。</div>' +
       '<div class="wre-code">' + esc(maskUid(acUser.uid)) + (acUser.emailMasked ? ' · ' + esc(acUser.emailMasked) : '') + '</div>' +
       '<button class="wre-btn wre-btn--ghost" data-action="ac-logout">退出统一账户</button>';
   }
-  return '<div class="wre-card__title">统一账户</div>' +
-    '<div class="wre-muted">用邮箱登录统一账户后，同一个身份可走遍官网、算经小课与微信悦读；本机账户码与已托管 Key 不变。</div>' +
-    '<button class="wre-btn" data-action="ac-login">登录统一账户</button>' +
+  return '<div class="wre-muted">用邮箱登录统一账户后，同一个身份可走遍官网、算经小课与微信悦读；本机账户码与已托管 Key 不变。</div>' +
+    '<button class="wre-btn wre-btn--ghost" data-action="ac-login">登录统一账户</button>' +
     '<div class="wre-hint">登录后可看到「我的足迹」，个人网站上也会显示为已登录。</div>';
 }
 
-/** 只重绘这一张卡，避免把页面其它输入框刷掉 */
+/** 统一账户状态变化后重绘页面（折叠区展开状态保持不变） */
 function paintUnified(body) {
-  const box = body.querySelector('#meUnified');
-  if (box) {
-    box.innerHTML = unifiedInner();
-  }
+  paint(body);
 }
 
 function syncAccount(body) {
@@ -142,132 +119,155 @@ function syncAccount(body) {
   });
 }
 
-/** 头像：有本机上传的图片则显示图片，否则退回昵称首字（图片仅存本机、不上传） */
-function avatarInner(profile) {
-  const avatarUrl = (profile && profile.avatarUrl) || '';
-  if (avatarUrl) {
-    return '<img class="wre-avatar__img" src="' + esc(avatarUrl) + '" alt="头像" />';
-  }
-  const chars = Array.from(String((profile && profile.nickName) || '').trim());
-  return esc(chars.length ? chars[0] : '微');
-}
-
 function paint(body) {
   const mask = getMask() || {};
-  const profile = getProfile();
-  const deviceId = getDeviceId();
-  const hasAvatar = !!profile.avatarUrl;
 
   body.innerHTML =
-    desktopCard() +
+    syncCard() +
+    keyCard(mask) +
+    moreCard() +
+    '<div class="wre-foot">' +
+    '  <button class="wre-foot__btn" data-action="sign-out">退出登录</button>' +
+    '</div>';
+}
 
-    '<div class="wre-card">' +
-    '  <div class="wre-account">' +
-    '    <div class="wre-avatar">' + avatarInner(profile) + '</div>' +
-    '    <div class="wre-account__meta">' +
-    '      <div class="wre-account__name">' + esc(profile.nickName || '未命名用户') + '</div>' +
-    '      <div class="wre-account__id">账户码 ' + esc(maskCode(deviceId)) + '</div>' +
-    '    </div>' +
-    '    <button class="wre-account__out" data-action="sign-out">退出登录</button>' +
+/** 核心卡：微信读书 Key（全页唯一主操作，已配置时自动收缩成一行） */
+function keyCard(mask) {
+  const on = !!mask.hasKey;
+  const editing = openForm === 'wrk';
+  let body;
+  if (on && !editing) {
+    body =
+      '<div class="wre-code-row">' +
+      '  <span class="wre-code-row__label">已加密托管</span>' +
+      '  <span class="wre-code-row__val">' + esc(mask.masked || '已连接') + '</span>' +
+      '</div>' +
+      '<div class="wre-btn-row">' +
+      '  <button class="wre-btn wre-btn--ghost" data-action="toggle-form" data-kind="wrk">更换</button>' +
+      '  <button class="wre-btn wre-btn--ghost" data-action="clear-key">清除</button>' +
+      '</div>';
+  } else {
+    body =
+      '<div class="wre-muted">' + (on ? '粘贴新的 Key 覆盖旧的。' : 'AI 解析需要它；只提交一次给云函数加密托管，本机不保存明文。') + '</div>' +
+      '<input class="wre-input" id="meWrk" type="password" autocomplete="off" placeholder="粘贴 wrk- 开头的微信读书 Key" />' +
+      '<button class="wre-btn" data-action="save-wrk">保存并校验</button>' +
+      (on ? '<div class="wre-btn-row"><button class="wre-btn wre-btn--ghost" data-action="toggle-form" data-kind="wrk">取消更换</button></div>' : '');
+  }
+  return (
+    '<div class="wre-card' + (on ? '' : ' wre-card--hero') + '">' +
+    '  <div class="wre-card__title wre-card__title--row">' +
+    '    <span>微信读书 Key</span>' +
+    '    <span class="wre-chip' + (on ? ' is-on' : '') + '">' + (on ? '已连接' : '未连接') + '</span>' +
     '  </div>' +
-    '</div>' +
-
-    (acEnabled() ? '<div class="wre-card" id="meUnified">' + unifiedInner() + '</div>' : '') +
-
-    '<div class="wre-card">' +
-    '  <div class="wre-card__title">API Key</div>' +
-    '  <div class="wre-muted">Key 只提交一次给你自己的云函数加密托管，之后本机只带账户码，不再下发明文；可随时清除。</div>' +
-    connRow('wrk', '微信读书 Key', mask.hasKey, mask.masked) +
-    connRow('ai', 'DeepSeek Key（可选）', mask.hasAiKey, mask.aiMasked) +
-    '  <div class="wre-hint">不知道去哪找 Key？用豆包等 AI 工具搜一句「怎么获取微信读书 / DeepSeek 的 API Key」，跟着做就行，不难。</div>' +
+    body +
     keyGuideHtml() +
-    (openForm ? keyForm(openForm) : '') +
-    '</div>' +
+    accRow('DeepSeek Key（可选）', mask.hasAiKey ? '已配置' : '未配置', 'ai') +
+    (openSec === 'ai' ? '<div class="wre-acc">' + aiInner() + '</div>' : '') +
+    '</div>'
+  );
+}
 
+/** DeepSeek Key（可选）：默认收起，不影响主流程 */
+function aiInner() {
+  return (
+    '<div class="wre-muted">用于 AI 深度解析；不填也能用基础功能。</div>' +
+    '<input class="wre-input" id="meAi" type="password" autocomplete="off" placeholder="粘贴 sk- 开头的 DeepSeek Key" />' +
+    '<button class="wre-btn wre-btn--ghost" data-action="save-ai">保存 DeepSeek Key</button>'
+  );
+}
+
+/** 登录与同步：统一账户 / 跨设备 / 关联小程序 合成一张卡，逐行展开 */
+function syncCard() {
+  const rows = [];
+  if (acEnabled()) {
+    const state = !acReady ? '查询中…' : (acUser ? '已登录' : '未登录');
+    // 统一账户不再折叠，直接展开
+    rows.push(
+      '<div class="wre-row wre-row--static">' +
+      '  <span class="wre-row__label">统一账户</span>' +
+      '  <span class="wre-row__val">' + state + '</span>' +
+      '</div>' +
+      '<div class="wre-acc">' + unifiedInner() + '</div>'
+    );
+  }
+  rows.push(accRow('跨设备登录', '账户码 / 6 位码', 'sync'));
+  if (openSec === 'sync') {
+    rows.push('<div class="wre-acc">' + syncInner() + '</div>');
+  }
+  rows.push(accRow('关联微信小程序', bindLinked ? '已关联' : '未关联', 'bind'));
+  if (openSec === 'bind') {
+    rows.push('<div class="wre-acc">' + bindInner() + '</div>');
+  }
+  return (
     '<div class="wre-card">' +
-    '  <div class="wre-card__title">跨设备登录</div>' +
-    '  <div class="wre-muted">账户码就是你的账户身份，不含任何个人信息。换设备时输入它即可找回同一份托管 Key 与昵称；若你先在小程序使用，可在小程序「关联网页账户 → 获取我的账户码」里取到它，粘贴到这里登录即可统一。</div>' +
-    '  <div class="wre-code">' + esc(showCode ? deviceId : maskCode(deviceId)) + '</div>' +
-    '  <div class="wre-btn-row">' +
-    '    <button class="wre-btn wre-btn--ghost" data-action="toggle-code">' + (showCode ? '隐藏' : '显示完整') + '</button>' +
-    '    <button class="wre-btn wre-btn--ghost" data-action="copy-device">复制</button>' +
-    '  </div>' +
-    '  <input class="wre-input" id="meSync" placeholder="粘贴另一台设备的账户码" />' +
-    '  <button class="wre-btn" data-action="restore-device">用账户码登录</button>' +
-    '  <div class="wre-hint">或者用更短的 6 位登录码（同一 WiFi / 两台设备更方便）</div>' +
-    syncCodeBox() +
-    '  <input class="wre-input" id="meLoginCode" inputmode="numeric" maxlength="6" placeholder="输入另一台设备的 6 位登录码" />' +
-    '  <button class="wre-btn" data-action="redeem-login">用 6 位码登录</button>' +
-    '</div>' +
+    '  <div class="wre-card__title">登录与同步</div>' +
+    '  <div class="wre-muted">换手机或换浏览器，用这里的任一方式找回同一个账号。</div>' +
+    rows.join('') +
+    '</div>'
+  );
+}
 
-    bindCard() +
-
-    '<div class="wre-card">' +
-    '  <div class="wre-card__title">我的资料（可选）</div>' +
-    '  <div class="wre-muted">昵称随账户同步，换设备不用重填；头像只存本机、不上传服务器。</div>' +
-    '  <div class="wre-profile">' +
-    '    <div class="wre-profile__avatar">' + avatarInner(profile) + '</div>' +
-    '    <input class="wre-profile__nick" id="meNick" maxlength="24" placeholder="点击填写昵称" value="' + esc(profile.nickName) + '" />' +
-    '  </div>' +
-    '  <div class="wre-btn-row">' +
-    '    <button class="wre-btn wre-btn--ghost" data-action="save-profile">保存昵称</button>' +
-    '    <button class="wre-btn wre-btn--ghost" data-action="pick-avatar">' + (hasAvatar ? '更换头像' : '上传头像') + '</button>' +
-    (hasAvatar ? '    <button class="wre-btn wre-btn--ghost" data-action="remove-avatar">移除头像</button>' : '') +
-    '  </div>' +
-    '  <input type="file" id="meAvatar" accept="image/*" hidden />' +
-    '</div>' +
-
-    '<div class="wre-card">' +
-    '  <div class="wre-card__title">文字大小</div>' +
-    '  <div class="wre-muted">调大后全站文字一起放大，方便在手机上看清；只存本机。</div>' +
-    fsModes() +
-    '</div>' +
-
-    '<div class="wre-card">' +
-    '  <div class="wre-card__title">外观</div>' +
-    '  <div class="wre-muted">默认跟随系统明暗；也可手动固定为浅色或深色。只存本机。</div>' +
-    themeModes() +
-    '</div>' +
-
-    '<div class="wre-card">' +
-    '  <div class="wre-card__title">相关入口</div>' +
-    '  <div class="wre-muted">它们都是同一款「微信悦读」，分工不同，可互相跳转。</div>' +
-    extRow('🌐 官网 · 插件下载与教程', '电脑端插件的安装、使用教程都在这', CONFIG.SITE_URL) +
-    extRow('👤 我的个人网站', '作者的其他作品与文章', CONFIG.PERSONAL_URL) +
-    miniappBlock() +
-    '</div>' +
-
-    donateCard() +
-
+/** 更多：设置 / 装到桌面 / 相关入口 / 打赏 全部收成一行入口 */
+function moreCard() {
+  const fsTier = FONT_TIERS.find((t) => t.value === getFontScale());
+  const thTier = THEME_TIERS.find((t) => t.key === getTheme());
+  return (
     '<div class="wre-card">' +
     '  <div class="wre-card__title">更多</div>' +
+    accRow('设置', (fsTier ? fsTier.label : '标准') + ' · ' + (thTier ? thTier.label : '跟随系统'), 'prefs') +
+    (openSec === 'prefs' ? '<div class="wre-acc">' + prefsInner() + '</div>' : '') +
+    accRow('装到桌面', '电脑 / 手机', 'desktop') +
+    (openSec === 'desktop' ? '<div class="wre-acc">' + desktopGuideBodyHtml() + '</div>' : '') +
+    accRow('相关入口', '官网 / 个人网站', 'links') +
+    (openSec === 'links' ? '<div class="wre-acc">' + linksInner() + '</div>' : '') +
     linkRow('🗂 每日卡片 · 往期回顾', 'open-daily') +
     linkRow('🧭 灵感漫游 · 往期归档', 'open-wander') +
     linkRow('📊 运营看板', 'open-admin') +
-    '</div>' +
-
-    '<div class="wre-card">' +
-    '  <div class="wre-card__title">危险操作</div>' +
-    '  <div class="wre-muted">仅清除云端托管的 Key，昵称与账户保留；清除后需重新填写。</div>' +
-    '  <button class="wre-btn wre-btn--danger" data-action="clear-key">清除托管 Key</button>' +
-    '</div>' +
-
-    '<div class="wre-card">' +
-    '  <div class="wre-card__title">关于版本</div>' +
-    '  <div class="wre-muted">本页是「微信悦读 · 满血版」，完整提供 AI 深度解析：AI 人格画像、每日卡片、灵感漫游主题综述。微信小程序版为合规精简版，只在手机本机按规则展示你的阅读数据，不涉及任何 AI 深度解析。你的阅读数据始终在本机计算，两版互不影响。</div>' +
-    '</div>' +
-
-    '<div class="wre-note">微信悦读 H5 · 数据与人格全部在你的浏览器本机计算；Key 由你自建的云函数加密托管，昵称托管后可跨设备同步，两者都能一键清除。</div>';
+    accRow('💗 打赏支持', '', 'donate') +
+    (openSec === 'donate' ? '<div class="wre-acc">' + donateInner() + '</div>' : '') +
+    accRow('关于与说明', 'v' + CONFIG.APP_VERSION, 'about') +
+    (openSec === 'about' ? '<div class="wre-acc">' + aboutInner() + '</div>' : '') +
+    '</div>'
+  );
 }
 
-/** 「装到桌面」卡片：置顶，新手也能照做（电脑 / iOS Safari / 安卓浏览器分步） */
-function desktopCard() {
+/** 设置面板：文字大小 + 外观 */
+function prefsInner() {
   return (
-    '<div class="wre-card wre-card--desktop">' +
-    '  <div class="wre-card__title">📲 装到桌面，像 App 一样用</div>' +
-    '  <div class="wre-muted">装到桌面后，从图标点开就是一个独立窗口，没有浏览器地址栏，和 App 几乎一样；网页本身不占内存。电脑（Windows / Mac）和手机都能装。</div>' +
-    desktopGuideHtml({ summary: '点开看 电脑 / iPhone / 安卓 的分步操作' }) +
-    '</div>'
+    '<div class="wre-acc__label">文字大小</div>' +
+    fsModes() +
+    '<div class="wre-acc__label">外观</div>' +
+    themeModes() +
+    '<div class="wre-hint">只存本机，换设备需重设。</div>'
+  );
+}
+
+/** 相关入口面板 */
+function linksInner() {
+  return (
+    extRow('🌐 官网 · 插件下载与教程', '电脑端插件的安装、使用教程都在这', CONFIG.SITE_URL) +
+    extRow('👤 我的个人网站', '作者的其他作品与文章', CONFIG.PERSONAL_URL) +
+    miniappBlock()
+  );
+}
+
+/** 关于与说明面板 */
+function aboutInner() {
+  return (
+    '<div class="wre-muted">本页是「微信悦读 · 满血版」，完整提供 AI 深度解析：AI 人格画像、每日卡片、灵感漫游主题综述。微信小程序版为合规精简版，只在手机本机按规则展示你的阅读数据，不涉及任何 AI 深度解析。你的阅读数据始终在本机计算，两版互不影响。</div>' +
+    '<div class="wre-hint">数据与人格全部在你的浏览器本机计算；Key 由你自建的云函数加密托管，昵称托管后可跨设备同步，两者都能一键清除。</div>'
+  );
+}
+
+/** 统一折叠行：左标签 + 右侧当前值 + 展开箭头 */
+function accRow(label, value, sec) {
+  const open = openSec === sec;
+  return (
+    '<button class="wre-row' + (open ? ' is-open' : '') + '" data-action="toggle-sec" data-sec="' + sec + '">' +
+    '  <span class="wre-row__label">' + esc(label) + '</span>' +
+    (value ? '  <span class="wre-row__val">' + esc(value) + '</span>' : '') +
+    '  <span class="wre-row__arrow">' + (open ? '▴' : '▾') + '</span>' +
+    '</button>'
   );
 }
 
@@ -308,24 +308,21 @@ function miniappBlock() {
   );
 }
 
-/** 「打赏支持」卡片：两条收款码 + 跳转公开打赏名单（对齐插件支持中心 / 小程序设置页） */
-function donateCard() {
+/** 「打赏支持」面板：两条收款码 + 跳转公开打赏名单（对齐插件支持中心 / 小程序设置页） */
+function donateInner() {
   return (
-    '<div class="wre-card">' +
-    '  <div class="wre-card__title">💗 打赏支持</div>' +
-    '  <div class="wre-muted">如果它帮到了你，欢迎随喜支持一杯咖啡。每一笔打赏都会公开登记在名单里，欢迎监督。</div>' +
-    '  <div class="wre-donate">' +
-    '    <div class="wre-donate__code">' +
-    '      <img class="wre-donate__qr" src="assets/img/donate/wechat.png" alt="微信打赏收款码" loading="lazy" />' +
-    '      <span class="wre-donate__label">微信</span>' +
-    '    </div>' +
-    '    <div class="wre-donate__code">' +
-    '      <img class="wre-donate__qr" src="assets/img/donate/alipay.png" alt="支付宝打赏收款码" loading="lazy" />' +
-    '      <span class="wre-donate__label">支付宝</span>' +
-    '    </div>' +
+    '<div class="wre-muted">如果它帮到了你，欢迎随喜支持一杯咖啡。每一笔打赏都会公开登记在名单里，欢迎监督。</div>' +
+    '<div class="wre-donate">' +
+    '  <div class="wre-donate__code">' +
+    '    <img class="wre-donate__qr" src="assets/img/donate/wechat.png" alt="微信打赏收款码" loading="lazy" />' +
+    '    <span class="wre-donate__label">微信</span>' +
     '  </div>' +
-    '  <a class="wre-btn wre-btn--ghost wre-donate__list" href="' + esc(CONFIG.DONATE_URL) + '" target="_blank" rel="noopener">查看打赏名单 →</a>' +
-    '</div>'
+    '  <div class="wre-donate__code">' +
+    '    <img class="wre-donate__qr" src="assets/img/donate/alipay.png" alt="支付宝打赏收款码" loading="lazy" />' +
+    '    <span class="wre-donate__label">支付宝</span>' +
+    '  </div>' +
+    '</div>' +
+    '<a class="wre-btn wre-btn--ghost wre-donate__list" href="' + esc(CONFIG.DONATE_URL) + '" target="_blank" rel="noopener">查看打赏名单 →</a>'
   );
 }
 
@@ -347,37 +344,24 @@ function themeModes() {
   ).join('') + '</div>';
 }
 
-/** 「已连接」列表行 */
-function connRow(kind, name, on, masked) {
+/** 跨设备登录面板：账户码 / 生成 6 位码 / 用别机的账户码或 6 位码登录 */
+function syncInner() {
+  const deviceId = getDeviceId();
   return (
-    '<div class="wre-conn">' +
-    '  <div class="wre-conn__main">' +
-    '    <div class="wre-conn__name">' + esc(name) + '</div>' +
-    '    <div class="wre-conn__val' + (on ? ' is-on' : '') + '">' + esc(on ? (masked || '已连接') : '未连接') + '</div>' +
-    '  </div>' +
-    '  <button class="wre-conn__btn" data-action="toggle-form" data-kind="' + kind + '">' +
-    (on ? '更换' : '配置') + '</button>' +
-    '</div>'
-  );
-}
-
-/** 展开的 Key 输入区 */
-function keyForm(kind) {
-  if (kind === 'wrk') {
-    return (
-      '<div class="wre-form">' +
-      '  <input class="wre-input" id="meWrk" type="password" autocomplete="off" placeholder="粘贴 wrk- 开头的微信读书 Key" />' +
-      '  <div class="wre-hint">获取方式：微信读书 App →「我」→「微信读书 Skill」页面 → 复制 wrk- 开头的 API Key。</div>' +
-      '  <button class="wre-btn" data-action="save-wrk">保存并校验</button>' +
-      '</div>'
-    );
-  }
-  return (
-    '<div class="wre-form">' +
-    '  <input class="wre-input" id="meAi" type="password" autocomplete="off" placeholder="粘贴 sk- 开头的 DeepSeek Key" />' +
-    '  <div class="wre-hint">获取方式：登录 DeepSeek 开放平台 platform.deepseek.com → API Keys → 新建并复制 sk- 开头的 Key（用于 AI 阅读画像）。</div>' +
-    '  <button class="wre-btn" data-action="save-ai">保存 DeepSeek Key</button>' +
-    '</div>'
+    '<div class="wre-code-row">' +
+    '  <span class="wre-code-row__label">我的账户码</span>' +
+    '  <span class="wre-code-row__val">' + esc(showCode ? deviceId : maskCode(deviceId)) + '</span>' +
+    '  <button class="wre-row__link" data-action="toggle-code">' + (showCode ? '隐藏' : '显示') + '</button>' +
+    '  <button class="wre-row__link" data-action="copy-device">复制</button>' +
+    '</div>' +
+    '<div class="wre-acc__label">生成 6 位登录码，在另一台设备输入</div>' +
+    syncCodeBox() +
+    '<div class="wre-acc__label">把另一台设备的账号登录到本机</div>' +
+    '<input class="wre-input" id="meSync" placeholder="粘贴另一台设备的账户码（32 位）" />' +
+    '<button class="wre-btn wre-btn--ghost" data-action="restore-device">用账户码登录</button>' +
+    '<input class="wre-input" id="meLoginCode" inputmode="numeric" maxlength="6" placeholder="或输入另一台设备的 6 位登录码" />' +
+    '<button class="wre-btn wre-btn--ghost" data-action="redeem-login">用 6 位码登录</button>' +
+    '<div class="wre-hint">账户码就是你的账户身份，不含任何个人信息；若你先在小程序使用，可在小程序「关联网页账户 → 获取我的账户码」里取到它。</div>'
   );
 }
 
@@ -400,8 +384,8 @@ function syncCodeBox() {
   );
 }
 
-/** 关联小程序卡片：已关联 / 展示绑定码 / 未关联 三态 */
-function bindCard() {
+/** 关联小程序面板：已关联 / 展示绑定码 / 未关联 三态 */
+function bindInner() {
   let inner;
   if (bindLinked === true) {
     inner =
@@ -428,11 +412,8 @@ function bindCard() {
       '  <div class="wre-hint">也可点上方「复制」，把完整账户码粘贴到小程序里关联。</div>';
   }
   return (
-    '<div class="wre-card">' +
-    '  <div class="wre-card__title">关联微信小程序</div>' +
-    '  <div class="wre-muted">关联后，小程序与网页共用同一份阅读人格与昵称。</div>' +
-    inner +
-    '</div>'
+    '<div class="wre-muted">关联后，小程序与网页共用同一份阅读人格与昵称。</div>' +
+    inner
   );
 }
 
@@ -480,7 +461,7 @@ async function refreshLink(body) {
   paint(body);
 }
 
-/** 静默对齐服务端：昵称以服务端为准，掩码刷新 */
+/** 静默对齐服务端：刷新 Key 掩码 */
 async function syncFromServer(body) {
   const res = await keyGet();
   if (!res.ok) {
@@ -492,9 +473,6 @@ async function syncFromServer(body) {
     hasAiKey: !!res.hasAiKey,
     aiMasked: res.aiMasked || '',
   });
-  if (res.nickName && res.nickName !== getProfile().nickName) {
-    setProfile({ nickName: res.nickName, avatarUrl: getProfile().avatarUrl });
-  }
   paint(body);
 }
 
@@ -528,13 +506,19 @@ async function onAction(e, body, app) {
   }
 
   if (action === 'toggle-form') {
-    const kind = btn.getAttribute('data-kind');
-    openForm = openForm === kind ? '' : kind;
+    openForm = openForm === 'wrk' ? '' : 'wrk';
     paint(body);
-    const input = body.querySelector(openForm === 'wrk' ? '#meWrk' : '#meAi');
+    const input = body.querySelector('#meWrk');
     if (input) {
       input.focus();
     }
+    return;
+  }
+
+  if (action === 'toggle-sec') {
+    const sec = btn.getAttribute('data-sec');
+    openSec = openSec === sec ? '' : sec;
+    paint(body);
     return;
   }
 
@@ -610,29 +594,6 @@ async function onAction(e, body, app) {
     toast('DeepSeek Key 已保存');
     openForm = '';
     paint(body);
-    return;
-  }
-
-  if (action === 'save-profile') {
-    const input = body.querySelector('#meNick');
-    const nickName = (input && input.value || '').trim();
-    setProfile({ nickName: nickName, avatarUrl: getProfile().avatarUrl });
-    const res = await profileSave(nickName);
-    toast(res.ok ? '昵称已保存并同步' : ('已存本机，云端同步失败：' + (res.error || '请稍后重试')));
-    paint(body);
-    return;
-  }
-
-  if (action === 'pick-avatar') {
-    const f = body.querySelector('#meAvatar');
-    if (f) { f.click(); }
-    return;
-  }
-
-  if (action === 'remove-avatar') {
-    setProfile({ nickName: getProfile().nickName, avatarUrl: '' });
-    paint(body);
-    toast('已移除头像');
     return;
   }
 

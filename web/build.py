@@ -614,7 +614,8 @@ def render_footer():
         '    <nav class="footer-links">%s</nav>\n'
         '    <p class="footer-meta">%s v%s · GPL-3.0 License · © %s '
         '<a href="https://chesterlee.cn/" target="_blank" rel="noopener">Chester</a> · '
-        '<a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">陇ICP备2026009894号-2</a></p>\n'
+        '<a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">陇ICP备2026009894号-2</a> · '
+        '<a href="https://beian.mps.gov.cn/#/query/webSearch?code=62052302000062" target="_blank" rel="noopener"><img src="/assets/img/beian-police.png" alt="公安备案" width="16" height="16" style="vertical-align:-3px;margin-right:4px;border:0">甘公网安备62052302000062号</a></p>\n'
         '  </div>' % (
             " ".join(links), html.escape(CONFIG["siteName"]), VERSION, date.today().year)
     )

@@ -1,13 +1,159 @@
 <view class="wre-page {{wreDark ? 'wre-dark' : ''}}" style="--wre-fs:{{wreFs}}">
-  <!-- 加到手机桌面 / 我的小程序：置顶醒目（安卓可加到桌面；iPhone 加到「我的小程序」） -->
-  <view class="wre-card desktop-card">
-    <view class="wre-title">📲 加到手机桌面，像 App 一样用</view>
-    <view class="wre-muted">加到桌面后，从图标一点就直接打开本小程序，不用每次翻微信找入口。安卓手机可以把小程序加到桌面；iPhone 不能把小程序加到桌面，但可以加到「我的小程序」，一样方便。</view>
-    <view class="desktop-guide__toggle" bindtap="toggleDesktopGuide">
-      <text class="desktop-guide__toggle-text">点开看安卓 / iPhone 的分步操作</text>
-      <text class="desktop-guide__toggle-arrow">{{showDesktopGuide ? '▴' : '▾'}}</text>
+
+  <!-- 1. 登录与同步：统一账户 / 关联网页 / 云端备份 合成一张卡（首位展示） -->
+  <view class="wre-card">
+    <view class="wre-title">登录与同步</view>
+    <view class="wre-muted">换手机或重新安装，用这里的任一方式找回同一个账号。</view>
+
+    <!-- 统一账户：不再折叠，直接展开 -->
+    <view class="wre-row wre-row--static">
+      <text class="wre-row__label">统一账户</text>
+      <text class="wre-row__val">{{psUser ? '已登录' : '未登录'}}</text>
     </view>
-    <view wx:if="{{showDesktopGuide}}" class="desktop-guide__body">
+    <view class="wre-acc">
+      <block wx:if="{{psUser}}">
+        <view class="ps-row">
+          <image class="ps-avatar" wx:if="{{psUser.avatar}}" src="{{psUser.avatar}}" mode="aspectFill" />
+          <view class="ps-avatar ps-avatar--empty" wx:else>{{psInitial}}</view>
+          <view class="ps-main">
+            <text class="ps-nick">{{psUser.nickname || '微信用户'}}</text>
+            <text class="ps-uid">一个 uid 管所有作品（官网 / H5 / 小程序）</text>
+          </view>
+        </view>
+        <view class="wre-btn-row">
+          <button class="wre-btn wre-btn--ghost" bindtap="copyAccount">进入账户中心</button>
+          <button class="wre-btn wre-btn--ghost" loading="{{psBusy}}" bindtap="onPsLogout">退出</button>
+        </view>
+      </block>
+      <block wx:else>
+        <view class="wre-muted">登录后同一个身份走遍官网、H5 与小程序；与本机账户码、云端 Key 互不影响。</view>
+        <view class="wre-btn-row">
+          <button class="wre-btn" loading="{{psBusy}}" bindtap="onPsLogin">微信一键登录</button>
+        </view>
+        <view class="ps-bind" bindtap="onPsBind">已有账户？用 6 位登录码绑定 →</view>
+      </block>
+    </view>
+
+    <view class="wre-row" bindtap="goLink">
+      <text class="wre-row__label">关联网页账户 · 跨设备登录</text>
+      <text class="wre-row__val">{{linked ? '已关联' : '未关联'}}</text>
+      <text class="wre-row__arrow">›</text>
+    </view>
+
+    <view class="wre-row {{openSec === 'cloud' ? 'is-open' : ''}}" data-sec="cloud" bindtap="onToggleSec">
+      <text class="wre-row__label">云端备份</text>
+      <text class="wre-row__val">{{hosted ? '已托管' : '无备份'}}</text>
+      <text class="wre-row__arrow">{{openSec === 'cloud' ? '▴' : '▾'}}</text>
+    </view>
+    <view wx:if="{{openSec === 'cloud'}}" class="wre-acc">
+      <view class="wre-muted">Key 加密托管在云端；换手机、重装微信或退出登录后，可用账户码找回。</view>
+      <view class="wre-code-row">
+        <text class="wre-code-row__label">我的账户码</text>
+        <text class="wre-code-row__val">{{myCode ? (showCode ? myCode : myCodeMasked) : '尚未生成'}}</text>
+        <text wx:if="{{!myCode}}" class="wre-row__link" bindtap="onEnsureCode">生成</text>
+        <block wx:else>
+          <text class="wre-row__link" bindtap="onToggleCode">{{showCode ? '隐藏' : '显示'}}</text>
+          <text class="wre-row__link" bindtap="onCopyCode">复制</text>
+        </block>
+      </view>
+      <button wx:if="{{hosted && !hasKey}}" class="wre-btn" loading="{{restoring}}" bindtap="onRestoreAccount">恢复我的账号</button>
+      <view wx:else class="wre-hint">{{hosted ? '本机已连接，无需恢复。' : '保存 Key 后会自动生成云端备份。'}}</view>
+    </view>
+  </view>
+
+  <!-- 2. 微信读书 Key：全页唯一主操作，已配置时收缩成一行 -->
+  <view class="wre-card {{hasKey ? '' : 'wre-card--hero'}}">
+    <view class="wre-title wre-title--row">
+      <text>微信读书 Key</text>
+      <text class="wre-chip {{hasKey ? 'is-on' : ''}}">{{hasKey ? '已连接' : '未连接'}}</text>
+    </view>
+
+    <block wx:if="{{hasKey && !showKeyForm}}">
+      <view class="wre-code-row">
+        <text class="wre-code-row__label">已加密托管</text>
+        <text class="wre-code-row__val">{{masked}}</text>
+      </view>
+      <view class="wre-btn-row">
+        <button class="wre-btn wre-btn--ghost" bindtap="onToggleKeyForm">更换</button>
+        <button class="wre-btn wre-btn--ghost" bindtap="onClear">清除</button>
+      </view>
+    </block>
+    <block wx:else>
+      <view class="wre-muted">{{hasKey ? '粘贴新的 Key 覆盖旧的。' : 'AI 解析需要它；只提交一次加密托管到你的云端账号，换机可一键恢复。'}}</view>
+      <input
+        class="settings-input"
+        type="text"
+        password="{{true}}"
+        placeholder="粘贴 wrk- 开头的 API Key"
+        value="{{input}}"
+        bindinput="onInput"
+      />
+      <button class="wre-btn" loading="{{saving}}" bindtap="onSave">保存并校验</button>
+      <view wx:if="{{hasKey}}" class="wre-btn-row">
+        <button class="wre-btn wre-btn--ghost" bindtap="onToggleKeyForm">取消更换</button>
+      </view>
+    </block>
+
+    <view class="settings-status settings-status--{{statusType}}" wx:if="{{statusText}}">{{statusText}}</view>
+
+    <!-- 如何获取 Key：默认收起 -->
+    <view class="wre-row {{openSec === 'keyguide' ? 'is-open' : ''}}" data-sec="keyguide" bindtap="onToggleSec">
+      <text class="wre-row__label">不知道怎么拿 Key？</text>
+      <text class="wre-row__val">3 步图文</text>
+      <text class="wre-row__arrow">{{openSec === 'keyguide' ? '▴' : '▾'}}</text>
+    </view>
+    <view wx:if="{{openSec === 'keyguide'}}" class="wre-acc">
+      <view class="key-guide__step" wx:for="{{keyGuideSteps}}" wx:key="no">
+        <view class="key-guide__row">
+          <view class="key-guide__no">{{item.no}}</view>
+          <view class="key-guide__text">{{item.text}}</view>
+        </view>
+        <image class="key-guide__img" src="{{item.img}}" mode="widthFix" lazy-load="{{true}}" />
+      </view>
+      <view class="key-guide__tip">小提示：第 ① 步的安装指令是给 AI 助手用的，这里用不到；只要第 ② 步的 Key 就够了。</view>
+    </view>
+  </view>
+
+  <!-- 3. 更多：设置 / 装到桌面 / 相关入口 / 打赏 全部收成一行入口 -->
+  <view class="wre-card">
+    <view class="wre-title">更多</view>
+
+    <view class="wre-row {{openSec === 'prefs' ? 'is-open' : ''}}" data-sec="prefs" bindtap="onToggleSec">
+      <text class="wre-row__label">设置</text>
+      <text class="wre-row__val">{{fsLabel}} · {{themeLabel}}</text>
+      <text class="wre-row__arrow">{{openSec === 'prefs' ? '▴' : '▾'}}</text>
+    </view>
+    <view wx:if="{{openSec === 'prefs'}}" class="wre-acc">
+      <view class="wre-acc__label">文字大小</view>
+      <view class="fs-modes">
+        <view
+          wx:for="{{fontTiers}}"
+          wx:key="key"
+          class="fs-mode {{item.value === wreFs ? 'is-active' : ''}}"
+          data-value="{{item.value}}"
+          bindtap="onFontScale"
+        >{{item.label}}</view>
+      </view>
+      <view class="wre-acc__label">外观</view>
+      <view class="theme-modes">
+        <view
+          wx:for="{{themeTiers}}"
+          wx:key="key"
+          class="theme-mode {{item.key === themePref ? 'is-active' : ''}}"
+          data-value="{{item.key}}"
+          bindtap="onTheme"
+        >{{item.label}}</view>
+      </view>
+      <view class="wre-hint">只存本机，换设备需重设。</view>
+    </view>
+
+    <view class="wre-row {{openSec === 'desktop' ? 'is-open' : ''}}" data-sec="desktop" bindtap="onToggleSec">
+      <text class="wre-row__label">装到桌面</text>
+      <text class="wre-row__val">安卓 / iPhone</text>
+      <text class="wre-row__arrow">{{openSec === 'desktop' ? '▴' : '▾'}}</text>
+    </view>
+    <view wx:if="{{openSec === 'desktop'}}" class="wre-acc">
+      <view class="wre-muted">加到桌面后，从图标一点就直接打开本小程序，不用每次翻微信找入口。安卓可加到桌面；iPhone 不能加到桌面，可加到「我的小程序」。</view>
       <view class="desktop-guide__group" wx:for="{{desktopGuideGroups}}" wx:key="title">
         <view class="desktop-guide__group-title">{{item.title}}</view>
         <view
@@ -23,252 +169,119 @@
       </view>
       <view class="desktop-guide__tip">若桌面没看到图标，左右翻页找一下，或用桌面搜索「悦读且住」。加到「我的小程序」后，在微信首页下拉就能快速打开。</view>
     </view>
-  </view>
 
-  <!-- 我的资料（可选）：仅本机 -->
-  <view class="wre-card">
-    <view class="wre-title">我的资料（可选）</view>
-    <view class="wre-muted">只保存在本机，用于本页展示与分享图署名，不上传。</view>
-
-    <view class="profile-row">
-      <button class="profile-avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
-        <image wx:if="{{avatarUrl}}" class="profile-avatar" src="{{avatarUrl}}" mode="aspectFill" />
-        <view wx:else class="profile-avatar profile-avatar--empty">头像</view>
-      </button>
-      <input
-        class="profile-nick"
-        type="nickname"
-        placeholder="点击填写昵称"
-        value="{{nickName}}"
-        bindchange="onNickChange"
-        bindblur="onNickChange"
-      />
+    <view class="wre-row {{openSec === 'links' ? 'is-open' : ''}}" data-sec="links" bindtap="onToggleSec">
+      <text class="wre-row__label">相关入口</text>
+      <text class="wre-row__val">官网 / H5 / 个人网站</text>
+      <text class="wre-row__arrow">{{openSec === 'links' ? '▴' : '▾'}}</text>
     </view>
-
-    <button class="wre-btn wre-btn--ghost" wx:if="{{hasProfile}}" bindtap="onClearProfile">清除资料</button>
-  </view>
-
-  <!-- 文字大小（对齐 H5「我的 → 文字大小」） -->
-  <view class="wre-card">
-    <view class="wre-title">文字大小</view>
-    <view class="wre-muted">调大后全站文字一起放大，方便在手机上看清；只存本机。</view>
-    <view class="fs-modes">
-      <view
-        wx:for="{{fontTiers}}"
-        wx:key="key"
-        class="fs-mode {{item.value === wreFs ? 'is-active' : ''}}"
-        data-value="{{item.value}}"
-        bindtap="onFontScale"
-      >{{item.label}}</view>
-    </view>
-  </view>
-
-  <!-- 外观（对齐 H5「我的 → 外观」） -->
-  <view class="wre-card">
-    <view class="wre-title">外观</view>
-    <view class="wre-muted">默认跟随系统明暗；也可手动固定为浅色或深色。只存本机。</view>
-    <view class="theme-modes">
-      <view
-        wx:for="{{themeTiers}}"
-        wx:key="key"
-        class="theme-mode {{item.key === themePref ? 'is-active' : ''}}"
-        data-value="{{item.key}}"
-        bindtap="onTheme"
-      >{{item.label}}</view>
-    </view>
-  </view>
-
-  <!-- 微信读书 API Key -->
-  <view class="wre-card">
-    <view class="wre-title">API Key</view>
-    <view class="wre-muted">Key 会在本机缓存一份用于直连，同时加密托管到你的云端账号（换手机 / 退出后可一键恢复）；调用时经微信云函数中转访问官方接口，不记录。</view>
-
-    <view class="settings-status" wx:if="{{hasKey}}">
-      当前已配置：<text class="settings-mask">{{masked}}</text>
-    </view>
-
-    <input
-      class="settings-input"
-      type="text"
-      password="{{true}}"
-      placeholder="粘贴 wrk- 开头的 API Key"
-      value="{{input}}"
-      bindinput="onInput"
-    />
-
-    <view class="settings-actions">
-      <button class="wre-btn" loading="{{saving}}" bindtap="onSave">保存并校验</button>
-      <button class="wre-btn wre-btn--ghost" wx:if="{{hasKey}}" bindtap="onClear">清除 Key</button>
-    </view>
-    <view class="settings-status settings-status--{{statusType}}" wx:if="{{statusText}}">{{statusText}}</view>
-
-    <!-- 如何获取 Key：图文说明（对齐 H5「我的 / 配置页」同一份内容），默认收起 -->
-    <view class="key-guide" bindtap="toggleKeyGuide">
-      <text class="key-guide__summary">还不知道去哪拿 Key？点开看 3 步图文说明</text>
-      <text class="key-guide__arrow">{{showKeyGuide ? '▴' : '▾'}}</text>
-    </view>
-    <view wx:if="{{showKeyGuide}}" class="key-guide__body">
-      <view class="key-guide__step" wx:for="{{keyGuideSteps}}" wx:key="no">
-        <view class="key-guide__row">
-          <view class="key-guide__no">{{item.no}}</view>
-          <view class="key-guide__text">{{item.text}}</view>
+    <view wx:if="{{openSec === 'links'}}" class="wre-acc">
+      <view class="wre-muted">小程序里不能直接打开网页，点一下会复制链接，再到浏览器粘贴访问即可。</view>
+      <view class="settings-link" bindtap="copySite">
+        <view class="settings-link__main">
+          <text class="settings-link__label">🌐 官网 · 插件下载与教程</text>
+          <text class="settings-link__desc">电脑端插件的安装、使用教程都在这</text>
         </view>
-        <image class="key-guide__img" src="{{item.img}}" mode="widthFix" lazy-load="{{true}}" />
+        <text class="settings-link__arrow">›</text>
       </view>
-      <view class="key-guide__tip">小提示：第 ① 步的安装指令是给 AI 助手用的，这里用不到；只要第 ② 步的 Key 就够了。</view>
-    </view>
-  </view>
-
-  <!-- M15 合规下线：原 Key 输入区块已移除 -->
-
-  <!-- 用户凭证：账户码 + 云端托管（换机 / 重装 / 退出后恢复账号用） -->
-  <view class="wre-card">
-    <view class="wre-title">🔑 我的凭证</view>
-    <view class="wre-muted">账户码是你账号的唯一凭证：换手机、重装微信、或退出登录后，用它即可找回账号与数据。请复制保存到安全处（例如备忘录）。</view>
-
-    <view class="params__row" wx:if="{{myCode}}">
-      <text class="params__label">账户码</text>
-      <text class="params__value">{{showCode ? myCode : myCodeMasked}}</text>
-    </view>
-
-    <view class="settings-actions">
-      <button class="wre-btn wre-btn--ghost" wx:if="{{!myCode}}" loading="{{codeBusy}}" bindtap="onEnsureCode">生成账户码</button>
-      <button class="wre-btn wre-btn--ghost" wx:if="{{myCode}}" bindtap="onToggleCode">{{showCode ? '隐藏' : '显示'}}</button>
-      <button class="wre-btn" wx:if="{{myCode}}" bindtap="onCopyCode">复制保存</button>
-    </view>
-
-    <view class="settings-status">云端 Key：{{hosted ? '已加密托管' : '未托管'}}　·　网页账户：{{linked ? '已关联' : '未关联'}}</view>
-
-    <view class="settings-status settings-status--ok" wx:if="{{hosted && !hasKey}}">检测到云端有你的账号，可一键恢复到本机。</view>
-    <button class="wre-btn" wx:if="{{hosted && !hasKey}}" loading="{{restoring}}" bindtap="onRestoreAccount">恢复我的账号</button>
-
-    <view class="settings-link" bindtap="goLink">
-      <view class="settings-link__main">
-        <text class="settings-link__label">关联 / 跨设备登录</text>
-        <text class="settings-link__desc">在网页端扫码或粘贴账户码，两端共用账号</text>
+      <view class="settings-link" bindtap="copyH5">
+        <view class="settings-link__main">
+          <text class="settings-link__label">📱 H5 网页版 · 带 AI 深度解析</text>
+          <text class="settings-link__desc">手机浏览器打开，复制链接后用浏览器访问</text>
+        </view>
+        <text class="settings-link__arrow">›</text>
       </view>
-      <text class="settings-link__arrow">›</text>
-    </view>
-  </view>
-
-  <!-- 相关入口：四端互联；小程序内无法直接打开网页，点击为「复制链接 + 弹窗提示」 -->
-  <view class="wre-card">
-    <view class="wre-title">相关入口</view>
-    <view class="wre-muted">它们都是同一款「微信悦读」，分工不同。小程序里不能直接打开网页，点一下会复制链接，再到浏览器粘贴访问即可。</view>
-    <view class="settings-link" bindtap="copySite">
-      <view class="settings-link__main">
-        <text class="settings-link__label">🌐 官网 · 插件下载与教程</text>
-        <text class="settings-link__desc">电脑端插件的安装、使用教程都在这</text>
-      </view>
-      <text class="settings-link__arrow">›</text>
-    </view>
-    <view class="settings-link" bindtap="copyH5">
-      <view class="settings-link__main">
-        <text class="settings-link__label">📱 H5 网页版 · 带 AI 深度解析</text>
-        <text class="settings-link__desc">手机浏览器打开，复制链接后用浏览器访问</text>
-      </view>
-      <text class="settings-link__arrow">›</text>
-    </view>
-    <view class="settings-link" bindtap="copyPersonal">
-      <view class="settings-link__main">
-        <text class="settings-link__label">👤 我的个人网站</text>
-        <text class="settings-link__desc">作者的其他作品与文章</text>
-      </view>
-      <text class="settings-link__arrow">›</text>
-    </view>
-  </view>
-
-  <!-- 打赏支持：两条收款码 + 复制公开名单链接（对齐 H5「我的 → 打赏支持」） -->
-  <view class="wre-card">
-    <view class="wre-title">💗 打赏支持</view>
-    <view class="wre-muted">如果它帮到了你，欢迎随喜支持一杯咖啡。每一笔打赏都会公开登记在名单里，欢迎监督。</view>
-    <view class="donate-codes">
-      <view class="donate-code">
-        <image class="donate-qr" src="{{donateWechat}}" mode="aspectFit" lazy-load="{{true}}" />
-        <text class="donate-label">微信</text>
-      </view>
-      <view class="donate-code">
-        <image class="donate-qr" src="{{donateAlipay}}" mode="aspectFit" lazy-load="{{true}}" />
-        <text class="donate-label">支付宝</text>
+      <view class="settings-link" bindtap="copyPersonal">
+        <view class="settings-link__main">
+          <text class="settings-link__label">👤 我的个人网站</text>
+          <text class="settings-link__desc">作者的其他作品与文章</text>
+        </view>
+        <text class="settings-link__arrow">›</text>
       </view>
     </view>
-    <view class="settings-link" bindtap="copyDonate">
-      <view class="settings-link__main">
-        <text class="settings-link__label">查看打赏名单</text>
-        <text class="settings-link__desc">复制链接，到浏览器粘贴访问（公开透明的打赏记录）</text>
-      </view>
-      <text class="settings-link__arrow">›</text>
-    </view>
-  </view>
 
-  <view class="wre-card">
-    <view class="wre-title">更多</view>
-    <view class="settings-link" bindtap="goPaperbook">
-      <text class="settings-link__label">📚 我的纸书</text>
-      <text class="settings-link__arrow">›</text>
+    <view class="wre-row" bindtap="goPaperbook">
+      <text class="wre-row__label">📚 我的纸书</text>
+      <text class="wre-row__arrow">›</text>
     </view>
-    <view class="settings-link" bindtap="goLink">
-      <view class="settings-link__main">
-        <text class="settings-link__label">🔗 关联网页账户</text>
-        <text class="settings-link__desc">{{linked ? '已关联 · 与网页共用阅读人格与昵称' : '关联网页版后，两端共用阅读人格与昵称'}}</text>
-      </view>
-      <text class="settings-link__arrow">›</text>
+    <view class="wre-row" bindtap="goNotes">
+      <text class="wre-row__label">笔记概览</text>
+      <text class="wre-row__arrow">›</text>
     </view>
-    <view class="settings-link" bindtap="goNotes">
-      <text class="settings-link__label">笔记概览</text>
-      <text class="settings-link__arrow">›</text>
+    <view class="wre-row" bindtap="goDaily">
+      <text class="wre-row__label">每日卡片 · 往期回顾</text>
+      <text class="wre-row__arrow">›</text>
     </view>
-    <view class="settings-link" bindtap="goDaily">
-      <text class="settings-link__label">每日卡片 · 往期回顾</text>
-      <text class="settings-link__arrow">›</text>
+    <view class="wre-row" bindtap="goWander">
+      <text class="wre-row__label">灵感漫游 · 往期归档</text>
+      <text class="wre-row__arrow">›</text>
     </view>
-    <view class="settings-link" bindtap="goWander">
-      <text class="settings-link__label">灵感漫游 · 往期归档</text>
-      <text class="settings-link__arrow">›</text>
+    <view class="wre-row" wx:if="{{isAdmin}}" bindtap="goAdmin">
+      <text class="wre-row__label">📊 运营看板</text>
+      <text class="wre-row__arrow">›</text>
     </view>
-    <view class="settings-link" wx:if="{{isAdmin}}" bindtap="goAdmin">
-      <view class="settings-link__main">
-        <text class="settings-link__label">📊 运营看板</text>
-        <text class="settings-link__desc">小程序 / 插件使用量与我的阅读数据汇总 · 无需口令，按账号自动识别</text>
-      </view>
-      <text class="settings-link__arrow">›</text>
-    </view>
-  </view>
 
-  <view class="wre-card">
-    <view class="settings-toggle" bindtap="toggleParams">
-      <text class="settings-toggle__label">参数详情</text>
-      <text class="settings-toggle__action">{{showParams ? '收起 ▴' : '展开 ▾'}}</text>
+    <view class="wre-row {{openSec === 'donate' ? 'is-open' : ''}}" data-sec="donate" bindtap="onToggleSec">
+      <text class="wre-row__label">💗 打赏支持</text>
+      <text class="wre-row__arrow">{{openSec === 'donate' ? '▴' : '▾'}}</text>
     </view>
-    <view wx:if="{{showParams}}" class="params">
-      <view class="params__row" wx:for="{{params}}" wx:key="label">
-        <text class="params__label">{{item.label}}</text>
-        <text class="params__value">{{item.value}}</text>
+    <view wx:if="{{openSec === 'donate'}}" class="wre-acc">
+      <view class="wre-muted">如果它帮到了你，欢迎随喜支持一杯咖啡。每一笔打赏都会公开登记在名单里，欢迎监督。</view>
+      <view class="donate-codes">
+        <view class="donate-code">
+          <image class="donate-qr" src="{{donateWechat}}" mode="aspectFit" lazy-load="{{true}}" />
+          <text class="donate-label">微信</text>
+        </view>
+        <view class="donate-code">
+          <image class="donate-qr" src="{{donateAlipay}}" mode="aspectFit" lazy-load="{{true}}" />
+          <text class="donate-label">支付宝</text>
+        </view>
       </view>
-      <view class="params__row" wx:if="{{myOpenid}}">
-        <text class="params__label">我的 openid</text>
-        <text class="params__value">{{myOpenid}}</text>
+      <view class="settings-link" bindtap="copyDonate">
+        <view class="settings-link__main">
+          <text class="settings-link__label">查看打赏名单</text>
+          <text class="settings-link__desc">复制链接，到浏览器粘贴访问</text>
+        </view>
+        <text class="settings-link__arrow">›</text>
+      </view>
+    </view>
+
+    <view class="wre-row {{openSec === 'about' ? 'is-open' : ''}}" data-sec="about" bindtap="onToggleSec">
+      <text class="wre-row__label">关于与说明</text>
+      <text class="wre-row__arrow">{{openSec === 'about' ? '▴' : '▾'}}</text>
+    </view>
+    <view wx:if="{{openSec === 'about'}}" class="wre-acc">
+      <view class="wre-muted">小程序为合规精简版：只在手机本机按规则展示你的阅读数据，不含 AI 深度解析；网页版提供 AI 人格画像、每日卡片与灵感漫游主题综述。</view>
+      <view class="settings-help">1. Key 在微信读书 App →「我」→「微信读书 Skill」复制（wrk- 开头）。</view>
+      <view class="settings-help">2. Key 会在本机缓存一份，并加密托管到你的云端账号；卸载、清缓存或换手机后可用账户码恢复。</view>
+      <view class="settings-help">3. 清除 Key 后，首页 / 人格 / 报告 / 书架会回到引导状态。</view>
+      <view class="settings-help">4. 头像昵称可选，仅存本机、不上传。</view>
+      <view class="settings-help">5. 阅读报告、人格、每日卡片、灵感漫游、纸书归档均在本机按固定规则计算；除阅读报告外，结果会按你的账号加密存一份在云端，用于换机找回。</view>
+    </view>
+
+    <view class="wre-row {{openSec === 'params' ? 'is-open' : ''}}" data-sec="params" bindtap="onToggleSec">
+      <text class="wre-row__label">参数详情</text>
+      <text class="wre-row__arrow">{{openSec === 'params' ? '▴' : '▾'}}</text>
+    </view>
+    <view wx:if="{{openSec === 'params'}}" class="wre-acc">
+      <view class="params">
+        <view class="params__row" wx:for="{{params}}" wx:key="label">
+          <text class="params__label">{{item.label}}</text>
+          <text class="params__value">{{item.value}}</text>
+        </view>
+        <view class="params__row" wx:if="{{myOpenid}}">
+          <text class="params__label">我的 openid</text>
+          <text class="params__value">{{myOpenid}}</text>
+        </view>
       </view>
       <button class="wre-btn wre-btn--ghost" wx:if="{{myOpenid}}" bindtap="copyOpenid">复制 openid</button>
-      <view class="wre-muted params__note">仅展示本机可见的配置项与掩码，不显示 Key 明文。</view>
-      <view class="wre-muted params__note">openid 仅你自己可见；开启运营看板时，把它填进云函数环境变量 ADMIN_OPENIDS 即可。</view>
+      <view class="wre-hint">仅展示本机可见的配置项与掩码，不显示 Key 明文。openid 仅你自己可见；开启运营看板时，把它填进云函数环境变量 ADMIN_OPENIDS 即可。</view>
     </view>
   </view>
 
-  <view class="wre-card">
-    <view class="wre-title">说明</view>
-    <view class="settings-help">1. 微信读书 API Key：在微信读书 App →「我」→「微信读书 Skill」页面复制（wrk- 开头）。</view>
-    <view class="settings-help">2. Key 会在本机缓存一份，并加密托管到你的云端账号；卸载小程序、清理微信缓存或换手机后，可用「我的凭证」一键恢复。</view>
-    <view class="settings-help">3. 清除 Key 后，首页 / 人格 / 报告 / 书架会回到引导状态。</view>
-    <view class="settings-help">4. 头像昵称可选，仅存本机、不上传。</view>
-    <view class="settings-help">5. 阅读报告、阅读人格、每日卡片、灵感漫游、纸书归档均为本机按固定规则计算与整理；除阅读报告外，结果会按你的账号加密存一份在云端，用于换机 / 退出后找回。</view>
-  </view>
-
-  <!-- 退出登录：清空本机数据，云端账号与数据保留（对齐 H5「退出登录」） -->
-  <view class="wre-card">
-    <view class="wre-title">退出登录</view>
-    <view class="wre-muted">退出会清除本机保存的 API Key、头像昵称与本机缓存（每日卡片 / 灵感漫游 / 纸书归档等）；云端账号与数据会保留，下次可用「我的凭证」一键恢复。「外观」「文字大小」等设备偏好会保留。</view>
-    <button class="wre-btn wre-btn--ghost signout-btn" loading="{{signingOut}}" bindtap="onSignOut">退出登录</button>
-    <view class="wre-muted">小程序没有账号密码，这里的「退出登录」= 把本机属于你的数据一键清空，方便换人或重新开始；你的云端账号不受影响。</view>
+  <!-- 页尾：退出登录（弱化）+ 运行日志（调试） -->
+  <view class="wre-foot">
+    <view class="wre-foot__btn" bindtap="onSignOut">{{signingOut ? '正在退出…' : '退出登录'}}</view>
+    <view class="log-entry" bindtap="copyLogs">运行日志 · 点此复制</view>
   </view>
 </view>

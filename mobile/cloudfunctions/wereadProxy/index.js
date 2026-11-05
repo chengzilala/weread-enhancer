@@ -186,6 +186,14 @@ const SHARE_KINDS = ['home', 'persona', 'report', 'shelf', 'daily', 'wander'];
 const SHARE_CODE_ALPHABET = '23456789abcdefghjkmnpqrstuvwxyz';
 const SHARE_CODE_LEN = 8;
 
+// 统一账户中心（account-center）：小程序没有浏览器环境，openid 由云函数代持，
+// 用 MP_SHARED_SECRET 对 `productId|openid|ts` 签名换 Token；前端只拿到 token + uid。
+// MP_SHARED_SECRET 必须与账户中心服务端同名环境变量一致，不写入任何仓库。
+const PS_ACCOUNT_URL = 'https://account.chesterlee.cn/accountCenter';
+const PS_PRODUCT_ID = 'wxread';
+const PS_MP_SECRET = String(process.env.MP_SHARED_SECRET || '');
+const PS_TIMEOUT_MS = 8000;
+
 function maskKey(key) {
   if (typeof key !== 'string' || !key) {
     return '(空)';
@@ -862,6 +870,160 @@ async function handleOpsAdmin() {
   const plugin = await aggregate('plugin', today);
   cleanupOld(); // 不 await：清理是顺手动作，不阻塞看板返回
   return { ok: true, generatedAt: Date.now(), mp: mp, plugin: plugin };
+}
+
+/* ---------- 统一账户（account-center） ---------- */
+
+/** 调账户中心；需要登录的 action 在 headers 里带 Bearer Token */
+async function callPsAccount(body, token) {
+  const headers = token ? { Authorization: 'Bearer ' + token } : {};
+  const res = await postJson(PS_ACCOUNT_URL, headers, body, PS_TIMEOUT_MS);
+  if (!res || res.error) {
+    return { ok: false, code: 'network', error: '账户服务连不上，请稍后再试' };
+  }
+  let payload = null;
+  try {
+    payload = JSON.parse(res.raw || '{}');
+  } catch (err) {
+    payload = null;
+  }
+  if (!payload || typeof payload.ok !== 'boolean') {
+    return { ok: false, code: 'empty', error: '账户服务返回异常，请稍后再试' };
+  }
+  return payload;
+}
+
+/** 小程序签名：`productId|openid|ts`，密钥只放云函数环境变量 */
+function mpSignature(openid, ts) {
+  return crypto
+    .createHmac('sha256', PS_MP_SECRET)
+    .update(PS_PRODUCT_ID + '|' + openid + '|' + ts)
+    .digest('hex');
+}
+
+/** 取小程序调用者身份 + 配置检查；失败时直接返回给前端的错误对象 */
+function mpContext() {
+  const ctx = cloud.getWXContext();
+  const openid = (ctx && ctx.OPENID) || '';
+  if (!openid) {
+    return { error: { ok: false, code: 'noopenid', error: '拿不到微信身份，请重新进入小程序' } };
+  }
+  if (!PS_MP_SECRET) {
+    return { error: { ok: false, code: 'noconfig', error: '统一账户暂未开通' } };
+  }
+  return { openid };
+}
+
+/**
+ * 小程序登录统一账户：openid 只从云函数上下文取（前端传 openid 等于谁都能冒充谁），
+ * 用 MP_SHARED_SECRET 签名后交账户中心验签建会话；前端只保存 token + uid。
+ */
+async function handlePsLogin() {
+  const who = mpContext();
+  if (who.error) {
+    return who.error;
+  }
+  const openid = who.openid;
+
+  const ts = Date.now();
+  const payload = await callPsAccount({
+    action: 'auth.mp.login',
+    productId: PS_PRODUCT_ID,
+    openid: openid,
+    ts: ts,
+    sign: mpSignature(openid, ts),
+  });
+  if (!payload.ok) {
+    return { ok: false, code: payload.code || 'failed', error: payload.message || '登录失败，请稍后再试' };
+  }
+
+  const data = payload.data || {};
+  if (!data.token || !data.uid) {
+    return { ok: false, code: 'empty', error: '登录结果不完整，请稍后再试' };
+  }
+  return {
+    ok: true,
+    token: data.token,
+    uid: data.uid,
+    nickname: data.nickname || '',
+    avatar: data.avatar || '',
+    expiresAt: data.expiresAt || 0,
+    isNew: !!data.isNew,
+  };
+}
+
+/**
+ * 绑定已有账户：前端只交网页端生成的 6 位登录码，openid 仍由服务端取并签名。
+ * 账户中心验签 + 校验码后，把 `wx:<openid>` 挂到那个已有账户上，此后一键登录即进同一 uid。
+ */
+async function handlePsBind(payload) {
+  const who = mpContext();
+  if (who.error) {
+    return who.error;
+  }
+  const openid = who.openid;
+
+  const code = String((payload && payload.code) || '').replace(/\D/g, '').slice(0, 6);
+  if (code.length !== 6) {
+    return { ok: false, code: 'CODE_INVALID', error: '请输入 6 位数字登录码' };
+  }
+
+  const ts = Date.now();
+  const res = await callPsAccount({
+    action: 'auth.mp.bind',
+    productId: PS_PRODUCT_ID,
+    openid: openid,
+    ts: ts,
+    sign: mpSignature(openid, ts),
+    code: code,
+  });
+  if (!res.ok) {
+    return { ok: false, code: res.code || 'failed', error: res.message || '绑定失败，请稍后再试' };
+  }
+
+  const data = res.data || {};
+  if (!data.token || !data.uid) {
+    return { ok: false, code: 'empty', error: '绑定结果不完整，请稍后再试' };
+  }
+  return {
+    ok: true,
+    token: data.token,
+    uid: data.uid,
+    nickname: data.nickname || '',
+    avatar: data.avatar || '',
+    expiresAt: data.expiresAt || 0,
+    bound: true,
+  };
+}
+
+/** 刷新统一账户资料（昵称 / 头像可能在别的端改过） */
+async function handlePsMe(payload) {
+  const token = cleanToken(payload && payload.token, 200);
+  if (!token) {
+    return { ok: false, code: 'novauth', error: '未登录' };
+  }
+  const res = await callPsAccount({ action: 'me' }, token);
+  if (!res.ok) {
+    return { ok: false, code: res.code || 'failed', error: res.message || '读取账户失败' };
+  }
+  const data = res.data || {};
+  return {
+    ok: true,
+    uid: data.uid || '',
+    nickname: data.nickname || '',
+    avatar: data.avatar || '',
+    emailMasked: data.emailMasked || '',
+  };
+}
+
+/** 退出统一账户：只撤销这一条会话，不影响小程序自己的数据 */
+async function handlePsLogout(payload) {
+  const token = cleanToken(payload && payload.token, 200);
+  if (!token) {
+    return { ok: true };
+  }
+  const res = await callPsAccount({ action: 'auth.logout' }, token);
+  return { ok: !!res.ok, code: res.code || '' };
 }
 
 /** 插件匿名统计：仅白名单字段入库，写失败静默（不影响插件使用） */
@@ -1920,6 +2082,18 @@ exports.main = async (event) => {
   }
   if (action === 'imgScan') {
     return await handleImgScan(event);
+  }
+  if (action === 'psLogin') {
+    return await handlePsLogin();
+  }
+  if (action === 'psBind') {
+    return await handlePsBind(event);
+  }
+  if (action === 'psMe') {
+    return await handlePsMe(event);
+  }
+  if (action === 'psLogout') {
+    return await handlePsLogout(event);
   }
   if (action === 'opsPing') {
     return await handleOpsPing();

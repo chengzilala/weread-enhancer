@@ -12,11 +12,6 @@
   color: var(--wre-danger);
 }
 
-.settings-mask {
-  color: var(--wre-text);
-  font-weight: 600;
-}
-
 .settings-input {
   margin-top: 24rpx;
   padding: 24rpx;
@@ -115,90 +110,67 @@
   font-weight: 600;
 }
 
-/* 我的资料 */
-.profile-row {
+/* 统一账户（account-center） */
+.ps-row {
   display: flex;
   align-items: center;
   margin-top: 24rpx;
 }
 
-.profile-avatar-btn {
-  padding: 0;
-  margin: 0;
-  width: 120rpx;
-  height: 120rpx;
-  line-height: 1;
-  background: transparent;
-  border: none;
-  border-radius: 60rpx;
-  overflow: hidden;
-}
-
-.profile-avatar-btn::after {
-  border: none;
-}
-
-.profile-avatar {
+.ps-avatar {
   display: block;
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: 60rpx;
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 44rpx;
 }
 
-.profile-avatar--empty {
+.ps-avatar--empty {
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--wre-soft);
   color: var(--wre-muted);
-  font-size: calc(26rpx * var(--wre-fs));
+  font-size: calc(32rpx * var(--wre-fs));
 }
 
-.profile-nick {
+.ps-main {
   flex: 1;
-  margin-left: 28rpx;
-  padding: 24rpx;
-  background: var(--wre-soft);
-  border-radius: 12rpx;
-  font-size: calc(28rpx * var(--wre-fs));
+  margin-left: 20rpx;
+  min-width: 0;
 }
 
-/* 保存 / 清除 一行 */
-.settings-actions {
-  display: flex;
-  margin-top: 24rpx;
-}
-
-.settings-actions .wre-btn {
-  flex: 1;
-  margin-top: 0;
-  margin-right: 16rpx;
-  font-size: calc(28rpx * var(--wre-fs));
-  padding: 0 8rpx;
-}
-
-.settings-actions .wre-btn:last-child {
-  margin-right: 0;
-}
-
-/* 参数详情（默认收起，点标题展开） */
-.settings-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.settings-toggle__label {
-  font-size: calc(34rpx * var(--wre-fs));
+.ps-nick {
+  display: block;
+  font-size: calc(30rpx * var(--wre-fs));
   font-weight: 600;
   color: var(--wre-text);
 }
 
-.settings-toggle__action {
-  font-size: calc(26rpx * var(--wre-fs));
+.ps-uid {
+  display: block;
+  margin-top: 6rpx;
+  font-size: calc(24rpx * var(--wre-fs));
+  color: var(--wre-muted);
+}
+
+.ps-bind {
+  margin-top: 20rpx;
+  text-align: center;
+  font-size: calc(24rpx * var(--wre-fs));
   color: var(--wre-brand);
 }
 
+/* 页尾：运行日志入口（不显眼，仅排查用） */
+.log-entry {
+  margin-top: 8rpx;
+  padding: 16rpx 0;
+  text-align: center;
+  font-size: calc(22rpx * var(--wre-fs));
+  color: var(--wre-muted);
+  opacity: 0.7;
+}
+
+/* 参数详情（放在「更多」折叠区里） */
 .params {
   margin-top: 20rpx;
   border-top: 1rpx solid var(--wre-line);
@@ -231,41 +203,7 @@
   word-break: break-all;
 }
 
-.params__note {
-  margin-top: 16rpx;
-}
-
-/* 「如何获取 Key」图文说明（对齐 H5 .wre-guide；默认收起，点标题展开） */
-.key-guide {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 24rpx;
-  padding: 22rpx 24rpx;
-  background: var(--wre-card-2);
-  border: 1rpx solid var(--wre-line);
-  border-radius: 24rpx;
-}
-
-.key-guide__summary {
-  flex: 1;
-  font-size: calc(26rpx * var(--wre-fs));
-  font-weight: 600;
-  color: var(--wre-brand);
-}
-
-.key-guide__arrow {
-  flex: none;
-  margin-left: 16rpx;
-  font-size: calc(24rpx * var(--wre-fs));
-  color: var(--wre-muted);
-}
-
-.key-guide__body {
-  margin-top: 8rpx;
-  padding: 0 24rpx 8rpx;
-}
-
+/* 「如何获取 Key」图文说明（展开在 .wre-acc 里） */
 .key-guide__step {
   margin-top: 24rpx;
 }
@@ -312,42 +250,174 @@
   color: var(--wre-muted);
 }
 
-/* 「加到手机桌面 / 我的小程序」：置顶卡片，淡品牌底突出显示 */
-.desktop-card {
-  background: var(--wre-brand-soft);
+/* ---- 我的（重构）：重点卡 / 状态胶囊 / 统一折叠行 ---- */
+/* 未配置 Key 时给核心卡一点品牌底，提示这是当前最该做的事 */
+.wre-card--hero {
+  box-shadow: 0 0 0 2rpx var(--wre-brand-soft);
 }
 
-/* 分步说明折叠条（默认收起，视觉对齐 .key-guide 的可点标题） */
-.desktop-guide__toggle {
+.wre-title--row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 24rpx;
-  padding: 22rpx 24rpx;
-  background: var(--wre-card-2);
-  border: 1rpx solid var(--wre-line);
-  border-radius: 24rpx;
 }
 
-.desktop-guide__toggle-text {
-  flex: 1;
-  font-size: calc(26rpx * var(--wre-fs));
-  font-weight: 600;
+.wre-chip {
+  flex: none;
+  margin-left: 16rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  background: var(--wre-soft);
+  color: var(--wre-muted);
+  font-size: calc(22rpx * var(--wre-fs));
+  font-weight: 500;
+}
+
+.wre-chip.is-on {
+  background: var(--wre-brand-soft);
   color: var(--wre-brand);
 }
 
-.desktop-guide__toggle-arrow {
+/* 统一折叠行：左标签 + 右侧当前值 + 箭头 */
+.wre-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 28rpx 0;
+  border-bottom: 1rpx solid var(--wre-line);
+  font-size: calc(30rpx * var(--wre-fs));
+  color: var(--wre-text);
+}
+
+.wre-row:last-child {
+  border-bottom: none;
+}
+
+/* 静态行（不可点，如「统一账户」直接展开的标题行） */
+.wre-row--static {
+  border-bottom: none;
+  padding-bottom: 8rpx;
+}
+
+.wre-row__label {
+  flex: 1;
+  min-width: 0;
+}
+
+.wre-row__val {
   flex: none;
-  margin-left: 16rpx;
+  max-width: 46%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(26rpx * var(--wre-fs));
+  color: var(--wre-muted);
+}
+
+.wre-row__arrow {
+  flex: none;
+  margin-left: 12rpx;
+  color: var(--wre-arrow);
+  font-size: calc(22rpx * var(--wre-fs));
+}
+
+.wre-row__link {
+  flex: none;
+  padding: 8rpx 0 8rpx 20rpx;
+  color: var(--wre-brand);
+  font-size: calc(26rpx * var(--wre-fs));
+}
+
+/* 折叠面板：展开后紧贴所属行 */
+.wre-acc {
+  padding: 8rpx 0 28rpx;
+  border-bottom: 1rpx solid var(--wre-line);
+}
+
+.wre-acc:last-child {
+  border-bottom: none;
+  padding-bottom: 8rpx;
+}
+
+.wre-acc__label {
+  margin: 20rpx 0 12rpx;
   font-size: calc(24rpx * var(--wre-fs));
   color: var(--wre-muted);
 }
 
-.desktop-guide__body {
-  margin-top: 8rpx;
-  padding: 0 24rpx 8rpx;
+.wre-acc .fs-modes,
+.wre-acc .theme-modes {
+  background: var(--wre-card-2);
+  margin-top: 0;
 }
 
+.wre-hint {
+  margin-top: 16rpx;
+  font-size: calc(24rpx * var(--wre-fs));
+  line-height: 1.7;
+  color: var(--wre-muted);
+}
+
+/* 账户码行：标签 + 等宽值 + 文字按钮 */
+.wre-code-row {
+  display: flex;
+  align-items: center;
+  margin-top: 24rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid var(--wre-line);
+}
+
+.wre-code-row__label {
+  flex: none;
+  font-size: calc(24rpx * var(--wre-fs));
+  color: var(--wre-muted);
+}
+
+.wre-code-row__val {
+  flex: 1;
+  min-width: 0;
+  margin-left: 12rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: Menlo, Consolas, monospace;
+  font-size: calc(24rpx * var(--wre-fs));
+  color: var(--wre-text);
+}
+
+/* 卡片内按钮行（次要操作并排） */
+.wre-btn-row {
+  display: flex;
+  margin-top: 24rpx;
+}
+
+.wre-btn-row .wre-btn {
+  flex: 1;
+  margin-top: 0;
+  margin-right: 16rpx;
+  font-size: calc(28rpx * var(--wre-fs));
+  padding: 0 8rpx;
+}
+
+.wre-btn-row .wre-btn:last-child {
+  margin-right: 0;
+}
+
+/* 页尾：退出登录（弱化）+ 运行日志 */
+.wre-foot {
+  padding: 8rpx 8rpx 40rpx;
+  text-align: center;
+}
+
+.wre-foot__btn {
+  display: inline-block;
+  padding: 16rpx 24rpx;
+  font-size: calc(26rpx * var(--wre-fs));
+  color: var(--wre-muted);
+  text-decoration: underline;
+}
+
+/* 「装到桌面」分步说明（展开在 .wre-acc 里） */
 .desktop-guide__group {
   margin-top: 24rpx;
 }
@@ -391,12 +461,5 @@
   font-size: calc(24rpx * var(--wre-fs));
   line-height: 1.65;
   color: var(--wre-muted);
-}
-
-/* 退出登录：危险操作按钮（描边 + 危险色，与普通操作区分） */
-.wre-btn.signout-btn {
-  margin-top: 28rpx;
-  color: var(--wre-danger);
-  border-color: var(--wre-danger);
 }
 

@@ -4,7 +4,7 @@
  * 加到桌面后，从图标打开的是一个独立窗口（没有浏览器地址栏），用起来接近原生 App，
  * 网页本身也不占内存。电脑（Windows / Mac）走浏览器「安装应用 / 添加到程序坞」，
  * 手机走 Safari「添加到主屏幕」或浏览器菜单「安装应用 / 添加到主屏幕」。
- * 全站口径一致：供「我的」页（直接铺开）与首页（折叠）复用。
+ * 全站口径一致：供「我的 → 更多 → 装到桌面」折叠区复用。
  */
 
 import { esc } from './ui.js';
@@ -49,20 +49,5 @@ export function desktopGuideBodyHtml() {
       '确认「添加 / 安装」。手机桌面就会出现图标。',
     ]) +
     '<div class="wre-guide__tip">装到桌面后，点图标打开就是独立窗口，没有浏览器地址栏，和 App 一样；网页本身不占内存。电脑上装好后在开始菜单 / 启动台，手机上在桌面；若找不到图标，用桌面搜索或搜索「微信悦读」。</div>'
-  );
-}
-
-/**
- * @param {{ summary?: string, open?: boolean }} [options]
- *   summary —— 折叠条上的文字；open —— 是否默认展开（默认收起，减少首页占位）
- */
-export function desktopGuideHtml(options) {
-  const opts = options || {};
-  const summary = opts.summary || '📲 装到桌面，像 App 一样用（电脑 / 手机都能装，点开看步骤）';
-  return (
-    '<details class="wre-guide"' + (opts.open ? ' open' : '') + '>' +
-    '  <summary class="wre-guide__summary">' + esc(summary) + '</summary>' +
-    '  <div class="wre-guide__body">' + desktopGuideBodyHtml() + '</div>' +
-    '</details>'
   );
 }

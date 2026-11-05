@@ -4,7 +4,15 @@ const { verifyKey } = require('../../shared/gateway');
 const keyvault = require('../../shared/keyvault');
 const ops = require('../../shared/ops');
 const account = require('../../shared/account');
+const psauth = require('../../shared/psauth');
+const logger = require('../../shared/logger');
 const { CLOUD_ENV, PROXY_FUNCTION, LINKS } = require('../../config');
+
+/** 从档位表里取当前标签（用于「更多 → 设置」右侧显示当前值） */
+function tierLabel(tiers, field, value) {
+  const hit = (tiers || []).find((t) => t[field] === value);
+  return hit ? hit.label : '';
+}
 
 /** 账户码掩码：前 4 后 4 */
 function maskCode(id) {
@@ -31,20 +39,21 @@ Page({
     codeBusy: false,
     restoring: false,
 
-    // 参数详情（默认收起，点「参数详情」展开）
-    showParams: false,
+    // 折叠区（同一时间只展开一个）：'' | cloud | keyguide | prefs | desktop | links | donate | about | params
+    openSec: '',
     params: [],
 
-    // 「如何获取 Key」图文说明（默认收起；图片走官网 CDN，不占小程序包体）
-    showKeyGuide: false,
+    // Key 更换输入区（已配置时默认收起）
+    showKeyForm: false,
+
+    // 「如何获取 Key」图文说明（图片走官网 CDN，不占小程序包体）
     keyGuideSteps: [
       { no: 1, text: '打开微信读书 App → 底部「我」→ 右上角「设置」，找到并进入「微信读书 Skill」。', img: LINKS.site + '/app/assets/img/skill-step1.png' },
       { no: 2, text: '进来后往下拉，看「快速配置」区，第 ② 步就是「获取 API Key」。', img: LINKS.site + '/app/assets/img/skill-step2.png' },
       { no: 3, text: '点「复制 Key」，就得到一段 wrk- 开头的 Key（默认打码，点右侧「👁」可看明文）。', img: LINKS.site + '/app/assets/img/skill-step3.png' },
     ],
 
-    // 「加到手机桌面 / 我的小程序」图文说明（默认收起，点标题展开，分平台分步）
-    showDesktopGuide: false,
+    // 「加到手机桌面 / 我的小程序」分平台分步说明
     desktopGuideGroups: [
       {
         title: '安卓手机（华为 / 小米 / OPPO / vivo 等）',
@@ -66,11 +75,6 @@ Page({
       },
     ],
 
-    // 本机资料（头像 / 昵称）
-    avatarUrl: '',
-    nickName: '',
-    hasProfile: false,
-
     // 打赏支持：两条收款码（走官网 CDN，不占小程序包体）
     donateWechat: LINKS.site + '/app/assets/img/donate/wechat.png',
     donateAlipay: LINKS.site + '/app/assets/img/donate/alipay.png',
@@ -82,36 +86,43 @@ Page({
     // 是否已关联网页账户（跨端打通）
     linked: false,
 
+    // 统一账户（account-center）：与本机 Key / 账户码并存，互不影响
+    psUser: null,     // { uid, nickname, avatar, emailMasked }
+    psInitial: '',    // 没头像时显示昵称首字
+    psBusy: false,    // 登录 / 退出进行中
+
     // 文字大小（全局缩放，四档）
     wreFs: 1,
+    fsLabel: '标准',
     fontTiers: store.FONT_TIERS,
 
     // 外观（明暗主题；三档，与 H5「我的 → 外观」一致）
     wreDark: false,
     themePref: 'auto',
+    themeLabel: '跟随系统',
     themeTiers: theme.THEME_TIERS,
   },
 
   onShow() {
+    logger.log('settings', 'onShow 进入');
     const key = store.getKey();
-    const profile = store.getProfile();
+    const wreFs = store.getFontScale();
+    const themePref = theme.getTheme();
     this.setData({
       hasKey: !!key,
       masked: key ? store.maskKey(key) : store.getKeyMask(),
       input: '',
       statusText: '',
       statusType: '',
-      avatarUrl: profile.avatarUrl,
-      nickName: profile.nickName,
-      hasProfile: !!(profile.avatarUrl || profile.nickName),
-      showParams: false,
-      showKeyGuide: false,
-      showDesktopGuide: false,
+      openSec: '',
+      showKeyForm: false,
       showCode: false,
-      wreFs: store.getFontScale(),
+      wreFs: wreFs,
+      fsLabel: tierLabel(store.FONT_TIERS, 'value', wreFs),
       wreDark: theme.apply(),
-      themePref: theme.getTheme(),
-      params: this.buildParams(key, profile),
+      themePref: themePref,
+      themeLabel: tierLabel(theme.THEME_TIERS, 'key', themePref),
+      params: this.buildParams(key),
     });
     // 云端托管状态：本机没 Key 时用云端掩码展示，并决定是否显示「恢复账号」
     keyvault
@@ -135,6 +146,158 @@ Page({
       .catch(() => {});
     // 关联状态 + 账户码（凭证）：失败静默
     this.refreshCode();
+    // 统一账户：先用本机缓存上屏，再静默刷新（失败不影响页面）
+    logger.guard('settings', () => this.refreshPs(), null);
+    logger.log('settings', 'onShow 完成');
+  },
+
+  /** 统一账户登录态：本机缓存即时上屏，随后后台刷新昵称 / 头像 */
+  refreshPs() {
+    const cached = psauth.currentUser();
+    logger.log('psauth', cached ? '本机已有统一账户缓存' : '本机无统一账户缓存');
+    this.paintPs(cached);
+    psauth
+      .refresh()
+      .then((user) => {
+        logger.log('psauth', user ? '远端资料已刷新' : '远端无登录态');
+        this.paintPs(user);
+      })
+      .catch((err) => logger.warn('psauth', '刷新失败', err));
+  },
+
+  paintPs(user) {
+    const nick = (user && user.nickname) || '';
+    this.setData({
+      psUser: user || null,
+      psInitial: nick ? Array.from(nick)[0] : '微',
+    });
+  },
+
+  /** 微信一键登录统一账户：openid 由云函数代持，前端只拿 token + uid */
+  onPsLogin() {
+    if (this.data.psBusy) {
+      return;
+    }
+    this.setData({ psBusy: true });
+    logger.log('psauth', '点了一键登录');
+    psauth
+      .login()
+      .then((res) => {
+        this.setData({ psBusy: false });
+        if (!res.ok) {
+          logger.error('psauth', '登录失败', { code: res.code, error: res.error });
+          wx.showModal({
+            title: '登录失败' + (res.code ? '（' + res.code + '）' : ''),
+            content: res.error || '请稍后再试',
+            showCancel: false,
+          });
+          return;
+        }
+        logger.log('psauth', '登录成功', { isNew: res.isNew });
+        this.paintPs(res.user);
+        wx.showToast({ title: res.isNew ? '账户已创建' : '已登录', icon: 'success' });
+      })
+      .catch((err) => {
+        logger.error('psauth', '登录异常', err);
+        this.setData({ psBusy: false });
+        wx.showModal({ title: '登录异常', content: String((err && err.message) || err).slice(0, 200), showCancel: false });
+      });
+  },
+
+  /**
+   * 绑定已有账户（网页端生成 6 位登录码 → 这里输入）
+   * 成功后退回同一个 uid，以后「微信一键登录」直接进老账户。
+   */
+  onPsBind() {
+    if (this.data.psBusy) {
+      return;
+    }
+    wx.showModal({
+      title: '绑定已有账户',
+      content: '在浏览器打开 account.chesterlee.cn 登录你的账户 → 点「生成登录码」，把 6 位数字填在下面。',
+      editable: true,
+      placeholderText: '6 位登录码',
+      confirmText: '绑定',
+      success: (res) => {
+        if (!res.confirm) {
+          return;
+        }
+        const code = String(res.content || '').replace(/\D/g, '');
+        if (code.length !== 6) {
+          wx.showToast({ title: '请输入 6 位数字', icon: 'none' });
+          return;
+        }
+        this.setData({ psBusy: true });
+        logger.log('psauth', '尝试绑定已有账户');
+        psauth
+          .bind(code)
+          .then((r) => {
+            this.setData({ psBusy: false });
+            if (!r.ok) {
+              logger.error('psauth', '绑定失败', { code: r.code, error: r.error });
+              wx.showModal({
+                title: '绑定失败' + (r.code ? '（' + r.code + '）' : ''),
+                content: r.error || '请稍后再试',
+                showCancel: false,
+              });
+              return;
+            }
+            logger.log('psauth', '绑定成功');
+            this.paintPs(r.user);
+            wx.showToast({ title: '已绑定', icon: 'success' });
+          })
+          .catch((err) => {
+            logger.error('psauth', '绑定异常', err);
+            this.setData({ psBusy: false });
+          });
+      },
+    });
+  },
+
+  onPsLogout() {
+    if (this.data.psBusy) {
+      return;
+    }
+    wx.showModal({
+      title: '退出统一账户？',
+      content: '只退出统一账户登录态；本机 Key、账户码与云端数据都不受影响。',
+      confirmText: '退出',
+      success: (res) => {
+        if (!res.confirm) {
+          return;
+        }
+        this.setData({ psBusy: true });
+        psauth
+          .logout()
+          .then(() => {
+            this.setData({ psBusy: false });
+            this.paintPs(null);
+            wx.showToast({ title: '已退出', icon: 'none' });
+          })
+          .catch(() => {
+            this.setData({ psBusy: false });
+          });
+      },
+    });
+  },
+
+  copyAccount() {
+    this.copyLink(LINKS.account, '统一账户中心');
+  },
+
+  /** 调试：把最近日志复制出来（真机排查用，不涉及任何 Key / Token） */
+  copyLogs() {
+    const text = logger.dump(30) || '（暂无日志）';
+    wx.setClipboardData({
+      data: text,
+      success: () => {
+        wx.showModal({
+          title: '最近日志已复制',
+          content: text.slice(-260),
+          showCancel: false,
+        });
+      },
+    });
   },
 
   /** 取回关联状态与账户码（凭证） */
@@ -150,83 +313,40 @@ Page({
   },
 
   // 参数详情：只列本机可见的配置项，绝不显示 Key 明文（只给掩码）
-  buildParams(key, profile) {
-    const nick = profile.nickName || (profile.avatarUrl ? '已设置头像' : '');
+  buildParams(key) {
     return [
       { label: '微信读书 Key', value: key ? store.maskKey(key) : (store.getKeyMask() || '未配置') },
-      { label: '头像昵称', value: nick || '未设置' },
       { label: '云开发环境', value: CLOUD_ENV || '（默认环境）' },
       { label: '云函数', value: PROXY_FUNCTION },
       { label: '网关地址', value: 'i.weread.qq.com（经云函数中转）' },
     ];
   },
 
-  toggleParams() {
-    this.setData({ showParams: !this.data.showParams });
+  /** 折叠区：同一时间只展开一个（再点一次收起） */
+  onToggleSec(e) {
+    const sec = e.currentTarget.dataset.sec;
+    this.setData({ openSec: this.data.openSec === sec ? '' : sec });
   },
 
-  // 「如何获取 Key」图文说明：默认收起，点一下展开 / 收起
-  toggleKeyGuide() {
-    this.setData({ showKeyGuide: !this.data.showKeyGuide });
-  },
-
-  // 「加到手机桌面 / 我的小程序」分步说明：默认收起，点一下展开 / 收起
-  toggleDesktopGuide() {
-    this.setData({ showDesktopGuide: !this.data.showDesktopGuide });
+  /** 已配置 Key 时，点「更换」展开输入区 */
+  onToggleKeyForm() {
+    this.setData({ showKeyForm: !this.data.showKeyForm, input: '' });
   },
 
   // ---- 文字大小（四档切换；本机保存，其他页面在 onShow 时套用）----
   onFontScale(e) {
     const value = store.setFontScale(Number(e.currentTarget.dataset.value));
-    this.setData({ wreFs: value });
+    this.setData({ wreFs: value, fsLabel: tierLabel(store.FONT_TIERS, 'value', value) });
   },
 
   // ---- 外观（三档切换：跟随系统 / 浅色 / 深色；本机保存）----
   onTheme(e) {
     const pref = theme.setTheme(e.currentTarget.dataset.value);
-    this.setData({ themePref: pref, wreDark: theme.apply() });
-  },
-
-  // ---- 本机资料 ----
-
-  onChooseAvatar(e) {
-    const temp = (e.detail && e.detail.avatarUrl) || '';
-    if (!temp) {
-      return;
-    }
-    const fs = wx.getFileSystemManager();
-    const old = this.data.avatarUrl;
-    // chooseAvatar 给的是临时文件，重启后失效；保存到本地用户目录才能长期使用
-    fs.saveFile({
-      tempFilePath: temp,
-      success: (res) => {
-        if (old && old.indexOf('wxfile://') === 0 && old !== res.savedFilePath) {
-          fs.unlink({ filePath: old, fail() {} });
-        }
-        store.setProfile({ avatarUrl: res.savedFilePath, nickName: this.data.nickName });
-        this.setData({ avatarUrl: res.savedFilePath, hasProfile: true });
-      },
-      fail: () => {
-        // 退化为临时路径：本次会话可用，重启后需重新选择
-        store.setProfile({ avatarUrl: temp, nickName: this.data.nickName });
-        this.setData({ avatarUrl: temp, hasProfile: true });
-      },
+    this.setData({
+      themePref: pref,
+      themeLabel: tierLabel(theme.THEME_TIERS, 'key', pref),
+      wreDark: theme.apply(),
     });
-  },
-
-  onNickChange(e) {
-    const nickName = String((e.detail && e.detail.value) || '').trim().slice(0, 24);
-    store.setProfile({ avatarUrl: this.data.avatarUrl, nickName: nickName });
-    this.setData({ nickName: nickName, hasProfile: !!(this.data.avatarUrl || nickName) });
-    // 已关联网页账户：昵称随之同步（未关联时云函数返回 nolink，静默忽略）
-    if (this.data.linked && nickName) {
-      account.profilePut(nickName).catch(() => {});
-    }
-  },
-
-  onClearProfile() {
-    store.clearProfile();
-    this.setData({ avatarUrl: '', nickName: '', hasProfile: false });
   },
 
   // ---- 微信读书 API Key ----
@@ -260,7 +380,7 @@ Page({
     }
 
     store.setKey(key);
-    this.setData({ hasKey: true, masked: store.maskKey(key), input: '' });
+    this.setData({ hasKey: true, masked: store.maskKey(key), input: '', showKeyForm: false });
     this.setStatus('ok', '已保存并校验通过，回到首页即可查看数据');
     wx.showToast({ title: '保存成功', icon: 'success' });
     // 云端加密托管（用户凭证）：失败不阻断本机使用，仅提示
@@ -278,7 +398,7 @@ Page({
   onClear() {
     store.clearKey();
     store.clearCredentialMeta();
-    this.setData({ hasKey: false, masked: '', input: '', hosted: false });
+    this.setData({ hasKey: false, masked: '', input: '', hosted: false, showKeyForm: false });
     this.setStatus('', '已清除 Key（含云端托管）');
     keyvault.clear().catch(() => {});
   },
@@ -364,13 +484,7 @@ Page({
 
     // 只清本机：云端账号、托管 Key、用户数据都不动（下次可「恢复账号」）
 
-    // 1. 删除本机头像文件（若有）
-    const avatar = this.data.avatarUrl;
-    if (avatar && avatar.indexOf('wxfile://') === 0) {
-      wx.getFileSystemManager().unlink({ filePath: avatar, fail() {} });
-    }
-
-    // 2. 清空本机所有 wre_ 前缀数据；保留「外观 / 文字大小」两个设备偏好
+    // 1. 清空本机所有 wre_ 前缀数据；保留「外观 / 文字大小」两个设备偏好
     const KEEP = ['wre_theme', 'wre_font_scale'];
     try {
       const info = wx.getStorageInfoSync();
@@ -391,9 +505,6 @@ Page({
       hasKey: false,
       masked: '',
       input: '',
-      avatarUrl: '',
-      nickName: '',
-      hasProfile: false,
       statusText: '',
       statusType: '',
     });

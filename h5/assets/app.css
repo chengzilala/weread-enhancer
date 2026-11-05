@@ -913,40 +913,7 @@ a.wre-donate__list { text-decoration: none; }
 }
 .is-tts-active { background: rgba(47, 107, 255, 0.1); border-radius: 6px; }
 
-/* ---- 我的账户：身份头 / 已连接列表 ---- */
-.wre-account { display: flex; align-items: center; gap: 12px; }
-.wre-avatar {
-  width: 46px;
-  height: 46px;
-  flex: none;
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--wre-brand);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(20px * var(--wre-fs));
-  font-weight: 600;
-}
-.wre-avatar__img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.wre-account__meta { flex: 1; min-width: 0; }
-.wre-account__name { font-size: calc(17px * var(--wre-fs)); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wre-account__id {
-  color: var(--wre-muted);
-  font-size: calc(12px * var(--wre-fs));
-  margin-top: 2px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-.wre-account__out {
-  flex: none;
-  border: 0;
-  background: transparent;
-  color: var(--wre-brand);
-  font-size: calc(13px * var(--wre-fs));
-  padding: 6px 0;
-  cursor: pointer;
-}
+/* ---- 我的账户：已连接列表 ---- */
 .wre-conn { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--wre-line); }
 .wre-conn__main { flex: 1; min-width: 0; }
 .wre-conn__name { font-size: calc(14px * var(--wre-fs)); }
@@ -965,34 +932,6 @@ a.wre-donate__list { text-decoration: none; }
 
 /* 「更多」链接行箭头（对齐小程序 .settings-link__arrow） */
 .wre-link__arrow { color: var(--wre-arrow); font-size: calc(18px * var(--wre-fs)); }
-
-/* 我的资料行（对齐小程序 .profile-row / .profile-avatar / .profile-nick） */
-.wre-profile { display: flex; align-items: center; margin-top: 12px; }
-.wre-profile__avatar {
-  width: 60px;
-  height: 60px;
-  flex: none;
-  border-radius: 30px;
-  overflow: hidden;
-  background: var(--wre-card-2);
-  color: var(--wre-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(13px * var(--wre-fs));
-}
-.wre-profile__nick {
-  flex: 1;
-  min-width: 0;
-  margin-left: 14px;
-  padding: 12px;
-  background: var(--wre-card-2);
-  border: 0;
-  border-radius: 6px;
-  font-size: calc(14px * var(--wre-fs));
-  color: var(--wre-text);
-}
-.wre-profile__nick:focus { outline: 2px solid var(--wre-brand-soft); }
 
 /* ---- 宽屏（桌面浏览器 / 大屏预览）：收成居中的手机宽度，避免整页被拉满 ---- */
 @media (min-width: 560px) {
@@ -1333,5 +1272,102 @@ a.wre-donate__list { text-decoration: none; }
   color: var(--wre-text);
   margin-bottom: 4px;
 }
-/* 「我的」页置顶的桌面安装卡：淡品牌底，与其它卡片区分、突出显示 */
-.wre-card--desktop { background: var(--wre-brand-soft); }
+/* ---- 我的（重构）：重点卡 / 状态胶囊 / 统一折叠行 ---- */
+/* 与小程序的卡片标题字号（34rpx ≈ 17px）对齐 */
+.wre-me .wre-card__title { font-size: calc(17px * var(--wre-fs)); }
+/* 未配置 Key 时给核心卡一点品牌底，提示这是当前最该做的事 */
+.wre-card--hero { box-shadow: 0 0 0 1px var(--wre-brand-soft); }
+.wre-chip {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--wre-soft);
+  color: var(--wre-muted);
+  font-size: calc(11px * var(--wre-fs));
+  font-weight: 500;
+}
+.wre-chip.is-on { background: var(--wre-brand-soft); color: var(--wre-brand); }
+
+/* 统一折叠行：左标签 + 右侧当前值 + 箭头（替代原来的 .wre-link 两行式） */
+.wre-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--wre-line);
+  background: transparent;
+  padding: 14px 0;
+  color: var(--wre-text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.wre-row:last-child { border-bottom: 0; }
+/* 静态行（不可点，如「统一账户」直接展开的标题行） */
+.wre-row--static { cursor: default; }
+.wre-row__label { flex: 1; min-width: 0; font-size: calc(15px * var(--wre-fs)); }
+.wre-row__val {
+  flex: none;
+  max-width: 46%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(13px * var(--wre-fs));
+  color: var(--wre-muted);
+}
+.wre-row__arrow { flex: none; color: var(--wre-arrow); font-size: calc(11px * var(--wre-fs)); }
+.wre-row__link {
+  flex: none;
+  border: 0;
+  background: transparent;
+  padding: 4px 0 4px 10px;
+  color: var(--wre-brand);
+  font-family: inherit;
+  font-size: calc(13px * var(--wre-fs));
+  cursor: pointer;
+}
+
+/* 折叠面板：展开后紧贴所属行，内部不再重复卡片 */
+.wre-acc {
+  padding: 4px 0 14px;
+  border-bottom: 1px solid var(--wre-line);
+}
+.wre-acc:last-child { border-bottom: 0; padding-bottom: 4px; }
+.wre-acc__label { margin: 10px 0 6px; font-size: calc(12px * var(--wre-fs)); color: var(--wre-muted); }
+.wre-acc .wre-modes { background: var(--wre-card-2); margin-bottom: 0; }
+.wre-acc .wre-guide { margin: 8px 0 4px; }
+
+/* 账户码行：标签 + 等宽值 + 文字按钮 */
+.wre-code-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--wre-line);
+}
+.wre-code-row__label { flex: none; font-size: calc(12px * var(--wre-fs)); color: var(--wre-muted); }
+.wre-code-row__val {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: calc(12px * var(--wre-fs));
+  color: var(--wre-text);
+}
+
+/* 页尾：退出登录做弱化处理 */
+.wre-foot { padding: 4px 4px 20px; text-align: center; }
+.wre-foot__btn {
+  border: 0;
+  background: transparent;
+  padding: 8px 12px;
+  color: var(--wre-muted);
+  font-family: inherit;
+  font-size: calc(13px * var(--wre-fs));
+  text-decoration: underline;
+  cursor: pointer;
+}

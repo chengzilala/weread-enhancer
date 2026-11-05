@@ -4,7 +4,7 @@
 
 专为微信读书网页版（weread.qq.com）打造的阅读增强浏览器扩展。
 
-> **域名 / 备案 / 上线**：统一记在 [部署上线备案/README.md](../部署上线备案/README.md)（唯一台账），本文不重复。
+> **域名 / 备案 / 上线**：统一记在 [部署上线备案/README.md](../部署上线备案/README.md)（唯一台账），本文不重复；线上页脚已挂 `陇ICP备2026009894号-2` + `甘公网安备62052302000062号`（含公安部官方图标，2026-10-28 通过）。
 
 <p>
   <a href="https://microsoftedge.microsoft.com/addons/detail/%E5%BE%AE%E4%BF%A1%E6%82%A6%E8%AF%BB/nkcckbonpafeclefhlhbencibkaabmgb"><img src="https://img.shields.io/badge/Microsoft%20Edge-立即安装-2F6BFF?logo=microsoftedge&logoColor=white" alt="从 Microsoft Edge 加载项商店安装"></a>

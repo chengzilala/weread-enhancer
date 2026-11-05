@@ -9,7 +9,7 @@
  */
 export const CONFIG = {
   APP_NAME: '微信悦读',
-  APP_VERSION: '0.1.0',
+  APP_VERSION: '0.1.1',
   ENDPOINT: 'https://cloud1-d4g1dq0sc7f62329d-1500443307.ap-shanghai.app.tcloudbase.com/h5',
   // 网关中转 / AI 的客户端等待上限（应 > 云函数自身超时 10s / 30s）
   RELAY_TIMEOUT_MS: 15000,
