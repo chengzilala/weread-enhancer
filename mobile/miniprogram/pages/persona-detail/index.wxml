@@ -47,6 +47,14 @@
       </view>
     </view>
 
+    <!-- 数据样本：原先放在结果页，收进这里 -->
+    <view class="wre-card detail__sec" wx:if="{{detail.sample}}">
+      <view class="detail__head">
+        <text class="detail__dim">数据样本</text>
+      </view>
+      <view class="detail__lead">{{detail.sample}}</view>
+    </view>
+
     <view class="wre-card detail__sec" wx:if="{{detail.quotes.length}}">
       <view class="detail__head">
         <text class="detail__dim">原文划线</text>

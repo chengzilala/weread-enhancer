@@ -4,6 +4,7 @@ const { AI_ENABLED } = require('../../config');
 const core = require('../../shared/wander-core');
 const db = require('../../shared/wander-store');
 const wanderData = require('../../shared/wander-data');
+const logger = require('../../shared/logger');
 const { generateWanderText } = require('../../shared/wander-ai');
 const { renderWanderShare } = require('../../shared/wander-share');
 const { messageOf, isKeyError } = require('../../shared/errors');
@@ -117,6 +118,9 @@ Page({
     }
     const current = db.getWeekIssue();
     if (current) {
+      if (core.fillLocalArticle(current)) {
+        db.saveIssue(current);   // 旧版本生成的空正文，就地补齐后回写
+      }
       this.tier = core.tierByKey(current.tier);
       db.markSeen();
       this.setData({
@@ -161,6 +165,7 @@ Page({
       aiError: '',
       loadingText: '正在读取你的笔记概览…',
     });
+    const started = Date.now();
 
     // 看门狗（空闲超时）：每次有进展（进入下一阶段）就重新计时；若某一步长时间无响应，
     // 也要在超时后放掉骨架屏，绝不无限「响应中」。用「空闲」而非「总时长」计时，
@@ -229,10 +234,10 @@ Page({
         return;
       }
 
-      // 3) 素材池（首次拉取划线原文较慢，给阶段提示）
+      // 3) 素材池（M17：通常直接命中本机素材库，0 次云函数调用）
       this.setData({ loadingText: '正在挑选同主题的划线 / 想法…' });
       arm();
-      const poolRes = await wanderData.fetchPool(key, isRegen);
+      let poolRes = await wanderData.fetchPool(key, false);
       if (this._genToken !== token) {
         return;
       }
@@ -250,8 +255,18 @@ Page({
         return;
       }
 
-      // 4) 选材（尽量避开上一期的主题）
-      const material = core.prepareWander(poolRes.pool, db.getUsed(), { avoidTheme: db.lastTheme() });
+      // 4) 选材（跨书 ≥3 本、30 天冷却、避开最近 8 期主题）
+      let material = core.prepareWander(poolRes.pool, db.getUsed(), db.selectionOpts());
+      if (!material.ok && material.exhausted) {
+        // 本机素材被避让规则用尽 → 强制补拉一轮（换一批书），仍不重置历史
+        poolRes = await wanderData.fetchPool(key, true);
+        if (this._genToken !== token) {
+          return;
+        }
+        if (poolRes.ok) {
+          material = core.prepareWander(poolRes.pool, db.getUsed(), db.selectionOpts());
+        }
+      }
       if (!material.ok) {
         this.setData({
           generating: false,
@@ -262,9 +277,6 @@ Page({
           error: '',
         });
         return;
-      }
-      if (material.resetUsed) {
-        db.resetUsed();
       }
 
       // 5) 组刊：AI 开启时走 AI 综述；M15 关闭时走纯本地规则排版（只按主题平铺素材）
@@ -311,6 +323,12 @@ Page({
       db.markUsed(material.materials);
       db.bumpWeek();
       db.markSeen();
+      logger.log('wander', '本期已生成', {
+        ms: Date.now() - started,
+        calls: (poolRes && poolRes.callCount) || 0,
+        books: (material.bookIds || []).length,
+        items: (material.materials || []).length,
+      });
 
       this.setData({
         generating: false,
@@ -391,6 +409,7 @@ Page({
     if (!issue) {
       return;
     }
+    core.fillLocalArticle(issue);
     this.setData({ issue: core.toView(issue), viewingArchive: true, aiError: '' });
     wx.pageScrollTo({ scrollTop: 0, duration: 0 });
   },
@@ -400,6 +419,7 @@ Page({
     if (!issue) {
       return;
     }
+    core.fillLocalArticle(issue);
     this.setData({ issue: core.toView(issue), viewingArchive: true, aiError: '' });
     wx.pageScrollTo({ scrollTop: 0, duration: 0 });
   },
@@ -515,7 +535,7 @@ Page({
         from: '《' + (first.title || '未命名') + '》' + (first.author ? ' · ' + first.author : ''),
       } : null,
       chips: (v.sources || []).slice(0, 4).map((s) => '《' + (s.title || '未命名') + '》'),
-      footer: (profile.nickName ? profile.nickName + ' · ' : '') + '悦读且住 · 本机计算',
+      footer: (profile.nickName ? profile.nickName + ' · ' : '') + '悦读且住 · 微信小程序',
     };
   },
 

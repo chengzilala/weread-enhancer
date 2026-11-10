@@ -13,6 +13,8 @@ import { notebookStats } from './core/report-core.js';
 
 const OVERVIEW_CACHE_KEY = 'overview';
 const OVERVIEW_TTL_MS = 30 * 60 * 1000;   // 书架 + 笔记概览缓存：30 分钟
+const NOTEBOOKS_CACHE_KEY = 'notebooks_brief';
+const NOTEBOOKS_TTL_MS = 24 * 60 * 60 * 1000; // 素材库取书用的笔记列表：24 小时（M17）
 const CORPUS_CACHE_KEY = 'persona_corpus';
 const CORPUS_TTL_MS = 10 * 60 * 1000;     // 语料缓存：10 分钟
 
@@ -159,6 +161,48 @@ export async function fetchNotebooks() {
     books: collected,
     truncated: truncated,
   };
+}
+
+// ---- 笔记列表（24 小时缓存，供素材库选书；不带书架，省一次调用）----
+export async function fetchNotebooksBrief(force) {
+  if (!force) {
+    const cached = cacheGet(NOTEBOOKS_CACHE_KEY, NOTEBOOKS_TTL_MS);
+    if (cached && cached.notebooks) {
+      return { ok: true, fromCache: true, notebooks: cached.notebooks };
+    }
+  }
+  const res = await fetchNotebooks();
+  if (!res.ok) {
+    return res;
+  }
+  cacheSet(NOTEBOOKS_CACHE_KEY, { notebooks: res });
+  return { ok: true, fromCache: false, notebooks: res };
+}
+
+/** 只读笔记列表缓存（绝不发请求）：给素材库选书用 */
+export function peekNotebooksBrief() {
+  const cached = cacheGet(NOTEBOOKS_CACHE_KEY, NOTEBOOKS_TTL_MS);
+  if (cached && cached.notebooks) {
+    return { ok: true, fromCache: true, notebooks: cached.notebooks };
+  }
+  return { ok: false, code: 'nocache' };
+}
+
+/** 用代拉接口返回的概览补种笔记缓存：省掉下次选书前的 /user/notebooks 调用 */
+export function seedNotebooksBrief(overview) {
+  const books = overview && Array.isArray(overview.books) ? overview.books : [];
+  if (!books.length) {
+    return;
+  }
+  cacheSet(NOTEBOOKS_CACHE_KEY, {
+    notebooks: {
+      ok: true,
+      totalBookCount: Number(overview.totalBookCount) || books.length,
+      totalNoteCount: Number(overview.totalNoteCount) || 0,
+      books: books,
+      truncated: false,
+    },
+  });
 }
 
 // ---- 书架 + 笔记概览（30 分钟缓存）----

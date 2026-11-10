@@ -28,7 +28,13 @@ export async function ensureTodayCard() {
     return { ok: true, fromCache: true, card: existing, view: core.toView(existing) };
   }
 
-  const poolRes = await fetchPool(false);
+  // M17：本机没有今天卡片时，先问云端是否已有（换机 / 清缓存后秒开；失败不影响生成）
+  const remote = await db.pullTodayCard();
+  if (remote) {
+    return { ok: true, fromCache: true, card: remote, view: core.toView(remote) };
+  }
+
+  const poolRes = await fetchPool(false, 'daily');
   if (!poolRes.ok) {
     if (poolRes.code === 'nocorpus') {
       return { ok: false, code: 'material', reason: 'material', count: 0, need: core.MATERIAL_MIN };
@@ -36,7 +42,7 @@ export async function ensureTodayCard() {
     return { ok: false, code: poolRes.code, error: messageOf(poolRes, '读取数据失败') };
   }
 
-  const material = core.prepareMaterial(poolRes.pool, db.getUsed());
+  const material = core.prepareMaterial(poolRes.pool, db.getUsed(), db.selectionOpts());
   if (!material.ok) {
     return {
       ok: false,
@@ -45,9 +51,6 @@ export async function ensureTodayCard() {
       count: material.count || 0,
       need: material.need || core.MATERIAL_MIN,
     };
-  }
-  if (material.resetUsed) {
-    db.resetUsed();
   }
 
   // H5 保留 AI：走 AI 成文；AI 不可用不退回本地模板（页面提示错误 + 重试）
@@ -63,6 +66,7 @@ export async function ensureTodayCard() {
 
   const card = core.makeCard(material, text);
   db.saveCard(card);
-  db.markUsed(material.main.text);
+  // M17：正文 + 关联句整批记为已用（卡片本身也存了 hashes，两者互为兜底）
+  db.markUsed([material.main].concat(material.related || []));
   return { ok: true, fromCache: false, card: card, view: core.toView(card) };
 }

@@ -26,6 +26,22 @@ const MATERIAL_MIN = 6;
 const MATERIAL_MAX = 12;
 // 同一本书最多取这么多条（跨书优先，避免整期只讲一本书）
 const PER_BOOK_MAX = 3;
+// M17 多样性约束：一期至少来自 3 本书、单条素材 30 天冷却、同一本书 30 天只当 1 次主素材
+const BOOK_MIN = 3;
+const COOLDOWN_DAYS = 30;
+const BOOK_WANDER_MAX = 1;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** 一批素材覆盖了几本书（空 bookId 不计） */
+function distinctBooks(items) {
+  const seen = {};
+  (Array.isArray(items) ? items : []).forEach((item) => {
+    if (item && item.bookId) {
+      seen[item.bookId] = true;
+    }
+  });
+  return Object.keys(seen).length;
+}
 
 function pad2(value) {
   return String(value).padStart(2, '0');
@@ -190,12 +206,13 @@ function pickMaterials(items, max, perBookMax) {
 }
 
 /**
- * 抽签选材：挑一个「素材足够多」的主题（尽量避开上一期的主题），从中选一批划线 / 想法。
+ * 抽签选材：挑一个「素材足够多」的主题（避开最近几期已用主题），从中选一批划线 / 想法。
+ * M17 起：30 天冷却、最近文章 hash 避让、单本 30 天只当 1 次主素材、至少跨 3 本书。
  * 找不到成规模的主题时，退化为「综合」——直接按素材池选，仍能成篇。
  * @param {Array} pool 素材池 [{bookId,title,author,kind,text,at}]
- * @param {object} usedMap 已用素材集合 {hashKey: ts}（由 wander-store 提供）
- * @param {object} opts { avoidTheme }
- * @returns {object} { ok, reason?, count?, need?, resetUsed?, theme, materials[], poolSize }
+ * @param {object} usedMap 已用素材集合 {hashKey: ts}（daily + wander 共用）
+ * @param {object} opts { avoidThemes, recentHashes, recentMainBookIds, bookWanderMax, cooldownDays }
+ * @returns {object} { ok, reason?, count?, need?, exhausted?, theme, materials[], bookIds[], hashes[], singleBook, poolSize }
  */
 function prepareWander(pool, usedMap, opts) {
   const o = opts || {};
@@ -205,42 +222,97 @@ function prepareWander(pool, usedMap, opts) {
   }
 
   const used = usedMap && typeof usedMap === 'object' ? usedMap : {};
-  const isUsed = (item) => !!used[hashKey(item.text)];
-  const { tagged, groups } = tagAndGroup(list);
+  const now = Date.now();
+  const cooldownMs = (Number(o.cooldownDays) || COOLDOWN_DAYS) * DAY_MS;
+  const recentHashes = o.recentHashes && typeof o.recentHashes === 'object' ? o.recentHashes : {};
+  const isFresh = (item) => {
+    const key = hashKey(item.text);
+    if (recentHashes[key]) {
+      return false;
+    }
+    const at = Number(used[key]) || 0;
+    return !at || (now - at) >= cooldownMs;
+  };
 
-  // 候选主题：素材量足够，且尽量不是上一期的主题
-  let theme = '';
-  let candidates = tagged;
-  const themes = Object.keys(groups)
-    .map((name) => ({ name: name, items: groups[name] }))
+  const { tagged } = tagAndGroup(list);
+  const fresh = tagged.filter(isFresh);
+  if (fresh.length < MATERIAL_MIN) {
+    return { ok: false, reason: 'material', count: fresh.length, need: MATERIAL_MIN, exhausted: true };
+  }
+
+  // 主题只在「未冷却」的素材里找，避免选到一个全被用过的主题
+  const freshGroups = {};
+  fresh.forEach((item) => {
+    if (item.theme) {
+      if (!freshGroups[item.theme]) {
+        freshGroups[item.theme] = [];
+      }
+      freshGroups[item.theme].push(item);
+    }
+  });
+  const avoidThemes = Array.isArray(o.avoidThemes)
+    ? o.avoidThemes
+    : (o.avoidTheme ? [o.avoidTheme] : []);
+  const themes = Object.keys(freshGroups)
+    .map((name) => ({ name: name, items: freshGroups[name] }))
     .filter((t) => t.items.length >= MATERIAL_MIN)
-    .filter((t) => (o.avoidTheme ? t.name !== o.avoidTheme : true))
     .sort((a, b) => b.items.length - a.items.length);
-  if (themes.length) {
-    const top = themes.slice(0, 3);   // 在素材量靠前的主题里随机挑，避免每周都同一个主题
+
+  const preferred = themes.filter((t) => avoidThemes.indexOf(t.name) < 0);
+  const usable = preferred.length ? preferred : themes;
+  let theme = '';
+  let candidates = fresh;
+  if (usable.length) {
+    const top = usable.slice(0, 3);   // 在素材量靠前的主题里随机挑，避免每周都同一个主题
     const chosen = top[Math.floor(Math.random() * top.length)];
     theme = chosen.name;
     candidates = chosen.items;
   }
 
-  // 全部用过 → 请调用方重置「已用集合」（覆盖周期）
-  let resetUsed = false;
-  let fresh = candidates.filter((item) => !isUsed(item));
-  if (fresh.length < MATERIAL_MIN) {
-    resetUsed = true;
-    fresh = candidates.slice();
-  }
+  // 单本配额：30 天内已当过主素材的书，本次尽量不再当主素材
+  const recentMain = o.recentMainBookIds && typeof o.recentMainBookIds === 'object' ? o.recentMainBookIds : {};
+  const maxPerBook = Number(o.bookWanderMax) || BOOK_WANDER_MAX;
+  const allowedBook = (bookId) => !bookId || (Number(recentMain[bookId]) || 0) < maxPerBook;
+  const allowedCandidates = candidates.filter((item) => allowedBook(item.bookId));
+  const base = allowedCandidates.length >= MATERIAL_MIN ? allowedCandidates : candidates;
 
-  const materials = pickMaterials(fresh, MATERIAL_MAX, PER_BOOK_MAX);
+  let materials = pickMaterials(base, MATERIAL_MAX, PER_BOOK_MAX);
+  // 跨书硬约束：不足 BOOK_MIN 本时，放宽到全池重新铺开（仍不放宽每本上限）
+  if (materials.length < MATERIAL_MIN || distinctBooks(materials) < BOOK_MIN) {
+    const wider = fresh.filter((item) => allowedBook(item.bookId));
+    materials = pickMaterials(wider.length >= MATERIAL_MIN ? wider : fresh, MATERIAL_MAX, PER_BOOK_MAX);
+  }
   if (materials.length < MATERIAL_MIN) {
     return { ok: false, reason: 'material', count: materials.length, need: MATERIAL_MIN };
   }
+
+  const bookIds = [];
+  const bookCount = {};
+  materials.forEach((item) => {
+    const id = item.bookId || '';
+    if (!id) {
+      return;
+    }
+    if (bookIds.indexOf(id) < 0) {
+      bookIds.push(id);
+    }
+    bookCount[id] = (bookCount[id] || 0) + 1;
+  });
+  let mainBookId = '';
+  Object.keys(bookCount).forEach((id) => {
+    if (!mainBookId || bookCount[id] > bookCount[mainBookId]) {
+      mainBookId = id;
+    }
+  });
 
   return {
     ok: true,
     theme: theme,
     materials: materials,
-    resetUsed: resetUsed,
+    bookIds: bookIds,
+    mainBookId: mainBookId,
+    hashes: materials.map((item) => hashKey(item.text)),
+    singleBook: bookIds.length < BOOK_MIN,
     poolSize: tagged.length,
   };
 }
@@ -317,6 +389,10 @@ function makeIssue(material, text, tier) {
       text: item.text || '',
       at: item.at || 0,
     })),
+    // M17 文章级记录：供「最近几期主题避让 / 单本配额 / 30 天冷却」统计
+    bookIds: (material && material.bookIds) || [],
+    mainBookId: (material && material.mainBookId) || '',
+    hashes: (material && material.hashes) || [],
     sparks: (Array.isArray(t.sparks) ? t.sparks : [])
       .map((item) => (typeof item === 'string'
         ? { text: item, source: '' }
@@ -334,19 +410,92 @@ function localTitle(theme) {
   return theme ? ('关于「' + theme + '」的一组笔记') : '这一周，重读几段划线';
 }
 
+/** 按书分组（保持选材顺序，同一本书的素材聚在一起） */
+function groupByBook(list) {
+  const groups = [];
+  const index = {};
+  list.forEach((item) => {
+    const key = item.bookId || item.title || '_';
+    if (!index[key]) {
+      index[key] = { title: item.title || '未命名', author: item.author || '', items: [] };
+      groups.push(index[key]);
+    }
+    index[key].items.push(item);
+  });
+  return groups;
+}
+
+function bookLabel(group) {
+  return '《' + group.title + '》' + (group.author ? ' · ' + group.author : '');
+}
+
+/**
+ * 纯本地规则成文（不调用任何 AI、不做解读）：
+ * 只用固定句式把素材按书串起来，逐字引用读者原文（[[ ]] 标记，前端加下划线）。
+ * 目的：让一期内容读起来是一篇完整的合辑，而不是「只有素材列表」。
+ */
+function localArticle(material) {
+  const list = (material && material.materials) || [];
+  const theme = (material && material.theme) || '';
+  const title = localTitle(theme);
+  if (!list.length) {
+    return { title: title, summary: '', body: '' };
+  }
+  const groups = groupByBook(list);
+  const markCount = list.filter((item) => item.kind !== 'review').length;
+  const thoughtCount = list.length - markCount;
+  const paras = [];
+  paras.push((theme ? '围绕「' + theme + '」，你' : '这一周，你')
+    + '留下了 ' + list.length + ' 段素材（划线 ' + markCount + ' 段'
+    + (thoughtCount ? '、想法 ' + thoughtCount + ' 条' : '')
+    + '），来自 ' + groups.length + ' 本书：' + groups.map(bookLabel).join('、') + '。');
+  groups.forEach((group, gi) => {
+    paras.push((gi === 0 ? '先读' : '接着读') + bookLabel(group) + '。');
+    group.items.forEach((item) => {
+      paras.push((item.kind === 'review' ? '你自己写下：' : '你划下：') + '[[' + item.text + ']]');
+    });
+  });
+  paras.push('以上 ' + list.length + ' 段全部来自你自己的阅读，没有一句是别人替你写的。'
+    + '同一周里被同时留下的句子，往往指向同一个问题——这个问题，只有你能接着往下写。');
+  return {
+    title: title,
+    summary: '本期从你的划线 / 想法里挑出 ' + list.length + ' 段（' + groups.length + ' 本书），按书排在一起，供你自己串读。',
+    body: paras.join('\n\n'),
+  };
+}
+
 /**
  * 组装一期「纯本地规则排版」内容（M15 去 AI 后使用）：
- * 不做 AI 成文、无摘要 / 正文 / 外部火花 / 创作种子，只按主题把素材平铺出来供读者自己串读。
+ * 不做 AI 成文、无外部火花 / 创作种子；用固定句式把素材按书串成一篇合辑（见 localArticle）。
  */
 function makeLocalIssue(material, tier) {
+  const article = localArticle(material);
   return makeIssue(material, {
     ai: false,
-    title: localTitle((material && material.theme) || ''),
-    summary: '',
-    body: '',
+    title: article.title,
+    summary: article.summary,
+    body: article.body,
     sparks: [],
     seeds: [],
   }, tier);
+}
+
+/**
+ * 旧数据补正文：早期本地合辑只有素材、正文为空（页面看起来「没有文章」），
+ * 读出时按同一套规则就地补上；返回是否发生改动（不改 id / 收藏状态）。
+ */
+function fillLocalArticle(issue) {
+  if (!issue || issue.ai || issue.body) {
+    return false;
+  }
+  const sources = Array.isArray(issue.sources) ? issue.sources : [];
+  if (!sources.length) {
+    return false;
+  }
+  const article = localArticle({ theme: issue.theme, materials: sources });
+  issue.summary = issue.summary || article.summary;
+  issue.body = article.body;
+  return true;
 }
 
 /** 一期 → 页面视图（来源可点开；正文按原文标记切段；外部火花带出处） */
@@ -397,6 +546,9 @@ module.exports = {
   MATERIAL_MIN,
   MATERIAL_MAX,
   PER_BOOK_MAX,
+  BOOK_MIN,
+  COOLDOWN_DAYS,
+  BOOK_WANDER_MAX,
   weekStart,
   weekKey,
   weekLabel,
@@ -408,6 +560,7 @@ module.exports = {
   makeIssue,
   makeLocalIssue,
   localTitle,
+  fillLocalArticle,
   toView,
   hashKey,
   dateKey,

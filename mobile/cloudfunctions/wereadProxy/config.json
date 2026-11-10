@@ -3,5 +3,6 @@
     "openapi": [
       "img.scanQRCode"
     ]
-  }
+  },
+  "timeout": 20
 }

@@ -129,8 +129,8 @@ async function generate(body, app, isRegen) {
       return;
     }
 
-    // 3) 素材池
-    const poolRes = await wanderData.fetchPool(!!isRegen);
+    // 3) 素材池（M17：通常直接命中本机素材库，0 次请求）
+    let poolRes = await wanderData.fetchPool(false);
     if (!poolRes.ok) {
       S.generating = false;
       S.loading = false;
@@ -146,8 +146,15 @@ async function generate(body, app, isRegen) {
       return;
     }
 
-    // 4) 选材（尽量避开上一期的主题）
-    const material = core.prepareWander(poolRes.pool, db.getUsed(), { avoidTheme: db.lastTheme() });
+    // 4) 选材（跨书 ≥3 本、30 天冷却、避开最近 8 期主题）
+    let material = core.prepareWander(poolRes.pool, db.getUsed(), db.selectionOpts());
+    if (!material.ok && material.exhausted) {
+      // 本机素材被避让规则用尽 → 强制补拉一轮（换一批书），仍不重置历史
+      poolRes = await wanderData.fetchPool(true);
+      if (poolRes.ok) {
+        material = core.prepareWander(poolRes.pool, db.getUsed(), db.selectionOpts());
+      }
+    }
     if (!material.ok) {
       S.generating = false;
       S.loading = false;
@@ -156,9 +163,6 @@ async function generate(body, app, isRegen) {
       S.need = material.need || core.MATERIAL_MIN;
       paint(body);
       return;
-    }
-    if (material.resetUsed) {
-      db.resetUsed();
     }
 
     // 5) AI 综述（读者的书单：供外部火花呼应他自己的书）

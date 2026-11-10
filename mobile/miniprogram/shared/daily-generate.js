@@ -14,6 +14,7 @@ const store = require('./store');
 const core = require('./daily-core');
 const db = require('./daily-store');
 const dailyData = require('./daily-data');
+const logger = require('./logger');
 const { generateDailyText } = require('./daily-ai');
 const { messageOf } = require('./errors');
 
@@ -25,9 +26,18 @@ const { messageOf } = require('./errors');
  *   或 { ok:false, code:'material', reason:'material', count, need }（素材不足，走引导）
  */
 async function ensureTodayCard() {
+  const started = Date.now();
   const existing = db.getTodayCard();
   if (existing) {
+    logger.log('daily', '卡片命中本机', { ms: Date.now() - started });
     return { ok: true, fromCache: true, card: existing, view: core.toView(existing) };
+  }
+
+  // M17：本机没有今天卡片时，先问云端是否已有（换机 / 清缓存后秒开；失败不影响生成）
+  const remote = await db.pullTodayCard();
+  if (remote) {
+    logger.log('daily', '卡片命中云端', { ms: Date.now() - started });
+    return { ok: true, fromCache: true, card: remote, view: core.toView(remote) };
   }
 
   const key = store.getKey();
@@ -38,7 +48,7 @@ async function ensureTodayCard() {
     return { ok: false, code: 'nokey_ds', error: '每日卡片需要 DeepSeek Key，请在「我的 → 设置」里填写' };
   }
 
-  const poolRes = await dailyData.fetchPool(key, false);
+  const poolRes = await dailyData.fetchPool(key, false, 'daily');
   if (!poolRes.ok) {
     if (poolRes.code === 'nocorpus') {
       return { ok: false, code: 'material', reason: 'material', count: 0, need: core.MATERIAL_MIN };
@@ -46,7 +56,7 @@ async function ensureTodayCard() {
     return { ok: false, code: poolRes.code, error: messageOf(poolRes, '读取数据失败') };
   }
 
-  const material = core.prepareMaterial(poolRes.pool, db.getUsed());
+  const material = core.prepareMaterial(poolRes.pool, db.getUsed(), db.selectionOpts());
   if (!material.ok) {
     return {
       ok: false,
@@ -55,9 +65,6 @@ async function ensureTodayCard() {
       count: material.count || 0,
       need: material.need || core.MATERIAL_MIN,
     };
-  }
-  if (material.resetUsed) {
-    db.resetUsed();
   }
 
   // AI 开启时走 AI 成文；M15 关闭时走纯本地规则排版（无 note、无解读）
@@ -73,7 +80,13 @@ async function ensureTodayCard() {
 
   const card = core.makeCard(material, text);
   db.saveCard(card);
-  db.markUsed(material.main.text);
+  // M17：正文 + 关联句整批记为已用（卡片本身也存了 hashes，两者互为兜底）
+  db.markUsed([material.main].concat(material.related || []));
+  logger.log('daily', '卡片已生成', {
+    ms: Date.now() - started,
+    calls: (poolRes && poolRes.callCount) || 0,
+    pool: poolRes.pool ? poolRes.pool.length : 0,
+  });
   return { ok: true, fromCache: false, card: card, view: core.toView(card) };
 }
 

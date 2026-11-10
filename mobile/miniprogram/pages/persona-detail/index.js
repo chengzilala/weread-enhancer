@@ -136,6 +136,7 @@ Page({
       name: detail.name,
       figureName: detail.figureName,
       why: persona.figure ? persona.figure.why : '',
+      sample: (persona.figureEvidence && persona.figureEvidence.sample) || '',
       sections: sections,
       quotes: (detail.quotes || []).map((quote) => ({
         text: quote.text,

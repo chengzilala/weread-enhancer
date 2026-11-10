@@ -164,6 +164,13 @@ function detailHtml(detail, persona) {
 
   const sections = (detail.sections || []).map(sectionHtml).join('');
 
+  // 数据样本：原先放在结果页，收进这里
+  const sample = (persona.figureEvidence && persona.figureEvidence.sample)
+    ? '<div class="wre-card wre-ev__sec">' +
+      '<div class="wre-ev__head"><span class="wre-ev__dim">数据样本</span></div>' +
+      '<div class="wre-ev__lead">' + esc(persona.figureEvidence.sample) + '</div></div>'
+    : '';
+
   const quotes = (detail.quotes || []).length
     ? '<div class="wre-card wre-ev__sec">' +
       '<div class="wre-ev__head"><span class="wre-ev__dim">原文划线</span>' +
@@ -176,6 +183,6 @@ function detailHtml(detail, persona) {
       '</div>'
     : '';
 
-  return head + sections + quotes +
+  return head + sections + sample + quotes +
     '<div class="wre-note">' + esc(detail.note || '') + '</div>';
 }

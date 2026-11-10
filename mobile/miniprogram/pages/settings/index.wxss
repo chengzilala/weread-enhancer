@@ -57,30 +57,22 @@
   font-size: calc(36rpx * var(--wre-fs));
 }
 
-/* 打赏支持：两条收款码并排（对齐 H5 .wre-donate） */
-.donate-codes {
-  display: flex;
-  justify-content: center;
-  gap: 40rpx;
-  flex-wrap: wrap;
-  margin-top: 24rpx;
-}
-
-.donate-code {
+/* 反馈与交流：单张微信二维码（小程序内不得出现打赏 / 收款码） */
+.feedback-code {
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-top: 24rpx;
 }
 
-.donate-qr {
-  width: 264rpx;
-  height: 264rpx;
+.feedback-qr {
+  width: 440rpx;
   border-radius: 16rpx;
   border: 1rpx solid var(--wre-line);
   background: #fff;
 }
 
-.donate-label {
+.feedback-label {
   margin-top: 12rpx;
   font-size: calc(24rpx * var(--wre-fs));
   color: var(--wre-muted);
@@ -160,14 +152,14 @@
   color: var(--wre-brand);
 }
 
-/* 页尾：运行日志入口（不显眼，仅排查用） */
-.log-entry {
-  margin-top: 8rpx;
+/* 危险操作：注销账户（弱化文字按钮，靠二次确认兜底） */
+.acc-danger {
+  margin-top: 28rpx;
   padding: 16rpx 0;
   text-align: center;
-  font-size: calc(22rpx * var(--wre-fs));
-  color: var(--wre-muted);
-  opacity: 0.7;
+  font-size: calc(24rpx * var(--wre-fs));
+  color: #e54545;
+  opacity: 0.85;
 }
 
 /* 参数详情（放在「更多」折叠区里） */
@@ -403,7 +395,7 @@
   margin-right: 0;
 }
 
-/* 页尾：退出登录（弱化）+ 运行日志 */
+/* 页尾：退出登录（弱化） */
 .wre-foot {
   padding: 8rpx 8rpx 40rpx;
   text-align: center;

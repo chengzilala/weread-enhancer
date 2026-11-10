@@ -128,9 +128,37 @@ async function refresh() {
     nickname: res.nickname || '',
     avatar: res.avatar || '',
     emailMasked: res.emailMasked || '',
+    phoneMasked: res.phoneMasked || '',
+    keys: Array.isArray(res.keys) ? res.keys : [],
   };
   save(token, user);
   return user;
+}
+
+/** 我的作品：列出该 uid 已登记的作品（登录即刻可用） */
+async function products() {
+  const token = readToken();
+  if (!token) {
+    return { ok: false, code: 'novauth', error: '未登录' };
+  }
+  const res = await call({ action: 'psProducts', token: token });
+  if (!res.ok) {
+    return { ok: false, code: res.code || 'failed', error: res.error || '读取作品列表失败' };
+  }
+  return { ok: true, products: Array.isArray(res.products) ? res.products : [] };
+}
+
+/** 注销账户：不可恢复；成功后本机登录态一并清掉 */
+async function remove() {
+  const token = readToken();
+  if (!token) {
+    return { ok: false, code: 'novauth', error: '未登录' };
+  }
+  const res = await call({ action: 'psDelete', token: token });
+  if (res.ok) {
+    clear();
+  }
+  return res;
 }
 
 /** 退出统一账户：只撤销这一条会话，本机 Key / 账户码 / 云数据都不动 */
@@ -143,4 +171,4 @@ async function logout() {
   return { ok: true };
 }
 
-module.exports = { currentUser, login, bind, refresh, logout };
+module.exports = { currentUser, login, bind, refresh, logout, products, remove };

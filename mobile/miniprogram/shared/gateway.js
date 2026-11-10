@@ -48,4 +48,35 @@ async function verifyKey(apiKey) {
   return await callGateway('/readdata/detail', { mode: 'weekly', baseTime: 0 }, apiKey);
 }
 
-module.exports = { callGateway, verifyKey };
+/**
+ * 一次代拉素材池（M17）：云函数内并发拉「划线 + 想法」，客户端只发 1 次调用。
+ * @param {string} mode daily / wander（决定取几本书）
+ * @param {Array} books [{bookId,title,author}]；传空则由服务端按笔记数选书
+ * @returns {object} { ok:true, books:[{bookId,title,author,marks,reviews}], overview } 或 { ok:false, code, error }
+ */
+function callPool(mode, books) {
+  return new Promise((resolve) => {
+    wx.cloud
+      .callFunction({
+        name: PROXY_FUNCTION,
+        data: { action: 'pool', mode: mode || 'daily', books: books || [] },
+      })
+      .then((res) => {
+        const result = res && res.result;
+        if (!result || typeof result.ok !== 'boolean') {
+          resolve({ ok: false, code: 'empty', error: '云函数未返回有效结果' });
+          return;
+        }
+        resolve(result);
+      })
+      .catch((err) => {
+        resolve({
+          ok: false,
+          code: 'cloud',
+          error: '云函数调用失败：' + ((err && err.errMsg) || '未知错误'),
+        });
+      });
+  });
+}
+
+module.exports = { callGateway, verifyKey, callPool };

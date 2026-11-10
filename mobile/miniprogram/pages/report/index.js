@@ -188,7 +188,7 @@ Page({
       stats: stats.slice(0, 4),
       lines: lines.slice(0, 3),
       chips: chips.slice(0, 8),
-      footer: (profile.nickName ? profile.nickName + ' · ' : '') + '悦读且住 · 本机计算',
+      footer: (profile.nickName ? profile.nickName + ' · ' : '') + '悦读且住 · 微信小程序',
     };
   },
 

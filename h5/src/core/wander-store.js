@@ -20,6 +20,12 @@ const QUOTA_KEY = 'wre_wander_quota';
 const SEEN_KEY = 'wre_wander_seen';   // 最近一次「看过」的期 id，用于入口「新」标
 
 export const HISTORY_MAX = 52;   // 本机最多保留期数（约一年）
+export const COOLDOWN_DAYS = 30; // 同一划线 30 天内不重复进正文（M17）
+export const RECENT_HASH_DAYS = 30; // 漫游跨期避让：最近 30 天用过的 hash 不再进正文（M17）
+const AVOID_THEME_ISSUES = 8;    // 漫游避开最近 8 期主题（M17）
+const USED_DAYS = 90;            // 已用集合滑动窗口：只保留最近 90 天（M17）
+const USED_MAX = 1000;           // 已用集合滑动窗口：最多保留 1000 条（M17）
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 // ---- 本机读写 ----
 function readJson(key, fallback) {
@@ -31,6 +37,20 @@ function writeJson(key, value) {
 }
 
 // ---- 已用素材（跨期不重复）----
+
+/** 滑动窗口：只留最近 USED_DAYS 天、最多 USED_MAX 条；不清空历史（M17） */
+function pruneUsed(used) {
+  const cutoff = Date.now() - USED_DAYS * DAY_MS;
+  const pairs = Object.keys(used)
+    .map((key) => [key, Number(used[key]) || 0])
+    .filter((pair) => pair[1] >= cutoff)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, USED_MAX);
+  const out = {};
+  pairs.forEach((pair) => { out[pair[0]] = pair[1]; });
+  return out;
+}
+
 export function getUsed() {
   const value = readJson(USED_KEY, {});
   return value && typeof value === 'object' ? value : {};
@@ -40,19 +60,71 @@ export function getUsed() {
 export function markUsed(list) {
   const used = getUsed();
   const now = Date.now();
-  (Array.isArray(list) ? list : []).forEach((item) => {
+  (Array.isArray(list) ? list : [list]).forEach((item) => {
     const text = item && typeof item === 'object' ? item.text : item;
     if (text) {
       used[hashKey(text)] = now;
     }
   });
-  writeJson(USED_KEY, used);
+  writeJson(USED_KEY, pruneUsed(used));
   backupSilent();
 }
 
-export function resetUsed() {
-  writeJson(USED_KEY, {});
-  backupSilent();
+/** 最近 N 天用过的所有 hash（文章级 + 已用集合），供选材避让 */
+export function getRecentHashes(days) {
+  const limit = Date.now() - (Number(days) || RECENT_HASH_DAYS) * DAY_MS;
+  const out = {};
+  listIssues().forEach((issue) => {
+    const at = Number(issue && issue.createdAt) || 0;
+    if (!at || at < limit) {
+      return;
+    }
+    (Array.isArray(issue.hashes) ? issue.hashes : []).forEach((hash) => { out[hash] = at; });
+  });
+  const used = getUsed();
+  Object.keys(used).forEach((key) => {
+    if (Number(used[key]) >= limit) {
+      out[key] = Number(used[key]);
+    }
+  });
+  return out;
+}
+
+/** 最近 N 天「当主素材」的次数 {bookId: count}：同一本书 30 天最多 1 次（M17） */
+export function getRecentMainBookIds(days) {
+  const limit = Date.now() - (Number(days) || COOLDOWN_DAYS) * DAY_MS;
+  const out = {};
+  listIssues().forEach((issue) => {
+    const at = Number(issue && issue.createdAt) || 0;
+    const bookId = issue && issue.mainBookId;
+    if (!bookId || !at || at < limit) {
+      return;
+    }
+    out[bookId] = (out[bookId] || 0) + 1;
+  });
+  return out;
+}
+
+/** 最近 count 期的主题（新的在前，去重），用于「避开最近几期」 */
+export function recentThemes(count) {
+  const max = Number(count) || AVOID_THEME_ISSUES;
+  const out = [];
+  listIssues().forEach((issue) => {
+    const theme = issue && issue.theme;
+    if (theme && out.indexOf(theme) < 0 && out.length < max) {
+      out.push(theme);
+    }
+  });
+  return out;
+}
+
+/** 选材入参（页面统一口径） */
+export function selectionOpts() {
+  return {
+    avoidThemes: recentThemes(AVOID_THEME_ISSUES),
+    recentHashes: getRecentHashes(RECENT_HASH_DAYS),
+    recentMainBookIds: getRecentMainBookIds(COOLDOWN_DAYS),
+  };
 }
 
 // ---- 每周「生成」限流（周键为周一日期）----
@@ -107,12 +179,6 @@ export function getWeekIssue() {
     }
   }
   return null;
-}
-
-/** 最近一期的主题（用于「避免连续两期同主题」） */
-export function lastTheme() {
-  const issues = listIssues();
-  return issues.length && issues[0] ? (issues[0].theme || '') : '';
 }
 
 export function getIssueById(id) {

@@ -71,6 +71,16 @@ export async function verifyKey() {
   return await relay('/readdata/detail', { mode: 'weekly', baseTime: 0 });
 }
 
+/**
+ * 一次代拉素材池（M17）：云函数内并发拉「划线 + 想法」，客户端只发 1 次请求。
+ * @param {string} mode daily / wander（决定取几本书）
+ * @param {Array} books [{bookId,title,author}]；传空则由服务端按笔记数选书
+ * @returns {object} { ok:true, books:[{bookId,title,author,marks,reviews}], overview } 或 { ok:false, code, error }
+ */
+export function pool(mode, books) {
+  return call({ action: 'pool', mode: mode || 'daily', books: books || [] }, CONFIG.POOL_TIMEOUT_MS);
+}
+
 // ---- AI 转发 ----
 /** feature / tier 只用于服务端成本统计（tier 仅灵感漫游：copper / silver / gold） */
 export function ai(messages, feature, tier) {

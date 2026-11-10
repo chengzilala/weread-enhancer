@@ -100,6 +100,9 @@
           </view>
         </view>
 
+        <!-- 说明：小程序端受合规限制不做 AI 生成，AI 版本在网页版 -->
+        <view class="source-note" wx:if="{{!issue.ai}}">说明：本期由本机按规则编排，全部素材都来自你自己的划线 / 想法。更完整的 AI 综述版在网页版（H5）提供；小程序端受法律与平台合规限制，不提供任何 AI 生成内容。</view>
+
         <view class="ai-error" wx:if="{{aiError}}">{{aiError}}</view>
       </view>
 
@@ -224,6 +227,7 @@
         <view class="rules-sec">
           <view class="rules-h">怎么读</view>
           <view class="rules-p">每期就是一组合辑：按主题把你自己的划线 / 想法排在一起，点开每条可看全文与出处。</view>
+          <view class="rules-p">小程序端不做任何 AI 生成（受法律与平台合规限制），更完整的 AI 综述版在网页版（H5）提供。</view>
         </view>
       </scroll-view>
       <button class="wre-btn" bindtap="closeRules">我知道了</button>

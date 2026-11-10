@@ -111,7 +111,8 @@ async function generate(body, app, isRegen) {
   S.aiError = '';
   paint(body);
 
-  const poolRes = await fetchPool(!!isRegen);
+  // M17：默认读本机素材库（0 次请求）；重新生成也不再强制重拉语料
+  let poolRes = await fetchPool(false, 'daily');
   if (!poolRes.ok) {
     S.generating = false;
     if (poolRes.code === 'nocorpus') {
@@ -126,7 +127,14 @@ async function generate(body, app, isRegen) {
     return;
   }
 
-  const material = core.prepareMaterial(poolRes.pool, db.getUsed());
+  let material = core.prepareMaterial(poolRes.pool, db.getUsed(), db.selectionOpts());
+  if (!material.ok && material.exhausted) {
+    // 本机素材被避让规则用尽 → 强制补拉一轮（换一批书），仍不重置历史
+    poolRes = await fetchPool(true, 'daily');
+    if (poolRes.ok) {
+      material = core.prepareMaterial(poolRes.pool, db.getUsed(), db.selectionOpts());
+    }
+  }
   if (!material.ok) {
     S.generating = false;
     S.reason = 'material';
@@ -134,9 +142,6 @@ async function generate(body, app, isRegen) {
     S.need = material.need || core.MATERIAL_MIN;
     paint(body);
     return;
-  }
-  if (material.resetUsed) {
-    db.resetUsed();
   }
 
   const text = await generateDailyText(material);
@@ -155,7 +160,8 @@ async function generate(body, app, isRegen) {
 
   const card = core.makeCard(material, text);
   db.saveCard(card);
-  db.markUsed(material.main.text);
+  // M17：正文 + 关联句整批记为已用
+  db.markUsed([material.main].concat(material.related || []));
   if (isRegen) {
     db.bumpRegen();
   }

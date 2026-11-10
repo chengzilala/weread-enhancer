@@ -237,6 +237,14 @@
   color: var(--wre-text-body);
 }
 
+/* 说明：本机编排 + AI 版在网页版（合规口径） */
+.source-note {
+  margin-top: 20rpx;
+  font-size: calc(22rpx * var(--wre-fs));
+  line-height: 1.7;
+  color: var(--wre-muted);
+}
+
 .ai-error {
   margin-top: 20rpx;
   font-size: calc(24rpx * var(--wre-fs));

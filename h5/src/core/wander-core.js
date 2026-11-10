@@ -25,6 +25,22 @@ export const MATERIAL_MIN = 6;
 export const MATERIAL_MAX = 12;
 // 同一本书最多取这么多条（跨书优先，避免整期只讲一本书）
 export const PER_BOOK_MAX = 3;
+// M17 多样性约束：一期至少来自 3 本书、单条素材 30 天冷却、同一本书 30 天只当 1 次主素材
+export const BOOK_MIN = 3;
+export const COOLDOWN_DAYS = 30;
+export const BOOK_WANDER_MAX = 1;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** 一批素材覆盖了几本书（空 bookId 不计） */
+function distinctBooks(items) {
+  const seen = {};
+  (Array.isArray(items) ? items : []).forEach((item) => {
+    if (item && item.bookId) {
+      seen[item.bookId] = true;
+    }
+  });
+  return Object.keys(seen).length;
+}
 
 function pad2(value) {
   return String(value).padStart(2, '0');
@@ -189,12 +205,12 @@ function pickMaterials(items, max, perBookMax) {
 }
 
 /**
- * 抽签选材：挑一个「素材足够多」的主题（尽量避开上一期的主题），从中选一批划线 / 想法。
+ * 抽签选材：挑一个「素材足够多」的主题（避开最近几期已用主题），从中选一批划线 / 想法。
+ * M17 起：30 天冷却、最近文章 hash 避让、单本 30 天只当 1 次主素材、至少跨 3 本书。
  * 找不到成规模的主题时，退化为「综合」——直接按素材池选，仍能成篇。
  * @param {Array} pool 素材池 [{bookId,title,author,kind,text,at}]
- * @param {object} usedMap 已用素材集合 {hashKey: ts}（由 wander-store 提供）
- * @param {object} opts { avoidTheme }
- * @returns {object} { ok, reason?, count?, need?, resetUsed?, theme, materials[], poolSize }
+ * @param {object} usedMap 已用素材集合 {hashKey: ts}（daily + wander 共用）
+ * @param {object} opts { avoidThemes, recentHashes, recentMainBookIds, bookWanderMax, cooldownDays }
  */
 export function prepareWander(pool, usedMap, opts) {
   const o = opts || {};
@@ -204,42 +220,97 @@ export function prepareWander(pool, usedMap, opts) {
   }
 
   const used = usedMap && typeof usedMap === 'object' ? usedMap : {};
-  const isUsed = (item) => !!used[hashKey(item.text)];
-  const { tagged, groups } = tagAndGroup(list);
+  const now = Date.now();
+  const cooldownMs = (Number(o.cooldownDays) || COOLDOWN_DAYS) * DAY_MS;
+  const recentHashes = o.recentHashes && typeof o.recentHashes === 'object' ? o.recentHashes : {};
+  const isFresh = (item) => {
+    const key = hashKey(item.text);
+    if (recentHashes[key]) {
+      return false;
+    }
+    const at = Number(used[key]) || 0;
+    return !at || (now - at) >= cooldownMs;
+  };
 
-  // 候选主题：素材量足够，且尽量不是上一期的主题
-  let theme = '';
-  let candidates = tagged;
-  const themes = Object.keys(groups)
-    .map((name) => ({ name: name, items: groups[name] }))
+  const { tagged } = tagAndGroup(list);
+  const fresh = tagged.filter(isFresh);
+  if (fresh.length < MATERIAL_MIN) {
+    return { ok: false, reason: 'material', count: fresh.length, need: MATERIAL_MIN, exhausted: true };
+  }
+
+  // 主题只在「未冷却」的素材里找，避免选到一个全被用过的主题
+  const freshGroups = {};
+  fresh.forEach((item) => {
+    if (item.theme) {
+      if (!freshGroups[item.theme]) {
+        freshGroups[item.theme] = [];
+      }
+      freshGroups[item.theme].push(item);
+    }
+  });
+  const avoidThemes = Array.isArray(o.avoidThemes)
+    ? o.avoidThemes
+    : (o.avoidTheme ? [o.avoidTheme] : []);
+  const themes = Object.keys(freshGroups)
+    .map((name) => ({ name: name, items: freshGroups[name] }))
     .filter((t) => t.items.length >= MATERIAL_MIN)
-    .filter((t) => (o.avoidTheme ? t.name !== o.avoidTheme : true))
     .sort((a, b) => b.items.length - a.items.length);
-  if (themes.length) {
-    const top = themes.slice(0, 3);   // 在素材量靠前的主题里随机挑，避免每周都同一个主题
+
+  const preferred = themes.filter((t) => avoidThemes.indexOf(t.name) < 0);
+  const usable = preferred.length ? preferred : themes;
+  let theme = '';
+  let candidates = fresh;
+  if (usable.length) {
+    const top = usable.slice(0, 3);   // 在素材量靠前的主题里随机挑，避免每周都同一个主题
     const chosen = top[Math.floor(Math.random() * top.length)];
     theme = chosen.name;
     candidates = chosen.items;
   }
 
-  // 全部用过 → 请调用方重置「已用集合」（覆盖周期）
-  let resetUsed = false;
-  let fresh = candidates.filter((item) => !isUsed(item));
-  if (fresh.length < MATERIAL_MIN) {
-    resetUsed = true;
-    fresh = candidates.slice();
-  }
+  // 单本配额：30 天内已当过主素材的书，本次尽量不再当主素材
+  const recentMain = o.recentMainBookIds && typeof o.recentMainBookIds === 'object' ? o.recentMainBookIds : {};
+  const maxPerBook = Number(o.bookWanderMax) || BOOK_WANDER_MAX;
+  const allowedBook = (bookId) => !bookId || (Number(recentMain[bookId]) || 0) < maxPerBook;
+  const allowedCandidates = candidates.filter((item) => allowedBook(item.bookId));
+  const base = allowedCandidates.length >= MATERIAL_MIN ? allowedCandidates : candidates;
 
-  const materials = pickMaterials(fresh, MATERIAL_MAX, PER_BOOK_MAX);
+  let materials = pickMaterials(base, MATERIAL_MAX, PER_BOOK_MAX);
+  // 跨书硬约束：不足 BOOK_MIN 本时，放宽到全池重新铺开（仍不放宽每本上限）
+  if (materials.length < MATERIAL_MIN || distinctBooks(materials) < BOOK_MIN) {
+    const wider = fresh.filter((item) => allowedBook(item.bookId));
+    materials = pickMaterials(wider.length >= MATERIAL_MIN ? wider : fresh, MATERIAL_MAX, PER_BOOK_MAX);
+  }
   if (materials.length < MATERIAL_MIN) {
     return { ok: false, reason: 'material', count: materials.length, need: MATERIAL_MIN };
   }
+
+  const bookIds = [];
+  const bookCount = {};
+  materials.forEach((item) => {
+    const id = item.bookId || '';
+    if (!id) {
+      return;
+    }
+    if (bookIds.indexOf(id) < 0) {
+      bookIds.push(id);
+    }
+    bookCount[id] = (bookCount[id] || 0) + 1;
+  });
+  let mainBookId = '';
+  Object.keys(bookCount).forEach((id) => {
+    if (!mainBookId || bookCount[id] > bookCount[mainBookId]) {
+      mainBookId = id;
+    }
+  });
 
   return {
     ok: true,
     theme: theme,
     materials: materials,
-    resetUsed: resetUsed,
+    bookIds: bookIds,
+    mainBookId: mainBookId,
+    hashes: materials.map((item) => hashKey(item.text)),
+    singleBook: bookIds.length < BOOK_MIN,
     poolSize: tagged.length,
   };
 }
@@ -316,6 +387,10 @@ export function makeIssue(material, text, tier) {
       text: item.text || '',
       at: item.at || 0,
     })),
+    // M17 文章级记录：供「最近几期主题避让 / 单本配额 / 30 天冷却」统计
+    bookIds: (material && material.bookIds) || [],
+    mainBookId: (material && material.mainBookId) || '',
+    hashes: (material && material.hashes) || [],
     sparks: (Array.isArray(t.sparks) ? t.sparks : [])
       .map((item) => (typeof item === 'string'
         ? { text: item, source: '' }

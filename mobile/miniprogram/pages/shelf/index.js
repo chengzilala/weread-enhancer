@@ -6,8 +6,6 @@ const { renderShelfShare } = require('../../shared/shelf-share');
 const { messageOf, isKeyError } = require('../../shared/errors');
 const shareEntry = require('../../shared/share-entry');
 
-const SHELF_MAX = 100; // 单次最多渲染的条目数，防超长列表卡顿
-
 function sortTopThenTime(list, timeField) {
   return list.slice().sort((a, b) => {
     const top = (Number(b.isTop) || 0) - (Number(a.isTop) || 0);
@@ -32,7 +30,7 @@ function buildGroups(shelf) {
     }
   });
   const countOf = (list) => (Array.isArray(list) ? list : []).filter((it) => !(Array.isArray(it.groups) && it.groups.length)).length;
-  const rest = countOf(shelf.books) + countOf(shelf.albums);
+  const rest = countOf(shelf.books);
   return { groups: out, ungrouped: rest ? { count: rest } : null };
 }
 
@@ -47,12 +45,10 @@ Page({
     cacheHint: '',
     cards: [],
     categories: [],
-    books: [],
-    albums: [],
     groups: [],
     ungrouped: null,
+    total: 0,
     hasMp: false,
-    bookMore: 0,
     sharing: false,
     shareImg: '',
     showShare: false,
@@ -175,7 +171,7 @@ Page({
         { label: '已读完', value: (counts.finished || 0) + ' 本' },
       ],
       lines: books.slice(0, 3).map((b) => '《' + (b.title || '未命名') + '》' + (b.author ? ' · ' + b.author : '')),
-      footer: (profile.nickName ? profile.nickName + ' · ' : '') + '悦读且住 · 本机计算',
+      footer: (profile.nickName ? profile.nickName + ' · ' : '') + '悦读且住 · 微信小程序',
     };
   },
 
@@ -236,17 +232,6 @@ Page({
 
   noop() {},
 
-  // 小程序无法打开第三方网页，点击复制「书名 · 作者」便于到微信读书 App 里搜索
-  copyTitle(e) {
-    const title = e.currentTarget.dataset.title || '';
-    const author = e.currentTarget.dataset.author || '';
-    const text = author ? (title + ' · ' + author) : title;
-    if (!text) {
-      return;
-    }
-    wx.setClipboardData({ data: text });
-  },
-
   async load(force) {
     const key = store.getKey();
     if (!key) {
@@ -264,16 +249,15 @@ Page({
         error: messageOf(res, '读取书架失败'),
         needsKey: isKeyError(res.code),
         cards: [],
-        books: [],
-        albums: [],
         categories: [],
         groups: [],
         ungrouped: null,
+        total: 0,
       });
       return;
     }
     if (!res.shelf) {
-      this.setData({ error: '书架数据暂时取不到，请稍后重试', needsKey: false, cards: [], books: [], albums: [], categories: [], groups: [], ungrouped: null });
+      this.setData({ error: '书架数据暂时取不到，请稍后重试', needsKey: false, cards: [], categories: [], groups: [], ungrouped: null, total: 0 });
       return;
     }
     this.render(res.shelf, res.fromCache);
@@ -293,38 +277,13 @@ Page({
     ];
     const cats = shelfCategories(shelf).list;
 
-    const sortedBooks = sortTopThenTime(shelf.books || [], 'readUpdateTime');
-    const sortedAlbums = sortTopThenTime(shelf.albums || [], 'readUpdateTime');
-    const books = sortedBooks.slice(0, SHELF_MAX).map((item) => ({
-      id: item.bookId,
-      title: item.title || '未命名',
-      author: item.author || '',
-      category: item.category || '',
-      cover: item.cover || '',
-      finished: Number(item.finishReading) === 1,
-      secret: Number(item.secret) === 1,
-      top: Number(item.isTop) === 1,
-    }));
-    const albums = sortedAlbums.slice(0, SHELF_MAX).map((item) => ({
-      id: item.albumId,
-      title: item.name || '未命名',
-      author: item.authorName || '',
-      category: '',
-      cover: item.cover || '',
-      finished: Number(item.finish) === 1,
-      secret: Number(item.secret) === 1,
-      top: Number(item.isTop) === 1,
-    }));
-
     this.setData({
       cards,
       categories: cats,
-      books,
-      albums,
       groups: grouped.groups,
       ungrouped: grouped.ungrouped,
+      total: counts.total || 0,
       hasMp: !!shelf.hasMp,
-      bookMore: Math.max(0, sortedBooks.length - SHELF_MAX),
       error: '',
       cacheHint: fromCache ? '来自本地缓存（30 分钟内）' : '',
     });

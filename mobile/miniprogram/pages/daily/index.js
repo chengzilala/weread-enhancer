@@ -4,6 +4,7 @@ const { AI_ENABLED } = require('../../config');
 const core = require('../../shared/daily-core');
 const db = require('../../shared/daily-store');
 const dailyData = require('../../shared/daily-data');
+const logger = require('../../shared/logger');
 const { generateDailyText } = require('../../shared/daily-ai');
 const { renderDailyShare } = require('../../shared/daily-share');
 const { messageOf, isKeyError } = require('../../shared/errors');
@@ -127,8 +128,10 @@ Page({
       reason: '',
       aiError: '',
     });
+    const started = Date.now();
 
-    const poolRes = await dailyData.fetchPool(key, isRegen);
+    // M17：默认读本机素材库（0 次云函数调用）；重新生成也不再强制重拉语料
+    let poolRes = await dailyData.fetchPool(key, false, 'daily');
     if (!poolRes.ok) {
       if (poolRes.code === 'nocorpus') {
         this.setData({ generating: false, loading: false, reason: 'material', count: 0, need: core.MATERIAL_MIN, error: '' });
@@ -144,7 +147,14 @@ Page({
       return;
     }
 
-    const material = core.prepareMaterial(poolRes.pool, db.getUsed());
+    let material = core.prepareMaterial(poolRes.pool, db.getUsed(), db.selectionOpts());
+    if (!material.ok && material.exhausted) {
+      // 本机素材被避让规则用尽 → 强制补拉一轮（换一批书），仍不重置历史
+      poolRes = await dailyData.fetchPool(key, true, 'daily');
+      if (poolRes.ok) {
+        material = core.prepareMaterial(poolRes.pool, db.getUsed(), db.selectionOpts());
+      }
+    }
     if (!material.ok) {
       this.setData({
         generating: false,
@@ -156,10 +166,6 @@ Page({
       });
       wx.stopPullDownRefresh();
       return;
-    }
-    if (material.resetUsed) {
-      // 已用素材覆盖整个池子 → 重置覆盖周期，保证还能取到素材
-      db.resetUsed();
     }
 
     // 文案：AI 开启时走 AI 成文；M15 关闭时走纯本地规则排版（无 note、无解读）
@@ -190,7 +196,13 @@ Page({
 
     const card = core.makeCard(material, text);
     db.saveCard(card);
-    db.markUsed(material.main.text);
+    // M17：正文 + 关联句整批记为已用
+    db.markUsed([material.main].concat(material.related || []));
+    logger.log('daily', '卡片已生成', {
+      ms: Date.now() - started,
+      calls: (poolRes && poolRes.callCount) || 0,
+      books: (material.bookIds || []).length,
+    });
     const left = isRegen ? db.bumpRegen() : db.regenLeft();
 
     this.setData({
@@ -380,7 +392,7 @@ Page({
       } : null,
       lines: card.note ? [card.note] : [],
       chips: (card.themes || []).slice(0, 6),
-      footer: (profile.nickName ? profile.nickName + ' · ' : '') + '悦读且住 · 本机计算',
+      footer: (profile.nickName ? profile.nickName + ' · ' : '') + '悦读且住 · 微信小程序',
     };
   },
 

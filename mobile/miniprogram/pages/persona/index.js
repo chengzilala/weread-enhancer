@@ -149,7 +149,7 @@ Page({
       subtitle: p.tagline || '',
       lines: p.oneLiner ? [p.oneLiner] : [],
       chips: (p.nicknames || []).slice(0, 6),
-      footer: (profile.nickName ? profile.nickName + ' · ' : '') + '悦读且住 · 本机计算',
+      footer: (profile.nickName ? profile.nickName + ' · ' : '') + '悦读且住 · 微信小程序',
     };
   },
 
@@ -412,7 +412,6 @@ Page({
       codeItems: codeItems,
       full: persona.full,
       figure: persona.figure,
-      figureEvidence: persona.figureEvidence || null,
       figureUri: personaFigureDataUri(persona.code, this.data.wreDark),
       nicknames: persona.nicknames,
       oneLiner: persona.oneLiner,

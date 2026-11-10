@@ -21,6 +21,8 @@
     python3 marketing/软著申请/ruanzhu_submit.py --dump          # ② 登录后看当前页表单有哪些字段
     python3 marketing/软著申请/ruanzhu_submit.py --list          # 看当前页可点的按钮/链接（找入口用）
     python3 marketing/软著申请/ruanzhu_submit.py --fill          # ③ 按 form_data.json 自动填表
+    python3 marketing/软著申请/ruanzhu_submit.py --dev           # 第 2 步：软件分类/开发方式/日期/发表状态
+    python3 marketing/软著申请/ruanzhu_submit.py --features      # 第 3 步：环境/编程语言/源程序量/各文本域
     python3 marketing/软著申请/ruanzhu_submit.py --upload        # ④ 按 form_data.json 上传两份 PDF
     python3 marketing/软著申请/ruanzhu_submit.py --fill --upload # ③④ 一起
     python3 marketing/软著申请/ruanzhu_submit.py --shot          # 截当前页存到 .autoshot/ 便于排查
@@ -133,10 +135,56 @@ _JS_CLICK_TEXT = """(label) => {
 
 
 def _click_text(page, label, timeout=3000):
+    # 优先用真实点击：element.click() 对 Vue 组件的按钮有时不触发
+    for loc in (page.get_by_role("button", name=label),
+                page.get_by_role("link", name=label)):
+        try:
+            if loc.count() > 0:
+                loc.first.click(timeout=timeout)
+                return True
+        except Exception:
+            pass
     try:
         return bool(page.evaluate(_JS_CLICK_TEXT, label))
     except Exception:
         return False
+
+
+_JS_HAS_PWD = """() => {
+  const vis = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  return [...document.querySelectorAll('input')].some(i => i.type === 'password' && vis(i));
+}"""
+
+_JS_FILL_LOGIN = """([user, pwd]) => {
+  const vis = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const inputs = [...document.querySelectorAll('input')].filter(vis);
+  const setVal = (el, v) => {
+    el.focus();
+    const d = Object.getOwnPropertyDescriptor(el.constructor.prototype, 'value');
+    if (d && d.set) d.set.call(el, v); else el.value = v;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+  const u = inputs.find(i => /用户名|手机|邮箱/.test(i.placeholder || ''));
+  const p = inputs.find(i => i.type === 'password') ||
+            inputs.find(i => /密码/.test(i.placeholder || ''));
+  if (!u || !p) return { ok: false, seen: inputs.map(i => i.placeholder || i.type) };
+  setVal(u, user); setVal(p, pwd);
+  return { ok: true, placeholder: [u.placeholder || '', p.placeholder || ''] };
+}"""
+
+
+def login(page, user, pwd):
+    """把账号密码填进登录弹窗（不点「立即登录」，最后一步交给用户）。"""
+    if not page.evaluate(_JS_HAS_PWD):
+        print("  登录框还没出现，先点「立即登记」…")
+        _click_text(page, "立即登记")
+        page.wait_for_timeout(2500)
+    res = page.evaluate(_JS_FILL_LOGIN, [user, pwd])
+    if res.get("ok"):
+        print("  ✓ 已填入用户名 / 密码（未点登录）")
+    else:
+        print("  ✗ 没找到用户名/密码输入框；当前可见输入框：%s" % res.get("seen"))
 
 
 def _list_clickables(page):
@@ -298,6 +346,123 @@ def upload(page, rules):
 
 # ------------------------------------------------------------------ 主流程
 
+# ------------------------------------------------------------------ 第 2 步：软件开发信息
+
+def _pick_date(page, placeholder, iso, nth=0):
+    """站点日历是自定义控件（输入框 readonly），只能点选：先选年、再选月、再点日。"""
+    y, m, d = [int(x) for x in iso.split("-")]
+    page.get_by_placeholder(placeholder).nth(nth).click()
+    page.wait_for_timeout(500)
+    # 用第 nth 个输入框反查它所属的 .datePicker（首页/次页两个日期控件按 nth 区分）
+    idx = page.evaluate("""([ph, nth]) => {
+      const ins = [...document.querySelectorAll('input')].filter(i => i.placeholder === ph);
+      const dp = ins[nth] && ins[nth].closest('.datePicker');
+      return dp ? [...document.querySelectorAll('.datePicker')].indexOf(dp) : -1;
+    }""", [placeholder, nth])
+    if idx < 0:
+        idx = nth
+
+    def _open(k):
+        page.evaluate("""([i, k]) => document.querySelectorAll('.datePicker')[i]
+            .querySelectorAll('.datePickerSelectText')[k].click()""", [idx, k])
+        page.wait_for_timeout(300)
+
+    def _choose(label):
+        page.evaluate("""([i, label]) => {
+          const dp = document.querySelectorAll('.datePicker')[i];
+          const it = [...dp.querySelectorAll('.datePickerSelectMenu .menu')]
+            .find(e => e.textContent.trim() === label);
+          if (it) it.click();
+        }""", [idx, label])
+        page.wait_for_timeout(300)
+
+    _open(0); _choose("%d年" % y)
+    _open(1); _choose("%d月" % m)
+    page.evaluate("""([i, day]) => {
+      const dp = document.querySelectorAll('.datePicker')[i];
+      const cands = [...dp.querySelectorAll('div, span, li')].filter(e => {
+        if ((e.textContent || '').trim() !== day) return false;
+        const r = e.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && !e.closest('.datePickerSelectMenu');
+      });
+      if (cands.length) cands[cands.length - 1].click();
+    }""", [idx, str(d)])
+    page.wait_for_timeout(500)
+    return page.get_by_placeholder(placeholder).nth(nth).input_value()
+
+
+def fill_development(page, d):
+    cat = d.get("软件分类") or "应用软件"
+    if page.get_by_text("请选择软件分类", exact=True).count():
+        page.evaluate("""() => {
+          const t = [...document.querySelectorAll('span')]
+            .filter(e => (e.textContent || '').trim() === '请选择软件分类');
+          t[t.length - 1].closest('.box').click();
+        }""")
+        page.wait_for_timeout(700)
+        page.locator(".dropdown.large").get_by_text(cat, exact=True).click()
+        page.wait_for_timeout(400)
+    print("  ✓ 软件分类 = %s" % cat)
+
+    for key in ("软件说明", "开发方式"):
+        if d.get(key):
+            page.get_by_text(d[key], exact=True).first.click()
+            page.wait_for_timeout(300)
+            print("  ✓ %s = %s" % (key, d[key]))
+
+    if d.get("发表状态"):
+        page.get_by_text(d["发表状态"], exact=True).first.click()
+        page.wait_for_timeout(600)
+        print("  ✓ 发表状态 = %s" % d["发表状态"])
+
+    if d.get("开发完成日期"):
+        print("  ✓ 开发完成日期 = %s" % _pick_date(page, "请选择日期", d["开发完成日期"]))
+    if d.get("发表状态") == "已发表" and d.get("首次发表日期"):
+        page.wait_for_timeout(400)
+        nth = page.get_by_placeholder("请选择日期").count() - 1
+        print("  ✓ 首次发表日期 = %s" % _pick_date(page, "请选择日期", d["首次发表日期"], nth=nth))
+
+
+# ------------------------------------------------------------------ 第 3 步：软件功能与特点
+
+def fill_features(page, d):
+    """填第 3 步。文本域必须用真实键盘敲进去：JS 改 value 不会写进 Vue 的数据模型，
+    返回上一步就会全部清空（已踩坑）。"""
+    # ① 编程语言（多选）
+    langs = d.get("编程语言") or []
+    for lang in langs:
+        lab = page.locator("label.hd-checkbox-button", has_text=lang).first
+        lab.scroll_into_view_if_needed()
+        if not lab.locator("input").is_checked():
+            lab.click()
+            page.wait_for_timeout(150)
+        print("  ✓ 编程语言 %-10s 勾选=%s" % (lang, lab.locator("input").is_checked()))
+
+    # ② 源程序量
+    if d.get("源程序量"):
+        box = page.locator(".fillin_item").filter(has_text="源程序量").first
+        inp = box.locator("input").first
+        inp.click()
+        inp.fill(str(d["源程序量"]))
+        print("  ✓ 源程序量 = %s" % inp.input_value())
+
+    # ③ 各文本域（按「字段名 → 内容」逐项定位，含技术特点）
+    for label, val in (d.get("功能与特点") or {}).items():
+        if not val:
+            continue
+        item = page.locator(".fillin_item").filter(has_text=label).first
+        ta = item.locator("textarea").first
+        ta.scroll_into_view_if_needed()
+        ta.click()
+        page.keyboard.press("Meta+a")
+        page.keyboard.press("Backspace")
+        ta.press_sequentially(val, delay=0)
+        page.wait_for_timeout(80)
+        print("  ✓ %s（%d 字）" % (label, len(ta.input_value())))
+
+
+# ------------------------------------------------------------------ 数据
+
 def _load_form_data():
     if not os.path.exists(FORM_DATA):
         print("  ℹ️ 还没建 %s —— 先照《申请信息清单.md》把信息填成这个 JSON。" % os.path.basename(FORM_DATA))
@@ -313,6 +478,9 @@ def main():
     ap.add_argument("--list", action="store_true", help="打印当前页可点的按钮/链接文字")
     ap.add_argument("--fill", action="store_true", help="按 form_data.json 自动填表")
     ap.add_argument("--upload", action="store_true", help="按 form_data.json 上传两份 PDF")
+    ap.add_argument("--dev", action="store_true", help="填第 2 步「软件开发信息」（分类/说明/开发方式/日期/发表状态）")
+    ap.add_argument("--features", action="store_true", help="填第 3 步「软件功能与特点」（环境/语言/源程序量/各文本域）")
+    ap.add_argument("--login", action="store_true", help="把 form_data.json 里的账号密码填进登录框（登录按钮由你点）")
     ap.add_argument("--shot", action="store_true", help="截当前页存到 .autoshot/")
     ap.add_argument("--click", help="点一个文字按钮（找不到入口时用）")
     ap.add_argument("--goto", help="跳到某个网址（默认登记入口）")
@@ -361,8 +529,22 @@ def main():
             dump_form(page)
 
         data = {}
-        if args.fill or args.upload:
+        if args.fill or args.upload or args.login or args.dev or args.features:
             data = _load_form_data()
+
+        if args.login:
+            cred = data.get("login") or {}
+            if cred.get("user") and cred.get("password"):
+                login(page, cred["user"], cred["password"])
+                print("  👉 请在弹出的窗口里点「立即登录」（有验证码你补），登录成功后再跑 --dump。")
+            else:
+                print("  ℹ️ form_data.json 里没有 login.user / login.password。")
+
+        if args.dev:
+            fill_development(page, data)
+
+        if args.features:
+            fill_features(page, data)
 
         if args.fill:
             rules = data.get("fields") or []

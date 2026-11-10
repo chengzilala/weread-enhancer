@@ -1013,7 +1013,59 @@ async function handlePsMe(payload) {
     nickname: data.nickname || '',
     avatar: data.avatar || '',
     emailMasked: data.emailMasked || '',
+    phoneMasked: data.phoneMasked || '',
+    keys: normalizePsKeys(data.keys),
+    createdAt: Number(data.createdAt) || 0,
   };
+}
+
+/** 钥匙列表只保留展示用字段（账户中心本就只回掩码，这里再做一次白名单收口） */
+function normalizePsKeys(keys) {
+  if (!Array.isArray(keys)) {
+    return [];
+  }
+  return keys.slice(0, 20).map((k) => ({
+    kind: String((k && k.kind) || '').slice(0, 16),
+    provider: String((k && k.provider) || '').slice(0, 16),
+    masked: String((k && k.masked) || '').slice(0, 64),
+  }));
+}
+
+/** 我的作品：账户中心 me.products（登录即可用，未登记权限时按 active 返回） */
+async function handlePsProducts(payload) {
+  const token = cleanToken(payload && payload.token, 200);
+  if (!token) {
+    return { ok: false, code: 'novauth', error: '未登录' };
+  }
+  const res = await callPsAccount({ action: 'me.products' }, token);
+  if (!res.ok) {
+    return { ok: false, code: res.code || 'failed', error: res.message || '读取作品列表失败' };
+  }
+  const data = res.data || {};
+  const list = Array.isArray(data.products) ? data.products : [];
+  return {
+    ok: true,
+    products: list.slice(0, 50).map((p) => ({
+      appId: String((p && p.appId) || '').slice(0, 32),
+      name: String((p && p.name) || '').slice(0, 40),
+      url: String((p && p.url) || '').slice(0, 300),
+      status: String((p && p.status) || '').slice(0, 16),
+    })),
+  };
+}
+
+/** 注销账户：入参必须是逐字一致的「注销」，不可恢复；成功后前端清本机登录态 */
+async function handlePsDelete(payload) {
+  const token = cleanToken(payload && payload.token, 200);
+  if (!token) {
+    return { ok: false, code: 'novauth', error: '未登录' };
+  }
+  const res = await callPsAccount({ action: 'account.delete', confirm: '注销' }, token);
+  if (!res.ok) {
+    return { ok: false, code: res.code || 'failed', error: res.message || '注销失败，请稍后再试' };
+  }
+  const data = res.data || {};
+  return { ok: true, deleted: !!data.deleted };
 }
 
 /** 退出统一账户：只撤销这一条会话，不影响小程序自己的数据 */
@@ -1365,6 +1417,224 @@ async function handleH5Relay(body) {
     return got;
   }
   return await relayGateway({ apiName: body && body.apiName, params: (body && body.params) || {}, apiKey: got.key });
+}
+
+// ---------- M17：一次代拉素材池（性能 P0 的取数底座） ----------
+// 客户端过去逐个接口串行拉取（12–36 次云调用），这里改成一次调用内并发代拉，
+// 只返回「划线 / 想法原文 + 书目」，客户端自行存本机素材库。
+// 红线：不落库、不写原文日志、不缓存到服务端。
+
+const POOL_PLAN = {
+  daily: { books: 3, marks: 120, reviews: 40, reviewPages: 1, notebookPages: 2 },
+  wander: { books: 4, marks: 150, reviews: 60, reviewPages: 1, notebookPages: 2 },
+};
+const POOL_BOOK_MAX = 6;      // 单次最多代拉几本书（防超时 / 官方限流）
+const POOL_CONCURRENCY = 3;   // 同时拉几本书
+
+/** 限并发 map：并发数固定，结果保持原顺序 */
+async function mapLimit(items, limit, fn) {
+  const out = [];
+  const size = Math.max(1, Math.min(Number(limit) || 1, items.length));
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      out[index] = await fn(items[index], index);
+    }
+  };
+  const workers = [];
+  for (let i = 0; i < size; i += 1) {
+    workers.push(worker());
+  }
+  await Promise.all(workers);
+  return out;
+}
+
+/** 把客户端传来的书单归一为 [{bookId,title,author}]（兼容字符串数组） */
+function normalizePoolBooks(raw) {
+  const out = [];
+  (Array.isArray(raw) ? raw : []).forEach((item) => {
+    if (typeof item === 'string' && item.trim()) {
+      out.push({ bookId: item.trim(), title: '', author: '' });
+    } else if (item && typeof item.bookId === 'string' && item.bookId.trim()) {
+      out.push({
+        bookId: item.bookId.trim(),
+        title: String(item.title || ''),
+        author: String(item.author || ''),
+      });
+    }
+  });
+  return out;
+}
+
+/** 只读笔记列表（最多 maxPages 页），用于没传书单时兜底选书 + 概览计数 */
+async function fetchNotebooksPaged(apiKey, maxPages) {
+  const books = [];
+  let lastSort = 0;
+  let totalBookCount = 0;
+  let totalNoteCount = 0;
+  for (let page = 0; page < (maxPages || 2); page += 1) {
+    const params = { count: 100 };
+    if (lastSort) {
+      params.lastSort = lastSort;
+    }
+    const res = await relayGateway({ apiName: '/user/notebooks', params: params, apiKey: apiKey });
+    if (!res.ok) {
+      if (page === 0) {
+        return { ok: false, code: res.code, error: res.error };
+      }
+      break;
+    }
+    const data = res.data || {};
+    if (typeof data.totalBookCount === 'number') {
+      totalBookCount = data.totalBookCount;
+    }
+    if (typeof data.totalNoteCount === 'number') {
+      totalNoteCount = data.totalNoteCount;
+    }
+    const list = Array.isArray(data.books) ? data.books : [];
+    list.forEach((item) => {
+      const info = (item && item.book) || {};
+      books.push({
+        bookId: (item && item.bookId) || '',
+        title: info.title || '',
+        author: info.author || '',
+        noteCount: Number(item && item.noteCount) || 0,
+        reviewCount: Number(item && item.reviewCount) || 0,
+        bookmarkCount: Number(item && item.bookmarkCount) || 0,
+      });
+    });
+    if (!data.hasMore || !list.length) {
+      break;
+    }
+    lastSort = list[list.length - 1].sort;
+  }
+  const withNotes = books.filter((b) => b.bookId && (b.noteCount + b.reviewCount + b.bookmarkCount) > 0);
+  return {
+    ok: true,
+    books: withNotes,
+    overview: { totalBookCount: totalBookCount || books.length, totalNoteCount: totalNoteCount, books: withNotes },
+  };
+}
+
+/** 单本书：划线 + 想法（并发发出，失败不拖垮整池） */
+async function fetchBookPair(apiKey, bookId, plan) {
+  const marksRes = await relayGateway({ apiName: '/book/bookmarklist', params: { bookId: bookId }, apiKey: apiKey });
+  const marks = [];
+  if (marksRes && marksRes.ok && marksRes.data) {
+    const list = Array.isArray(marksRes.data.updated) ? marksRes.data.updated : [];
+    list.forEach((item) => {
+      const text = item && item.markText;
+      if (typeof text === 'string' && text.trim()) {
+        marks.push({ text: text.trim(), at: item.createTime || item.markTime || 0 });
+      }
+    });
+  }
+  const reviews = [];
+  let synckey = 0;
+  let more = true;
+  for (let page = 0; page < plan.reviewPages && more; page += 1) {
+    const res = await relayGateway({
+      apiName: '/review/list/mine',
+      params: { bookid: bookId, synckey: synckey, count: 50 },
+      apiKey: apiKey,
+    });
+    if (!res || !res.ok || !res.data) {
+      break;
+    }
+    const list = Array.isArray(res.data.reviews) ? res.data.reviews : [];
+    list.forEach((item) => {
+      const review = item && item.review;
+      if (review && typeof review.content === 'string' && review.content.trim()) {
+        reviews.push({ text: review.content.trim(), at: review.createTime || 0 });
+      }
+    });
+    synckey = res.data.synckey != null ? res.data.synckey : synckey;
+    more = Number(res.data.hasMore) === 1;
+  }
+  return {
+    bookId: bookId,
+    marks: marks.slice(0, plan.marks),
+    reviews: reviews.slice(0, plan.reviews),
+  };
+}
+
+/** 组装素材池（内存转发，不落库） */
+async function buildMaterialPool(apiKey, event) {
+  const e = event || {};
+  const mode = e.mode === 'wander' ? 'wander' : 'daily';
+  const plan = POOL_PLAN[mode];
+  const requested = normalizePoolBooks(e.books);
+  const books = requested.map((item) => item.bookId).slice(0, POOL_BOOK_MAX);
+  const meta = {};
+  requested.forEach((item) => {
+    if (item.bookId) {
+      meta[item.bookId] = item;
+    }
+  });
+
+  let overview = null;
+  if (!books.length) {
+    const notes = await fetchNotebooksPaged(apiKey, plan.notebookPages);
+    if (!notes.ok) {
+      return notes;
+    }
+    overview = notes.overview;
+    notes.books.forEach((book) => {
+      if (books.length >= plan.books) {
+        return;
+      }
+      books.push(book.bookId);
+      meta[book.bookId] = { title: book.title, author: book.author };
+    });
+  }
+  if (!books.length) {
+    return { ok: false, code: 'nocorpus', error: '暂无带笔记的书，暂时做不了每日卡片' };
+  }
+
+  const results = await mapLimit(books, POOL_CONCURRENCY, (bookId) => fetchBookPair(apiKey, bookId, plan));
+  const out = [];
+  results.forEach((item) => {
+    if (!item || (!item.marks.length && !item.reviews.length)) {
+      return;
+    }
+    const info = meta[item.bookId] || {};
+    out.push({
+      bookId: item.bookId,
+      title: info.title || '未命名',
+      author: info.author || '',
+      marks: item.marks,
+      reviews: item.reviews,
+    });
+  });
+  // 只记数量，不记任何原文
+  console.log('[wereadProxy] pool', mode, { books: out.length, requested: books.length });
+  return { ok: true, mode: mode, books: out, overview: overview };
+}
+
+async function handleMpPool(event) {
+  let apiKey = String((event && event.apiKey) || '').trim();
+  if (!apiKey) {
+    const uid = await resolveMpUid();
+    if (!uid) {
+      return { ok: false, code: 'noopenid', error: '未取到用户标识（需已开通云开发）' };
+    }
+    const got = await getHostedKey(uid, 'enc');
+    if (!got.ok) {
+      return got;
+    }
+    apiKey = got.key;
+  }
+  return await buildMaterialPool(apiKey, event);
+}
+
+async function handleH5Pool(body) {
+  const got = await getHostedKey(body && body.deviceId, 'enc');
+  if (!got.ok) {
+    return got;
+  }
+  return await buildMaterialPool(got.key, body);
 }
 
 /** H5 ai：用托管 DeepSeek Key 转发（deviceId 只用于用量统计的匿名聚合） */
@@ -1991,6 +2261,9 @@ async function handleHttp(event) {
   if (action === 'relay') {
     return httpReply(200, await handleH5Relay(body), origin);
   }
+  if (action === 'pool') {
+    return httpReply(200, await handleH5Pool(body), origin);
+  }
   if (action === 'ai') {
     return httpReply(200, await handleH5Ai(body), origin);
   }
@@ -2047,6 +2320,9 @@ exports.main = async (event) => {
   if (action === 'relay') {
     return await handleMpRelay(event);
   }
+  if (action === 'pool') {
+    return await handleMpPool(event);
+  }
   if (action === 'keySave') {
     return await handleMpKeySave(event);
   }
@@ -2091,6 +2367,12 @@ exports.main = async (event) => {
   }
   if (action === 'psMe') {
     return await handlePsMe(event);
+  }
+  if (action === 'psProducts') {
+    return await handlePsProducts(event);
+  }
+  if (action === 'psDelete') {
+    return await handlePsDelete(event);
   }
   if (action === 'psLogout') {
     return await handlePsLogout(event);

@@ -1834,3 +1834,16 @@
 - **验证**：`node --check` 通过（me.js / config.js）；本机静态服务 `http://localhost:18841/#/me` 中页面与 SDK 均 200；账户中心侧 `auth.ticket.issue` / CORS 预检对 `https://reader.chesterlee.cn` 均通过。
 - **待办**：① 本机预览确认卡片样式（真实 Chrome 打开 `#/me`）；② 已 `web/build.py` 重建并 `rsync` 到腾讯云轻量 `/srv/chesterlee/reader/`（线上 `/`、`/app/`、`/app/assets/ps-auth.js`、`/app/src/config.js` 均 200，`me.js` 含 `meUnified`）；③ 插件侧接入与小程序 openid → uid（阶段 4）。
 - **风险/注意事项**：`h5/assets/ps-auth.js` 是副本，SDK 改动要回 `account-center/sdk/ps-auth.js` 母本再同步；发布方式已改为 rsync（`push ≠ 上线`），见《部署上线备案》§2.1；本次未 `git commit`。
+
+---
+
+## 2026-11-05 会话条目：M17 数据缓存与素材库（小程序 / H5 双端落地）
+
+- **目标**：解决「每日卡片弹窗 / 灵感漫游慢」与「漫游长期只围绕一本书」。根因已定论：慢＝每次生成**串行 12–36 次云函数调用**（不是没上云）；单一＝**只取笔记最多的前 5 本 + 同主题 ≥6 条门槛 + 去重只到句子级**。
+- **方案（用户确认）**：**本机素材库 7 天 + 增量刷新 + 云函数 `action:'pool'` 一次代拉**；官方划线 / 想法原文**仍只存本机**（`wre_material_v1`），`pool` 只在云函数内存中转、不落库不写原文日志。
+- **改动 · 小程序**：新增 `shared/material-store.js`；`shared/daily-data.js` 重写（素材库优先 → `callPool` 增量 → 合并 → 失败沿用旧数据）；`shared/data.js` 加 `seedNotebooksBrief`；`shared/wander-data.js` 走笔记缓存 + `mode:'wander'`；`daily-generate.js` / `pages/daily` / `pages/wander` 接新入参与批量 `markUsed`；`pages/home` 改为**成功展示后**才写「今天已弹过」。选材核心 `daily-core.js` / `wander-core.js` 加跨书硬约束、单本配额、30 天冷却、文章级 hash；两个 store 加 `selectionOpts` / `pullTodayCard`，删 `resetUsed` / `lastTheme`。
+- **改动 · H5**：`config.POOL_TIMEOUT_MS`、`api.pool`、`data` 三个 notebooks 函数、新增 `core/material-store.js`、重写 `core/daily-data.js` / `wander-data.js`、`core/daily-core.js` / `wander-core.js` 同步选材规则、两个 store 同步滑动窗口、`core/daily-generate.js` 与 `views/daily.js` / `views/wander.js` 接新链路。
+- **改动 · 云函数**：`wereadProxy` 新增 `action:'pool'`（`POOL_PLAN` 并发取数、`POOL_BOOK_MAX=6`、`POOL_CONCURRENCY=3`），HTTP 与小程序双入口；`config.json` 加 `timeout: 20`。
+- **验证**：小程序 13 个文件、H5 14 个文件（转 `.mjs`）`node --check` 全部通过；全仓 grep 确认 `resetUsed` / `lastTheme` 无残留引用。
+- **待办**：① **重新部署云函数 `wereadProxy`**（否则 `pool` 落空）；② 真机验收 9.6（卡片 ≤3s / 漫游 ≤4s / 二次 ≤500ms / 调用 ≤2 次）；③ 连续使用后验收 10.7（7 天卡片 ≥3 本书、3 期漫游 ≥3 本书、30 天无重复划线）；④ 本次改动未 `git commit`。
+

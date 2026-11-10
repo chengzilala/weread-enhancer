@@ -366,15 +366,33 @@ a:hover { text-decoration: underline; }
 .footer-inner {
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: 24px 20px 32px;
-  font-size: 1em;
+  padding: 26px 20px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.footer-links {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 24px;
+  gap: 4px 24px;
+  font-size: 14px;
 }
-.footer-links { display: flex; flex-wrap: wrap; gap: 16px; }
-.footer-meta { margin: 0 0 0 auto; color: var(--text-soft); font-size: 1em; }
+.footer-links a {
+  color: var(--text-soft);
+  transition: color .15s ease;
+}
+.footer-links a:hover { color: var(--accent); text-decoration: none; }
+.footer-meta {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.9;
+}
+.footer-meta a {
+  color: var(--text-soft);
+  transition: color .15s ease;
+}
+.footer-meta a:hover { color: var(--accent); text-decoration: none; }
 
 /* ---------- 移动端 ---------- */
 @media (max-width: 860px) {

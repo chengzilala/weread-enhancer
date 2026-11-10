@@ -129,7 +129,7 @@ Page({
 
   // ---- 每日卡片：每天首次打开自动弹窗 ----
 
-  // 当天首次打开才弹：以本机日期为准，弹过即记录，切 Tab / 重进不再弹
+  // 当天首次打开才弹：以本机日期为准；「弹过」只在**成功展示卡片后**才记录（失败可再试）
   maybeDailyPopup(hasKey) {
     if (this.data.showDaily || !hasKey) {
       return;
@@ -144,16 +144,10 @@ Page({
     if (shown === today) {
       return;
     }
-    // 先落记录，避免重复触发；当天无论成功与否都只弹这一次
-    try {
-      wx.setStorageSync(DAILY_POPUP_KEY, today);
-    } catch (e) {
-      // 本机存储失败不阻断弹窗
-    }
     this.openDailyPopup();
   },
 
-  // 打开弹窗并确保今天有一张卡片（本机已有则直接展示）
+  // 打开弹窗并确保今天有一张卡片（本机已有则直接展示；云端已有则秒开）
   async openDailyPopup() {
     this.setData({
       showDaily: true,
@@ -164,6 +158,12 @@ Page({
     });
     const res = await ensureTodayCard();
     if (res.ok) {
+      // M17：成功展示后才写「今天已弹过」，生成失败当天还能再弹
+      try {
+        wx.setStorageSync(DAILY_POPUP_KEY, dateKey());
+      } catch (e) {
+        // 本机存储失败不阻断弹窗
+      }
       this.setData({ dailyLoading: false, dailyCard: res.view, dailyError: '' });
     } else if (res.reason === 'material') {
       this.setData({
@@ -277,7 +277,7 @@ Page({
       stats: (view.metrics || []).slice(0, 4).map((m) => ({ label: m.label, value: m.value })),
       lines: (view.trend && view.trend.peak) ? ['峰值：' + view.trend.peak.label + ' · ' + view.trend.peak.time] : [],
       chips: (view.categories || []).slice(0, 6).map((c) => c.name),
-      footer: (profile.nickName ? profile.nickName + ' · ' : '') + '悦读且住 · 本机计算',
+      footer: (profile.nickName ? profile.nickName + ' · ' : '') + '悦读且住 · 微信小程序',
     };
   },
 

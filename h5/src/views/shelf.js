@@ -116,42 +116,12 @@ function bodyHtml(shelf, notebooks, fromCache) {
     );
   }
 
-  // 按官方分组（只读数据，篇幅较长，放在两块数字概览之后）
+  // 按官方分组（只读数据，放在两块数字概览之后）
   if (shelf) {
     const block = groupsHtml(shelf);
     if (block) {
       parts.push(block);
     }
-  }
-
-  // 电子书列表（前 20 本，按最近阅读时间）
-  if (shelf && shelf.books && shelf.books.length) {
-    const books = shelf.books.slice().sort((a, b) => (b.readUpdateTime || 0) - (a.readUpdateTime || 0)).slice(0, 20);
-    parts.push(
-      '<div class="wre-card"><div class="wre-card__title">电子书（最近 ' + books.length + ' 本）</div>' +
-      books.map((b) =>
-        '<div class="wre-book">' +
-        (b.cover ? '<img class="wre-book__cover" loading="lazy" src="' + esc(b.cover) + '" alt="">' : '<div class="wre-book__cover wre-book__cover--ph"></div>') +
-        '<div class="wre-book__meta"><div class="wre-book__title">' + esc(b.title || '未命名') + '</div>' +
-        '<div class="wre-hint">' + esc(b.author || '') + (b.category ? ' · ' + esc(b.category) : '') + '</div></div>' +
-        (Number(b.finishReading) === 1 ? '<span class="wre-tag">已读完</span>' : '') +
-        '</div>').join('') +
-      '</div>'
-    );
-  }
-
-  // 专辑列表
-  if (shelf && shelf.albums && shelf.albums.length) {
-    parts.push(
-      '<div class="wre-card"><div class="wre-card__title">专辑 / 有声书</div>' +
-      shelf.albums.slice(0, 20).map((a) =>
-        '<div class="wre-book">' +
-        (a.cover ? '<img class="wre-book__cover" loading="lazy" src="' + esc(a.cover) + '" alt="">' : '<div class="wre-book__cover wre-book__cover--ph"></div>') +
-        '<div class="wre-book__meta"><div class="wre-book__title">' + esc(a.name || '未命名') + '</div>' +
-        '<div class="wre-hint">' + esc(a.authorName || '') + '</div></div>' +
-        '</div>').join('') +
-      '</div>'
-    );
   }
 
   if (!parts.length) {
@@ -168,42 +138,40 @@ function bodyHtml(shelf, notebooks, fromCache) {
   return parts.join('');
 }
 
-/** 按官方分组（只读）：只列出每组「组名 + 数量」，不展示组内书目 */
+/** 按官方分组（只读）：组名 + 本数做成胶囊，一行多个 */
 function groupsHtml(shelf) {
   const groups = Array.isArray(shelf.groups) ? shelf.groups : [];
   if (!groups.length) {
     return '';
   }
-  const rows = [];
+  const chips = [];
   groups.forEach((g) => {
     const count = Number(g.count) || 0;
     if (count > 0) {
-      rows.push(groupRowHtml(g.name, count));
+      chips.push(chipHtml(g.name, count));
     }
   });
   const ungrouped = ungroupedCount(shelf);
   if (ungrouped > 0) {
-    rows.push(groupRowHtml('未分组', ungrouped));
+    chips.push(chipHtml('未分组', ungrouped));
   }
-  if (!rows.length) {
+  if (!chips.length) {
     return '';
   }
   return '<div class="wre-card"><div class="wre-card__title">按官方分组</div>' +
-    '<div class="wre-grouplist">' + rows.join('') + '</div>' +
+    '<div class="wre-chips">' + chips.join('') + '</div>' +
     '<div class="wre-hint">官方分组为只读数据，来自你的微信读书官方书架。</div>' +
     '</div>';
 }
 
-/** 未归入任何官方分组的条目数（书 + 专辑动态计算） */
+/** 未归入任何官方分组的图书数 */
 function ungroupedCount(shelf) {
-  const countOf = (list) => (Array.isArray(list) ? list : []).filter((it) => !(Array.isArray(it.groups) && it.groups.length)).length;
-  return countOf(shelf.books) + countOf(shelf.albums);
+  const list = Array.isArray(shelf.books) ? shelf.books : [];
+  return list.filter((it) => !(Array.isArray(it.groups) && it.groups.length)).length;
 }
 
-function groupRowHtml(name, count) {
-  return '<div class="wre-grouprow">' +
-    '<span class="wre-grouprow__name">' + esc(name) + '</span>' +
-    '<span class="wre-grouprow__count">' + count + ' 本</span></div>';
+function chipHtml(name, count) {
+  return '<span class="wre-chip">' + esc(name) + '<em>' + count + ' 本</em></span>';
 }
 
 function item(label, value) {

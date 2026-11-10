@@ -1,38 +1,56 @@
 <view class="wre-page {{wreDark ? 'wre-dark' : ''}}" style="--wre-fs:{{wreFs}}">
 
-  <!-- 1. 登录与同步：统一账户 / 关联网页 / 云端备份 合成一张卡（首位展示） -->
+  <!-- 1. 我的账户：账户区置顶（我是谁 / 账户安全）+ 关联与备份 -->
   <view class="wre-card">
-    <view class="wre-title">登录与同步</view>
-    <view class="wre-muted">换手机或重新安装，用这里的任一方式找回同一个账号。</view>
+    <view class="wre-title">我的账户</view>
 
-    <!-- 统一账户：不再折叠，直接展开 -->
-    <view class="wre-row wre-row--static">
-      <text class="wre-row__label">统一账户</text>
-      <text class="wre-row__val">{{psUser ? '已登录' : '未登录'}}</text>
-    </view>
-    <view class="wre-acc">
-      <block wx:if="{{psUser}}">
-        <view class="ps-row">
-          <image class="ps-avatar" wx:if="{{psUser.avatar}}" src="{{psUser.avatar}}" mode="aspectFill" />
-          <view class="ps-avatar ps-avatar--empty" wx:else>{{psInitial}}</view>
-          <view class="ps-main">
-            <text class="ps-nick">{{psUser.nickname || '微信用户'}}</text>
-            <text class="ps-uid">一个 uid 管所有作品（官网 / H5 / 小程序）</text>
+    <block wx:if="{{psUser}}">
+      <view class="ps-row">
+        <image class="ps-avatar" wx:if="{{psUser.avatar}}" src="{{psUser.avatar}}" mode="aspectFill" />
+        <view class="ps-avatar ps-avatar--empty" wx:else>{{psInitial}}</view>
+        <view class="ps-main">
+          <text class="ps-nick">{{psUser.nickname || '微信用户'}}</text>
+          <text class="ps-uid">UID {{psUid}} · 一个 uid 管所有作品</text>
+        </view>
+      </view>
+      <view class="wre-btn-row">
+        <button class="wre-btn wre-btn--ghost" bindtap="copyAccount">账户中心</button>
+        <button class="wre-btn wre-btn--ghost" loading="{{psBusy}}" bindtap="onPsLogout">退出</button>
+      </view>
+
+      <!-- 账户安全：登录方式 / 绑定 / 注销 -->
+      <view class="wre-row {{openSec === 'security' ? 'is-open' : ''}}" data-sec="security" bindtap="onToggleSec">
+        <text class="wre-row__label">账户安全</text>
+        <text class="wre-row__val">登录方式 · 绑定 · 注销</text>
+        <text class="wre-row__arrow">{{openSec === 'security' ? '▴' : '▾'}}</text>
+      </view>
+      <view wx:if="{{openSec === 'security'}}" class="wre-acc">
+        <view class="params">
+          <view class="params__row" wx:for="{{psKeys}}" wx:key="masked">
+            <text class="params__label">{{item.label}}</text>
+            <text class="params__value">{{item.masked}}</text>
+          </view>
+          <view class="params__row" wx:if="{{!psKeys.length}}">
+            <text class="params__label">登录方式</text>
+            <text class="params__value">微信</text>
           </view>
         </view>
+        <view class="wre-muted">想把微信绑到你网页端已有的账户？先在浏览器打开 account.chesterlee.cn 登录并「生成登录码」，再回这里输入 6 位数字。</view>
         <view class="wre-btn-row">
-          <button class="wre-btn wre-btn--ghost" bindtap="copyAccount">进入账户中心</button>
-          <button class="wre-btn wre-btn--ghost" loading="{{psBusy}}" bindtap="onPsLogout">退出</button>
+          <button class="wre-btn wre-btn--ghost" bindtap="onPsBind">6 位码绑定</button>
+          <button class="wre-btn wre-btn--ghost" bindtap="copyAccount">账户中心</button>
         </view>
-      </block>
-      <block wx:else>
-        <view class="wre-muted">登录后同一个身份走遍官网、H5 与小程序；与本机账户码、云端 Key 互不影响。</view>
-        <view class="wre-btn-row">
-          <button class="wre-btn" loading="{{psBusy}}" bindtap="onPsLogin">微信一键登录</button>
-        </view>
-        <view class="ps-bind" bindtap="onPsBind">已有账户？用 6 位登录码绑定 →</view>
-      </block>
-    </view>
+        <view class="acc-danger" bindtap="onPsDelete">{{psDeleting ? '正在注销…' : '注销账户（不可恢复）'}}</view>
+      </view>
+    </block>
+
+    <block wx:else>
+      <view class="wre-muted">登录后同一个身份走遍官网、H5 与小程序；与本机账户码、云端 Key 互不影响。</view>
+      <view class="wre-btn-row">
+        <button class="wre-btn" loading="{{psBusy}}" bindtap="onPsLogin">微信一键登录</button>
+      </view>
+      <view class="ps-bind" bindtap="onPsBind">已有账户？用 6 位登录码绑定 →</view>
+    </block>
 
     <view class="wre-row" bindtap="goLink">
       <text class="wre-row__label">关联网页账户 · 跨设备登录</text>
@@ -114,7 +132,7 @@
     </view>
   </view>
 
-  <!-- 3. 更多：设置 / 装到桌面 / 相关入口 / 打赏 全部收成一行入口 -->
+  <!-- 3. 更多：设置 / 装到桌面 / 相关入口 / 反馈与交流 全部收成一行入口 -->
   <view class="wre-card">
     <view class="wre-title">更多</view>
 
@@ -221,28 +239,15 @@
       <text class="wre-row__arrow">›</text>
     </view>
 
-    <view class="wre-row {{openSec === 'donate' ? 'is-open' : ''}}" data-sec="donate" bindtap="onToggleSec">
-      <text class="wre-row__label">💗 打赏支持</text>
-      <text class="wre-row__arrow">{{openSec === 'donate' ? '▴' : '▾'}}</text>
+    <view class="wre-row {{openSec === 'feedback' ? 'is-open' : ''}}" data-sec="feedback" bindtap="onToggleSec">
+      <text class="wre-row__label">💬 反馈与交流</text>
+      <text class="wre-row__arrow">{{openSec === 'feedback' ? '▴' : '▾'}}</text>
     </view>
-    <view wx:if="{{openSec === 'donate'}}" class="wre-acc">
-      <view class="wre-muted">如果它帮到了你，欢迎随喜支持一杯咖啡。每一笔打赏都会公开登记在名单里，欢迎监督。</view>
-      <view class="donate-codes">
-        <view class="donate-code">
-          <image class="donate-qr" src="{{donateWechat}}" mode="aspectFit" lazy-load="{{true}}" />
-          <text class="donate-label">微信</text>
-        </view>
-        <view class="donate-code">
-          <image class="donate-qr" src="{{donateAlipay}}" mode="aspectFit" lazy-load="{{true}}" />
-          <text class="donate-label">支付宝</text>
-        </view>
-      </view>
-      <view class="settings-link" bindtap="copyDonate">
-        <view class="settings-link__main">
-          <text class="settings-link__label">查看打赏名单</text>
-          <text class="settings-link__desc">复制链接，到浏览器粘贴访问</text>
-        </view>
-        <text class="settings-link__arrow">›</text>
+    <view wx:if="{{openSec === 'feedback'}}" class="wre-acc">
+      <view class="wre-muted">使用中遇到问题，或有想法想聊？扫码加我的微信，直接告诉我。</view>
+      <view class="feedback-code">
+        <image class="feedback-qr" src="{{feedbackQr}}" mode="widthFix" show-menu-by-longpress="{{true}}" />
+        <text class="feedback-label">扫一扫，添加我的微信</text>
       </view>
     </view>
 
@@ -279,9 +284,8 @@
     </view>
   </view>
 
-  <!-- 页尾：退出登录（弱化）+ 运行日志（调试） -->
+  <!-- 页尾：退出登录（弱化） -->
   <view class="wre-foot">
     <view class="wre-foot__btn" bindtap="onSignOut">{{signingOut ? '正在退出…' : '退出登录'}}</view>
-    <view class="log-entry" bindtap="copyLogs">运行日志 · 点此复制</view>
   </view>
 </view>

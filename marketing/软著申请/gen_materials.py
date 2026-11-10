@@ -22,7 +22,7 @@ import glob
 import subprocess
 
 # ======================= 可改配置 =======================
-SOFTWARE_NAME = "悦读浏览器阅读增强扩展软件"  # 软著全称：不要含「微信」等他人商标
+SOFTWARE_NAME = "悦读阅读增强软件套件"          # 软著全称：不要含「微信」等他人商标
 SOFTWARE_VERSION = "1.0"                      # 软著登记版本号：首版填 1.0（与产品版本号无关）
 AUTHOR = "chengzilala"                        # 著作权人：提交时建议填真实姓名
 LINES_PER_PAGE = 50                           # 软著要求：源程序每页不少于 50 行
@@ -50,6 +50,20 @@ SRC_FILES = [
     "modules/reviews.js",
     "modules/telemetry.js",
     "background.js",
+    # ---- 套件其它端：H5 移动端 ----
+    "h5/src/api.js",
+    "h5/src/store.js",
+    "h5/src/core/persona-core.js",
+    "h5/src/core/report-core.js",
+    "h5/src/core/daily-core.js",
+    "h5/src/views/persona.js",
+    # ---- 套件其它端：小程序 ----
+    "mobile/miniprogram/app.js",
+    "mobile/miniprogram/shared/store.js",
+    "mobile/miniprogram/shared/sync.js",
+    "mobile/miniprogram/shared/persona-core.js",
+    # ---- 套件其它端：云函数 ----
+    "mobile/cloudfunctions/wereadProxy/index.js",
 ]
 
 # 站内教程目录（手册内容来源）

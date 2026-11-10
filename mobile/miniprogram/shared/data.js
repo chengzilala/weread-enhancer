@@ -11,6 +11,8 @@ const { notebookStats } = require('./report-core');
 
 const OVERVIEW_CACHE_KEY = 'wre_overview_cache';
 const OVERVIEW_TTL_MS = 30 * 60 * 1000;   // 书架 + 笔记概览缓存：30 分钟（与周期无关，变动慢）
+const NOTEBOOKS_CACHE_KEY = 'wre_notebooks_cache';
+const NOTEBOOKS_TTL_MS = 24 * 60 * 60 * 1000; // 素材库取书用的笔记列表：24 小时（M17）
 const CORPUS_CACHE_KEY = 'wre_persona_corpus_cache';
 const CORPUS_TTL_MS = 10 * 60 * 1000;     // 语料缓存：10 分钟
 
@@ -184,6 +186,49 @@ async function fetchOverview(apiKey, force) {
   return { ok: true, fromCache: false, shelf: shelf, notebooks: notebooks };
 }
 
+// ---- 笔记列表（24 小时缓存，供素材库选书；不带书架，省一次调用）----
+async function fetchNotebooksBrief(apiKey, force) {
+  if (!force) {
+    const cached = readCache(NOTEBOOKS_CACHE_KEY);
+    if (cached && cached.notebooks && (Date.now() - (cached.at || 0)) < NOTEBOOKS_TTL_MS) {
+      return { ok: true, fromCache: true, notebooks: cached.notebooks };
+    }
+  }
+  const res = await fetchNotebooks(apiKey);
+  if (!res.ok) {
+    return res;
+  }
+  writeCache(NOTEBOOKS_CACHE_KEY, { at: Date.now(), notebooks: res });
+  return { ok: true, fromCache: false, notebooks: res };
+}
+
+// ---- 只读笔记列表缓存（绝不发请求）：给素材库选书用，省掉首次代拉前的额外调用 ----
+function peekNotebooksBrief() {
+  const cached = readCache(NOTEBOOKS_CACHE_KEY);
+  if (cached && cached.notebooks && (Date.now() - (cached.at || 0)) < NOTEBOOKS_TTL_MS) {
+    return { ok: true, fromCache: true, notebooks: cached.notebooks };
+  }
+  return { ok: false, code: 'nocache' };
+}
+
+/** 用云函数代拉返回的概览补种笔记缓存：省掉下次选书前的 /user/notebooks 调用 */
+function seedNotebooksBrief(overview) {
+  const books = overview && Array.isArray(overview.books) ? overview.books : [];
+  if (!books.length) {
+    return;
+  }
+  writeCache(NOTEBOOKS_CACHE_KEY, {
+    at: Date.now(),
+    notebooks: {
+      ok: true,
+      totalBookCount: Number(overview.totalBookCount) || books.length,
+      totalNoteCount: Number(overview.totalNoteCount) || 0,
+      books: books,
+      truncated: false,
+    },
+  });
+}
+
 // ---- 书架 + 笔记概览：只读本机缓存，绝不发请求（供首页懒加载 B 档）----
 function peekOverview() {
   const cached = readCache(OVERVIEW_CACHE_KEY);
@@ -298,6 +343,9 @@ function writeCache(key, value) {
 module.exports = {
   fetchReadData,
   fetchNotebooks,
+  fetchNotebooksBrief,
+  peekNotebooksBrief,
+  seedNotebooksBrief,
   fetchOverview,
   peekOverview,
   fetchBookMarks,

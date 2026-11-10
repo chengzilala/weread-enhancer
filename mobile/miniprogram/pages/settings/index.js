@@ -39,7 +39,7 @@ Page({
     codeBusy: false,
     restoring: false,
 
-    // 折叠区（同一时间只展开一个）：'' | cloud | keyguide | prefs | desktop | links | donate | about | params
+    // 折叠区（同一时间只展开一个）：'' | cloud | keyguide | prefs | desktop | links | feedback | about | params
     openSec: '',
     params: [],
 
@@ -75,9 +75,8 @@ Page({
       },
     ],
 
-    // 打赏支持：两条收款码（走官网 CDN，不占小程序包体）
-    donateWechat: LINKS.site + '/app/assets/img/donate/wechat.png',
-    donateAlipay: LINKS.site + '/app/assets/img/donate/alipay.png',
+    // 反馈与交流：仅一张作者微信二维码（随包内置；小程序内不得出现打赏 / 收款码）
+    feedbackQr: '/assets/feedback/wechat.png',
 
     // 管理员看板入口（M13）：由云函数判定，仅你的账号显示
     isAdmin: false,
@@ -87,9 +86,12 @@ Page({
     linked: false,
 
     // 统一账户（account-center）：与本机 Key / 账户码并存，互不影响
-    psUser: null,     // { uid, nickname, avatar, emailMasked }
+    psUser: null,     // { uid, nickname, avatar, emailMasked, phoneMasked, keys }
     psInitial: '',    // 没头像时显示昵称首字
+    psUid: '',        // uid 前 8 位（完整 uid 不上屏）
+    psKeys: [],       // 登录方式（只含掩码）
     psBusy: false,    // 登录 / 退出进行中
+    psDeleting: false, // 注销进行中
 
     // 文字大小（全局缩放，四档）
     wreFs: 1,
@@ -167,9 +169,17 @@ Page({
 
   paintPs(user) {
     const nick = (user && user.nickname) || '';
+    const uid = (user && user.uid) || '';
+    const kindLabel = { email: '邮箱', phone: '手机号', device: '账户码', oauth: '第三方' };
+    const keys = (user && Array.isArray(user.keys) ? user.keys : []).map((k) => ({
+      label: (kindLabel[k.kind] || '其他') + (k.provider ? ' · ' + k.provider : ''),
+      masked: k.masked || '',
+    }));
     this.setData({
       psUser: user || null,
       psInitial: nick ? Array.from(nick)[0] : '微',
+      psUid: uid ? uid.slice(0, 8) : '',
+      psKeys: keys,
     });
   },
 
@@ -195,6 +205,8 @@ Page({
         }
         logger.log('psauth', '登录成功', { isNew: res.isNew });
         this.paintPs(res.user);
+        // 登录结果不含登录方式与掩码，后台再拉一次完整资料（失败不影响已登录状态）
+        this.refreshPs();
         wx.showToast({ title: res.isNew ? '账户已创建' : '已登录', icon: 'success' });
       })
       .catch((err) => {
@@ -244,6 +256,7 @@ Page({
             }
             logger.log('psauth', '绑定成功');
             this.paintPs(r.user);
+            this.refreshPs();
             wx.showToast({ title: '已绑定', icon: 'success' });
           })
           .catch((err) => {
@@ -281,23 +294,72 @@ Page({
     });
   },
 
-  copyAccount() {
-    this.copyLink(LINKS.account, '统一账户中心');
-  },
-
-  /** 调试：把最近日志复制出来（真机排查用，不涉及任何 Key / Token） */
-  copyLogs() {
-    const text = logger.dump(30) || '（暂无日志）';
-    wx.setClipboardData({
-      data: text,
-      success: () => {
+  /**
+   * 注销统一账户：两步确认（第二步必须手打「注销」两个字），不可恢复。
+   * 只注销统一账户；本机 Key / 账户码 / 云端托管的阅读数据不走这一步。
+   */
+  onPsDelete() {
+    if (this.data.psDeleting) {
+      return;
+    }
+    wx.showModal({
+      title: '注销统一账户',
+      content: '注销后不可恢复：登录方式、昵称头像、账户里的数据会一并删除。只想退出登录请点「退出」，别点这里。',
+      confirmText: '继续',
+      confirmColor: '#E54545',
+      success: (first) => {
+        if (!first.confirm) {
+          return;
+        }
         wx.showModal({
-          title: '最近日志已复制',
-          content: text.slice(-260),
-          showCancel: false,
+          title: '最后确认',
+          editable: true,
+          placeholderText: '输入「注销」两个字',
+          confirmText: '注销账户',
+          confirmColor: '#E54545',
+          success: (second) => {
+            if (!second.confirm) {
+              return;
+            }
+            if (String(second.content || '').trim() !== '注销') {
+              wx.showToast({ title: '输入不匹配，已取消', icon: 'none' });
+              return;
+            }
+            this.doPsDelete();
+          },
         });
       },
     });
+  },
+
+  doPsDelete() {
+    this.setData({ psDeleting: true });
+    logger.log('psauth', '尝试注销统一账户');
+    psauth
+      .remove()
+      .then((r) => {
+        this.setData({ psDeleting: false });
+        if (!r.ok) {
+          logger.error('psauth', '注销失败', { code: r.code, error: r.error });
+          wx.showModal({
+            title: '注销失败' + (r.code ? '（' + r.code + '）' : ''),
+            content: r.error || '请稍后再试',
+            showCancel: false,
+          });
+          return;
+        }
+        logger.log('psauth', '注销成功');
+        this.paintPs(null);
+        wx.showToast({ title: '账户已注销', icon: 'success' });
+      })
+      .catch((err) => {
+        logger.error('psauth', '注销异常', err);
+        this.setData({ psDeleting: false });
+      });
+  },
+
+  copyAccount() {
+    this.copyLink(LINKS.account, '统一账户中心');
   },
 
   /** 取回关联状态与账户码（凭证） */
@@ -567,10 +629,6 @@ Page({
 
   copyPersonal() {
     this.copyLink(LINKS.personal, '我的个人网站');
-  },
-
-  copyDonate() {
-    this.copyLink(LINKS.donate, '打赏名单');
   },
 
   copyLink(url, name) {

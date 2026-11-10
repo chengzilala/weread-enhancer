@@ -17,6 +17,11 @@ const QUOTA_KEY = 'wre_daily_quota';
 
 const HISTORY_MAX = 30;   // 本机最多保留卡片数（回看）
 const REGEN_LIMIT = 3;    // 每日「重新生成」上限（限流控成本）
+const COOLDOWN_DAYS = 30; // 同一划线 30 天内不重复进正文（M17）
+const RECENT_HASH_DAYS = 7; // 最近 7 天用过的 hash 一律避让（M17）
+const USED_DAYS = 90;     // 已用集合滑动窗口：只保留最近 90 天（M17）
+const USED_MAX = 1000;    // 已用集合滑动窗口：最多保留 1000 条（M17）
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 // ---- 本机读写 ----
 function readJson(key, fallback) {
@@ -37,25 +42,108 @@ function writeJson(key, value) {
 }
 
 // ---- 已用素材（连续多日不重复）----
+
+/** 滑动窗口：只留最近 USED_DAYS 天、最多 USED_MAX 条；不清空历史 */
+function pruneUsed(used) {
+  const cutoff = Date.now() - USED_DAYS * DAY_MS;
+  const pairs = Object.keys(used)
+    .map((key) => [key, Number(used[key]) || 0])
+    .filter((pair) => pair[1] >= cutoff)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, USED_MAX);
+  const out = {};
+  pairs.forEach((pair) => { out[pair[0]] = pair[1]; });
+  return out;
+}
+
 function getUsed() {
   const value = readJson(USED_KEY, {});
   return value && typeof value === 'object' ? value : {};
 }
 
-function markUsed(text) {
+/** 记一批素材为「已用」；接受 ['文本'] / [{text}] / 单条文本 */
+function markUsed(list) {
   const used = getUsed();
-  used[hashKey(text)] = Date.now();
-  writeJson(USED_KEY, used);
-  backupSilent();
-}
-
-function resetUsed() {
-  writeJson(USED_KEY, {});
+  const now = Date.now();
+  (Array.isArray(list) ? list : [list]).forEach((item) => {
+    const text = item && typeof item === 'object' ? item.text : item;
+    if (text) {
+      used[hashKey(text)] = now;
+    }
+  });
+  writeJson(USED_KEY, pruneUsed(used));
   backupSilent();
 }
 
 function usedCount() {
   return Object.keys(getUsed()).length;
+}
+
+/** 最近 N 天用过的所有 hash（文章级 + 已用集合），供选材避让 */
+function getRecentHashes(days) {
+  const limit = Date.now() - (Number(days) || RECENT_HASH_DAYS) * DAY_MS;
+  const out = {};
+  listCards().forEach((card) => {
+    const at = Number(card && card.createdAt) || 0;
+    if (!at || at < limit) {
+      return;
+    }
+    const hashes = Array.isArray(card.hashes) ? card.hashes : [];
+    if (hashes.length) {
+      hashes.forEach((hash) => { out[hash] = at; });
+    } else if (card.quote && card.quote.text) {
+      out[hashKey(card.quote.text)] = at;
+    }
+  });
+  const used = getUsed();
+  Object.keys(used).forEach((key) => {
+    if (Number(used[key]) >= limit) {
+      out[key] = Number(used[key]);
+    }
+  });
+  return out;
+}
+
+/** 最近 N 天「当主素材」的次数 {bookId: count}：同一本书 30 天内最多 2 次（M17） */
+function getRecentMainBookIds(days) {
+  const limit = Date.now() - (Number(days) || COOLDOWN_DAYS) * DAY_MS;
+  const out = {};
+  listCards().forEach((card) => {
+    const at = Number(card && card.createdAt) || 0;
+    const bookId = card && card.quote && card.quote.bookId;
+    if (!bookId || !at || at < limit) {
+      return;
+    }
+    out[bookId] = (out[bookId] || 0) + 1;
+  });
+  return out;
+}
+
+/** 最近 N 天用过的主题（每日卡片用；避免连续同主题） */
+function getRecentThemes(days) {
+  const limit = Date.now() - (Number(days) || RECENT_HASH_DAYS) * DAY_MS;
+  const out = [];
+  listCards().forEach((card) => {
+    const at = Number(card && card.createdAt) || 0;
+    if (!at || at < limit) {
+      return;
+    }
+    (card.themes || []).forEach((theme) => {
+      if (out.indexOf(theme) < 0) {
+        out.push(theme);
+      }
+    });
+  });
+  return out;
+}
+
+/** 选材入参（页面 / 自动弹窗统一口径） */
+function selectionOpts() {
+  return {
+    recentHashes: getRecentHashes(RECENT_HASH_DAYS),
+    recentMainBookIds: getRecentMainBookIds(COOLDOWN_DAYS),
+    avoidThemes: getRecentThemes(RECENT_HASH_DAYS),
+  };
 }
 
 // ---- 每日「重新生成」限流 ----
@@ -144,6 +232,35 @@ function backupSilent() {
   udata.backupSilent(udata.KIND.DAILY, cloudSnapshot());
 }
 
+/** 从云端只取「今天」这张卡片（换机 / 清缓存后首页弹窗秒开；失败静默返回 null） */
+function pullTodayCard() {
+  return udata.get(udata.KIND.DAILY).then((res) => {
+    if (!res.ok || !res.value || !Array.isArray(res.value.cards)) {
+      return null;
+    }
+    const today = dateKey();
+    let card = null;
+    for (let i = 0; i < res.value.cards.length; i += 1) {
+      if (res.value.cards[i] && res.value.cards[i].date === today) {
+        card = res.value.cards[i];
+        break;
+      }
+    }
+    if (!card) {
+      return null;
+    }
+    if (!getTodayCard()) {
+      const cards = listCards().filter((item) => item && item.date !== card.date);
+      cards.unshift(card);
+      writeJson(CARDS_KEY, { cards: cards.slice(0, HISTORY_MAX) });
+    }
+    if (res.value.used && typeof res.value.used === 'object' && !usedCount()) {
+      writeJson(USED_KEY, res.value.used);
+    }
+    return card;
+  }).catch(() => null);
+}
+
 /** 从云端恢复（仅本机无卡片时写入，避免覆盖本机较新数据）→ { ok, restored, count } */
 function restoreFromCloud() {
   return udata.get(udata.KIND.DAILY).then((res) => {
@@ -173,8 +290,11 @@ module.exports = {
   REGEN_LIMIT,
   getUsed,
   markUsed,
-  resetUsed,
   usedCount,
+  getRecentHashes,
+  getRecentMainBookIds,
+  getRecentThemes,
+  selectionOpts,
   regenLeft,
   bumpRegen,
   listCards,
@@ -183,5 +303,6 @@ module.exports = {
   getCardById,
   starCard,
   backupSilent,
+  pullTodayCard,
   restoreFromCloud,
 };
