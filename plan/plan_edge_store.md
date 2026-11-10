@@ -369,7 +369,7 @@ The extension is open source: https://github.com/chengzilala/weread-enhancer
 | 审核状态 | ✅ **已上线**（Live，2026-10-27 复核后台显示 0.30.2 Live） |
 | 待办 | 已闭环；商店详情页 `https://microsoftedge.microsoft.com/addons/detail/nkcckbonpafeclefhlhbencibkaabmgb` |
 
-### v0.30.4｜正在审阅（2026-10-27）
+### v0.30.4｜已上线（2026-10-27 提交）
 | 项 | 记录 |
 |---|---|
 | 提交版本 | **v0.30.4** |
@@ -378,11 +378,23 @@ The extension is open source: https://github.com/chengzilala/weread-enhancer
 | 上次商店版本 | v0.30.2（Live） |
 | 本次要点 | 0.30.3 / 0.30.4 累计：AI 成本埋点（云函数 `wre_ai_usage` + `usage/tier` 透传）、模型切 `deepseek-flash`（`background.js` / `modules/official.js` 预设 + `aiNormalizeModel()` 兼容旧名）、关闭 deepseek 思考模式（`thinking:{type:'disabled'}`，仅对 `api.deepseek.com` 生效） |
 | 处理动作 | ① 当天无在审版本 → 从 Live v0.30.2 点「更新」建草稿；② 程序包「替换」注入 v0.30.4（本地 CORS 服务 8999 + DataTransfer，显示「已完成 / 已验证当前程序包」）；③ 隐私页只读复核：主机权限理由 548/1000 覆盖 9 条域名（含 `reader.chesterlee.cn`、`*.tcloudbase.com`）、远程代码=否、3 项数据披露已勾选，无 red 报错；④ 各板块接口全 ready、整体校验 Valid；⑤ 提交审核 |
-| 审核状态 | ⏳ **正在审阅（In review）**，预计 7 个工作日；线上仍为 0.30.2 |
+| 审核状态 | ✅ **已上线**（Live；2026-11-10 复核后台显示 0.30.4 Live） |
 | 备注 | 本版起 `publish-edge-store` 技能改为「校验全绿自动点发布」，不再停在发布前等人工点击 |
 
+### v0.32.0｜正在审阅（2026-11-10）
+| 项 | 记录 |
+|---|---|
+| 提交版本 | **v0.32.0** |
+| 提交日期 | 2026-11-10 |
+| 提交包 | `release/weread-enhancer-v0.32.0.zip`（`pack.py` 打包，41 个运行文件，1,419,865 字节；包内 `manifest.json` 版本 = 0.32.0 已校验） |
+| 上次商店版本 | v0.30.4（Live） |
+| 本次要点 | M17 素材库缓存（7 天 + 增量刷新）+ 云函数一次代拉、选材跨书约束 / 单本配额 / 30 天冷却、书架 / 我的 / 人格主卡精简、统一账户与账户安全、云函数切 `deepseek-flash` 并记录 `tier` |
+| 处理动作 | ① 线上 0.30.4、无在审版本 → 概览页「更新」建草稿；② 程序包页 `input[type=file].set_input_files()` 直接注入 v0.32.0（显示「已完成 / 已验证当前程序包」，权限表与 manifest 一致）；③ 隐私页只读复核：单一用途 230 字、storage 148 字、主机权限 548 字（覆盖 9 条 + 可选 `https://*/*`）、隐私 URL 75 字、远程代码=否、3 项披露已勾，无红字；④ 属性页 高效工作 / 官网 / 支持邮箱不变；⑤ 提交页默认选中「需要凭据」，改为「不需要，测试人员无需任何附加信息…」后发布按钮启用 → 点「发布」，转「正在发布」→「正在审阅」 |
+| 浏览器方式 | 真实 Google Chrome（`--remote-debugging-port=9222` + 独立 profile `~/.chesterlee/chrome-automation`，登录态留存），Playwright `connect_over_cdp` 接管；未使用内置 Chromium |
+| 审核状态 | ⏳ **正在审阅（In review）**，预计 7 个工作日；线上仍为 0.30.4 |
+
 ### ⏭️ 下一步
-> v0.30.4 在审；通过后回填 Live 版本（届时线上 = 0.30.4）。
+> v0.32.0 在审；通过后回填 Live 版本（届时线上 = 0.32.0），并复核「上次更新日期」。
 > 每次发布前仍建议按最新 `manifest.json` 复核隐私页「主机权限理由」是否覆盖全部域名（当前 9 条：`i.weread.qq.com` / `api.deepseek.com` / `dashscope.aliyuncs.com` / `api.moonshot.cn` / `open.bigmodel.cn` / `ark.cn-beijing.volces.com` / `api.siliconflow.cn` / `reader.chesterlee.cn` / `*.tcloudbase.com` + 可选 `https://*/*`）。
 
 ---
