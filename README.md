@@ -5,6 +5,8 @@
 专为微信读书网页版（weread.qq.com）打造的阅读增强浏览器扩展。
 
 > **域名 / 备案 / 上线**：统一记在 [部署上线备案/README.md](../部署上线备案/README.md)（唯一台账），本文不重复；线上页脚已挂 `陇ICP备2026009894号-2` + `甘公网安备62052302000062号`（含公安部官方图标，2026-10-28 通过）。
+>
+> **项目总索引**：[INDEX.md](INDEX.md) —— 线上资产、目录职责、哪些必须保留、常用命令、敏感文件清单一页看完。
 
 <p>
   <a href="https://microsoftedge.microsoft.com/addons/detail/%E5%BE%AE%E4%BF%A1%E6%82%A6%E8%AF%BB/nkcckbonpafeclefhlhbencibkaabmgb"><img src="https://img.shields.io/badge/Microsoft%20Edge-立即安装-2F6BFF?logo=microsoftedge&logoColor=white" alt="从 Microsoft Edge 加载项商店安装"></a>
@@ -152,7 +154,7 @@
 ├── release/               # 🚀 上线
 │   ├── privacy.md
 │   ├── 360-素材/           #    360 商店上传素材（560×350 效果图 / 图标 / 功能说明）
-│   └── weread-enhancer-v0.15.0.zip
+│   └── weread-enhancer-v<版本号>.zip   #    由 pack.py 生成
 │
 ├── screenshots/           # 📸 截图与展示素材
 │   ├── 素材清单.md         #    总纲：分类 + 功能→图片对照 + 缺口（先看这份）
@@ -166,6 +168,10 @@
 ├── usage/                 # 📖 使用指南
 │   ├── Running.md
 │   └── GitHub操作手册.md
+│
+├── archive/               # 🗃️ 归档：已结束使命、仅留痕的内容（规则见 archive/README.md）
+│
+├── INDEX.md               # 🧭 项目总索引（线上资产 / 目录职责 / 必留清单 / 常用命令）
 │
 └── inbox/                 # 📥 待归类
 ```

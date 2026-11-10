@@ -1,7 +1,7 @@
 /* 全局设计 Token（唯一来源）：各模块只引用 var(--wre-*)，不在此重复定义 */
 :root {
-  --wre-primary: #07c160;      /* 品牌主色 */
-  --wre-primary-soft: #e8f5e9; /* 品牌主色的浅色底（选中态 / 高亮） */
+  --wre-primary: #1b4b3a;      /* 品牌主色（墨绿） */
+  --wre-primary-soft: #edf4f0; /* 品牌主色的浅色底（选中态 / 高亮） */
   --wre-bg: #ffffff;
   --wre-border: #e0e0e0;
   --wre-text: #333333;
@@ -16,8 +16,8 @@
 /* 外观主题档（B 档）：深色只覆盖与浅色不同的值，其余沿用上方默认。
    data-wre-theme 由 content.js 挂在 <html> 上；「跟随系统」时自动解析为 light / dark。 */
 :root[data-wre-theme="dark"] {
-  --wre-primary: #07c160;
-  --wre-primary-soft: #1e3a29;
+  --wre-primary: #57a387;
+  --wre-primary-soft: #16302a;
   --wre-bg: #26272b;
   --wre-border: #3c3d42;
   --wre-text: #e6e6e8;

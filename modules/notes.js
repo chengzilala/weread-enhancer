@@ -1810,7 +1810,7 @@
   // 导出样式：与「阅读统计」报表保持同一套视觉语言（绿色主色 / 卡片 / 打印优化）
   function notesReportStyles() {
     return [
-      ':root{--accent:#07c160;--accent-soft:#e8f8ef;--ink:#1f2328;--ink-2:#5b6570;--line:#e8ebe9;--bg:#f4f6f5}',
+      ':root{--accent:#1b4b3a;--accent-soft:#edf4f0;--ink:#1f2328;--ink-2:#5b6570;--line:#e8ebe9;--bg:#f4f6f5}',
       '*{box-sizing:border-box}',
       'html,body{margin:0;padding:0}',
       'body{background:var(--bg);color:var(--ink);font:14px/1.75 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}',
@@ -1946,9 +1946,9 @@
     const style = {
       h1: 'font-size:19px;margin:0 0 6px;line-height:1.5;',
       meta: 'font-size:12px;color:#6b7280;margin:0 0 16px;',
-      h2: 'font-size:15px;margin:20px 0 8px;padding-bottom:4px;border-bottom:1px solid #e8ebe9;color:#07c160;',
+      h2: 'font-size:15px;margin:20px 0 8px;padding-bottom:4px;border-bottom:1px solid #e8ebe9;color:#1b4b3a;',
       h3: 'font-size:13.5px;margin:14px 0 6px;',
-      quote: 'margin:0 0 6px;padding:6px 10px;border-left:3px solid #07c160;background:#f6f8f7;color:#4b5563;font-size:13px;',
+      quote: 'margin:0 0 6px;padding:6px 10px;border-left:3px solid #1b4b3a;background:#f6f8f7;color:#4b5563;font-size:13px;',
       text: 'margin:0 0 4px;',
       time: 'display:block;margin:2px 0 12px;font-size:12px;color:#9ca3af;',
     };

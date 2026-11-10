@@ -858,7 +858,7 @@
 
   function reportStyles() {
     return [
-      ':root{--accent:#07c160;--accent-soft:#e8f8ef;--ink:#1f2328;--ink-2:#5b6570;--line:#e8ebe9;--bg:#f4f6f5}',
+      ':root{--accent:#1b4b3a;--accent-soft:#edf4f0;--ink:#1f2328;--ink-2:#5b6570;--line:#e8ebe9;--bg:#f4f6f5}',
       '*{box-sizing:border-box}',
       'html,body{margin:0;padding:0}',
       'body{background:var(--bg);color:var(--ink);font:14px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}',

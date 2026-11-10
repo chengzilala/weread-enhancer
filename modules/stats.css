@@ -57,7 +57,7 @@
 #wre-stats-modal .wre-stats-progress-value {
   flex: none;
   font-weight: 600;
-  color: var(--wre-primary, #07c160);
+  color: var(--wre-primary, #1b4b3a);
 }
 
 #wre-stats-modal .wre-stats-progress-track {
@@ -72,7 +72,7 @@
 #wre-stats-modal .wre-stats-progress-fill {
   display: block;
   height: 100%;
-  background: var(--wre-primary, #07c160);
+  background: var(--wre-primary, #1b4b3a);
   border-radius: 4px;
 }
 
@@ -172,7 +172,7 @@
 #wre-stats-modal .wre-stats-bar-fill {
   display: block;
   height: 100%;
-  background: var(--wre-primary, #07c160);
+  background: var(--wre-primary, #1b4b3a);
   border-radius: 4px;
 }
 

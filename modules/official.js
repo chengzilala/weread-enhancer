@@ -282,7 +282,7 @@
       return '';
     }
     const ink = (mode === 'canvas') ? '#1f2328' : 'currentColor';
-    const accent = '#07c160';
+    const accent = '#1b4b3a';
     const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" fill="none" stroke-linecap="round" stroke-linejoin="round">' +
       PERSONA_FIGURE_FRAME + (part.back || '') + PERSONA_FIGURE_HEAD + (part.front || '') +
       '</svg>';
@@ -1426,8 +1426,8 @@
     const FONT = '-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
     const INK = '#1f2328';
     const INK2 = '#5b6570';
-    const ACCENT = '#07c160';
-    const ACCENT_SOFT = '#e8f8ef';
+    const ACCENT = '#1b4b3a';
+    const ACCENT_SOFT = '#edf4f0';
     const LINE = '#e8ebe9';
     const MAXW = W - PAD * 2;
 
@@ -5283,7 +5283,7 @@
     if (!container || !container.querySelectorAll) {
       return;
     }
-    const COLORS = { accent: '#07c160', soft: '#e8f8ef', line: '#e8ebe9', ink: '#1f2328', ink2: '#5b6570' };
+    const COLORS = { accent: '#1b4b3a', soft: '#edf4f0', line: '#e8ebe9', ink: '#1f2328', ink2: '#5b6570' };
     const nodes = container.querySelectorAll('.wre-chart');
     if (!nodes.length) {
       return;
@@ -5776,7 +5776,7 @@
 
   function reportStyles() {
     return [
-      ':root{--accent:#07c160;--accent-soft:#e8f8ef;--ink:#1f2328;--ink-2:#5b6570;--line:#e8ebe9;--bg:#f4f6f5;--warn:#b8860b}',
+      ':root{--accent:#1b4b3a;--accent-soft:#edf4f0;--ink:#1f2328;--ink-2:#5b6570;--line:#e8ebe9;--bg:#f4f6f5;--warn:#b8860b}',
       '*{box-sizing:border-box}',
       'html,body{margin:0;padding:0}',
       'body{background:var(--bg);color:var(--ink);font:14px/1.7 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}',

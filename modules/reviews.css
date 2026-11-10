@@ -14,7 +14,7 @@
   --rv-hover: #f5f5f5;
   --rv-tag-bg: #f0f0f0;
   --rv-abstract-bg: #f7f8fa;
-  --rv-accent: #07c160;
+  --rv-accent: #1b4b3a;
   /* 顶部避让阅读页顶栏（否则面板头部会被顶栏压住）；由 reviews.js 实测顶栏高度写入 */
   --wre-rv-top: 0px;
   position: fixed;
