@@ -4,7 +4,7 @@
 - 仓库名称：weread-enhancer
 - 可见性：private
 - 本地目录：/Users/Admin/Knowledge/Coding/微信读书插件
-- 当前归档版本：v0.30.0（2026-10-16；**笔记同步**：新增 `modules/sync-notes.*`；**Key 加密托管**：小程序 `shared/keyvault.js` / `udata.js`；**分享图统一水印**：三端 13 处署名统一为 `微信悦读 · reader.chesterlee.cn`；小程序新增 `wre-landing` 组件；商店素材与 `screenshots/promo` 重生成；新增 `marketing/` 与 `tools/` 运营资产）
+- 当前归档版本：v0.32.0（2026-11-10；**素材库缓存 + 一次代拉**：新增 `material-store`（H5 / 小程序），云函数 `action:'pool'`；**选材规则**：跨书硬约束 / 单本配额 / 30 天冷却 / 文章级 hash；**页面精简**：书架 / 我的 / 人格主卡；**云函数**：关闭思考模式、切 `deepseek-flash`、记录 `tier`；同时补打 v0.31.5）
 
 ## 归档历史（Git Tags）
 
@@ -41,6 +41,8 @@
 | v0.28.2 | d0cf1b9 | 2026-10-14 | **域名切换自有域名**：官网 / H5 / 小程序 / 扩展统一改用 `reader.chesterlee.cn`（官网 / H5）与 `chesterlee.cn`（作者站），原 `*.maozi.io` 降为备用；**打赏公开名单**：官网新增 `/donate/` 页（`web/build.py` 新增 `render_donate_page()` / `load_donate()` / `fmt_amount()` / `avatar_color()`）+ 本地登记后台 `web/admin.py` + 数据 `web/donate.json` + 收款码图（`web|h5/assets/img/donate/`）；插件 `modules/support-center.js`、H5「我的」、小程序 `pages/settings/*` 均加跳转入口；`fix(h5)` 分享短链 `shareUrlOf` 固定用 `config.SITE_URL`；manifest 落到 `0.28.2` |
 | v0.29.0 | 57fab50 | 2026-10-14 | **官网改版（flomo 大图流）**：`web/build.py` 的 `render_home` 重写，首页标题区大留白 + 大图流上下排布，内容一个不少；`web/assets/site.css` 调色板 flomo 化（底 `#F2F2F2` / 品牌绿 `#1a8917` / `max-width:1200px`）；**顶栏精简为 4 项**（帮助文档 / 图库 / 关于 / 打赏）+ 右侧「登录」+ 绿色胶囊「装到 Edge」（`site.config.json` 的 `nav` 13 → 4，`render_nav()` 重写）；**新增帮助文档站 `/docs/`**（VuePress 原味：`web/templates/docs.html` + `web/assets/docs.css` + `docs.tree` 左栏 emoji 目录树、正文 740px、上/下页、移动端抽屉）；**官网 / 文档站分家**（`SITE_SLUGS` + `DOCS_DIR`，内容页统一进 `/docs/…`）；**40 个旧地址自动跳转**（`write_redirect()`）；`modules/help.js` 帮助中心入口改指 `/docs/`；删除 `web/demo/`；manifest 落到 `0.29.0` |
 | v0.30.0 | ce8e1ae | 2026-10-16 | 一个提交归档 v0.29.0 之后累积：**扩展笔记同步**（新增 `modules/sync-notes.js` + `sync-notes.css`，在 manifest 注册，`content.js` 一处菜单分流）；**API Key 改服务端加密托管**（小程序 `shared/keyvault.js` / `udata.js`，用户数据落云 `wre_udata`、Key 加密托管 `wre_users`，H5 同步）；**分享图统一「产品出处」水印**（三端 13 处署名统一为 `微信悦读 · reader.chesterlee.cn`）；小程序新增 `components/wre-landing/` 落地组件与多页更新；360 / 微软商店素材与 `screenshots/promo` 全部重生成；新增 `marketing/`（小红书 / 知乎 / 少数派 / 微信读书 App 渠道文案配图、发帖规范、软著申请材料）与 `tools/`（发帖 / 抓图脚本）；`.gitignore` 排除软著个人信息与生成产物；manifest 落到 `0.30.0` |
+| v0.31.5 | f5d0ffa | 2026-11-10（补记 2026-10-30） | **阅读人格档案升级**（主卡只留一句解释，四维佐证 / 数据样本 / 来源收进「完整依据」页，三端）；**统一账户**（插件 / H5 / 小程序接入 `account.chesterlee.cn` uid，与账户码、Key 托管并存）；小程序「我的」与 H5 我的页精简；高频词 TOP10 去重 / 排序修复；manifest 落到 `0.31.5`。此前只更新线上站点与小程序、未打 tag，本次补打 |
+| v0.32.0 | 1c76062 | 2026-11-10 | **素材库缓存 + 一次代拉（M17）**：新增 `material-store`（H5 `src/core` / 小程序 `shared`），云函数 `action:'pool'` 并发代拉（超时 20s），客户端只发 1 次；**选材**：跨书硬约束 / 单本配额 / 30 天冷却 / 文章级 hash；书架 / 我的 / 人格主卡精简；云函数关闭思考模式、切 `deepseek-flash`、记录 `tier`；文档回灌（version_plan / 更新日志 / README）；manifest 落到 `0.32.0` |
 
 **未打 Tag 的版本**：
 - v0.8.0（无独立提交）：商店追平版，改动未单独提交，已并入 v0.8.1 提交 `aecf919`；因无独立 commit，不单独补 tag。
